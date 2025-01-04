@@ -257,7 +257,7 @@
 		(remove_unused_layers no)
 		(uuid "fe85a1a1-fd57-4175-8767-cff30e641652")
 	)
-	(model "${KIPRJMOD}/MyParts.pretty/LED_PUSH_BUTTON.step"
+	(model "${KIPRJMOD}/BMCV.pretty/LED_PUSH_BUTTON.step"
 		(offset
 			(xyz 0 0 0)
 		)

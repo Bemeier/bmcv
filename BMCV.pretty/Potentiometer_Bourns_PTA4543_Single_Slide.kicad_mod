@@ -456,7 +456,7 @@
 		(remove_unused_layers no)
 		(uuid "ee649958-2335-4480-97c8-e0ebc31f6688")
 	)
-	(model "${KIPRJMOD}/MyParts.pretty/PTA4543-2015DPB103--3DModel-STEP-269445.STEP"
+	(model "${KIPRJMOD}/BMCV.pretty/PTA4543-2015DPB103--3DModel-STEP-269445.STEP"
 		(offset
 			(xyz 29.25 -1.75 0)
 		)

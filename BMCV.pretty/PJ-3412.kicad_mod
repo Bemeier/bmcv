@@ -174,7 +174,7 @@
 		(remove_unused_layers no)
 		(uuid "31a8fcd5-7aaa-4db9-b98c-04ea889aed02")
 	)
-	(model "${KIPRJMOD}/MyParts.pretty/PJ-3412.step"
+	(model "${KIPRJMOD}/BMCV.pretty/PJ-3412.step"
 		(offset
 			(xyz 0 0 0)
 		)

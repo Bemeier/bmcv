@@ -312,7 +312,7 @@
 		(remove_unused_layers no)
 		(uuid "3bd418ce-f62f-45b7-9411-5a831c7d75f2")
 	)
-	(model "${KIPRJMOD}/MyParts.pretty/PS60-10MC1BR10K.step"
+	(model "${KIPRJMOD}/BMCV.pretty/PS60-10MC1BR10K.step"
 		(offset
 			(xyz 36.90000097 -1.749999974 3.289999912)
 		)

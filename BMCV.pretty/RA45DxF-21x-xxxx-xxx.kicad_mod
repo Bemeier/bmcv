@@ -289,7 +289,7 @@
 		(remove_unused_layers no)
 		(uuid "9809168e-22e1-4c84-b0e5-c3d666bcba46")
 	)
-	(model "${KIPRJMOD}/MyParts.pretty/RA45D2F-21x-20D1-xxx.step"
+	(model "${KIPRJMOD}/BMCV.pretty/RA45D2F-21x-20D1-xxx.step"
 		(offset
 			(xyz 0 0 0)
 		)

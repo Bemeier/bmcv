@@ -424,7 +424,7 @@
 		(remove_unused_layers no)
 		(uuid "855860d1-e62b-4d0a-8715-832d002d3c4f")
 	)
-	(model "${KIPRJMOD}/MyParts.pretty/PEL12D-4226G-S2024.step"
+	(model "${KIPRJMOD}/BMCV.pretty/PEL12D-4226G-S2024.step"
 		(offset
 			(xyz 0 0 0)
 		)

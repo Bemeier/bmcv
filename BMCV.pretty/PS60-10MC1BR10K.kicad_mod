@@ -1,4 +1,4 @@
-(footprint "CataclystPanel"
+(footprint "PS60-10MC1BR10K"
 	(version 20240108)
 	(generator "pcbnew")
 	(generator_version "8.0")
@@ -7,7 +7,7 @@
 		(at 0 -0.5 0)
 		(unlocked yes)
 		(layer "F.SilkS")
-		(uuid "81c16779-a2f6-4e48-9f07-85c0d68ae8d1")
+		(uuid "a7c8c32a-4116-455a-a6e6-e20b4b60740e")
 		(effects
 			(font
 				(size 1 1)
@@ -15,11 +15,11 @@
 			)
 		)
 	)
-	(property "Value" "CataclystPanel"
+	(property "Value" "PS60-10MC1BR10K"
 		(at 0 1 0)
 		(unlocked yes)
 		(layer "F.Fab")
-		(uuid "fcfc5794-b224-4997-b542-f034f212a144")
+		(uuid "45132059-060d-4be5-b090-40dc19199c4a")
 		(effects
 			(font
 				(size 1 1)
@@ -32,7 +32,7 @@
 		(unlocked yes)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "ac1fe6f3-ee66-424d-8e8b-f21dbb4e19e4")
+		(uuid "f0ad0c5b-55f6-4d7f-b075-ecb6580aa575")
 		(effects
 			(font
 				(size 1 1)
@@ -45,7 +45,7 @@
 		(unlocked yes)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "4726155c-5c1c-46c5-9900-4b8b4bc882db")
+		(uuid "99468fea-ec37-43dc-9d8e-0eb6fe80820f")
 		(effects
 			(font
 				(size 1 1)
@@ -58,7 +58,7 @@
 		(unlocked yes)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "58b5d99e-ddc5-4c30-9d49-2b789d31029a")
+		(uuid "43204da5-ec62-4547-b7a6-5b23fb6c3516")
 		(effects
 			(font
 				(size 1 1)
@@ -66,11 +66,12 @@
 			)
 		)
 	)
+	(attr through_hole)
 	(fp_text user "${REFERENCE}"
 		(at 0 2.5 0)
 		(unlocked yes)
 		(layer "F.Fab")
-		(uuid "4bdfa81f-4908-49ba-a88c-3f544823c822")
+		(uuid "0df27fdd-461c-4afe-80f6-7f422c5278e3")
 		(effects
 			(font
 				(size 1 1)
@@ -78,29 +79,15 @@
 			)
 		)
 	)
-	(pad "" np_thru_hole circle
-		(at -36.975 33.75)
-		(size 4.5 4.5)
-		(drill 3.2)
-		(layers "F&B.Cu")
-		(uuid "8fa1c217-2b97-4a68-805e-5a2bca06a03d")
-	)
-	(pad "" np_thru_hole circle
-		(at 36.975 33.75)
-		(size 4.5 4.5)
-		(drill 3.2)
-		(layers "F&B.Cu")
-		(uuid "462f2195-c08e-44fa-bd28-c8985a643f00")
-	)
-	(model "${KIPRJMOD}/MyParts.pretty/CataclystPanel.step"
+	(model "${KIPRJMOD}/BMCV.pretty/PS60-10MC1BR10K.step"
 		(offset
-			(xyz 0 0 10)
+			(xyz 0 0 2.75)
 		)
 		(scale
 			(xyz 1 1 1)
 		)
 		(rotate
-			(xyz 0 0 0)
+			(xyz -90 0 0)
 		)
 	)
 )

@@ -215,7 +215,7 @@
 		(thermal_bridge_angle 45)
 		(uuid "5bc0838e-211f-44e2-a902-663e6331627a")
 	)
-	(model "${KIPRJMOD}/MyParts.pretty/TC002-N11BXXX-RGB.step"
+	(model "${KIPRJMOD}/BMCV.pretty/TC002-N11BXXX-RGB.step"
 		(offset
 			(xyz 0 0 0)
 		)

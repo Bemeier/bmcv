@@ -597,7 +597,7 @@
 	(net 452 "EXP_SCLK")
 	(net 453 "EXP_MOSI")
 	(net 454 "EXP_MISO")
-	(footprint "MyParts:PEL12T-4xxxS-S1024"
+	(footprint "BMCV:PEL12T-4xxxS-S1024"
 		(layer "F.Cu")
 		(uuid "0057a6f3-70ce-4bc9-ae0e-fe4d16a87bb6")
 		(at 102.5 68)
@@ -625,7 +625,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:PEL12T-4xxxS-S1024"
+		(property "Footprint" "BMCV:PEL12T-4xxxS-S1024"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -1091,7 +1091,7 @@
 			(pintype "passive+no_connect")
 			(uuid "f650718b-0ce1-4e7b-a465-077e057dc236")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/PEL12T-4xxxS-S1024.step"
+		(model "${KIPRJMOD}/BMCV.pretty/PEL12T-4xxxS-S1024.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -1102,7 +1102,7 @@
 				(xyz 0 0 0)
 			)
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/EncoderShaftNoBushing.step"
+		(model "${KIPRJMOD}/BMCV.pretty/EncoderShaftNoBushing.step"
 			(opacity 0.8000)
 			(offset
 				(xyz 0 0 0)
@@ -1115,7 +1115,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:TC002-N11AXXX-RGB"
+	(footprint "BMCV:TC002-N11AXXX-RGB"
 		(layer "F.Cu")
 		(uuid "03fe77db-faae-4880-8985-afccdcd1fb5d")
 		(at 75.75 122.5 90)
@@ -1143,7 +1143,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:TC002-N11AXXX-RGB"
+		(property "Footprint" "BMCV:TC002-N11AXXX-RGB"
 			(at 0 0 90)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -1334,7 +1334,7 @@
 			(pintype "input")
 			(uuid "551b45d1-329d-438c-b3cb-7e2999eced4e")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/TC002-N11AXXX-RGB.step"
+		(model "${KIPRJMOD}/BMCV.pretty/TC002-N11AXXX-RGB.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -1345,7 +1345,7 @@
 				(xyz 0 0 0)
 			)
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/S2.step"
+		(model "${KIPRJMOD}/BMCV.pretty/S2.step"
 			(opacity 0.8400)
 			(offset
 				(xyz 0 0 0)
@@ -1358,7 +1358,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:PEL12T-4xxxS-S1024"
+	(footprint "BMCV:PEL12T-4xxxS-S1024"
 		(layer "F.Cu")
 		(uuid "11126853-b750-418b-98db-1f6dffccb5c1")
 		(at 85.5 86 180)
@@ -1386,7 +1386,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:PEL12T-4xxxS-S1024"
+		(property "Footprint" "BMCV:PEL12T-4xxxS-S1024"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -1852,7 +1852,7 @@
 			(pintype "passive+no_connect")
 			(uuid "56966898-f7da-42c1-a6b0-6630fe59b68b")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/PEL12T-4xxxS-S1024.step"
+		(model "${KIPRJMOD}/BMCV.pretty/PEL12T-4xxxS-S1024.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -1863,7 +1863,7 @@
 				(xyz 0 0 0)
 			)
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/EncoderShaftNoBushing.step"
+		(model "${KIPRJMOD}/BMCV.pretty/EncoderShaftNoBushing.step"
 			(opacity 0.8000)
 			(offset
 				(xyz 0 0 0)
@@ -1876,7 +1876,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:TC002-N11AXXX-RGB"
+	(footprint "BMCV:TC002-N11AXXX-RGB"
 		(layer "F.Cu")
 		(uuid "1292c660-5c46-453f-866d-d18f9ee74611")
 		(at 81.5 133.5)
@@ -1904,7 +1904,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:TC002-N11AXXX-RGB"
+		(property "Footprint" "BMCV:TC002-N11AXXX-RGB"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -2095,7 +2095,7 @@
 			(pintype "input")
 			(uuid "b0b4b071-995a-4234-b100-07571a6ad5db")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/TC002-N11AXXX-RGB.step"
+		(model "${KIPRJMOD}/BMCV.pretty/TC002-N11AXXX-RGB.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -2106,7 +2106,7 @@
 				(xyz 0 0 0)
 			)
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/S2.step"
+		(model "${KIPRJMOD}/BMCV.pretty/S2.step"
 			(opacity 0.8400)
 			(offset
 				(xyz 0 0 0)
@@ -2119,7 +2119,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
+	(footprint "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
 		(layer "F.Cu")
 		(uuid "1ce5ab9d-5774-44e9-af86-81c514347252")
 		(at 102.5 35 -90)
@@ -2147,7 +2147,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
+		(property "Footprint" "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
 			(at 0 -6.48 -90)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -2472,7 +2472,7 @@
 				)
 			)
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/WQP-PJ398SM.step"
+		(model "${KIPRJMOD}/BMCV.pretty/WQP-PJ398SM.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -2484,7 +2484,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:PEL12T-4xxxS-S1024"
+	(footprint "BMCV:PEL12T-4xxxS-S1024"
 		(layer "F.Cu")
 		(uuid "2ca23575-17d7-46a3-a822-094428c26ed0")
 		(at 37.5 86 180)
@@ -2512,7 +2512,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:PEL12T-4xxxS-S1024"
+		(property "Footprint" "BMCV:PEL12T-4xxxS-S1024"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -2978,7 +2978,7 @@
 			(pintype "passive+no_connect")
 			(uuid "65890aec-27a6-4b08-bb61-e22ae6f93aa5")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/PEL12T-4xxxS-S1024.step"
+		(model "${KIPRJMOD}/BMCV.pretty/PEL12T-4xxxS-S1024.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -2989,7 +2989,7 @@
 				(xyz 0 0 0)
 			)
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/EncoderShaftNoBushing.step"
+		(model "${KIPRJMOD}/BMCV.pretty/EncoderShaftNoBushing.step"
 			(opacity 0.8000)
 			(offset
 				(xyz 0 0 0)
@@ -3002,7 +3002,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:TC002-N11AXXX-RGB"
+	(footprint "BMCV:TC002-N11AXXX-RGB"
 		(layer "F.Cu")
 		(uuid "36775b33-f958-40d1-a946-1f31aa5a78fc")
 		(at 64.25 122.5 90)
@@ -3030,7 +3030,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:TC002-N11AXXX-RGB"
+		(property "Footprint" "BMCV:TC002-N11AXXX-RGB"
 			(at 0 0 90)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -3221,7 +3221,7 @@
 			(pintype "input")
 			(uuid "b14d34d7-0782-4b65-b5ac-d7fb560b7831")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/TC002-N11AXXX-RGB.step"
+		(model "${KIPRJMOD}/BMCV.pretty/TC002-N11AXXX-RGB.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -3232,7 +3232,7 @@
 				(xyz 0 0 0)
 			)
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/S2.step"
+		(model "${KIPRJMOD}/BMCV.pretty/S2.step"
 			(opacity 0.8400)
 			(offset
 				(xyz 0 0 0)
@@ -3245,7 +3245,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:TC002-N11AXXX-RGB"
+	(footprint "BMCV:TC002-N11AXXX-RGB"
 		(layer "F.Cu")
 		(uuid "37839878-6e73-4a9b-9ecf-35fd539fd30d")
 		(at 41.25 122.5 90)
@@ -3273,7 +3273,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:TC002-N11AXXX-RGB"
+		(property "Footprint" "BMCV:TC002-N11AXXX-RGB"
 			(at 0 0 90)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -3464,7 +3464,7 @@
 			(pintype "input")
 			(uuid "17c079e9-6520-4eb9-913c-97cd72d54e41")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/TC002-N11AXXX-RGB.step"
+		(model "${KIPRJMOD}/BMCV.pretty/TC002-N11AXXX-RGB.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -3475,7 +3475,7 @@
 				(xyz 0 0 0)
 			)
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/S2.step"
+		(model "${KIPRJMOD}/BMCV.pretty/S2.step"
 			(opacity 0.8400)
 			(offset
 				(xyz 0 0 0)
@@ -3488,7 +3488,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:TC002-N11AXXX-RGB"
+	(footprint "BMCV:TC002-N11AXXX-RGB"
 		(layer "F.Cu")
 		(uuid "46236ec8-acd4-4c43-a230-1dd305326d4b")
 		(at 58.5 133.5)
@@ -3516,7 +3516,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:TC002-N11AXXX-RGB"
+		(property "Footprint" "BMCV:TC002-N11AXXX-RGB"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -3707,7 +3707,7 @@
 			(pintype "input")
 			(uuid "dfed688d-6d47-402f-831c-2dcb302cb060")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/TC002-N11AXXX-RGB.step"
+		(model "${KIPRJMOD}/BMCV.pretty/TC002-N11AXXX-RGB.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -3718,7 +3718,7 @@
 				(xyz 0 0 0)
 			)
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/S2.step"
+		(model "${KIPRJMOD}/BMCV.pretty/S2.step"
 			(opacity 0.8400)
 			(offset
 				(xyz 0 0 0)
@@ -3731,7 +3731,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
+	(footprint "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
 		(layer "F.Cu")
 		(uuid "52773285-1531-49d2-94a8-bdf93a30ad65")
 		(at 102.5 45 -90)
@@ -3759,7 +3759,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
+		(property "Footprint" "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
 			(at 0 -6.48 -90)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -4084,7 +4084,7 @@
 				)
 			)
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/WQP-PJ398SM.step"
+		(model "${KIPRJMOD}/BMCV.pretty/WQP-PJ398SM.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -4096,7 +4096,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:GT-USB-7035E"
+	(footprint "BMCV:GT-USB-7035E"
 		(layer "F.Cu")
 		(uuid "5e36a3c6-884a-433b-8110-30d4f9feb48f")
 		(at 95 114 180)
@@ -4124,7 +4124,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:GT-USB-7035E"
+		(property "Footprint" "BMCV:GT-USB-7035E"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -4378,7 +4378,7 @@
 			(pintype "passive+no_connect")
 			(uuid "6aa2189b-bb35-4172-9bc3-949ea697f1a8")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/GT-USB-7035E.step"
+		(model "${KIPRJMOD}/BMCV.pretty/GT-USB-7035E.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -4390,7 +4390,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:PEL12T-4xxxS-S1024"
+	(footprint "BMCV:PEL12T-4xxxS-S1024"
 		(layer "F.Cu")
 		(uuid "6338e090-4e40-4846-9ba6-0768d32efb55")
 		(at 54.5 86 180)
@@ -4418,7 +4418,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:PEL12T-4xxxS-S1024"
+		(property "Footprint" "BMCV:PEL12T-4xxxS-S1024"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -4884,7 +4884,7 @@
 			(pintype "passive+no_connect")
 			(uuid "6dc9ef2f-75e8-4732-b015-ffa7e7d57e8d")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/PEL12T-4xxxS-S1024.step"
+		(model "${KIPRJMOD}/BMCV.pretty/PEL12T-4xxxS-S1024.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -4895,7 +4895,7 @@
 				(xyz 0 0 0)
 			)
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/EncoderShaftNoBushing.step"
+		(model "${KIPRJMOD}/BMCV.pretty/EncoderShaftNoBushing.step"
 			(opacity 0.8000)
 			(offset
 				(xyz 0 0 0)
@@ -4908,7 +4908,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:TS-1095PS-AXXBX-C3DX"
+	(footprint "BMCV:TS-1095PS-AXXBX-C3DX"
 		(layer "F.Cu")
 		(uuid "6fec4733-9c40-448b-954a-51ae4190e0f4")
 		(at 70 86 90)
@@ -4936,7 +4936,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:TS-1095PS-AXXBX-C3DX"
+		(property "Footprint" "BMCV:TS-1095PS-AXXBX-C3DX"
 			(at 0 0 90)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -5068,7 +5068,7 @@
 			(thermal_bridge_angle 45)
 			(uuid "f5f32be4-a632-4169-a74b-2fcffcdf9f77")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/Yuandi TS-1095PS-A16B3-C3D2.step"
+		(model "${KIPRJMOD}/BMCV.pretty/Yuandi TS-1095PS-A16B3-C3D2.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -5080,7 +5080,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:TC002-N11AXXX-RGB"
+	(footprint "BMCV:TC002-N11AXXX-RGB"
 		(layer "F.Cu")
 		(uuid "70b88f19-f2af-4f7c-bd64-799a66d4c2d3")
 		(at 52.75 122.5 90)
@@ -5108,7 +5108,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:TC002-N11AXXX-RGB"
+		(property "Footprint" "BMCV:TC002-N11AXXX-RGB"
 			(at 0 0 90)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -5299,7 +5299,7 @@
 			(pintype "input")
 			(uuid "e7a24d87-b441-4b9f-8e2f-f3368c160022")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/TC002-N11AXXX-RGB.step"
+		(model "${KIPRJMOD}/BMCV.pretty/TC002-N11AXXX-RGB.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -5310,7 +5310,7 @@
 				(xyz 0 0 0)
 			)
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/S2.step"
+		(model "${KIPRJMOD}/BMCV.pretty/S2.step"
 			(opacity 0.8400)
 			(offset
 				(xyz 0 0 0)
@@ -5323,7 +5323,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:TC002-N11AXXX-RGB"
+	(footprint "BMCV:TC002-N11AXXX-RGB"
 		(layer "F.Cu")
 		(uuid "7fb9173c-57b9-41eb-8b17-b37e21a6081c")
 		(at 104.5 133.5)
@@ -5351,7 +5351,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:TC002-N11AXXX-RGB"
+		(property "Footprint" "BMCV:TC002-N11AXXX-RGB"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -5542,7 +5542,7 @@
 			(pintype "input")
 			(uuid "54a2345d-2440-44c8-a522-d5034f46b37a")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/TC002-N11AXXX-RGB.step"
+		(model "${KIPRJMOD}/BMCV.pretty/TC002-N11AXXX-RGB.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -5553,7 +5553,7 @@
 				(xyz 0 0 0)
 			)
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/S2.step"
+		(model "${KIPRJMOD}/BMCV.pretty/S2.step"
 			(opacity 0.8400)
 			(offset
 				(xyz 0 0 0)
@@ -5566,7 +5566,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:TC002-N11AXXX-RGB"
+	(footprint "BMCV:TC002-N11AXXX-RGB"
 		(layer "F.Cu")
 		(uuid "8693e47b-7777-4e3a-8536-ccdc1bd706a0")
 		(at 35.5 133.5)
@@ -5594,7 +5594,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:TC002-N11AXXX-RGB"
+		(property "Footprint" "BMCV:TC002-N11AXXX-RGB"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -5785,7 +5785,7 @@
 			(pintype "input")
 			(uuid "b38523fb-e9c3-4db7-bd3c-9c6c8399062c")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/TC002-N11AXXX-RGB.step"
+		(model "${KIPRJMOD}/BMCV.pretty/TC002-N11AXXX-RGB.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -5796,7 +5796,7 @@
 				(xyz 0 0 0)
 			)
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/S2.step"
+		(model "${KIPRJMOD}/BMCV.pretty/S2.step"
 			(opacity 0.8400)
 			(offset
 				(xyz 0 0 0)
@@ -5809,7 +5809,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:TC002-N11AXXX-RGB"
+	(footprint "BMCV:TC002-N11AXXX-RGB"
 		(layer "F.Cu")
 		(uuid "897638ef-abbe-47b3-9812-b416ee223781")
 		(at 93 133.5)
@@ -5837,7 +5837,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:TC002-N11AXXX-RGB"
+		(property "Footprint" "BMCV:TC002-N11AXXX-RGB"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -6028,7 +6028,7 @@
 			(pintype "input")
 			(uuid "3f7977c0-b7ed-4238-a009-df5f5a1e263c")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/TC002-N11AXXX-RGB.step"
+		(model "${KIPRJMOD}/BMCV.pretty/TC002-N11AXXX-RGB.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -6039,7 +6039,7 @@
 				(xyz 0 0 0)
 			)
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/S2.step"
+		(model "${KIPRJMOD}/BMCV.pretty/S2.step"
 			(opacity 0.8400)
 			(offset
 				(xyz 0 0 0)
@@ -6052,7 +6052,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
+	(footprint "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
 		(layer "F.Cu")
 		(uuid "8b54de9b-c029-4472-a534-3d02ac8dc8b2")
 		(at 37.5 35 90)
@@ -6080,7 +6080,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
+		(property "Footprint" "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
 			(at 0 -6.48 90)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -6405,7 +6405,7 @@
 				)
 			)
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/WQP-PJ398SM.step"
+		(model "${KIPRJMOD}/BMCV.pretty/WQP-PJ398SM.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -6417,7 +6417,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
+	(footprint "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
 		(layer "F.Cu")
 		(uuid "8c99c8e1-3852-4476-9cce-0aa950b767aa")
 		(at 89.5 45 90)
@@ -6445,7 +6445,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
+		(property "Footprint" "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
 			(at 0 -6.48 90)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -6770,7 +6770,7 @@
 				)
 			)
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/WQP-PJ398SM.step"
+		(model "${KIPRJMOD}/BMCV.pretty/WQP-PJ398SM.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -7082,7 +7082,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:PEL12T-4xxxS-S1024"
+	(footprint "BMCV:PEL12T-4xxxS-S1024"
 		(layer "F.Cu")
 		(uuid "9e9b7016-3df4-42c7-b8d7-35fe5d853e8f")
 		(at 102.5 86 180)
@@ -7110,7 +7110,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:PEL12T-4xxxS-S1024"
+		(property "Footprint" "BMCV:PEL12T-4xxxS-S1024"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -7576,7 +7576,7 @@
 			(pintype "passive+no_connect")
 			(uuid "a8e11c6a-3c65-4d16-93fc-8606dbc1caac")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/PEL12T-4xxxS-S1024.step"
+		(model "${KIPRJMOD}/BMCV.pretty/PEL12T-4xxxS-S1024.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -7587,7 +7587,7 @@
 				(xyz 0 0 0)
 			)
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/EncoderShaftNoBushing.step"
+		(model "${KIPRJMOD}/BMCV.pretty/EncoderShaftNoBushing.step"
 			(opacity 0.8000)
 			(offset
 				(xyz 0 0 0)
@@ -7600,7 +7600,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:PEL12T-4xxxS-S1024"
+	(footprint "BMCV:PEL12T-4xxxS-S1024"
 		(layer "F.Cu")
 		(uuid "a93f8ecf-c50e-449c-9a1b-f17172ad7f2c")
 		(at 37.5 68)
@@ -7628,7 +7628,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:PEL12T-4xxxS-S1024"
+		(property "Footprint" "BMCV:PEL12T-4xxxS-S1024"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -8094,7 +8094,7 @@
 			(pintype "passive+no_connect")
 			(uuid "8ce907c9-d50c-4d24-8682-3ac82a118d66")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/PEL12T-4xxxS-S1024.step"
+		(model "${KIPRJMOD}/BMCV.pretty/PEL12T-4xxxS-S1024.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -8105,7 +8105,7 @@
 				(xyz 0 0 0)
 			)
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/EncoderShaftNoBushing.step"
+		(model "${KIPRJMOD}/BMCV.pretty/EncoderShaftNoBushing.step"
 			(opacity 0.8000)
 			(offset
 				(xyz 0 0 0)
@@ -8118,7 +8118,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
+	(footprint "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
 		(layer "F.Cu")
 		(uuid "aa53a8fb-9b6e-46b1-a25f-e245e574cb3c")
 		(at 76.5 38 -90)
@@ -8146,7 +8146,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
+		(property "Footprint" "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
 			(at 0 -6.48 -90)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -8471,7 +8471,7 @@
 				)
 			)
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/WQP-PJ398SM.step"
+		(model "${KIPRJMOD}/BMCV.pretty/WQP-PJ398SM.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -8483,7 +8483,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:TC002-N11AXXX-RGB"
+	(footprint "BMCV:TC002-N11AXXX-RGB"
 		(layer "F.Cu")
 		(uuid "b2081faf-923b-4721-bfb1-5b9758ee34ca")
 		(at 87.25 122.5 90)
@@ -8511,7 +8511,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:TC002-N11AXXX-RGB"
+		(property "Footprint" "BMCV:TC002-N11AXXX-RGB"
 			(at 0 0 90)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -8702,7 +8702,7 @@
 			(pintype "input")
 			(uuid "40d6e2bf-35c7-4b20-aac9-56f725f629f2")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/TC002-N11AXXX-RGB.step"
+		(model "${KIPRJMOD}/BMCV.pretty/TC002-N11AXXX-RGB.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -8713,7 +8713,7 @@
 				(xyz 0 0 0)
 			)
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/S2.step"
+		(model "${KIPRJMOD}/BMCV.pretty/S2.step"
 			(opacity 0.8400)
 			(offset
 				(xyz 0 0 0)
@@ -8726,7 +8726,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
+	(footprint "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
 		(layer "F.Cu")
 		(uuid "b44993ed-bb06-48fd-b17a-6445fd536951")
 		(at 89.5 35 90)
@@ -8754,7 +8754,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
+		(property "Footprint" "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
 			(at 0 -6.48 90)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -9079,7 +9079,7 @@
 				)
 			)
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/WQP-PJ398SM.step"
+		(model "${KIPRJMOD}/BMCV.pretty/WQP-PJ398SM.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -9091,7 +9091,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
+	(footprint "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
 		(layer "F.Cu")
 		(uuid "b50ce874-f682-42d7-8aba-0b1176018de7")
 		(at 50.5 45 -90)
@@ -9119,7 +9119,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
+		(property "Footprint" "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
 			(at 0 -6.48 -90)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -9444,7 +9444,7 @@
 				)
 			)
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/WQP-PJ398SM.step"
+		(model "${KIPRJMOD}/BMCV.pretty/WQP-PJ398SM.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -9456,7 +9456,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
+	(footprint "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
 		(layer "F.Cu")
 		(uuid "bc4650e2-0e3b-41eb-bef3-d16156a34001")
 		(at 50.5 35 -90)
@@ -9484,7 +9484,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
+		(property "Footprint" "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
 			(at 0 -6.48 -90)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -9809,7 +9809,7 @@
 				)
 			)
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/WQP-PJ398SM.step"
+		(model "${KIPRJMOD}/BMCV.pretty/WQP-PJ398SM.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -9821,7 +9821,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:TC002-N11AXXX-RGB"
+	(footprint "BMCV:TC002-N11AXXX-RGB"
 		(layer "F.Cu")
 		(uuid "bcec49e7-76dc-4b8f-b402-9068c9f01c61")
 		(at 98.75 122.5 90)
@@ -9849,7 +9849,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:TC002-N11AXXX-RGB"
+		(property "Footprint" "BMCV:TC002-N11AXXX-RGB"
 			(at 0 0 90)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -10040,7 +10040,7 @@
 			(pintype "input")
 			(uuid "3f28c8c3-50b3-4cb9-b2c2-5858519a2bb4")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/TC002-N11AXXX-RGB.step"
+		(model "${KIPRJMOD}/BMCV.pretty/TC002-N11AXXX-RGB.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -10051,7 +10051,7 @@
 				(xyz 0 0 0)
 			)
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/S2.step"
+		(model "${KIPRJMOD}/BMCV.pretty/S2.step"
 			(opacity 0.8400)
 			(offset
 				(xyz 0 0 0)
@@ -10064,7 +10064,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
+	(footprint "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
 		(layer "F.Cu")
 		(uuid "c889fb48-8442-4bcc-a162-b33611b1596f")
 		(at 63.5 38 90)
@@ -10092,7 +10092,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
+		(property "Footprint" "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
 			(at 0 -6.48 90)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -10417,7 +10417,7 @@
 				)
 			)
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/WQP-PJ398SM.step"
+		(model "${KIPRJMOD}/BMCV.pretty/WQP-PJ398SM.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -10429,7 +10429,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:PTL6015xxxxxxx"
+	(footprint "BMCV:PTL6015xxxxxxx"
 		(layer "F.Cu")
 		(uuid "cc53bfa4-76fd-40e0-b748-7c9269533275")
 		(at 70 106 180)
@@ -10458,7 +10458,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:PTL6015xxxxxxx"
+		(property "Footprint" "BMCV:PTL6015xxxxxxx"
 			(at -35.5 -1.225 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -10832,7 +10832,7 @@
 			(pintype "passive+no_connect")
 			(uuid "20137028-3ea6-4d11-bbc8-afb9d43c3ccb")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/PTL60-15G1-103B2.stp"
+		(model "${KIPRJMOD}/BMCV.pretty/PTL60-15G1-103B2.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -10844,7 +10844,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:PEL12T-4xxxS-S1024"
+	(footprint "BMCV:PEL12T-4xxxS-S1024"
 		(layer "F.Cu")
 		(uuid "de4c1c86-e0ac-412e-8f5c-c73a9ffba63a")
 		(at 85.5 68)
@@ -10872,7 +10872,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:PEL12T-4xxxS-S1024"
+		(property "Footprint" "BMCV:PEL12T-4xxxS-S1024"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -11338,7 +11338,7 @@
 			(pintype "passive+no_connect")
 			(uuid "0ac51c5e-858e-4237-bb6c-1885fe281fec")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/PEL12T-4xxxS-S1024.step"
+		(model "${KIPRJMOD}/BMCV.pretty/PEL12T-4xxxS-S1024.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -11349,7 +11349,7 @@
 				(xyz 0 0 0)
 			)
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/EncoderShaftNoBushing.step"
+		(model "${KIPRJMOD}/BMCV.pretty/EncoderShaftNoBushing.step"
 			(opacity 0.8000)
 			(offset
 				(xyz 0 0 0)
@@ -11362,7 +11362,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:TS-1095PS-AXXBX-C3DX"
+	(footprint "BMCV:TS-1095PS-AXXBX-C3DX"
 		(layer "F.Cu")
 		(uuid "dfeb6def-e46a-4898-b955-2a8be941b5b1")
 		(at 70 68 90)
@@ -11390,7 +11390,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:TS-1095PS-AXXBX-C3DX"
+		(property "Footprint" "BMCV:TS-1095PS-AXXBX-C3DX"
 			(at 0 0 90)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -11522,7 +11522,7 @@
 			(thermal_bridge_angle 45)
 			(uuid "5ed1c6b1-13cf-4e39-bda0-7b0eee1251ad")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/Yuandi TS-1095PS-A16B3-C3D2.step"
+		(model "${KIPRJMOD}/BMCV.pretty/Yuandi TS-1095PS-A16B3-C3D2.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -11534,7 +11534,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:PEL12T-4xxxS-S1024"
+	(footprint "BMCV:PEL12T-4xxxS-S1024"
 		(layer "F.Cu")
 		(uuid "e1888719-b945-40da-826b-54a87915abf1")
 		(at 54.5 68)
@@ -11562,7 +11562,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:PEL12T-4xxxS-S1024"
+		(property "Footprint" "BMCV:PEL12T-4xxxS-S1024"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -12028,7 +12028,7 @@
 			(pintype "passive+no_connect")
 			(uuid "a9c59279-ec5a-4a1d-8790-1768fc12048b")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/PEL12T-4xxxS-S1024.step"
+		(model "${KIPRJMOD}/BMCV.pretty/PEL12T-4xxxS-S1024.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -12039,7 +12039,7 @@
 				(xyz 0 0 0)
 			)
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/EncoderShaftNoBushing.step"
+		(model "${KIPRJMOD}/BMCV.pretty/EncoderShaftNoBushing.step"
 			(opacity 0.8000)
 			(offset
 				(xyz 0 0 0)
@@ -12052,7 +12052,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:TC002-N11AXXX-RGB"
+	(footprint "BMCV:TC002-N11AXXX-RGB"
 		(layer "F.Cu")
 		(uuid "e6480aac-a1fb-4b87-9427-b921b8b534a2")
 		(at 47 133.5)
@@ -12080,7 +12080,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:TC002-N11AXXX-RGB"
+		(property "Footprint" "BMCV:TC002-N11AXXX-RGB"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -12271,7 +12271,7 @@
 			(pintype "input")
 			(uuid "8264f10d-6dad-478f-8ed5-3e629cba5960")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/TC002-N11AXXX-RGB.step"
+		(model "${KIPRJMOD}/BMCV.pretty/TC002-N11AXXX-RGB.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -12282,7 +12282,7 @@
 				(xyz 0 0 0)
 			)
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/S2.step"
+		(model "${KIPRJMOD}/BMCV.pretty/S2.step"
 			(opacity 0.8400)
 			(offset
 				(xyz 0 0 0)
@@ -12295,7 +12295,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:CataclystPanel"
+	(footprint "BMCV:CataclystPanel"
 		(locked yes)
 		(layer "F.Cu")
 		(uuid "ea085461-2dc1-4f93-9446-72b703ffac22")
@@ -12324,7 +12324,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:CataclystPanel"
+		(property "Footprint" "BMCV:CataclystPanel"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -12393,7 +12393,7 @@
 			(layers "F&B.Cu")
 			(uuid "b4fb0df4-4f18-47f8-bb7e-4deb1bed99a9")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/CataclystPanel.step"
+		(model "${KIPRJMOD}/BMCV.pretty/CataclystPanel.step"
 			(offset
 				(xyz 0 0 10)
 			)
@@ -12405,7 +12405,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
+	(footprint "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
 		(layer "F.Cu")
 		(uuid "ecc476f1-fe41-4f93-8e21-da22e09a3a30")
 		(at 76.5 48 -90)
@@ -12433,7 +12433,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
+		(property "Footprint" "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
 			(at 0 -6.48 -90)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -12758,7 +12758,7 @@
 				)
 			)
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/WQP-PJ398SM.step"
+		(model "${KIPRJMOD}/BMCV.pretty/WQP-PJ398SM.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -12770,7 +12770,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:TC002-N11AXXX-RGB"
+	(footprint "BMCV:TC002-N11AXXX-RGB"
 		(layer "F.Cu")
 		(uuid "f3f25289-60c4-4d03-96d9-fadd428b81b9")
 		(at 70 133.5)
@@ -12798,7 +12798,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:TC002-N11AXXX-RGB"
+		(property "Footprint" "BMCV:TC002-N11AXXX-RGB"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -12989,7 +12989,7 @@
 			(pintype "input")
 			(uuid "34f8d1f7-4d9c-4ec9-89ff-22f9351a7e4c")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/TC002-N11AXXX-RGB.step"
+		(model "${KIPRJMOD}/BMCV.pretty/TC002-N11AXXX-RGB.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -13000,7 +13000,7 @@
 				(xyz 0 0 0)
 			)
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/S2.step"
+		(model "${KIPRJMOD}/BMCV.pretty/S2.step"
 			(opacity 0.8400)
 			(offset
 				(xyz 0 0 0)
@@ -13013,7 +13013,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
+	(footprint "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
 		(layer "F.Cu")
 		(uuid "f8156d05-1f43-4bf4-9d2a-23d485d81398")
 		(at 37.5 45 90)
@@ -13041,7 +13041,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
+		(property "Footprint" "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
 			(at 0 -6.48 90)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -13366,7 +13366,7 @@
 				)
 			)
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/WQP-PJ398SM.step"
+		(model "${KIPRJMOD}/BMCV.pretty/WQP-PJ398SM.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -13378,7 +13378,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
+	(footprint "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
 		(layer "F.Cu")
 		(uuid "fe442b42-98bd-4e62-9d3e-8a1571cb9545")
 		(at 63.5 48 90)
@@ -13406,7 +13406,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
+		(property "Footprint" "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
 			(at 0 -6.48 90)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -13731,7 +13731,7 @@
 				)
 			)
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/WQP-PJ398SM.step"
+		(model "${KIPRJMOD}/BMCV.pretty/WQP-PJ398SM.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -20486,7 +20486,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:FSOP-8"
+	(footprint "BMCV:FSOP-8"
 		(layer "B.Cu")
 		(uuid "17a5331f-7174-4841-b80b-ac6e8e7a0ad4")
 		(at 37.5 86 180)
@@ -20516,7 +20516,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -20727,7 +20727,7 @@
 			(thermal_bridge_angle 45)
 			(uuid "bc30956e-5035-4e55-bd02-44fde6111c1b")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/WS2811_FSOP-8.step"
+		(model "${KIPRJMOD}/BMCV.pretty/WS2811_FSOP-8.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -23218,7 +23218,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:FSOP-8"
+	(footprint "BMCV:FSOP-8"
 		(layer "B.Cu")
 		(uuid "1f69fd74-4b70-43ac-afd2-362800bb96c4")
 		(at 85.5 86 180)
@@ -23248,7 +23248,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -23459,7 +23459,7 @@
 			(thermal_bridge_angle 45)
 			(uuid "4f7ace5f-1e3d-438a-b326-2bdbf67373a3")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/WS2811_FSOP-8.step"
+		(model "${KIPRJMOD}/BMCV.pretty/WS2811_FSOP-8.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -31453,7 +31453,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:FSOP-8"
+	(footprint "BMCV:FSOP-8"
 		(layer "B.Cu")
 		(uuid "3e8f3359-3fd5-4658-a8b7-b331606e1ff4")
 		(at 54.5 68)
@@ -31483,7 +31483,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -31694,7 +31694,7 @@
 			(thermal_bridge_angle 45)
 			(uuid "6944ffb8-68be-4410-a12e-f4267e3de15b")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/WS2811_FSOP-8.step"
+		(model "${KIPRJMOD}/BMCV.pretty/WS2811_FSOP-8.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -33986,7 +33986,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:Eurorack_Full_IDC_Vertical"
+	(footprint "BMCV:Eurorack_Full_IDC_Vertical"
 		(layer "B.Cu")
 		(uuid "4759bebb-647e-4ab4-bef6-a3b80124f61f")
 		(at 46.0725 97.1475 -90)
@@ -34016,7 +34016,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Footprint" "MyParts:Eurorack_Full_IDC_Vertical"
+		(property "Footprint" "BMCV:Eurorack_Full_IDC_Vertical"
 			(at 0 0 90)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -37299,7 +37299,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:FSOP-8"
+	(footprint "BMCV:FSOP-8"
 		(layer "B.Cu")
 		(uuid "4e91c2e5-2222-460d-9e5d-16e377695732")
 		(at 102.5 68)
@@ -37329,7 +37329,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -37540,7 +37540,7 @@
 			(thermal_bridge_angle 45)
 			(uuid "a3ac2af2-7d6d-4592-b290-27070cb51dfe")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/WS2811_FSOP-8.step"
+		(model "${KIPRJMOD}/BMCV.pretty/WS2811_FSOP-8.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -37552,7 +37552,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:FSOP-8"
+	(footprint "BMCV:FSOP-8"
 		(layer "B.Cu")
 		(uuid "4f3e39e2-ff47-4f3d-8267-ea281748d494")
 		(at 98.75 122.5)
@@ -37582,7 +37582,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -37793,7 +37793,7 @@
 			(thermal_bridge_angle 45)
 			(uuid "530d1ee7-123f-4a1c-8c8e-aed46f7685be")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/WS2811_FSOP-8.step"
+		(model "${KIPRJMOD}/BMCV.pretty/WS2811_FSOP-8.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -38024,7 +38024,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:TSSOP-24-1EP_4.4x7.8mm_P0.65mm_EP3.2x5mm"
+	(footprint "BMCV:TSSOP-24-1EP_4.4x7.8mm_P0.65mm_EP3.2x5mm"
 		(layer "B.Cu")
 		(uuid "52f8a1d5-54f3-4d4e-9831-8ad3ebde160a")
 		(at 95.9 54.25 180)
@@ -38054,7 +38054,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Footprint" "MyParts:TSSOP-24-1EP_4.4x7.8mm_P0.65mm_EP3.2x5mm"
+		(property "Footprint" "BMCV:TSSOP-24-1EP_4.4x7.8mm_P0.65mm_EP3.2x5mm"
 			(at 0 0 0)
 			(layer "B.Fab")
 			(hide yes)
@@ -38775,7 +38775,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:FSOP-8"
+	(footprint "BMCV:FSOP-8"
 		(layer "B.Cu")
 		(uuid "540dbd36-7417-4749-90d7-bc3d5110397a")
 		(at 75.75 122.5)
@@ -38805,7 +38805,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -39016,7 +39016,7 @@
 			(thermal_bridge_angle 45)
 			(uuid "ef57444d-08fa-4ca6-8304-4fb3bea316d5")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/WS2811_FSOP-8.step"
+		(model "${KIPRJMOD}/BMCV.pretty/WS2811_FSOP-8.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -39247,7 +39247,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:FSOP-8"
+	(footprint "BMCV:FSOP-8"
 		(layer "B.Cu")
 		(uuid "542e2944-3da6-4d83-a942-d42c51041e10")
 		(at 102.5 86 180)
@@ -39277,7 +39277,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -39488,7 +39488,7 @@
 			(thermal_bridge_angle 45)
 			(uuid "291a35d0-b708-49e4-8caf-c20e431d47b4")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/WS2811_FSOP-8.step"
+		(model "${KIPRJMOD}/BMCV.pretty/WS2811_FSOP-8.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -41999,7 +41999,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:FSOP-8"
+	(footprint "BMCV:FSOP-8"
 		(layer "B.Cu")
 		(uuid "5c236b89-d8fc-4f9c-aace-075fc075cbd0")
 		(at 81.5 133.5 -90)
@@ -42029,7 +42029,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 0 0 90)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -42240,7 +42240,7 @@
 			(thermal_bridge_angle 45)
 			(uuid "5266adfc-4c9a-453a-b873-aea64a8fc842")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/WS2811_FSOP-8.step"
+		(model "${KIPRJMOD}/BMCV.pretty/WS2811_FSOP-8.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -42471,7 +42471,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:FSOP-8"
+	(footprint "BMCV:FSOP-8"
 		(layer "B.Cu")
 		(uuid "5c9ef81f-9a6e-4b1f-b716-17009a4f4ec4")
 		(at 41.25 122.5)
@@ -42501,7 +42501,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -42712,7 +42712,7 @@
 			(thermal_bridge_angle 45)
 			(uuid "262d7483-fe40-498c-abdd-3de6a106dffc")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/WS2811_FSOP-8.step"
+		(model "${KIPRJMOD}/BMCV.pretty/WS2811_FSOP-8.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -46093,7 +46093,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:FSOP-8"
+	(footprint "BMCV:FSOP-8"
 		(layer "B.Cu")
 		(uuid "667900d2-f390-4eae-af0b-04d6a13659a2")
 		(at 85.5 68)
@@ -46123,7 +46123,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -46334,7 +46334,7 @@
 			(thermal_bridge_angle 45)
 			(uuid "d2d02430-f723-44de-9171-73982e6b70d9")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/WS2811_FSOP-8.step"
+		(model "${KIPRJMOD}/BMCV.pretty/WS2811_FSOP-8.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -55720,7 +55720,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:HVSSOP-8-1EP_3x3mm_P0.65mm_EP1.57x1.89mm"
+	(footprint "BMCV:HVSSOP-8-1EP_3x3mm_P0.65mm_EP1.57x1.89mm"
 		(layer "B.Cu")
 		(uuid "8867d83c-7dce-499f-bd79-b467e61ea864")
 		(at 64.7 113.1 180)
@@ -55750,7 +55750,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Footprint" "MyParts:HVSSOP-8-1EP_3x3mm_P0.65mm_EP1.57x1.89mm"
+		(property "Footprint" "BMCV:HVSSOP-8-1EP_3x3mm_P0.65mm_EP1.57x1.89mm"
 			(at 0 0 0)
 			(layer "B.Fab")
 			(hide yes)
@@ -56064,7 +56064,7 @@
 			(zone_connect 2)
 			(uuid "0c0d0deb-c71c-46ea-b40c-b80571046b94")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/HVSSOP-8-3x3.step"
+		(model "${KIPRJMOD}/BMCV.pretty/HVSSOP-8-3x3.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -58963,7 +58963,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:FSOP-8"
+	(footprint "BMCV:FSOP-8"
 		(layer "B.Cu")
 		(uuid "9477f0a8-ab9c-46b1-acca-cd8807938cdb")
 		(at 93 133.5 -90)
@@ -58993,7 +58993,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 0 0 90)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -59204,7 +59204,7 @@
 			(thermal_bridge_angle 45)
 			(uuid "7265a3ab-706a-4d34-9be6-82b36a8d9aca")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/WS2811_FSOP-8.step"
+		(model "${KIPRJMOD}/BMCV.pretty/WS2811_FSOP-8.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -59216,7 +59216,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:FSOP-8"
+	(footprint "BMCV:FSOP-8"
 		(layer "B.Cu")
 		(uuid "954cb048-343c-4cec-ba1d-58f66a98b313")
 		(at 87.25 122.5)
@@ -59246,7 +59246,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -59457,7 +59457,7 @@
 			(thermal_bridge_angle 45)
 			(uuid "475569f7-0791-4b6f-a079-f3dad634194f")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/WS2811_FSOP-8.step"
+		(model "${KIPRJMOD}/BMCV.pretty/WS2811_FSOP-8.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -62535,7 +62535,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:FSOP-8"
+	(footprint "BMCV:FSOP-8"
 		(layer "B.Cu")
 		(uuid "a4413983-c946-4f4c-8013-94337a4f0af7")
 		(at 58.5 133.5 -90)
@@ -62565,7 +62565,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 0 0 90)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -62776,7 +62776,7 @@
 			(thermal_bridge_angle 45)
 			(uuid "4810f0a9-d0a5-4fe9-afe9-75f7e35a8738")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/WS2811_FSOP-8.step"
+		(model "${KIPRJMOD}/BMCV.pretty/WS2811_FSOP-8.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -63226,7 +63226,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:FSOP-8"
+	(footprint "BMCV:FSOP-8"
 		(layer "B.Cu")
 		(uuid "a5fed698-4113-43fe-9ea0-018f0b851d4d")
 		(at 52.75 122.5)
@@ -63256,7 +63256,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -63467,7 +63467,7 @@
 			(thermal_bridge_angle 45)
 			(uuid "8df2f3ee-d4db-4bb4-a315-bb8b16b6e580")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/WS2811_FSOP-8.step"
+		(model "${KIPRJMOD}/BMCV.pretty/WS2811_FSOP-8.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -63917,7 +63917,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:FSOP-8"
+	(footprint "BMCV:FSOP-8"
 		(layer "B.Cu")
 		(uuid "a86d8fa1-840f-481f-ae62-de97a42a8c2a")
 		(at 70 133.5 -90)
@@ -63947,7 +63947,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 0 0 90)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -64158,7 +64158,7 @@
 			(thermal_bridge_angle 45)
 			(uuid "e9288698-a3c7-4e32-8d35-535c96067c3f")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/WS2811_FSOP-8.step"
+		(model "${KIPRJMOD}/BMCV.pretty/WS2811_FSOP-8.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -66380,7 +66380,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:FSOP-8"
+	(footprint "BMCV:FSOP-8"
 		(layer "B.Cu")
 		(uuid "afbb7df5-9037-44c0-b8d2-2993ae50fe46")
 		(at 35.5 133.5 -90)
@@ -66410,7 +66410,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 0 0 90)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -66621,7 +66621,7 @@
 			(thermal_bridge_angle 45)
 			(uuid "1cbbc3f2-8caa-41fe-8d37-85d05519275f")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/WS2811_FSOP-8.step"
+		(model "${KIPRJMOD}/BMCV.pretty/WS2811_FSOP-8.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -67290,7 +67290,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:FSOP-8"
+	(footprint "BMCV:FSOP-8"
 		(layer "B.Cu")
 		(uuid "b4b40780-5c3c-4051-bc1d-a6287436049d")
 		(at 47 133.5 -90)
@@ -67320,7 +67320,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 0 0 90)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -67531,7 +67531,7 @@
 			(thermal_bridge_angle 45)
 			(uuid "519dd40d-70bb-472b-86cb-81b4ef5e511d")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/WS2811_FSOP-8.step"
+		(model "${KIPRJMOD}/BMCV.pretty/WS2811_FSOP-8.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -68531,7 +68531,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:FSOP-8"
+	(footprint "BMCV:FSOP-8"
 		(layer "B.Cu")
 		(uuid "b72b6636-e222-4e49-bc25-f329f6cee759")
 		(at 104.5 133.5 -90)
@@ -68561,7 +68561,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 0 0 90)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -68772,7 +68772,7 @@
 			(thermal_bridge_angle 45)
 			(uuid "e2c4c28a-a294-4dce-9dd4-071e49b8ac80")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/WS2811_FSOP-8.step"
+		(model "${KIPRJMOD}/BMCV.pretty/WS2811_FSOP-8.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -75733,7 +75733,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:FSOP-8"
+	(footprint "BMCV:FSOP-8"
 		(layer "B.Cu")
 		(uuid "cabbee48-ace2-46c6-8ee0-0d9e042b0f27")
 		(at 37.5 68)
@@ -75763,7 +75763,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -75974,7 +75974,7 @@
 			(thermal_bridge_angle 45)
 			(uuid "5df1cef9-3040-4006-9a7c-0bb23defe3ab")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/WS2811_FSOP-8.step"
+		(model "${KIPRJMOD}/BMCV.pretty/WS2811_FSOP-8.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -77738,7 +77738,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:FSOP-8"
+	(footprint "BMCV:FSOP-8"
 		(layer "B.Cu")
 		(uuid "d5373870-1980-47f0-b0a6-f65a4acb7b50")
 		(at 54.5 86 180)
@@ -77768,7 +77768,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -77979,7 +77979,7 @@
 			(thermal_bridge_angle 45)
 			(uuid "b28307d5-f138-418e-9747-6f10c6971c57")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/WS2811_FSOP-8.step"
+		(model "${KIPRJMOD}/BMCV.pretty/WS2811_FSOP-8.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -78867,7 +78867,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:FSOP-8"
+	(footprint "BMCV:FSOP-8"
 		(layer "B.Cu")
 		(uuid "d6f52def-a7e3-4e42-821e-46a1d740c5d6")
 		(at 64.25 122.5)
@@ -78897,7 +78897,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -79108,7 +79108,7 @@
 			(thermal_bridge_angle 45)
 			(uuid "c5c91ca5-d79a-446d-a5cc-9ea82a262181")
 		)
-		(model "${KIPRJMOD}/MyParts.pretty/WS2811_FSOP-8.step"
+		(model "${KIPRJMOD}/BMCV.pretty/WS2811_FSOP-8.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -86959,7 +86959,7 @@
 			)
 		)
 	)
-	(footprint "MyParts:TSSOP-24-1EP_4.4x7.8mm_P0.65mm_EP3.2x5mm"
+	(footprint "BMCV:TSSOP-24-1EP_4.4x7.8mm_P0.65mm_EP3.2x5mm"
 		(layer "B.Cu")
 		(uuid "ffeafa7d-ed81-43fd-a596-c782441858a6")
 		(at 44.2 53.6 180)
@@ -86989,7 +86989,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Footprint" "MyParts:TSSOP-24-1EP_4.4x7.8mm_P0.65mm_EP3.2x5mm"
+		(property "Footprint" "BMCV:TSSOP-24-1EP_4.4x7.8mm_P0.65mm_EP3.2x5mm"
 			(at 0 0 0)
 			(layer "B.Fab")
 			(hide yes)

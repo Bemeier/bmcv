@@ -1011,7 +1011,7 @@
 				)
 			)
 		)
-		(symbol "MySymbols:EC12PLRGBSDVBF"
+		(symbol "BMCV:EC12PLRGBSDVBF"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -1247,7 +1247,7 @@
 				)
 			)
 		)
-		(symbol "MySymbols:WS2811"
+		(symbol "BMCV:WS2811"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -6227,7 +6227,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:EC12PLRGBSDVBF")
+		(lib_id "BMCV:EC12PLRGBSDVBF")
 		(at 39.37 115.57 180)
 		(unit 1)
 		(exclude_from_sim no)
@@ -6254,7 +6254,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "MyParts:PEL12T-4xxxS-S1024"
+		(property "Footprint" "BMCV:PEL12T-4xxxS-S1024"
 			(at 39.37 115.57 0)
 			(effects
 				(font
@@ -6318,7 +6318,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:EC12PLRGBSDVBF")
+		(lib_id "BMCV:EC12PLRGBSDVBF")
 		(at 191.77 115.57 180)
 		(unit 1)
 		(exclude_from_sim no)
@@ -6345,7 +6345,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "MyParts:PEL12T-4xxxS-S1024"
+		(property "Footprint" "BMCV:PEL12T-4xxxS-S1024"
 			(at 191.77 115.57 0)
 			(effects
 				(font
@@ -6681,7 +6681,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:EC12PLRGBSDVBF")
+		(lib_id "BMCV:EC12PLRGBSDVBF")
 		(at 190.5 38.1 180)
 		(unit 1)
 		(exclude_from_sim no)
@@ -6708,7 +6708,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "MyParts:PEL12T-4xxxS-S1024"
+		(property "Footprint" "BMCV:PEL12T-4xxxS-S1024"
 			(at 190.5 38.1 0)
 			(effects
 				(font
@@ -8053,7 +8053,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:EC12PLRGBSDVBF")
+		(lib_id "BMCV:EC12PLRGBSDVBF")
 		(at 140.97 115.57 180)
 		(unit 1)
 		(exclude_from_sim no)
@@ -8080,7 +8080,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "MyParts:PEL12T-4xxxS-S1024"
+		(property "Footprint" "BMCV:PEL12T-4xxxS-S1024"
 			(at 140.97 115.57 0)
 			(effects
 				(font
@@ -8818,7 +8818,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:WS2811")
+		(lib_id "BMCV:WS2811")
 		(at 140.97 62.23 270)
 		(mirror x)
 		(unit 1)
@@ -8843,7 +8843,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 127 59.2738 90)
 			(effects
 				(font
@@ -9175,7 +9175,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:EC12PLRGBSDVBF")
+		(lib_id "BMCV:EC12PLRGBSDVBF")
 		(at 90.17 115.57 180)
 		(unit 1)
 		(exclude_from_sim no)
@@ -9202,7 +9202,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "MyParts:PEL12T-4xxxS-S1024"
+		(property "Footprint" "BMCV:PEL12T-4xxxS-S1024"
 			(at 90.17 115.57 0)
 			(effects
 				(font
@@ -9399,7 +9399,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:WS2811")
+		(lib_id "BMCV:WS2811")
 		(at 90.17 62.23 270)
 		(mirror x)
 		(unit 1)
@@ -9424,7 +9424,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 76.2 59.2738 90)
 			(effects
 				(font
@@ -9820,7 +9820,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:WS2811")
+		(lib_id "BMCV:WS2811")
 		(at 193.04 140.97 270)
 		(mirror x)
 		(unit 1)
@@ -9845,7 +9845,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 179.07 138.0138 90)
 			(effects
 				(font
@@ -10594,7 +10594,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:EC12PLRGBSDVBF")
+		(lib_id "BMCV:EC12PLRGBSDVBF")
 		(at 88.9 38.1 180)
 		(unit 1)
 		(exclude_from_sim no)
@@ -10620,7 +10620,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "MyParts:PEL12T-4xxxS-S1024"
+		(property "Footprint" "BMCV:PEL12T-4xxxS-S1024"
 			(at 88.9 38.1 0)
 			(effects
 				(font
@@ -13182,7 +13182,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:WS2811")
+		(lib_id "BMCV:WS2811")
 		(at 142.24 140.97 270)
 		(mirror x)
 		(unit 1)
@@ -13207,7 +13207,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 128.27 138.0138 90)
 			(effects
 				(font
@@ -14686,7 +14686,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:WS2811")
+		(lib_id "BMCV:WS2811")
 		(at 91.44 140.97 270)
 		(mirror x)
 		(unit 1)
@@ -14711,7 +14711,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 77.47 138.0138 90)
 			(effects
 				(font
@@ -16812,7 +16812,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:WS2811")
+		(lib_id "BMCV:WS2811")
 		(at 39.37 60.96 270)
 		(mirror x)
 		(unit 1)
@@ -16837,7 +16837,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 25.4 58.0038 90)
 			(effects
 				(font
@@ -16897,7 +16897,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:EC12PLRGBSDVBF")
+		(lib_id "BMCV:EC12PLRGBSDVBF")
 		(at 139.7 38.1 180)
 		(unit 1)
 		(exclude_from_sim no)
@@ -16924,7 +16924,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "MyParts:PEL12T-4xxxS-S1024"
+		(property "Footprint" "BMCV:PEL12T-4xxxS-S1024"
 			(at 139.7 38.1 0)
 			(effects
 				(font
@@ -17731,7 +17731,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:WS2811")
+		(lib_id "BMCV:WS2811")
 		(at 191.77 62.23 270)
 		(mirror x)
 		(unit 1)
@@ -17756,7 +17756,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 177.8 59.2738 90)
 			(effects
 				(font
@@ -19502,7 +19502,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:WS2811")
+		(lib_id "BMCV:WS2811")
 		(at 40.64 140.97 270)
 		(mirror x)
 		(unit 1)
@@ -19529,7 +19529,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 26.67 137.414 90)
 			(effects
 				(font
@@ -19589,7 +19589,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:EC12PLRGBSDVBF")
+		(lib_id "BMCV:EC12PLRGBSDVBF")
 		(at 38.1 38.1 180)
 		(unit 1)
 		(exclude_from_sim no)
@@ -19615,7 +19615,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "MyParts:PEL12T-4xxxS-S1024"
+		(property "Footprint" "BMCV:PEL12T-4xxxS-S1024"
 			(at 38.1 38.1 0)
 			(effects
 				(font

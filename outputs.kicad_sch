@@ -1225,7 +1225,7 @@
 				)
 			)
 		)
-		(symbol "MySymbols:AD57x4R"
+		(symbol "BMCV:AD57x4R"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -7322,7 +7322,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "MyParts:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
+		(property "Footprint" "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
 			(at 96.52 74.93 0)
 			(effects
 				(font
@@ -8233,7 +8233,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
+		(property "Footprint" "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
 			(at 96.52 25.4 0)
 			(effects
 				(font
@@ -9648,7 +9648,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:AD57x4R")
+		(lib_id "BMCV:AD57x4R")
 		(at 237.49 139.7 0)
 		(unit 1)
 		(exclude_from_sim no)
@@ -9673,7 +9673,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:TSSOP-24-1EP_4.4x7.8mm_P0.65mm_EP3.2x5mm"
+		(property "Footprint" "BMCV:TSSOP-24-1EP_4.4x7.8mm_P0.65mm_EP3.2x5mm"
 			(at 234.95 132.08 0)
 			(effects
 				(font
@@ -11280,7 +11280,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "MyParts:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
+		(property "Footprint" "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
 			(at 214.63 76.2 0)
 			(effects
 				(font
@@ -11603,7 +11603,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:AD57x4R")
+		(lib_id "BMCV:AD57x4R")
 		(at 102.87 143.51 0)
 		(unit 1)
 		(exclude_from_sim no)
@@ -11628,7 +11628,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:TSSOP-24-1EP_4.4x7.8mm_P0.65mm_EP3.2x5mm"
+		(property "Footprint" "BMCV:TSSOP-24-1EP_4.4x7.8mm_P0.65mm_EP3.2x5mm"
 			(at 100.33 135.89 0)
 			(effects
 				(font
@@ -12243,7 +12243,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "MyParts:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
+		(property "Footprint" "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
 			(at 96.52 49.53 0)
 			(effects
 				(font
@@ -13071,7 +13071,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "MyParts:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
+		(property "Footprint" "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
 			(at 214.63 26.67 0)
 			(effects
 				(font
@@ -13346,7 +13346,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "MyParts:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
+		(property "Footprint" "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
 			(at 214.63 101.6 0)
 			(effects
 				(font
@@ -14734,7 +14734,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "MyParts:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
+		(property "Footprint" "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
 			(at 214.63 50.8 0)
 			(effects
 				(font
@@ -14987,7 +14987,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
+		(property "Footprint" "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
 			(at 96.52 100.33 0)
 			(effects
 				(font

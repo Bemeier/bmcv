@@ -195,7 +195,7 @@
 		(remove_unused_layers no)
 		(uuid "6c37ae06-98c6-4611-85e2-4d8ed7481aa9")
 	)
-	(model "${KIPRJMOD}/MyParts.pretty/TC002-N11AXXX-RGB.step"
+	(model "${KIPRJMOD}/BMCV.pretty/TC002-N11AXXX-RGB.step"
 		(offset
 			(xyz 0 0 0)
 		)
@@ -206,7 +206,7 @@
 			(xyz 0 0 0)
 		)
 	)
-	(model "${KIPRJMOD}/MyParts.pretty/S2.step"
+	(model "${KIPRJMOD}/BMCV.pretty/S2.step"
 		(opacity 0.8400)
 		(offset
 			(xyz 0 0 0)

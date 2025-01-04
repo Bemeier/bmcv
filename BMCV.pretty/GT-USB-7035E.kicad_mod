@@ -223,7 +223,7 @@
 		(remove_unused_layers no)
 		(uuid "2489c6d8-1dea-4e4f-93cb-23ba29511b53")
 	)
-	(model "${KIPRJMOD}/MyParts.pretty/GT-USB-7035E.step"
+	(model "${KIPRJMOD}/BMCV.pretty/GT-USB-7035E.step"
 		(offset
 			(xyz 0 0 0)
 		)

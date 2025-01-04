@@ -3502,7 +3502,7 @@
 				)
 			)
 		)
-		(symbol "MySymbols:FrontPanel"
+		(symbol "BMCV:FrontPanel"
 			(exclude_from_sim no)
 			(in_bom no)
 			(on_board yes)
@@ -3659,7 +3659,7 @@
 				)
 			)
 		)
-		(symbol "MySymbols:PTLxx-xxxx-xxxxx"
+		(symbol "BMCV:PTLxx-xxxx-xxxxx"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -9301,7 +9301,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "MyParts:TS-1095PS-AXXBX-C3DX"
+		(property "Footprint" "BMCV:TS-1095PS-AXXBX-C3DX"
 			(at 227.33 86.36 0)
 			(effects
 				(font
@@ -9344,7 +9344,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:PTLxx-xxxx-xxxxx")
+		(lib_id "BMCV:PTLxx-xxxx-xxxxx")
 		(at 59.69 189.23 0)
 		(unit 1)
 		(exclude_from_sim no)
@@ -9369,7 +9369,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:PTL6015xxxxxxx"
+		(property "Footprint" "BMCV:PTL6015xxxxxxx"
 			(at 88.9 284.15 0)
 			(effects
 				(font
@@ -9747,7 +9747,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:FrontPanel")
+		(lib_id "BMCV:FrontPanel")
 		(at 93.98 49.53 0)
 		(unit 1)
 		(exclude_from_sim no)
@@ -9773,7 +9773,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "MyParts:CataclystPanel"
+		(property "Footprint" "BMCV:CataclystPanel"
 			(at 95.25 48.895 0)
 			(effects
 				(font
@@ -11400,7 +11400,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "MyParts:GT-USB-7035E"
+		(property "Footprint" "BMCV:GT-USB-7035E"
 			(at 41.91 102.87 0)
 			(effects
 				(font
@@ -12041,7 +12041,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:TS-1095PS-AXXBX-C3DX"
+		(property "Footprint" "BMCV:TS-1095PS-AXXBX-C3DX"
 			(at 242.57 119.38 0)
 			(effects
 				(font

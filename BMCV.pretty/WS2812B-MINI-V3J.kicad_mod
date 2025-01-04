@@ -248,7 +248,7 @@
 		(thermal_bridge_angle 45)
 		(uuid "1ceffd45-ae95-4c87-8911-af2f4062749d")
 	)
-	(model "${KIPRJMOD}/MyParts.pretty/WS2812B-MINI-V3J.step"
+	(model "${KIPRJMOD}/BMCV.pretty/WS2812B-MINI-V3J.step"
 		(offset
 			(xyz 0 0 0)
 		)

@@ -222,7 +222,7 @@
 		(remove_unused_layers no)
 		(uuid "96c6bd02-1384-4d85-ab60-e893cc06487c")
 	)
-	(model "${KIPRJMOD}/MyParts.pretty/PJ-301Bx.step"
+	(model "${KIPRJMOD}/BMCV.pretty/PJ-301Bx.step"
 		(offset
 			(xyz 0 0 0)
 		)

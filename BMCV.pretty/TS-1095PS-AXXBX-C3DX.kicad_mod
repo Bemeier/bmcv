@@ -144,7 +144,7 @@
 		(thermal_bridge_angle 45)
 		(uuid "e97048ec-7434-4eed-8529-10a1b09391a4")
 	)
-	(model "${KIPRJMOD}/MyParts.pretty/Yuandi TS-1095PS-A16B3-C3D2.step"
+	(model "${KIPRJMOD}/BMCV.pretty/Yuandi TS-1095PS-A16B3-C3D2.step"
 		(offset
 			(xyz 0 0 0)
 		)

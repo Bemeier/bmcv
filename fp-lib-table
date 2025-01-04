@@ -1,4 +1,4 @@
 (fp_lib_table
   (version 7)
-  (lib (name "MyParts")(type "KiCad")(uri "${KIPRJMOD}/MyParts.pretty")(options "")(descr ""))
+  (lib (name "BMCV")(type "KiCad")(uri "${KIPRJMOD}/BMCV.pretty")(options "")(descr ""))
 )

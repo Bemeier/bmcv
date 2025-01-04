@@ -1,4 +1,4 @@
-(footprint "PEL12T-4xxxS-S1024"
+(footprint "EC12PLRGBSDVBF"
 	(version 20240108)
 	(generator "pcbnew")
 	(generator_version "8.0")
@@ -15,7 +15,7 @@
 			)
 		)
 	)
-	(property "Value" "PEL12T-4xxxS-S1024"
+	(property "Value" "EC12PLRGBSDVBF"
 		(at 0 -2.5 0)
 		(unlocked yes)
 		(layer "F.Fab")
@@ -443,24 +443,25 @@
 		(uuid "208123a8-c375-40ac-98d6-d613db683825")
 	)
 	(pad "S" thru_hole roundrect
-		(at -5.6 0)
-		(size 2.6 3.4)
-		(drill oval 1.8 2.6)
+		(at -6.2 0)
+		(size 2.3 3.3)
+		(drill oval 1.5 2.5)
 		(layers "*.Cu" "*.Mask")
 		(remove_unused_layers no)
-		(roundrect_rratio 0.5)
+		(roundrect_rratio 0.4347826087)
 		(uuid "aca6d737-4435-44b9-aed3-ee38c98e1b2f")
 	)
 	(pad "S" thru_hole roundrect
-		(at 5.6 0)
-		(size 2.6 3.4)
-		(drill oval 1.8 2.6)
+		(at 6.2 0)
+		(size 2.3 3.3)
+		(drill oval 1.5 2.5)
 		(layers "*.Cu" "*.Mask")
 		(remove_unused_layers no)
-		(roundrect_rratio 0.5)
+		(roundrect_rratio 0.4347826087)
 		(uuid "398f3034-a6d6-4bbe-a0db-e2fe131bdcf5")
 	)
-	(model "${KIPRJMOD}/MyParts.pretty/PEL12T-4xxxS-S1024.step"
+	(model "${KIPRJMOD}/BMCV.pretty/EC12PLRGBSDVBF.step"
+		(hide yes)
 		(offset
 			(xyz 0 0 0)
 		)
@@ -471,8 +472,21 @@
 			(xyz 0 0 0)
 		)
 	)
-	(model "${KIPRJMOD}/MyParts.pretty/EncoderShaftNoBushing.step"
-		(opacity 0.8000)
+	(model "${KIPRJMOD}/BMCV.pretty/COM-15141.step"
+		(hide yes)
+		(offset
+			(xyz 0 0 0)
+		)
+		(scale
+			(xyz 1 1 1)
+		)
+		(rotate
+			(xyz -90 0 0)
+		)
+	)
+	(model "${KIPRJMOD}/BMCV.pretty/EncoderShaft.step"
+		(hide yes)
+		(opacity 0.8100)
 		(offset
 			(xyz 0 0 0)
 		)
@@ -481,6 +495,17 @@
 		)
 		(rotate
 			(xyz 0 0 0)
+		)
+	)
+	(model "${KIPRJMOD}/BMCV.pretty/PEL12T-4225S-S1024.step"
+		(offset
+			(xyz -1.25 -0.5 0.7)
+		)
+		(scale
+			(xyz 1 1 1)
+		)
+		(rotate
+			(xyz 180 0 0)
 		)
 	)
 )

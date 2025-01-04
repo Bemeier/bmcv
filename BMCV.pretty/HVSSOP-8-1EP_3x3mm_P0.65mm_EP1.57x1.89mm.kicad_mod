@@ -309,7 +309,7 @@
 		(zone_connect 2)
 		(uuid "42653363-46e4-429c-aad7-f2532e6cf2f7")
 	)
-	(model "${KIPRJMOD}/MyParts.pretty/HVSSOP-8-3x3.step"
+	(model "${KIPRJMOD}/BMCV.pretty/HVSSOP-8-3x3.step"
 		(offset
 			(xyz 0 0 0)
 		)

@@ -723,7 +723,7 @@
 				)
 			)
 		)
-		(symbol "MySymbols:Conn_02x08_Eurorack"
+		(symbol "BMCV:Conn_02x08_Eurorack"
 			(pin_names
 				(offset 1.016) hide)
 			(exclude_from_sim no)
@@ -1352,7 +1352,7 @@
 				)
 			)
 		)
-		(symbol "MySymbols:TLV767XX"
+		(symbol "BMCV:TLV767XX"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -3294,7 +3294,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:TLV767XX")
+		(lib_id "BMCV:TLV767XX")
 		(at 64.77 39.37 0)
 		(unit 1)
 		(exclude_from_sim no)
@@ -3319,7 +3319,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:HVSSOP-8-1EP_3x3mm_P0.65mm_EP1.57x1.89mm"
+		(property "Footprint" "BMCV:HVSSOP-8-1EP_3x3mm_P0.65mm_EP1.57x1.89mm"
 			(at 64.77 39.37 0)
 			(effects
 				(font
@@ -5077,7 +5077,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:Conn_02x08_Eurorack")
+		(lib_id "BMCV:Conn_02x08_Eurorack")
 		(at 142.24 44.45 180)
 		(unit 1)
 		(exclude_from_sim no)
@@ -5102,7 +5102,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:Eurorack_Full_IDC_Vertical"
+		(property "Footprint" "BMCV:Eurorack_Full_IDC_Vertical"
 			(at 144.018 25.654 0)
 			(effects
 				(font

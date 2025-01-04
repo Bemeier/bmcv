@@ -316,7 +316,7 @@
 		(remove_unused_layers no)
 		(uuid "c2fbe949-cc44-4be2-b265-ca17f84c66cd")
 	)
-	(model "${KIPRJMOD}/MyParts.pretty/PTL60-15G1-103B2.stp"
+	(model "${KIPRJMOD}/BMCV.pretty/PTL60-15G1-103B2.stp"
 		(offset
 			(xyz 0 0 0)
 		)

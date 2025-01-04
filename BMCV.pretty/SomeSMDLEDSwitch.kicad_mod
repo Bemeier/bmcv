@@ -1,13 +1,13 @@
-(footprint "FSOP-8"
+(footprint "SomeSMDLEDSwitch"
 	(version 20240108)
 	(generator "pcbnew")
 	(generator_version "8.0")
 	(layer "F.Cu")
 	(property "Reference" "REF**"
-		(at 0 -2.7 0)
+		(at 0 -0.5 0)
 		(unlocked yes)
 		(layer "F.SilkS")
-		(uuid "d50ba407-e96a-4bff-9963-a485a8562745")
+		(uuid "68c6d02f-2abe-41bd-9fe3-cfe410ba8f65")
 		(effects
 			(font
 				(size 1 1)
@@ -15,11 +15,11 @@
 			)
 		)
 	)
-	(property "Value" "FSOP-8"
-		(at 0 2.8 0)
+	(property "Value" "SomeSMDLEDSwitch"
+		(at 0 1 0)
 		(unlocked yes)
 		(layer "F.Fab")
-		(uuid "dac19836-2e40-414b-9f49-db2f68276dd7")
+		(uuid "f45186e4-8ff9-4a96-a4b4-358d57dde4a1")
 		(effects
 			(font
 				(size 1 1)
@@ -32,7 +32,7 @@
 		(unlocked yes)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "696d89b6-589c-4b4d-9ecc-0b27d6d20f62")
+		(uuid "273dc30e-9a43-4f3e-b6a4-691c0d0955f5")
 		(effects
 			(font
 				(size 1 1)
@@ -45,7 +45,7 @@
 		(unlocked yes)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "6023b66a-84ed-4f30-bc7c-43960bd8a7db")
+		(uuid "6eebf5cf-befe-410d-ae7a-6437f96baa74")
 		(effects
 			(font
 				(size 1 1)
@@ -58,7 +58,7 @@
 		(unlocked yes)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "c575f8c3-fb41-4bb8-a6bf-c0b4c07312b1")
+		(uuid "d78cfaee-18db-4cf7-9587-504b6ffa65a8")
 		(effects
 			(font
 				(size 1 1)
@@ -68,73 +68,82 @@
 	)
 	(attr smd)
 	(fp_line
-		(start -1.625 -0.825)
-		(end -1.625 -0.225)
+		(start -5.75 -3.75)
+		(end -5.75 -2.75)
 		(stroke
 			(width 0.1)
 			(type default)
 		)
 		(layer "F.SilkS")
-		(uuid "b03f5880-f809-4c69-9602-e75a7c682598")
+		(uuid "f45ce236-35be-4402-bbc6-4a00f787c9aa")
 	)
 	(fp_line
-		(start -1.625 0.225)
-		(end -1.625 0.825)
+		(start -4.75 -3.75)
+		(end -5.75 -3.75)
 		(stroke
 			(width 0.1)
 			(type default)
 		)
 		(layer "F.SilkS")
-		(uuid "36b95918-672f-45ef-84ad-6bf7ed4d6678")
+		(uuid "24c63cdd-6dbb-4263-858e-68a70d1f7dde")
 	)
-	(fp_line
-		(start 1.625 -0.825)
-		(end 1.625 0.825)
-		(stroke
-			(width 0.1)
-			(type default)
-		)
+	(fp_text user "R"
+		(at 2 3.75 0)
+		(unlocked yes)
 		(layer "F.SilkS")
-		(uuid "4d5b4272-ae07-4134-a0a2-848f194d27ee")
-	)
-	(fp_arc
-		(start -1.625 -0.224999)
-		(mid -1.373616 0)
-		(end -1.625 0.224999)
-		(stroke
-			(width 0.1)
-			(type default)
+		(uuid "171ed22a-7c46-4b00-8096-6313d9acf15f")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.1)
+			)
+			(justify left bottom)
 		)
+	)
+	(fp_text user "G"
+		(at 2 -2.5 0)
+		(unlocked yes)
 		(layer "F.SilkS")
-		(uuid "f567f521-b168-4781-9860-cf4b53e2b019")
-	)
-	(fp_circle
-		(center -1.8 1.26)
-		(end -1.658579 1.26)
-		(stroke
-			(width 0.1)
-			(type default)
+		(uuid "85145c2c-5936-473b-85a1-cd71aa501f0b")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.1)
+			)
+			(justify left bottom)
 		)
-		(fill none)
+	)
+	(fp_text user "+"
+		(at -3.25 -2.75 0)
+		(unlocked yes)
 		(layer "F.SilkS")
-		(uuid "4bb3d076-891b-4a0b-8cf0-94ee7790fef7")
-	)
-	(fp_rect
-		(start -1.625 -0.825)
-		(end 1.625 0.825)
-		(stroke
-			(width 0.05)
-			(type default)
+		(uuid "c3e80374-bb2a-4c47-98f8-238d636be98d")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.1)
+			)
+			(justify left bottom)
 		)
-		(fill none)
-		(layer "F.CrtYd")
-		(uuid "74878e03-9070-4955-a56e-56969c31952e")
+	)
+	(fp_text user "B"
+		(at -3 3.75 0)
+		(unlocked yes)
+		(layer "F.SilkS")
+		(uuid "dd0e0bd5-6bc8-4308-9a1a-087d432ff3fd")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.1)
+			)
+			(justify left bottom)
+		)
 	)
 	(fp_text user "${REFERENCE}"
-		(at 0 4.3 0)
+		(at 0 2.5 0)
 		(unlocked yes)
 		(layer "F.Fab")
-		(uuid "7ca0c191-a928-4fe4-af31-3e5f1097df79")
+		(uuid "6d143548-1e9e-49d8-aa0a-304b37736893")
 		(effects
 			(font
 				(size 1 1)
@@ -143,70 +152,70 @@
 		)
 	)
 	(pad "1" smd roundrect
-		(at -1.2 1.26)
-		(size 0.45 0.9)
+		(at -4.15 -2.25)
+		(size 2 1.7)
 		(layers "F.Cu" "F.Paste" "F.Mask")
 		(roundrect_rratio 0.25)
 		(thermal_bridge_angle 45)
-		(uuid "2d30cb19-4fc1-4a88-9e2a-f66ba454f25a")
+		(uuid "356bb8b9-1920-4c01-b95f-3e156c0de9bc")
 	)
-	(pad "2" smd roundrect
-		(at -0.4 1.26)
-		(size 0.45 0.9)
+	(pad "1" smd roundrect
+		(at 4.15 -2.25)
+		(size 2 1.7)
 		(layers "F.Cu" "F.Paste" "F.Mask")
 		(roundrect_rratio 0.25)
 		(thermal_bridge_angle 45)
-		(uuid "0b110b64-a1c4-45ed-974e-e2257065d934")
+		(uuid "23846dd5-ea87-4f70-b3a9-7dfc2ce0e888")
 	)
 	(pad "3" smd roundrect
-		(at 0.4 1.26)
-		(size 0.45 0.9)
+		(at -4.15 2.25)
+		(size 2 1.7)
 		(layers "F.Cu" "F.Paste" "F.Mask")
 		(roundrect_rratio 0.25)
 		(thermal_bridge_angle 45)
-		(uuid "8a6813b3-1f59-4c3c-839a-df39a4ad2e6d")
+		(uuid "64838eda-6819-4496-969f-f104f4495e72")
 	)
-	(pad "4" smd roundrect
-		(at 1.2 1.26)
-		(size 0.45 0.9)
+	(pad "3" smd roundrect
+		(at 4.15 2.25)
+		(size 2 1.7)
 		(layers "F.Cu" "F.Paste" "F.Mask")
 		(roundrect_rratio 0.25)
 		(thermal_bridge_angle 45)
-		(uuid "018c7329-27f4-4a19-bab7-2ef052c2c878")
+		(uuid "b87f1467-98e3-4739-85b7-04126a351e2a")
 	)
 	(pad "5" smd roundrect
-		(at -1.2 -1.26)
-		(size 0.45 0.9)
+		(at -0.95 -3.05)
+		(size 1.4 1.4)
 		(layers "F.Cu" "F.Paste" "F.Mask")
 		(roundrect_rratio 0.25)
 		(thermal_bridge_angle 45)
-		(uuid "8095e9f6-49b2-4944-aa0e-8c0b996ab84f")
+		(uuid "637d53db-dc08-46a7-86b5-4e22caa9fec6")
 	)
 	(pad "6" smd roundrect
-		(at -0.4 -1.26)
-		(size 0.45 0.9)
+		(at 0.95 -3.05)
+		(size 1.4 1.4)
 		(layers "F.Cu" "F.Paste" "F.Mask")
 		(roundrect_rratio 0.25)
 		(thermal_bridge_angle 45)
-		(uuid "ff0503b7-ebe9-497b-9d75-fa126fba0b84")
+		(uuid "e39da508-3210-410a-9f2f-bac88ee76832")
 	)
 	(pad "7" smd roundrect
-		(at 0.4 -1.26)
-		(size 0.45 0.9)
+		(at 0.95 3.05)
+		(size 1.4 1.4)
 		(layers "F.Cu" "F.Paste" "F.Mask")
 		(roundrect_rratio 0.25)
 		(thermal_bridge_angle 45)
-		(uuid "4ef09931-f75a-440f-8fd5-a30bf9f23539")
+		(uuid "65bcc391-f5db-4d42-af36-c5f0886839fe")
 	)
 	(pad "8" smd roundrect
-		(at 1.2 -1.26)
-		(size 0.45 0.9)
+		(at -0.95 3.05)
+		(size 1.4 1.4)
 		(layers "F.Cu" "F.Paste" "F.Mask")
 		(roundrect_rratio 0.25)
 		(thermal_bridge_angle 45)
-		(uuid "17132139-790e-4765-a964-9ddd4202f27b")
+		(uuid "5bc0838e-211f-44e2-a902-663e6331627a")
 	)
-	(model "${KIPRJMOD}/MyParts.pretty/WS2811_FSOP-8.step"
+	(model "${KIPRJMOD}/BMCV.pretty/TC002-N11BXXX-RGB.step"
 		(offset
 			(xyz 0 0 0)
 		)

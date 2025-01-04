@@ -67843,189 +67843,189 @@ Mounting 4.5mm 9774100982
 0
 8
 1
-MyParts
+BMCV
 CataclystPanel
 
 
 0
 0
 0
-MyParts
+BMCV
 EC12PLRGBSDVBF
 
 
 0
 10
 9
-MyParts
+BMCV
 Eurorack_Full_IDC_Vertical
 Through hole IDC box header, 2x08, 2.54mm pitch, DIN 41651 / IEC 60603-13, double rows, https://docs.google.com/spreadsheets/d/16SsEcesNF15N3Lb4niX7dcUr-NY5_MFPQhobNuNppn4/edit#gid=0
 Through hole vertical IDC box header THT 2x08 2.54mm double row
 0
 16
 16
-MyParts
+BMCV
 FSOP-8
 
 
 0
 8
 8
-MyParts
+BMCV
 GT-USB-7035E
 
 
 0
 18
 15
-MyParts
+BMCV
 HVSSOP-8-1EP_3x3mm_P0.65mm_EP1.57x1.89mm
 HVSSOP, 8 Pin (https://www.ti.com/lit/ds/symlink/tpa6110a2.pdf), generated with kicad-footprint-generator ipc_gullwing_generator.py
 HVSSOP SO
 0
 13
 9
-MyParts
+BMCV
 Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles
 TRS 3.5mm, vertical, Thonkiconn, PCB mount, (http://www.qingpu-electronics.com/en/products/WQP-PJ398SM-362.html)
 WQP-PJ398SM WQP-PJ301M-12 TRS 3.5mm mono vertical jack thonkiconn qingpu
 0
 3
 3
-MyParts
+BMCV
 PEL12D-4xxxS-Sxxxx
 
 
 0
 9
 8
-MyParts
+BMCV
 PEL12T-4xxxS-S1024
 
 
 0
 10
 9
-MyParts
+BMCV
 PJ-301Bx
 
 
 0
 4
 3
-MyParts
+BMCV
 PJ-3412
 
 
 0
 3
 3
-MyParts
+BMCV
 PS45G
 
 
 0
 0
 0
-MyParts
+BMCV
 PS60-10MC1BR10K
 
 
 0
 0
 0
-MyParts
+BMCV
 PS6010MC1BR10K
 PS60-10MC1BR10K-1
 Variable Resistor
 0
 7
 7
-MyParts
+BMCV
 PTA6043
 PTA6043
 Variable Resistor
 0
 7
 7
-MyParts
+BMCV
 PTL6015xxxxxxx
 PTL60-15G1-103B2-5
 Variable Resistor
 0
 6
 6
-MyParts
+BMCV
 PinHeader_2x08_Eurorack
 Through hole straight pin header, 2x08, 2.54mm pitch, double rows
 Through hole pin header THT 2x08 2.54mm double row
 0
 16
 16
-MyParts
+BMCV
 Potentiometer_Bourns_PTA4543_Single_Slide
 Bourns single-gang slide potentiometer, 45.0mm travel, https://www.bourns.com/docs/Product-Datasheets/pta.pdf
 Bourns single-gang slide potentiometer 45.0mm
 0
 7
 4
-MyParts
+BMCV
 Pushbutton 6x6mm LED
 
 
 0
 6
 4
-MyParts
+BMCV
 RA45DxF-21x-xxxx-xxx
 
 
 0
 6
 6
-MyParts
+BMCV
 SOIC_clipProgSmall
 
 
 0
 8
 8
-MyParts
+BMCV
 SomeSMDLEDSwitch
 
 
 0
 8
 6
-MyParts
+BMCV
 TC002-N11AXXX-RGB
 
 
 0
 8
 8
-MyParts
+BMCV
 TC002-N11BXXX-RGB
 
 
 0
 8
 6
-MyParts
+BMCV
 TS-1095PS-AXXBX-C3DX
 
 
 0
 4
 2
-MyParts
+BMCV
 TSSOP-24-1EP_4.4x7.8mm_P0.65mm_EP3.2x5mm
 TSSOP, 24 Pin (https://www.st.com/resource/en/datasheet/led1642gw.pdf#page=37), generated with kicad-footprint-generator ipc_gullwing_generator.py
 TSSOP SO
 0
 31
 25
-MyParts
+BMCV
 WS2812B-MINI-V3J
 C22371519
 

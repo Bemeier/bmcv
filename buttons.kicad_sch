@@ -262,7 +262,7 @@
 				)
 			)
 		)
-		(symbol "MySymbols:TC002-N11BXXX-RGB"
+		(symbol "BMCV:TC002-N11BXXX-RGB"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -517,7 +517,7 @@
 				)
 			)
 		)
-		(symbol "MySymbols:WS2811"
+		(symbol "BMCV:WS2811"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -4392,7 +4392,7 @@
 		(uuid "ff7e8837-a5fb-4099-9cd5-bd3a998bd13e")
 	)
 	(symbol
-		(lib_id "MySymbols:WS2811")
+		(lib_id "BMCV:WS2811")
 		(at 110.49 146.05 270)
 		(mirror x)
 		(unit 1)
@@ -4417,7 +4417,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 96.52 143.0938 90)
 			(effects
 				(font
@@ -5083,7 +5083,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:TC002-N11BXXX-RGB")
+		(lib_id "BMCV:TC002-N11BXXX-RGB")
 		(at 215.9 116.84 270)
 		(unit 1)
 		(exclude_from_sim no)
@@ -5110,7 +5110,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "MyParts:TC002-N11AXXX-RGB"
+		(property "Footprint" "BMCV:TC002-N11AXXX-RGB"
 			(at 215.9 116.84 0)
 			(effects
 				(font
@@ -5305,7 +5305,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:TC002-N11BXXX-RGB")
+		(lib_id "BMCV:TC002-N11BXXX-RGB")
 		(at 251.46 116.84 270)
 		(unit 1)
 		(exclude_from_sim no)
@@ -5332,7 +5332,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "MyParts:TC002-N11AXXX-RGB"
+		(property "Footprint" "BMCV:TC002-N11AXXX-RGB"
 			(at 251.46 116.84 0)
 			(effects
 				(font
@@ -5530,7 +5530,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:WS2811")
+		(lib_id "BMCV:WS2811")
 		(at 147.32 146.05 270)
 		(mirror x)
 		(unit 1)
@@ -5555,7 +5555,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 133.35 143.0938 90)
 			(effects
 				(font
@@ -6156,7 +6156,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:TC002-N11BXXX-RGB")
+		(lib_id "BMCV:TC002-N11BXXX-RGB")
 		(at 160.02 39.37 270)
 		(unit 1)
 		(exclude_from_sim no)
@@ -6183,7 +6183,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "MyParts:TC002-N11AXXX-RGB"
+		(property "Footprint" "BMCV:TC002-N11AXXX-RGB"
 			(at 160.02 39.37 0)
 			(effects
 				(font
@@ -6725,7 +6725,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:TC002-N11BXXX-RGB")
+		(lib_id "BMCV:TC002-N11BXXX-RGB")
 		(at 55.88 39.37 270)
 		(unit 1)
 		(exclude_from_sim no)
@@ -6752,7 +6752,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "MyParts:TC002-N11AXXX-RGB"
+		(property "Footprint" "BMCV:TC002-N11AXXX-RGB"
 			(at 55.88 39.37 0)
 			(effects
 				(font
@@ -6947,7 +6947,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:TC002-N11BXXX-RGB")
+		(lib_id "BMCV:TC002-N11BXXX-RGB")
 		(at 195.58 39.37 270)
 		(unit 1)
 		(exclude_from_sim no)
@@ -6974,7 +6974,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "MyParts:TC002-N11AXXX-RGB"
+		(property "Footprint" "BMCV:TC002-N11AXXX-RGB"
 			(at 195.58 39.37 0)
 			(effects
 				(font
@@ -7035,7 +7035,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:WS2811")
+		(lib_id "BMCV:WS2811")
 		(at 39.37 146.05 270)
 		(mirror x)
 		(unit 1)
@@ -7060,7 +7060,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 25.4 143.0938 90)
 			(effects
 				(font
@@ -7120,7 +7120,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:TC002-N11BXXX-RGB")
+		(lib_id "BMCV:TC002-N11BXXX-RGB")
 		(at 146.05 116.84 270)
 		(unit 1)
 		(exclude_from_sim no)
@@ -7146,7 +7146,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "MyParts:TC002-N11AXXX-RGB"
+		(property "Footprint" "BMCV:TC002-N11AXXX-RGB"
 			(at 146.05 116.84 0)
 			(effects
 				(font
@@ -8350,7 +8350,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:TC002-N11BXXX-RGB")
+		(lib_id "BMCV:TC002-N11BXXX-RGB")
 		(at 38.1 116.84 270)
 		(unit 1)
 		(exclude_from_sim no)
@@ -8377,7 +8377,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "MyParts:TC002-N11AXXX-RGB"
+		(property "Footprint" "BMCV:TC002-N11AXXX-RGB"
 			(at 38.1 116.84 0)
 			(effects
 				(font
@@ -8438,7 +8438,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:WS2811")
+		(lib_id "BMCV:WS2811")
 		(at 217.17 146.05 270)
 		(mirror x)
 		(unit 1)
@@ -8463,7 +8463,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 203.2 143.0938 90)
 			(effects
 				(font
@@ -9062,7 +9062,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:TC002-N11BXXX-RGB")
+		(lib_id "BMCV:TC002-N11BXXX-RGB")
 		(at 74.93 116.84 270)
 		(unit 1)
 		(exclude_from_sim no)
@@ -9089,7 +9089,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "MyParts:TC002-N11AXXX-RGB"
+		(property "Footprint" "BMCV:TC002-N11AXXX-RGB"
 			(at 74.93 116.84 0)
 			(effects
 				(font
@@ -9422,7 +9422,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:TC002-N11BXXX-RGB")
+		(lib_id "BMCV:TC002-N11BXXX-RGB")
 		(at 125.73 39.37 270)
 		(unit 1)
 		(exclude_from_sim no)
@@ -9449,7 +9449,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "MyParts:TC002-N11AXXX-RGB"
+		(property "Footprint" "BMCV:TC002-N11AXXX-RGB"
 			(at 125.73 39.37 0)
 			(effects
 				(font
@@ -11260,7 +11260,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:WS2811")
+		(lib_id "BMCV:WS2811")
 		(at 161.29 68.58 270)
 		(mirror x)
 		(unit 1)
@@ -11285,7 +11285,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 147.32 65.6238 90)
 			(effects
 				(font
@@ -11481,7 +11481,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:WS2811")
+		(lib_id "BMCV:WS2811")
 		(at 92.71 68.58 270)
 		(mirror x)
 		(unit 1)
@@ -11506,7 +11506,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 78.74 65.6238 90)
 			(effects
 				(font
@@ -11632,7 +11632,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:TC002-N11BXXX-RGB")
+		(lib_id "BMCV:TC002-N11BXXX-RGB")
 		(at 181.61 116.84 270)
 		(unit 1)
 		(exclude_from_sim no)
@@ -11658,7 +11658,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "MyParts:TC002-N11AXXX-RGB"
+		(property "Footprint" "BMCV:TC002-N11AXXX-RGB"
 			(at 181.61 116.84 0)
 			(effects
 				(font
@@ -11922,7 +11922,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:WS2811")
+		(lib_id "BMCV:WS2811")
 		(at 252.73 146.05 270)
 		(mirror x)
 		(unit 1)
@@ -11947,7 +11947,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 238.76 143.0938 90)
 			(effects
 				(font
@@ -12143,7 +12143,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:WS2811")
+		(lib_id "BMCV:WS2811")
 		(at 196.85 68.58 90)
 		(unit 1)
 		(exclude_from_sim no)
@@ -12168,7 +12168,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 210.82 65.6238 90)
 			(effects
 				(font
@@ -12228,7 +12228,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:WS2811")
+		(lib_id "BMCV:WS2811")
 		(at 127 68.58 270)
 		(mirror x)
 		(unit 1)
@@ -12253,7 +12253,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 113.03 65.6238 90)
 			(effects
 				(font
@@ -12922,7 +12922,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:WS2811")
+		(lib_id "BMCV:WS2811")
 		(at 57.15 68.58 270)
 		(mirror x)
 		(unit 1)
@@ -12947,7 +12947,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 43.18 65.6238 90)
 			(effects
 				(font
@@ -14028,7 +14028,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:TC002-N11BXXX-RGB")
+		(lib_id "BMCV:TC002-N11BXXX-RGB")
 		(at 231.14 39.37 270)
 		(unit 1)
 		(exclude_from_sim no)
@@ -14055,7 +14055,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "MyParts:TC002-N11AXXX-RGB"
+		(property "Footprint" "BMCV:TC002-N11AXXX-RGB"
 			(at 231.14 39.37 0)
 			(effects
 				(font
@@ -14585,7 +14585,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:WS2811")
+		(lib_id "BMCV:WS2811")
 		(at 76.2 146.05 270)
 		(mirror x)
 		(unit 1)
@@ -14610,7 +14610,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 62.23 143.0938 90)
 			(effects
 				(font
@@ -15078,7 +15078,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:TC002-N11BXXX-RGB")
+		(lib_id "BMCV:TC002-N11BXXX-RGB")
 		(at 109.22 118.11 270)
 		(unit 1)
 		(exclude_from_sim no)
@@ -15105,7 +15105,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "MyParts:TC002-N11AXXX-RGB"
+		(property "Footprint" "BMCV:TC002-N11AXXX-RGB"
 			(at 109.22 118.11 0)
 			(effects
 				(font
@@ -15365,7 +15365,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:TC002-N11BXXX-RGB")
+		(lib_id "BMCV:TC002-N11BXXX-RGB")
 		(at 91.44 39.37 270)
 		(unit 1)
 		(exclude_from_sim no)
@@ -15392,7 +15392,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "MyParts:TC002-N11AXXX-RGB"
+		(property "Footprint" "BMCV:TC002-N11AXXX-RGB"
 			(at 91.44 39.37 0)
 			(effects
 				(font
@@ -15453,7 +15453,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:WS2811")
+		(lib_id "BMCV:WS2811")
 		(at 182.88 146.05 270)
 		(mirror x)
 		(unit 1)
@@ -15478,7 +15478,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 168.91 143.0938 90)
 			(effects
 				(font
@@ -15743,7 +15743,7 @@
 		)
 	)
 	(symbol
-		(lib_id "MySymbols:WS2811")
+		(lib_id "BMCV:WS2811")
 		(at 232.41 68.58 270)
 		(mirror x)
 		(unit 1)
@@ -15768,7 +15768,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MyParts:FSOP-8"
+		(property "Footprint" "BMCV:FSOP-8"
 			(at 218.44 65.6238 90)
 			(effects
 				(font
