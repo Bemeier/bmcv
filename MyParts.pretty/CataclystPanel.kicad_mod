@@ -1,0 +1,106 @@
+(footprint "CataclystPanel"
+	(version 20240108)
+	(generator "pcbnew")
+	(generator_version "8.0")
+	(layer "F.Cu")
+	(property "Reference" "REF**"
+		(at 0 -0.5 0)
+		(unlocked yes)
+		(layer "F.SilkS")
+		(uuid "81c16779-a2f6-4e48-9f07-85c0d68ae8d1")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.1)
+			)
+		)
+	)
+	(property "Value" "CataclystPanel"
+		(at 0 1 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(uuid "fcfc5794-b224-4997-b542-f034f212a144")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Footprint" ""
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "ac1fe6f3-ee66-424d-8e8b-f21dbb4e19e4")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" ""
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "4726155c-5c1c-46c5-9900-4b8b4bc882db")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Description" ""
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "58b5d99e-ddc5-4c30-9d49-2b789d31029a")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(fp_text user "${REFERENCE}"
+		(at 0 2.5 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(uuid "4bdfa81f-4908-49ba-a88c-3f544823c822")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(pad "" np_thru_hole circle
+		(at -36.975 33.75)
+		(size 4.5 4.5)
+		(drill 3.2)
+		(layers "F&B.Cu")
+		(uuid "8fa1c217-2b97-4a68-805e-5a2bca06a03d")
+	)
+	(pad "" np_thru_hole circle
+		(at 36.975 33.75)
+		(size 4.5 4.5)
+		(drill 3.2)
+		(layers "F&B.Cu")
+		(uuid "462f2195-c08e-44fa-bd28-c8985a643f00")
+	)
+	(model "${KIPRJMOD}/MyParts.pretty/CataclystPanel.step"
+		(offset
+			(xyz 0 0 10)
+		)
+		(scale
+			(xyz 1 1 1)
+		)
+		(rotate
+			(xyz 0 0 0)
+		)
+	)
+)

@@ -1,0 +1,236 @@
+(footprint "PJ-301Bx"
+	(version 20240108)
+	(generator "pcbnew")
+	(generator_version "8.0")
+	(layer "F.Cu")
+	(property "Reference" "REF**"
+		(at 0 -3 0)
+		(unlocked yes)
+		(layer "F.SilkS")
+		(uuid "b04c08d5-5611-46b9-8d1d-ca815b74d064")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.1)
+			)
+		)
+	)
+	(property "Value" "PJ-301Bx"
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(uuid "c03063ff-925a-4e2c-b159-64099bb53638")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Footprint" ""
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "4fba19eb-51d0-4699-8041-dd80113cccb4")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" ""
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "10297048-8348-4e0b-8779-28929a7a2521")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Description" ""
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "91c8be90-9022-4185-bc37-9c496dde9a3a")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(attr through_hole)
+	(fp_line
+		(start -4.9 -6)
+		(end -4.9 -2)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(layer "F.SilkS")
+		(uuid "4621286e-a845-4ba6-bf33-d838a1366fa3")
+	)
+	(fp_line
+		(start -4.9 -6)
+		(end 4.9 -6)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(layer "F.SilkS")
+		(uuid "3bd183e7-a049-47f4-adca-9f1fae420d16")
+	)
+	(fp_line
+		(start -4.9 4.9)
+		(end -4.9 2)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(layer "F.SilkS")
+		(uuid "9544b22d-d824-4d2d-b637-f2c540bb1d7f")
+	)
+	(fp_line
+		(start -4.9 4.9)
+		(end 4.9 4.9)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(layer "F.SilkS")
+		(uuid "0a033147-4123-4481-9484-5606f75b2312")
+	)
+	(fp_line
+		(start 4.9 -6)
+		(end 4.9 -2)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(layer "F.SilkS")
+		(uuid "c3a7d7a3-bdb3-4fb7-8431-7b688616e31e")
+	)
+	(fp_line
+		(start 4.9 4.9)
+		(end 4.9 2)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(layer "F.SilkS")
+		(uuid "f46be429-749f-44ea-a785-fbd9ccfe71cb")
+	)
+	(fp_circle
+		(center 0 0)
+		(end 2 0)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(fill none)
+		(layer "F.SilkS")
+		(uuid "33703647-1521-4ca1-b220-dcb6fa5a7f84")
+	)
+	(fp_line
+		(start -5 -6)
+		(end -5 5)
+		(stroke
+			(width 0.05)
+			(type default)
+		)
+		(layer "F.CrtYd")
+		(uuid "2cb83129-580c-4622-ad79-fb456495063a")
+	)
+	(fp_line
+		(start -5 5)
+		(end 5 5)
+		(stroke
+			(width 0.05)
+			(type default)
+		)
+		(layer "F.CrtYd")
+		(uuid "e3b4f285-2b95-4910-9307-3219b9c5cb70")
+	)
+	(fp_line
+		(start 5 -6)
+		(end -5 -6)
+		(stroke
+			(width 0.05)
+			(type default)
+		)
+		(layer "F.CrtYd")
+		(uuid "b03c70dc-42d3-4900-be92-d0f9d02be351")
+	)
+	(fp_line
+		(start 5 5)
+		(end 5 -6)
+		(stroke
+			(width 0.05)
+			(type default)
+		)
+		(layer "F.CrtYd")
+		(uuid "d950bd54-b14c-45fc-a2a1-de41ed3c9492")
+	)
+	(fp_text user "${REFERENCE}"
+		(at 0 2 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(uuid "cb8bb495-1911-4013-8ae2-91c511eec51d")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(pad "S" thru_hole oval
+		(at -4.7 0)
+		(size 1.5 3)
+		(drill oval 1 2.5)
+		(layers "*.Cu" "*.Mask")
+		(remove_unused_layers no)
+		(uuid "89acd64e-d90f-4074-a870-c12e07a800eb")
+	)
+	(pad "S" thru_hole oval
+		(at 4.7 0)
+		(size 1.5 2)
+		(drill oval 1 1.5)
+		(layers "*.Cu" "*.Mask")
+		(remove_unused_layers no)
+		(uuid "110d08e1-676a-44ab-856c-e7c904875039")
+	)
+	(pad "T" thru_hole oval
+		(at 0 -4.9 90)
+		(size 1 3)
+		(drill oval 0.5 2.5)
+		(layers "*.Cu" "*.Mask")
+		(remove_unused_layers no)
+		(uuid "73289fda-99d5-40b5-b807-0931e8a7c45a")
+	)
+	(pad "TN" thru_hole oval
+		(at 0 3.3 90)
+		(size 1 3)
+		(drill oval 0.5 2.5)
+		(layers "*.Cu" "*.Mask")
+		(remove_unused_layers no)
+		(uuid "96c6bd02-1384-4d85-ab60-e893cc06487c")
+	)
+	(model "${KIPRJMOD}/MyParts.pretty/PJ-301Bx.step"
+		(offset
+			(xyz 0 0 0)
+		)
+		(scale
+			(xyz 1 1 1)
+		)
+		(rotate
+			(xyz 0 0 0)
+		)
+	)
+)
