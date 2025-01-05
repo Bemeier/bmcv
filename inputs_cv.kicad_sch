@@ -5,6 +5,499 @@
 	(uuid "de60b64b-4efe-4156-9484-84c8ad9912ec")
 	(paper "A4")
 	(lib_symbols
+		(symbol "BMCV:AD736x"
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(property "Reference" "U"
+				(at 0 18.796 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" ""
+				(at -2.54 7.62 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at -2.54 7.62 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Datasheet" ""
+				(at -2.54 7.62 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Description" ""
+				(at -2.54 7.62 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(symbol "AD736x_1_1"
+				(rectangle
+					(start -10.16 21.59)
+					(end 10.16 -19.05)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+				(pin output line
+					(at -12.7 19.05 0)
+					(length 2.54)
+					(name "D_{OUT}A"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at -12.7 -10.16 0)
+					(length 2.54)
+					(name "V_{SS}"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "10"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at -12.7 -13.97 0)
+					(length 2.54)
+					(name "V_{A1}"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "11"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at -12.7 -16.51 0)
+					(length 2.54)
+					(name "V_{A2}"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "12"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at 12.7 -16.51 180)
+					(length 2.54)
+					(name "V_{B2}"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "13"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at 12.7 -13.97 180)
+					(length 2.54)
+					(name "V_{B1}"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "14"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at 12.7 -10.16 180)
+					(length 2.54)
+					(name "V_{DD}"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "15"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 12.7 -7.62 180)
+					(length 2.54)
+					(name "D_{CAP}B"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "16"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at 12.7 -5.08 180)
+					(length 2.54)
+					(name "AGND"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "17"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at 12.7 0 180)
+					(length 2.54)
+					(name "REFSEL"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "18"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at 12.7 3.81 180)
+					(length 2.54)
+					(name "~{CS}"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "19"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at -12.7 15.24 0)
+					(length 2.54)
+					(name "V_{DRIVE}"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at 12.7 6.35 180)
+					(length 2.54)
+					(name "SCLK"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "20"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at 12.7 8.89 180)
+					(length 2.54)
+					(name "~{CNVST}"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "21"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin output line
+					(at 12.7 11.43 180)
+					(length 2.54)
+					(name "BUSY"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "22"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin output line
+					(at 12.7 15.24 180)
+					(length 2.54)
+					(name "D_{OUT}B"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "23"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at 12.7 19.05 180)
+					(length 2.54)
+					(name "DGND"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "24"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at -12.7 12.7 0)
+					(length 2.54)
+					(name "DV_{CC}"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at -12.7 8.89 0)
+					(length 2.54)
+					(name "RANGE1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "4"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at -12.7 6.35 0)
+					(length 2.54)
+					(name "RANGE0"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "5"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at -12.7 2.54 0)
+					(length 2.54)
+					(name "ADDR"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "6"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at -12.7 -1.27 0)
+					(length 2.54)
+					(name "AGND"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "7"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at -12.7 -5.08 0)
+					(length 2.54)
+					(name "AV_{CC}"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "8"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -12.7 -7.62 0)
+					(length 2.54)
+					(name "D_{CAP}A"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "9"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+		)
 		(symbol "Connector_Audio:AudioJack2_SwitchT"
 			(exclude_from_sim no)
 			(in_bom yes)
@@ -1225,499 +1718,6 @@
 				)
 			)
 		)
-		(symbol "BMCV:AD736x"
-			(exclude_from_sim no)
-			(in_bom yes)
-			(on_board yes)
-			(property "Reference" "U"
-				(at 0 18.796 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Value" ""
-				(at -2.54 7.62 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Footprint" ""
-				(at -2.54 7.62 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(hide yes)
-				)
-			)
-			(property "Datasheet" ""
-				(at -2.54 7.62 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(hide yes)
-				)
-			)
-			(property "Description" ""
-				(at -2.54 7.62 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(hide yes)
-				)
-			)
-			(symbol "AD736x_1_1"
-				(rectangle
-					(start -10.16 21.59)
-					(end 10.16 -19.05)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type background)
-					)
-				)
-				(pin output line
-					(at -12.7 19.05 0)
-					(length 2.54)
-					(name "D_{OUT}A"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "1"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin power_in line
-					(at -12.7 -10.16 0)
-					(length 2.54)
-					(name "V_{SS}"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "10"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin input line
-					(at -12.7 -13.97 0)
-					(length 2.54)
-					(name "V_{A1}"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "11"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin input line
-					(at -12.7 -16.51 0)
-					(length 2.54)
-					(name "V_{A2}"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "12"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin input line
-					(at 12.7 -16.51 180)
-					(length 2.54)
-					(name "V_{B2}"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "13"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin input line
-					(at 12.7 -13.97 180)
-					(length 2.54)
-					(name "V_{B1}"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "14"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin power_in line
-					(at 12.7 -10.16 180)
-					(length 2.54)
-					(name "V_{DD}"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "15"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at 12.7 -7.62 180)
-					(length 2.54)
-					(name "D_{CAP}B"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "16"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin power_in line
-					(at 12.7 -5.08 180)
-					(length 2.54)
-					(name "AGND"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "17"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin input line
-					(at 12.7 0 180)
-					(length 2.54)
-					(name "REFSEL"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "18"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin input line
-					(at 12.7 3.81 180)
-					(length 2.54)
-					(name "~{CS}"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "19"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin power_in line
-					(at -12.7 15.24 0)
-					(length 2.54)
-					(name "V_{DRIVE}"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "2"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin input line
-					(at 12.7 6.35 180)
-					(length 2.54)
-					(name "SCLK"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "20"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin input line
-					(at 12.7 8.89 180)
-					(length 2.54)
-					(name "~{CNVST}"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "21"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin output line
-					(at 12.7 11.43 180)
-					(length 2.54)
-					(name "BUSY"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "22"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin output line
-					(at 12.7 15.24 180)
-					(length 2.54)
-					(name "D_{OUT}B"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "23"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin power_in line
-					(at 12.7 19.05 180)
-					(length 2.54)
-					(name "DGND"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "24"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin power_in line
-					(at -12.7 12.7 0)
-					(length 2.54)
-					(name "DV_{CC}"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "3"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin input line
-					(at -12.7 8.89 0)
-					(length 2.54)
-					(name "RANGE1"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "4"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin input line
-					(at -12.7 6.35 0)
-					(length 2.54)
-					(name "RANGE0"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "5"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin input line
-					(at -12.7 2.54 0)
-					(length 2.54)
-					(name "ADDR"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "6"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin power_in line
-					(at -12.7 -1.27 0)
-					(length 2.54)
-					(name "AGND"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "7"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin power_in line
-					(at -12.7 -5.08 0)
-					(length 2.54)
-					(name "AV_{CC}"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "8"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at -12.7 -7.62 0)
-					(length 2.54)
-					(name "D_{CAP}A"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "9"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-			)
-		)
 		(symbol "PCM_4ms_Power-symbol:+3.3V"
 			(power)
 			(pin_names
@@ -2263,7 +2263,7 @@
 		)
 	)
 	(junction
-		(at 77.47 93.98)
+		(at 77.47 68.58)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "00bfcf74-25d5-4220-a01f-e4f834af52d8")
@@ -2273,18 +2273,6 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "037b031e-9b28-4c09-8ef2-a60a850901a3")
-	)
-	(junction
-		(at 77.47 44.45)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "086cd828-f31f-4548-ac9a-7b24936af536")
-	)
-	(junction
-		(at 77.47 68.58)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "0881b412-3a68-4a9f-93c9-ee520acabd82")
 	)
 	(junction
 		(at 99.06 93.98)
@@ -2345,6 +2333,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "56a2a4f1-482c-4d93-88f9-e1202d6e90ca")
+	)
+	(junction
+		(at 77.47 119.38)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "5c6d47fa-66f1-4c24-beb7-fefa8764a1cd")
 	)
 	(junction
 		(at 107.95 189.23)
@@ -2443,6 +2437,12 @@
 		(uuid "d3828f12-0201-43f7-a7de-6660576973d4")
 	)
 	(junction
+		(at 77.47 93.98)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "d4c0518c-7345-429d-8094-348f4104f5e3")
+	)
+	(junction
 		(at 254 139.7)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -2455,7 +2455,7 @@
 		(uuid "d93739f7-0f6c-4531-9304-e046c79d46c1")
 	)
 	(junction
-		(at 77.47 119.38)
+		(at 77.47 44.45)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "de583632-08c3-4083-a5f9-67d185472376")
@@ -2484,7 +2484,7 @@
 	)
 	(wire
 		(pts
-			(xy 76.2 46.99) (xy 77.47 46.99)
+			(xy 76.2 121.92) (xy 77.47 121.92)
 		)
 		(stroke
 			(width 0)
@@ -2494,7 +2494,7 @@
 	)
 	(wire
 		(pts
-			(xy 77.47 99.06) (xy 77.47 102.87)
+			(xy 77.47 73.66) (xy 77.47 77.47)
 		)
 		(stroke
 			(width 0)
@@ -2514,7 +2514,7 @@
 	)
 	(wire
 		(pts
-			(xy 147.32 46.99) (xy 151.13 46.99)
+			(xy 147.32 96.52) (xy 151.13 96.52)
 		)
 		(stroke
 			(width 0)
@@ -2554,7 +2554,7 @@
 	)
 	(wire
 		(pts
-			(xy 77.47 121.92) (xy 77.47 119.38)
+			(xy 77.47 46.99) (xy 77.47 44.45)
 		)
 		(stroke
 			(width 0)
@@ -2584,7 +2584,7 @@
 	)
 	(wire
 		(pts
-			(xy 76.2 124.46) (xy 77.47 124.46)
+			(xy 76.2 49.53) (xy 77.47 49.53)
 		)
 		(stroke
 			(width 0)
@@ -2634,7 +2634,7 @@
 	)
 	(wire
 		(pts
-			(xy 76.2 71.12) (xy 77.47 71.12)
+			(xy 76.2 96.52) (xy 77.47 96.52)
 		)
 		(stroke
 			(width 0)
@@ -2684,7 +2684,7 @@
 	)
 	(wire
 		(pts
-			(xy 76.2 68.58) (xy 77.47 68.58)
+			(xy 76.2 93.98) (xy 77.47 93.98)
 		)
 		(stroke
 			(width 0)
@@ -2734,7 +2734,7 @@
 	)
 	(wire
 		(pts
-			(xy 76.2 119.38) (xy 77.47 119.38)
+			(xy 76.2 44.45) (xy 77.47 44.45)
 		)
 		(stroke
 			(width 0)
@@ -2764,7 +2764,7 @@
 	)
 	(wire
 		(pts
-			(xy 77.47 96.52) (xy 77.47 93.98)
+			(xy 77.47 71.12) (xy 77.47 68.58)
 		)
 		(stroke
 			(width 0)
@@ -2934,7 +2934,7 @@
 	)
 	(wire
 		(pts
-			(xy 77.47 71.12) (xy 77.47 68.58)
+			(xy 77.47 96.52) (xy 77.47 93.98)
 		)
 		(stroke
 			(width 0)
@@ -3064,7 +3064,7 @@
 	)
 	(wire
 		(pts
-			(xy 76.2 93.98) (xy 77.47 93.98)
+			(xy 76.2 68.58) (xy 77.47 68.58)
 		)
 		(stroke
 			(width 0)
@@ -3134,7 +3134,7 @@
 	)
 	(wire
 		(pts
-			(xy 77.47 49.53) (xy 77.47 53.34)
+			(xy 77.47 124.46) (xy 77.47 128.27)
 		)
 		(stroke
 			(width 0)
@@ -3174,7 +3174,7 @@
 	)
 	(wire
 		(pts
-			(xy 77.47 46.99) (xy 77.47 44.45)
+			(xy 77.47 121.92) (xy 77.47 119.38)
 		)
 		(stroke
 			(width 0)
@@ -3224,7 +3224,7 @@
 	)
 	(wire
 		(pts
-			(xy 76.2 49.53) (xy 77.47 49.53)
+			(xy 76.2 124.46) (xy 77.47 124.46)
 		)
 		(stroke
 			(width 0)
@@ -3254,7 +3254,7 @@
 	)
 	(wire
 		(pts
-			(xy 147.32 96.52) (xy 151.13 96.52)
+			(xy 147.32 71.12) (xy 151.13 71.12)
 		)
 		(stroke
 			(width 0)
@@ -3384,7 +3384,7 @@
 	)
 	(wire
 		(pts
-			(xy 77.47 124.46) (xy 77.47 128.27)
+			(xy 77.47 49.53) (xy 77.47 53.34)
 		)
 		(stroke
 			(width 0)
@@ -3454,7 +3454,7 @@
 	)
 	(wire
 		(pts
-			(xy 147.32 71.12) (xy 151.13 71.12)
+			(xy 147.32 121.92) (xy 151.13 121.92)
 		)
 		(stroke
 			(width 0)
@@ -3534,7 +3534,7 @@
 	)
 	(wire
 		(pts
-			(xy 77.47 73.66) (xy 77.47 77.47)
+			(xy 77.47 99.06) (xy 77.47 102.87)
 		)
 		(stroke
 			(width 0)
@@ -3654,7 +3654,7 @@
 	)
 	(wire
 		(pts
-			(xy 76.2 44.45) (xy 77.47 44.45)
+			(xy 76.2 119.38) (xy 77.47 119.38)
 		)
 		(stroke
 			(width 0)
@@ -3664,7 +3664,7 @@
 	)
 	(wire
 		(pts
-			(xy 147.32 121.92) (xy 151.13 121.92)
+			(xy 147.32 46.99) (xy 151.13 46.99)
 		)
 		(stroke
 			(width 0)
@@ -3784,7 +3784,7 @@
 	)
 	(wire
 		(pts
-			(xy 76.2 121.92) (xy 77.47 121.92)
+			(xy 76.2 46.99) (xy 77.47 46.99)
 		)
 		(stroke
 			(width 0)
@@ -3894,7 +3894,7 @@
 	)
 	(wire
 		(pts
-			(xy 76.2 73.66) (xy 77.47 73.66)
+			(xy 76.2 99.06) (xy 77.47 99.06)
 		)
 		(stroke
 			(width 0)
@@ -3944,7 +3944,7 @@
 	)
 	(wire
 		(pts
-			(xy 76.2 96.52) (xy 77.47 96.52)
+			(xy 76.2 71.12) (xy 77.47 71.12)
 		)
 		(stroke
 			(width 0)
@@ -3994,7 +3994,7 @@
 	)
 	(wire
 		(pts
-			(xy 76.2 99.06) (xy 77.47 99.06)
+			(xy 76.2 73.66) (xy 77.47 73.66)
 		)
 		(stroke
 			(width 0)
@@ -4210,7 +4210,7 @@
 	)
 	(global_label "IN_BUFFERED_B2"
 		(shape input)
-		(at 151.13 121.92 0)
+		(at 151.13 46.99 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -4220,7 +4220,7 @@
 		)
 		(uuid "35ea3daf-9e8b-4628-a185-e99711915cfe")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 170.0809 121.92 0)
+			(at 170.0809 46.99 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4386,7 +4386,7 @@
 	)
 	(global_label "IN_BUFFERED_A2"
 		(shape input)
-		(at 151.13 71.12 0)
+		(at 151.13 121.92 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -4396,7 +4396,7 @@
 		)
 		(uuid "af421881-f5a4-4512-9566-3edff11a4673")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 169.8995 71.12 0)
+			(at 169.8995 121.92 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4408,7 +4408,7 @@
 	)
 	(global_label "IN_BUFFERED_A1"
 		(shape input)
-		(at 151.13 46.99 0)
+		(at 151.13 96.52 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -4418,7 +4418,7 @@
 		)
 		(uuid "c69a2035-14f8-4863-b4f1-e30889116e76")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 169.8995 46.99 0)
+			(at 169.8995 96.52 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4430,7 +4430,7 @@
 	)
 	(global_label "IN_BUFFERED_B1"
 		(shape input)
-		(at 151.13 96.52 0)
+		(at 151.13 71.12 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -4440,7 +4440,7 @@
 		)
 		(uuid "ca907b34-280b-4343-8f93-ec7a52636a0f")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 170.0809 96.52 0)
+			(at 170.0809 71.12 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4518,7 +4518,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 77.47 53.34 0)
+		(at 77.47 128.27 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -4527,7 +4527,7 @@
 		(fields_autoplaced yes)
 		(uuid "007847e8-0846-4c12-9931-aa8474c72cf6")
 		(property "Reference" "#PWR038"
-			(at 77.47 59.69 0)
+			(at 77.47 134.62 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4536,7 +4536,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 77.47 58.42 0)
+			(at 77.47 133.35 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4545,7 +4545,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 77.47 53.34 0)
+			(at 77.47 128.27 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4554,7 +4554,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 77.47 53.34 0)
+			(at 77.47 128.27 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4563,7 +4563,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 77.47 53.34 0)
+			(at 77.47 128.27 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4575,7 +4575,7 @@
 			(uuid "bc4e83f0-cae0-43f5-bc6d-d8182e1c146c")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "#PWR038")
 					(unit 1)
@@ -4642,7 +4642,7 @@
 			(uuid "2f8024da-99a9-4d50-8d20-521e6b4d0da9")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "#PWR0263")
 					(unit 1)
@@ -4709,7 +4709,7 @@
 			(uuid "72ec2054-5d57-4970-86ce-6873f73b11a5")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "#PWR035")
 					(unit 1)
@@ -4778,7 +4778,7 @@
 			(uuid "cf5b6af2-38a7-490a-8206-5c85c0d41cbe")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "C79")
 					(unit 1)
@@ -4845,7 +4845,7 @@
 			(uuid "043201d1-156c-44d4-8f4a-aa45a3b94918")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "R30")
 					(unit 1)
@@ -4961,7 +4961,7 @@
 			(uuid "9e4ad574-be20-4e34-a6e0-a169d3657008")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "RV3")
 					(unit 1)
@@ -5028,7 +5028,7 @@
 			(uuid "303e9142-b22a-4291-9e4f-bbca3c890010")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "#PWR0261")
 					(unit 1)
@@ -5097,7 +5097,7 @@
 			(uuid "f84dfe3b-1606-44d7-a9cf-a30b0891e545")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "C90")
 					(unit 1)
@@ -5238,7 +5238,7 @@
 			(uuid "84a9caf9-61ea-4ada-b68e-e273cfa053dc")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "U38")
 					(unit 5)
@@ -5308,7 +5308,7 @@
 			(uuid "8ec2c2a0-a9d4-4da9-bc3a-1d198483b881")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "R5")
 					(unit 1)
@@ -5377,7 +5377,7 @@
 			(uuid "a98274ca-4f03-45f5-8552-a732f3179dff")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "C77")
 					(unit 1)
@@ -5446,7 +5446,7 @@
 			(uuid "53b5b51c-42ca-43e4-a857-2f3171fe98c6")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "C20")
 					(unit 1)
@@ -5515,7 +5515,7 @@
 			(uuid "25aff089-2b85-4c64-91ed-939ce2ca0f65")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "C81")
 					(unit 1)
@@ -5582,7 +5582,7 @@
 			(uuid "be8b2603-3342-4345-a6b3-974cc4d5c6fb")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "R31")
 					(unit 1)
@@ -5651,7 +5651,7 @@
 			(uuid "793bee5b-2c70-477e-aa0a-7963e8ce3f6d")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "C83")
 					(unit 1)
@@ -5717,7 +5717,7 @@
 			(uuid "ac9b89da-ce31-4481-b78d-557975b29a30")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "#PWR0253")
 					(unit 1)
@@ -5857,7 +5857,7 @@
 			(uuid "a6d7800d-b85e-45b4-aefa-a8984fe7835d")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "U38")
 					(unit 1)
@@ -5924,7 +5924,7 @@
 			(uuid "79266872-5fca-45af-8ba6-b554ca88c684")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "R32")
 					(unit 1)
@@ -5993,7 +5993,7 @@
 			(uuid "9498be06-eb04-476d-9ef1-a33a5f74fc30")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "C80")
 					(unit 1)
@@ -6060,7 +6060,7 @@
 			(uuid "90e9fabd-4997-4c22-816a-264e3933b81f")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "#PWR0267")
 					(unit 1)
@@ -6125,7 +6125,7 @@
 			(uuid "d790b32c-112e-4d2d-be20-a1caf3079205")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "#PWR0262")
 					(unit 1)
@@ -6192,7 +6192,7 @@
 			(uuid "1ad908cf-75d3-464b-ba30-ecae11162f6a")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "#PWR0264")
 					(unit 1)
@@ -6202,7 +6202,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 77.47 77.47 0)
+		(at 77.47 102.87 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -6211,7 +6211,7 @@
 		(fields_autoplaced yes)
 		(uuid "5549fbed-c891-46b2-90af-b8074f9a7a66")
 		(property "Reference" "#PWR033"
-			(at 77.47 83.82 0)
+			(at 77.47 109.22 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6220,7 +6220,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 77.47 82.55 0)
+			(at 77.47 107.95 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6229,7 +6229,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 77.47 77.47 0)
+			(at 77.47 102.87 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6238,7 +6238,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 77.47 77.47 0)
+			(at 77.47 102.87 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6247,7 +6247,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 77.47 77.47 0)
+			(at 77.47 102.87 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6259,7 +6259,7 @@
 			(uuid "d5874f1d-c6af-479f-baf6-c7adec2a73c8")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "#PWR033")
 					(unit 1)
@@ -6326,7 +6326,7 @@
 			(uuid "fd4ac8f0-df0b-4036-882d-19d4bf54127e")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "#PWR063")
 					(unit 1)
@@ -6391,7 +6391,7 @@
 			(uuid "5dda844c-41be-47d1-b3cc-37bc2d7babb4")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "#PWR0256")
 					(unit 1)
@@ -6401,7 +6401,7 @@
 	)
 	(symbol
 		(lib_id "Device:R_Small")
-		(at 144.78 46.99 90)
+		(at 144.78 96.52 90)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -6409,7 +6409,7 @@
 		(dnp no)
 		(uuid "61af52cd-19bc-41ee-936e-4c783c95e315")
 		(property "Reference" "R6"
-			(at 144.78 40.64 90)
+			(at 144.78 90.17 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6417,7 +6417,7 @@
 			)
 		)
 		(property "Value" "100"
-			(at 144.78 43.18 90)
+			(at 144.78 92.71 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6425,7 +6425,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
-			(at 144.78 46.99 0)
+			(at 144.78 96.52 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6434,7 +6434,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 144.78 46.99 0)
+			(at 144.78 96.52 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6443,7 +6443,7 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
-			(at 144.78 46.99 0)
+			(at 144.78 96.52 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6458,7 +6458,7 @@
 			(uuid "019d1f31-a4d2-4d5e-81a2-8df5b5ecc7e8")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "R6")
 					(unit 1)
@@ -6525,7 +6525,7 @@
 			(uuid "1fb1f8a8-3542-434c-a68e-c17e7f6f3962")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "#PWR0259")
 					(unit 1)
@@ -6592,7 +6592,7 @@
 			(uuid "16e519e2-4845-42b1-aa2b-22b9c247521a")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "#PWR048")
 					(unit 1)
@@ -6602,7 +6602,7 @@
 	)
 	(symbol
 		(lib_id "Device:R_Small")
-		(at 144.78 121.92 90)
+		(at 144.78 46.99 90)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -6610,7 +6610,7 @@
 		(dnp no)
 		(uuid "658dd964-db36-42cc-a4f0-c5a2f53ec469")
 		(property "Reference" "R9"
-			(at 144.78 115.57 90)
+			(at 144.78 40.64 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6618,7 +6618,7 @@
 			)
 		)
 		(property "Value" "100"
-			(at 144.78 118.11 90)
+			(at 144.78 43.18 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6626,7 +6626,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
-			(at 144.78 121.92 0)
+			(at 144.78 46.99 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6635,7 +6635,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 144.78 121.92 0)
+			(at 144.78 46.99 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6644,7 +6644,7 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
-			(at 144.78 121.92 0)
+			(at 144.78 46.99 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6659,7 +6659,7 @@
 			(uuid "41c2d4cc-454d-49ea-9352-4a2fccb3c52f")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "R9")
 					(unit 1)
@@ -6669,7 +6669,7 @@
 	)
 	(symbol
 		(lib_id "Connector_Audio:AudioJack2_SwitchT")
-		(at 71.12 96.52 0)
+		(at 71.12 71.12 0)
 		(mirror x)
 		(unit 1)
 		(exclude_from_sim no)
@@ -6678,7 +6678,7 @@
 		(dnp no)
 		(uuid "6674c7c8-595f-422d-8d65-58ea121fdf78")
 		(property "Reference" "J10"
-			(at 70.485 105.41 0)
+			(at 70.485 80.01 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6686,7 +6686,7 @@
 			)
 		)
 		(property "Value" "AudioJack2_SwitchT"
-			(at 70.485 102.87 0)
+			(at 70.485 77.47 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6694,7 +6694,7 @@
 			)
 		)
 		(property "Footprint" "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
-			(at 71.12 96.52 0)
+			(at 71.12 71.12 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6703,7 +6703,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 71.12 96.52 0)
+			(at 71.12 71.12 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6712,7 +6712,7 @@
 			)
 		)
 		(property "Description" "Audio Jack, 2 Poles (Mono / TS), Switched T Pole (Normalling)"
-			(at 71.12 96.52 0)
+			(at 71.12 71.12 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6730,7 +6730,7 @@
 			(uuid "a9329920-a63c-40f9-a603-d17d9cb7ce28")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "J10")
 					(unit 1)
@@ -6795,7 +6795,7 @@
 			(uuid "f1abf456-d578-48b6-8e68-08c103bb226a")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "#PWR0254")
 					(unit 1)
@@ -6805,7 +6805,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 77.47 128.27 0)
+		(at 77.47 53.34 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -6814,7 +6814,7 @@
 		(fields_autoplaced yes)
 		(uuid "70f61386-5485-49ce-bc25-46843ff88204")
 		(property "Reference" "#PWR039"
-			(at 77.47 134.62 0)
+			(at 77.47 59.69 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6823,7 +6823,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 77.47 133.35 0)
+			(at 77.47 58.42 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6832,7 +6832,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 77.47 128.27 0)
+			(at 77.47 53.34 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6841,7 +6841,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 77.47 128.27 0)
+			(at 77.47 53.34 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6850,7 +6850,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 77.47 128.27 0)
+			(at 77.47 53.34 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6862,7 +6862,7 @@
 			(uuid "f5a43b1f-caca-4249-84e6-9e56fabf4758")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "#PWR039")
 					(unit 1)
@@ -6929,7 +6929,7 @@
 			(uuid "77f63135-30e6-4ade-8d7f-fd8752851421")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "#PWR069")
 					(unit 1)
@@ -6998,7 +6998,7 @@
 			(uuid "d0181f92-5fab-45f6-b6e7-e25280d050a7")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "C87")
 					(unit 1)
@@ -7068,7 +7068,7 @@
 			(uuid "1c223261-207a-4452-9d90-1772f020bf9d")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "R12")
 					(unit 1)
@@ -7208,7 +7208,7 @@
 			(uuid "c3d200d7-c3c6-41d1-b5c5-b3134910508f")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "U38")
 					(unit 4)
@@ -7275,7 +7275,7 @@
 			(uuid "1fdd510e-cccf-41b7-bc5f-abd7ed9f1bc3")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "#PWR036")
 					(unit 1)
@@ -7340,7 +7340,7 @@
 			(uuid "92a2feae-2ad2-45f3-851a-a6ac09be97d4")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "#PWR0258")
 					(unit 1)
@@ -7405,7 +7405,7 @@
 			(uuid "e356e487-2955-429a-acf7-6cca6af146cb")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "#PWR040")
 					(unit 1)
@@ -7474,7 +7474,7 @@
 			(uuid "7badc1d0-c407-4ad4-ae59-f819bc7d1866")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "C82")
 					(unit 1)
@@ -7539,7 +7539,7 @@
 			(uuid "402d9fd8-6fb7-4d67-bcd4-4bf185b3903b")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "#PWR041")
 					(unit 1)
@@ -7606,7 +7606,7 @@
 			(uuid "bb36995c-ffa8-461c-98ca-e8b4857726eb")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "#PWR0257")
 					(unit 1)
@@ -7616,7 +7616,7 @@
 	)
 	(symbol
 		(lib_id "Connector_Audio:AudioJack2_SwitchT")
-		(at 71.12 71.12 0)
+		(at 71.12 96.52 0)
 		(mirror x)
 		(unit 1)
 		(exclude_from_sim no)
@@ -7625,7 +7625,7 @@
 		(dnp no)
 		(uuid "8f7a9758-e0d4-4a90-ae6d-052ba9ea1d6f")
 		(property "Reference" "J9"
-			(at 70.485 80.01 0)
+			(at 70.485 105.41 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7633,7 +7633,7 @@
 			)
 		)
 		(property "Value" "AudioJack2_SwitchT"
-			(at 70.485 77.47 0)
+			(at 70.485 102.87 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7641,7 +7641,7 @@
 			)
 		)
 		(property "Footprint" "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
-			(at 71.12 71.12 0)
+			(at 71.12 96.52 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7650,7 +7650,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 71.12 71.12 0)
+			(at 71.12 96.52 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7659,7 +7659,7 @@
 			)
 		)
 		(property "Description" "Audio Jack, 2 Poles (Mono / TS), Switched T Pole (Normalling)"
-			(at 71.12 71.12 0)
+			(at 71.12 96.52 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7677,7 +7677,7 @@
 			(uuid "f6db01c5-2981-4ce8-bc7b-ce3973610984")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "J9")
 					(unit 1)
@@ -7747,7 +7747,7 @@
 			(uuid "ed690fee-ad63-4f37-94b8-3cab6677d558")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "R10")
 					(unit 1)
@@ -7817,7 +7817,7 @@
 			(uuid "3893f4f7-7969-4dca-b8ec-ae84316d6642")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "C85")
 					(unit 1)
@@ -7887,7 +7887,7 @@
 			(uuid "80bd3df7-3fba-43ff-b604-fe24c9aa9ce1")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "R11")
 					(unit 1)
@@ -7897,7 +7897,7 @@
 	)
 	(symbol
 		(lib_id "Connector_Audio:AudioJack2_SwitchT")
-		(at 71.12 121.92 0)
+		(at 71.12 46.99 0)
 		(mirror x)
 		(unit 1)
 		(exclude_from_sim no)
@@ -7906,7 +7906,7 @@
 		(dnp no)
 		(uuid "a52dd92c-e452-46f6-a741-d78edbaf0e57")
 		(property "Reference" "J12"
-			(at 70.485 130.81 0)
+			(at 70.485 55.88 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7914,7 +7914,7 @@
 			)
 		)
 		(property "Value" "AudioJack2_SwitchT"
-			(at 70.485 128.27 0)
+			(at 70.485 53.34 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7922,7 +7922,7 @@
 			)
 		)
 		(property "Footprint" "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
-			(at 71.12 121.92 0)
+			(at 71.12 46.99 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7931,7 +7931,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 71.12 121.92 0)
+			(at 71.12 46.99 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7940,7 +7940,7 @@
 			)
 		)
 		(property "Description" "Audio Jack, 2 Poles (Mono / TS), Switched T Pole (Normalling)"
-			(at 71.12 121.92 0)
+			(at 71.12 46.99 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7958,7 +7958,7 @@
 			(uuid "f4b388ce-c3f9-4cdf-87c4-30b5dc3498b6")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "J12")
 					(unit 1)
@@ -8023,7 +8023,7 @@
 			(uuid "bbb6d1ba-63b8-49a2-b751-37a95fa9065c")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "#PWR0255")
 					(unit 1)
@@ -8157,7 +8157,7 @@
 			(uuid "a5f4d5a2-9f56-4e34-82fe-1b15f2cbd718")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "U33")
 					(unit 1)
@@ -8167,7 +8167,7 @@
 	)
 	(symbol
 		(lib_id "Device:R_Small")
-		(at 144.78 71.12 90)
+		(at 144.78 121.92 90)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -8175,7 +8175,7 @@
 		(dnp no)
 		(uuid "b30dfcdd-2e32-4279-b691-ee78d17e9e36")
 		(property "Reference" "R7"
-			(at 144.78 64.77 90)
+			(at 144.78 115.57 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8183,7 +8183,7 @@
 			)
 		)
 		(property "Value" "100"
-			(at 144.78 67.31 90)
+			(at 144.78 118.11 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8191,7 +8191,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
-			(at 144.78 71.12 0)
+			(at 144.78 121.92 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8200,7 +8200,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 144.78 71.12 0)
+			(at 144.78 121.92 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8209,7 +8209,7 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
-			(at 144.78 71.12 0)
+			(at 144.78 121.92 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8224,7 +8224,7 @@
 			(uuid "8d472993-2f8d-41d2-b0ac-1b53a83ea67a")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "R7")
 					(unit 1)
@@ -8293,7 +8293,7 @@
 			(uuid "03723037-49e9-4c4a-89a1-ddc09dbce23d")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "C88")
 					(unit 1)
@@ -8358,7 +8358,7 @@
 			(uuid "6202e5fb-43ba-4bcb-9c47-c49f6427163f")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "#PWR0247")
 					(unit 1)
@@ -8425,7 +8425,7 @@
 			(uuid "f88acdae-3d8f-4577-9291-cf2942a64474")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "#PWR0266")
 					(unit 1)
@@ -8539,7 +8539,7 @@
 			(uuid "562e6938-55e5-43f8-b309-b394dd23312f")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "RV1")
 					(unit 1)
@@ -8608,7 +8608,7 @@
 			(uuid "9af6f2a0-6f37-4394-9c2f-dcee96ae4a3f")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "C89")
 					(unit 1)
@@ -8618,7 +8618,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 77.47 102.87 0)
+		(at 77.47 77.47 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -8627,7 +8627,7 @@
 		(fields_autoplaced yes)
 		(uuid "c3d72831-4594-4813-a683-e799593d1e4c")
 		(property "Reference" "#PWR037"
-			(at 77.47 109.22 0)
+			(at 77.47 83.82 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8636,7 +8636,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 77.47 107.95 0)
+			(at 77.47 82.55 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8645,7 +8645,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 77.47 102.87 0)
+			(at 77.47 77.47 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8654,7 +8654,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 77.47 102.87 0)
+			(at 77.47 77.47 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8663,7 +8663,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 77.47 102.87 0)
+			(at 77.47 77.47 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8675,7 +8675,7 @@
 			(uuid "0b1ec715-107d-4400-a6df-59eaf12f385d")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "#PWR037")
 					(unit 1)
@@ -8685,7 +8685,7 @@
 	)
 	(symbol
 		(lib_id "Device:R_Small")
-		(at 144.78 96.52 90)
+		(at 144.78 71.12 90)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -8693,7 +8693,7 @@
 		(dnp no)
 		(uuid "c8882a69-ef8d-45da-be92-32597f15da04")
 		(property "Reference" "R8"
-			(at 144.78 90.17 90)
+			(at 144.78 64.77 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8701,7 +8701,7 @@
 			)
 		)
 		(property "Value" "100"
-			(at 144.78 92.71 90)
+			(at 144.78 67.31 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8709,7 +8709,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
-			(at 144.78 96.52 0)
+			(at 144.78 71.12 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8718,7 +8718,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 144.78 96.52 0)
+			(at 144.78 71.12 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8727,7 +8727,7 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
-			(at 144.78 96.52 0)
+			(at 144.78 71.12 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8742,7 +8742,7 @@
 			(uuid "02b6bd66-cfb0-4f64-a90f-6ef999f15eaa")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "R8")
 					(unit 1)
@@ -8752,7 +8752,7 @@
 	)
 	(symbol
 		(lib_id "Connector_Audio:AudioJack2_SwitchT")
-		(at 71.12 46.99 0)
+		(at 71.12 121.92 0)
 		(mirror x)
 		(unit 1)
 		(exclude_from_sim no)
@@ -8761,7 +8761,7 @@
 		(dnp no)
 		(uuid "caebc353-ad46-4294-8d5c-1897ec7d85fd")
 		(property "Reference" "J11"
-			(at 70.485 55.88 0)
+			(at 70.485 130.81 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8769,7 +8769,7 @@
 			)
 		)
 		(property "Value" "AudioJack2_SwitchT"
-			(at 70.485 53.34 0)
+			(at 70.485 128.27 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8777,7 +8777,7 @@
 			)
 		)
 		(property "Footprint" "BMCV:Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles"
-			(at 71.12 46.99 0)
+			(at 71.12 121.92 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8786,7 +8786,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 71.12 46.99 0)
+			(at 71.12 121.92 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8795,7 +8795,7 @@
 			)
 		)
 		(property "Description" "Audio Jack, 2 Poles (Mono / TS), Switched T Pole (Normalling)"
-			(at 71.12 46.99 0)
+			(at 71.12 121.92 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8813,7 +8813,7 @@
 			(uuid "569f8298-669d-43c7-b986-2c008bbeabdc")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "J11")
 					(unit 1)
@@ -8880,7 +8880,7 @@
 			(uuid "37bd7bf8-04b2-45a3-baf4-1fca78d85d6f")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "#PWR0260")
 					(unit 1)
@@ -8947,7 +8947,7 @@
 			(uuid "5a266c2c-4939-47cf-a67a-798b11bc2773")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "#PWR032")
 					(unit 1)
@@ -9014,7 +9014,7 @@
 			(uuid "c6ddd77f-6295-4509-8a80-dcabdf2d909b")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "#PWR025")
 					(unit 1)
@@ -9084,7 +9084,7 @@
 			(uuid "fc11587d-87db-404e-b344-ea3f35787090")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "C86")
 					(unit 1)
@@ -9150,7 +9150,7 @@
 			(uuid "1013fa45-477e-41d2-91e8-32f21a149174")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "#PWR0240")
 					(unit 1)
@@ -9266,7 +9266,7 @@
 			(uuid "488acb3c-ddcf-435d-87ff-501936cc1d05")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "RV2")
 					(unit 1)
@@ -9333,7 +9333,7 @@
 			(uuid "70b50c7c-b4da-4db7-b9b4-52308503d0b6")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "#PWR023")
 					(unit 1)
@@ -9400,7 +9400,7 @@
 			(uuid "92e08dfe-5fb0-4a68-b316-0f1d0822cb56")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "#PWR024")
 					(unit 1)
@@ -9467,7 +9467,7 @@
 			(uuid "d66c5d39-ea12-4727-9aab-2c880083ec47")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "R29")
 					(unit 1)
@@ -9536,7 +9536,7 @@
 			(uuid "2a45c33e-1232-4881-870c-7fdda3337047")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "C78")
 					(unit 1)
@@ -9605,7 +9605,7 @@
 			(uuid "a20f853a-b079-4a79-b20f-b56e9389dfef")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "C21")
 					(unit 1)
@@ -9721,7 +9721,7 @@
 			(uuid "f5f5a27f-b126-4794-8cb4-d2e2258c7cb3")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "RV4")
 					(unit 1)
@@ -9861,7 +9861,7 @@
 			(uuid "1d60f42e-7fd4-4809-8904-68c44c361b34")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "U38")
 					(unit 2)
@@ -9928,7 +9928,7 @@
 			(uuid "25ffb6eb-7fdb-40bc-8a2d-e54da045a59a")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "#PWR0265")
 					(unit 1)
@@ -9995,7 +9995,7 @@
 			(uuid "790e2198-e726-4cdc-a83a-f90f2dc1e5db")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "#PWR034")
 					(unit 1)
@@ -10135,7 +10135,7 @@
 			(uuid "c22e5eac-bec1-4913-a84a-3b0f9750d0b0")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "U38")
 					(unit 3)
@@ -10202,7 +10202,7 @@
 			(uuid "3b00d99e-6c02-45b9-96d7-7ca3defd11f5")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/d6eb0566-bd94-4c8a-9a5e-cda236fdacf4"
 					(reference "#PWR0248")
 					(unit 1)

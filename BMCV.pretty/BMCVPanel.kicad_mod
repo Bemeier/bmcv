@@ -1,4 +1,4 @@
-(footprint "CataclystPanel"
+(footprint "BMCVPanel"
 	(version 20240108)
 	(generator "pcbnew")
 	(generator_version "8.0")
@@ -15,7 +15,7 @@
 			)
 		)
 	)
-	(property "Value" "CataclystPanel"
+	(property "Value" "BMCVPanel"
 		(at 0 1 0)
 		(unlocked yes)
 		(layer "F.Fab")
@@ -92,7 +92,7 @@
 		(layers "F&B.Cu")
 		(uuid "462f2195-c08e-44fa-bd28-c8985a643f00")
 	)
-	(model "${KIPRJMOD}/BMCV.pretty/CataclystPanel.step"
+	(model "${KIPRJMOD}/BMCV.pretty/BMCVPanel.step"
 		(offset
 			(xyz 0 0 10)
 		)

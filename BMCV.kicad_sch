@@ -5,6 +5,386 @@
 	(uuid "9b519346-c6ba-4bde-a176-1e9938a671fb")
 	(paper "A3")
 	(lib_symbols
+		(symbol "BMCV:FrontPanel"
+			(exclude_from_sim no)
+			(in_bom no)
+			(on_board yes)
+			(property "Reference" "Z"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" ""
+				(at 1.27 0.635 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 1.27 0.635 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Datasheet" ""
+				(at 1.27 0.635 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Description" ""
+				(at 1.27 0.635 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(symbol "FrontPanel_1_1"
+				(arc
+					(start -3.175 -3.175)
+					(mid -2.803 -4.073)
+					(end -1.905 -4.445)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(arc
+					(start -1.905 4.445)
+					(mid -2.803 4.073)
+					(end -3.175 3.175)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -3.175 3.175) (xy -3.175 -3.175)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.905 -4.445) (xy 1.905 -4.445)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.905 4.445) (xy 1.905 4.445)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 3.175 3.175) (xy 3.175 -3.175)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(circle
+					(center 0 0)
+					(radius 2.2895)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+				(arc
+					(start 1.905 -4.445)
+					(mid 2.803 -4.073)
+					(end 3.175 -3.175)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(arc
+					(start 3.175 3.175)
+					(mid 2.803 4.073)
+					(end 1.905 4.445)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+		)
+		(symbol "BMCV:PTLxx-xxxx-xxxxx"
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(property "Reference" "VR"
+				(at 29.21 7.62 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left top)
+				)
+			)
+			(property "Value" "PTLxx-xxxx-xxxxx"
+				(at 29.21 5.08 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left top)
+				)
+			)
+			(property "Footprint" "PTL6015G1103B2"
+				(at 29.21 -94.92 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left top)
+					(hide yes)
+				)
+			)
+			(property "Datasheet" "https://www.bourns.com/docs/Product-Datasheets/PTL.pdf"
+				(at 29.21 -194.92 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left top)
+					(hide yes)
+				)
+			)
+			(property "Description" "Bourns 1 Gang Slide Carbon Potentiometer with an 6 mm Dia. Shaft - 10k, +/-20%, 0.2W Power Rating, Linear, Through Hole"
+				(at 17.272 -12.192 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Height" "22"
+				(at 29.21 -394.92 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left top)
+					(hide yes)
+				)
+			)
+			(property "Mouser Part Number" "652-PTL60-15G1-103B2"
+				(at 29.21 -494.92 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left top)
+					(hide yes)
+				)
+			)
+			(property "Mouser Price/Stock" "https://www.mouser.co.uk/ProductDetail/Bourns/PTL60-15G1-103B2?qs=XxajcJZMfNxADct0M%2FB1oA%3D%3D"
+				(at 29.21 -594.92 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left top)
+					(hide yes)
+				)
+			)
+			(property "Manufacturer_Name" "Bourns"
+				(at 29.21 -694.92 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left top)
+					(hide yes)
+				)
+			)
+			(property "Manufacturer_Part_Number" "PTL60-15G1-103B2"
+				(at 29.21 -794.92 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left top)
+					(hide yes)
+				)
+			)
+			(symbol "PTLxx-xxxx-xxxxx_1_1"
+				(rectangle
+					(start 5.08 2.54)
+					(end 27.94 -10.16)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+				(pin passive line
+					(at 0 -2.54 0)
+					(length 5.08)
+					(name "CCW"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 0 0)
+					(length 5.08)
+					(name "WIPER"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 33.02 0 180)
+					(length 5.08)
+					(name "CW"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 33.02 -2.54 180)
+					(length 5.08)
+					(name "B_(+)"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "B1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -7.62 0)
+					(length 5.08)
+					(name "E_(-)"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "E1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -5.08 0)
+					(length 5.08)
+					(name "L_DUMMY"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "L1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+		)
 		(symbol "Connector:USB_C_Receptacle_USB2.0_14P"
 			(pin_names
 				(offset 1.016)
@@ -3499,386 +3879,6 @@
 					(alternate "TIM5_CH2" bidirectional line)
 					(alternate "USART2_DE" bidirectional line)
 					(alternate "USART2_RTS" bidirectional line)
-				)
-			)
-		)
-		(symbol "BMCV:FrontPanel"
-			(exclude_from_sim no)
-			(in_bom no)
-			(on_board yes)
-			(property "Reference" "Z"
-				(at 0 0 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Value" ""
-				(at 1.27 0.635 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Footprint" ""
-				(at 1.27 0.635 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(hide yes)
-				)
-			)
-			(property "Datasheet" ""
-				(at 1.27 0.635 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(hide yes)
-				)
-			)
-			(property "Description" ""
-				(at 1.27 0.635 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(hide yes)
-				)
-			)
-			(symbol "FrontPanel_1_1"
-				(arc
-					(start -3.175 -3.175)
-					(mid -2.803 -4.073)
-					(end -1.905 -4.445)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(arc
-					(start -1.905 4.445)
-					(mid -2.803 4.073)
-					(end -3.175 3.175)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy -3.175 3.175) (xy -3.175 -3.175)
-					)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy -1.905 -4.445) (xy 1.905 -4.445)
-					)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy -1.905 4.445) (xy 1.905 4.445)
-					)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy 3.175 3.175) (xy 3.175 -3.175)
-					)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(circle
-					(center 0 0)
-					(radius 2.2895)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type background)
-					)
-				)
-				(arc
-					(start 1.905 -4.445)
-					(mid 2.803 -4.073)
-					(end 3.175 -3.175)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(arc
-					(start 3.175 3.175)
-					(mid 2.803 4.073)
-					(end 1.905 4.445)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-			)
-		)
-		(symbol "BMCV:PTLxx-xxxx-xxxxx"
-			(exclude_from_sim no)
-			(in_bom yes)
-			(on_board yes)
-			(property "Reference" "VR"
-				(at 29.21 7.62 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify left top)
-				)
-			)
-			(property "Value" "PTLxx-xxxx-xxxxx"
-				(at 29.21 5.08 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify left top)
-				)
-			)
-			(property "Footprint" "PTL6015G1103B2"
-				(at 29.21 -94.92 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify left top)
-					(hide yes)
-				)
-			)
-			(property "Datasheet" "https://www.bourns.com/docs/Product-Datasheets/PTL.pdf"
-				(at 29.21 -194.92 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify left top)
-					(hide yes)
-				)
-			)
-			(property "Description" "Bourns 1 Gang Slide Carbon Potentiometer with an 6 mm Dia. Shaft - 10k, +/-20%, 0.2W Power Rating, Linear, Through Hole"
-				(at 17.272 -12.192 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(hide yes)
-				)
-			)
-			(property "Height" "22"
-				(at 29.21 -394.92 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify left top)
-					(hide yes)
-				)
-			)
-			(property "Mouser Part Number" "652-PTL60-15G1-103B2"
-				(at 29.21 -494.92 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify left top)
-					(hide yes)
-				)
-			)
-			(property "Mouser Price/Stock" "https://www.mouser.co.uk/ProductDetail/Bourns/PTL60-15G1-103B2?qs=XxajcJZMfNxADct0M%2FB1oA%3D%3D"
-				(at 29.21 -594.92 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify left top)
-					(hide yes)
-				)
-			)
-			(property "Manufacturer_Name" "Bourns"
-				(at 29.21 -694.92 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify left top)
-					(hide yes)
-				)
-			)
-			(property "Manufacturer_Part_Number" "PTL60-15G1-103B2"
-				(at 29.21 -794.92 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify left top)
-					(hide yes)
-				)
-			)
-			(symbol "PTLxx-xxxx-xxxxx_1_1"
-				(rectangle
-					(start 5.08 2.54)
-					(end 27.94 -10.16)
-					(stroke
-						(width 0.254)
-						(type default)
-					)
-					(fill
-						(type background)
-					)
-				)
-				(pin passive line
-					(at 0 -2.54 0)
-					(length 5.08)
-					(name "CCW"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "1"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at 0 0 0)
-					(length 5.08)
-					(name "WIPER"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "2"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at 33.02 0 180)
-					(length 5.08)
-					(name "CW"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "3"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at 33.02 -2.54 180)
-					(length 5.08)
-					(name "B_(+)"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "B1"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at 0 -7.62 0)
-					(length 5.08)
-					(name "E_(-)"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "E1"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at 0 -5.08 0)
-					(length 5.08)
-					(name "L_DUMMY"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "L1"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
 				)
 			)
 		)
@@ -8508,7 +8508,7 @@
 			(uuid "2efef9b4-b613-4971-b9fc-a9335caabd99")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "C2")
 					(unit 1)
@@ -8578,7 +8578,7 @@
 			(uuid "9cc0b979-369d-46b6-98d8-77c9509351f4")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "C6")
 					(unit 1)
@@ -8717,7 +8717,7 @@
 			(uuid "0d59f98f-80c1-412e-af96-397bd4d8e3e2")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "C5")
 					(unit 1)
@@ -8854,7 +8854,7 @@
 			(uuid "076276c5-20ff-436f-b9b6-5a9959561256")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "#PWR08")
 					(unit 1)
@@ -8921,7 +8921,7 @@
 			(uuid "2476c979-6d0e-4168-bbeb-e906a497f314")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "#PWR013")
 					(unit 1)
@@ -9199,7 +9199,7 @@
 			(uuid "af95fd6f-6b7b-4142-810d-8258b3f15da6")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "C46")
 					(unit 1)
@@ -9265,7 +9265,7 @@
 			(uuid "6830ed7c-e7c5-45fe-b065-18418ae17566")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "#PWR0282")
 					(unit 1)
@@ -9534,7 +9534,7 @@
 			(uuid "aff5b714-e00d-4172-b57e-b66ca4d266bd")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "#PWR06")
 					(unit 1)
@@ -9601,7 +9601,7 @@
 			(uuid "9f7818a5-5f70-48b2-9939-3f78424b012b")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "#PWR0284")
 					(unit 1)
@@ -9668,7 +9668,7 @@
 			(uuid "b0dc0ad2-0752-4d61-af6d-c14ec5383cb9")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "#PWR029")
 					(unit 1)
@@ -9738,7 +9738,7 @@
 			(uuid "1eae4cdb-5e4a-443d-abfe-ba539184c427")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "C94")
 					(unit 1)
@@ -9773,7 +9773,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "BMCV:CataclystPanel"
+		(property "Footprint" "BMCV:BMCVPanel"
 			(at 95.25 48.895 0)
 			(effects
 				(font
@@ -9868,7 +9868,7 @@
 			(uuid "2844c697-1967-413e-83e4-3d85c2945974")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "#PWR030")
 					(unit 1)
@@ -9935,7 +9935,7 @@
 			(uuid "eee1251e-23e5-4e07-880d-60f888b6b408")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "#PWR0285")
 					(unit 1)
@@ -10003,7 +10003,7 @@
 			(uuid "a2be76e7-2622-4b41-9745-0aba97313062")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "R163")
 					(unit 1)
@@ -10073,7 +10073,7 @@
 			(uuid "747ba2f7-8555-48b3-b695-60662a89acf7")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "C4")
 					(unit 1)
@@ -10143,7 +10143,7 @@
 			(uuid "cb2ea676-4556-4107-934a-eedbee686c2f")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "C7")
 					(unit 1)
@@ -10212,7 +10212,7 @@
 			(uuid "0e294371-d486-446f-9a01-b5d692a3b5f2")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "R159")
 					(unit 1)
@@ -10355,7 +10355,7 @@
 			(uuid "d6283ec1-239f-43c4-9133-1fe3e47e6d40")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "R2")
 					(unit 1)
@@ -10425,7 +10425,7 @@
 			(uuid "5ac72f19-44bc-42cb-aa02-017f16aa1ce0")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "C3")
 					(unit 1)
@@ -10495,7 +10495,7 @@
 			(uuid "0a7e302c-f268-4c8f-b99d-8c73f4c96272")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "C93")
 					(unit 1)
@@ -10565,7 +10565,7 @@
 			(uuid "725c21aa-a817-42df-96b4-58c8480b95ba")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "R41")
 					(unit 1)
@@ -10631,7 +10631,7 @@
 			(uuid "446de5fb-ad00-4ca7-9d93-06cf96a71472")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "#PWR07")
 					(unit 1)
@@ -10700,7 +10700,7 @@
 			(uuid "236fc0f9-5e23-4d43-b6ac-cca07518d6f5")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "R162")
 					(unit 1)
@@ -10767,7 +10767,7 @@
 			(uuid "b33007a9-7966-47a0-bb63-64cceb78dd68")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "#PWR0281")
 					(unit 1)
@@ -10978,7 +10978,7 @@
 			(uuid "ceb152ff-0617-44d1-85cc-6bc79b6d351a")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "R161")
 					(unit 1)
@@ -11044,7 +11044,7 @@
 			(uuid "e5c18697-0df3-4073-88fb-f958d7faf536")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "#PWR014")
 					(unit 1)
@@ -11298,7 +11298,7 @@
 			(uuid "7c044059-ea94-48d5-87b6-c685c5177112")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "#PWR028")
 					(unit 1)
@@ -11365,7 +11365,7 @@
 			(uuid "0c1a1625-b68a-4a49-937b-caabb4bb574f")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "#PWR0235")
 					(unit 1)
@@ -11537,7 +11537,7 @@
 			(uuid "7b18e438-c560-4ef5-81d7-995e120382c3")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "#PWR0279")
 					(unit 1)
@@ -11671,7 +11671,7 @@
 			(uuid "682b301f-a701-49c9-aa99-bd908c0a4edb")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "#PWR015")
 					(unit 1)
@@ -11737,7 +11737,7 @@
 			(uuid "63647cab-a57e-4fe9-96a8-ca589222f397")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "#PWR0283")
 					(unit 1)
@@ -11804,7 +11804,7 @@
 			(uuid "be4a6da0-f0bf-4785-ac67-f221b58f635c")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "#PWR031")
 					(unit 1)
@@ -11871,7 +11871,7 @@
 			(uuid "95a9644b-5cef-4a13-9915-8fcad18b6e09")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "#PWR02")
 					(unit 1)
@@ -11941,7 +11941,7 @@
 			(uuid "340b65a1-819a-4764-888a-1ad5138bc05e")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "C11")
 					(unit 1)
@@ -12007,7 +12007,7 @@
 			(uuid "78e96147-a291-435c-8332-bb024d625efe")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "#PWR0286")
 					(unit 1)
@@ -12075,7 +12075,7 @@
 			(uuid "84b9ff45-fa22-49a0-8b8c-907403386010")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "SW15")
 					(unit 1)
@@ -12143,7 +12143,7 @@
 			(uuid "d0cdbaac-8fe3-495f-8930-44f1c3602bdd")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "R158")
 					(unit 1)
@@ -12209,7 +12209,7 @@
 			(uuid "799b98d2-36df-4f3a-8665-01f3608a001a")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "#PWR0280")
 					(unit 1)
@@ -12279,7 +12279,7 @@
 			(uuid "1fd1ae70-ecf4-4a8e-a593-c525b2a26613")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "R3")
 					(unit 1)
@@ -12345,7 +12345,7 @@
 			(uuid "05d5ab11-8544-4259-8d58-e7fd8b10cebe")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "#PWR0278")
 					(unit 1)
@@ -12411,7 +12411,7 @@
 			(uuid "ccf880e0-8ead-485c-a0d3-7b039e5619c8")
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "#PWR0268")
 					(unit 1)
@@ -12530,7 +12530,7 @@
 			)
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(page "5")
 				)
@@ -12568,7 +12568,7 @@
 			)
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(page "6")
 				)
@@ -12606,7 +12606,7 @@
 			)
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(page "3")
 				)
@@ -12644,7 +12644,7 @@
 			)
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(page "4")
 				)
@@ -12682,7 +12682,7 @@
 			)
 		)
 		(instances
-			(project "cataclyst"
+			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(page "2")
 				)
