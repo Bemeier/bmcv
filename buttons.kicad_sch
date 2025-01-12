@@ -12220,16 +12220,16 @@
 	)
 	(symbol
 		(lib_id "BMCV:WS2811")
-		(at 196.85 68.58 90)
+		(at 196.85 68.58 270)
+		(mirror x)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(fields_autoplaced yes)
 		(uuid "9bff9810-cb18-47c2-9316-d00bce3389a3")
 		(property "Reference" "U21"
-			(at 210.82 60.5438 90)
+			(at 182.88 60.5438 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -12237,7 +12237,7 @@
 			)
 		)
 		(property "Value" "WS2811F"
-			(at 210.82 63.0838 90)
+			(at 182.88 63.0838 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -12245,7 +12245,7 @@
 			)
 		)
 		(property "Footprint" "BMCV:FSOP-8"
-			(at 210.82 65.6238 90)
+			(at 182.88 65.6238 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -12253,7 +12253,7 @@
 			)
 		)
 		(property "Datasheet" "https://cdn-shop.adafruit.com/datasheets/WS2811.pdf"
-			(at 190.5 73.66 0)
+			(at 203.2 73.66 0)
 			(effects
 				(font
 					(size 1.27 1.27)

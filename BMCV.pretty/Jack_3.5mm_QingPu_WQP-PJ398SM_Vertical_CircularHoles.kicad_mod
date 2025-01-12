@@ -78,8 +78,8 @@
 		(uuid "100b5f99-ad6e-406a-bbbc-244f7d189042")
 	)
 	(fp_line
-		(start -1.23 -7.65)
-		(end -1.23 -6.85)
+		(start -1.23 -7.3)
+		(end -1.23 -6.5)
 		(stroke
 			(width 0.12)
 			(type solid)
@@ -88,8 +88,8 @@
 		(uuid "a0b6b62f-56a0-48b4-9432-afa3dfe977b9")
 	)
 	(fp_line
-		(start -1.23 -7.65)
-		(end -0.37 -7.65)
+		(start -1.23 -7.3)
+		(end -0.37 -7.3)
 		(stroke
 			(width 0.12)
 			(type solid)
@@ -160,7 +160,7 @@
 	)
 	(fp_line
 		(start -5 6.5)
-		(end -5 -7.9)
+		(end -5 -7.6)
 		(stroke
 			(width 0.05)
 			(type solid)
@@ -169,8 +169,8 @@
 		(uuid "7a9773d3-207e-42fb-9250-a02b5a70b81b")
 	)
 	(fp_line
-		(start 5 -7.9)
-		(end -5 -7.9)
+		(start 5 -7.6)
+		(end -5 -7.6)
 		(stroke
 			(width 0.05)
 			(type solid)
@@ -190,7 +190,7 @@
 	)
 	(fp_line
 		(start 5 6.5)
-		(end 5 -7.9)
+		(end 5 -7.6)
 		(stroke
 			(width 0.05)
 			(type solid)
@@ -282,7 +282,7 @@
 		)
 	)
 	(pad "S" thru_hole rect
-		(at 0 -6.48 180)
+		(at 0 -6.1 180)
 		(size 1.93 1.83)
 		(drill 1.22)
 		(layers "*.Cu" "*.Mask")

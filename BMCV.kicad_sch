@@ -4884,7 +4884,7 @@
 	)
 	(wire
 		(pts
-			(xy 69.85 247.65) (xy 72.39 247.65)
+			(xy 69.85 245.11) (xy 72.39 245.11)
 		)
 		(stroke
 			(width 0)
@@ -5214,7 +5214,7 @@
 	)
 	(wire
 		(pts
-			(xy 69.85 245.11) (xy 72.39 245.11)
+			(xy 52.07 278.13) (xy 54.61 278.13)
 		)
 		(stroke
 			(width 0)
@@ -5244,7 +5244,7 @@
 	)
 	(wire
 		(pts
-			(xy 69.85 252.73) (xy 72.39 252.73)
+			(xy 69.85 250.19) (xy 72.39 250.19)
 		)
 		(stroke
 			(width 0)
@@ -5354,7 +5354,7 @@
 	)
 	(wire
 		(pts
-			(xy 46.99 252.73) (xy 49.53 252.73)
+			(xy 39.37 295.91) (xy 41.91 295.91)
 		)
 		(stroke
 			(width 0)
@@ -5384,7 +5384,7 @@
 	)
 	(wire
 		(pts
-			(xy 46.99 255.27) (xy 49.53 255.27)
+			(xy 39.37 298.45) (xy 41.91 298.45)
 		)
 		(stroke
 			(width 0)
@@ -5454,7 +5454,7 @@
 	)
 	(wire
 		(pts
-			(xy 46.99 247.65) (xy 49.53 247.65)
+			(xy 39.37 290.83) (xy 41.91 290.83)
 		)
 		(stroke
 			(width 0)
@@ -5784,7 +5784,7 @@
 	)
 	(wire
 		(pts
-			(xy 69.85 250.19) (xy 72.39 250.19)
+			(xy 62.23 290.83) (xy 64.77 290.83)
 		)
 		(stroke
 			(width 0)
@@ -5801,6 +5801,16 @@
 			(type default)
 		)
 		(uuid "827a0e34-84c7-47a4-ae26-e10d4665d291")
+	)
+	(wire
+		(pts
+			(xy 46.99 245.11) (xy 49.53 245.11)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "82d8ce3c-bf09-4728-89cd-1bd7261b3d76")
 	)
 	(wire
 		(pts
@@ -5884,7 +5894,7 @@
 	)
 	(wire
 		(pts
-			(xy 69.85 255.27) (xy 72.39 255.27)
+			(xy 62.23 295.91) (xy 64.77 295.91)
 		)
 		(stroke
 			(width 0)
@@ -6504,6 +6514,16 @@
 	)
 	(wire
 		(pts
+			(xy 69.85 257.81) (xy 72.39 257.81)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e651b7d6-8193-4d47-84db-eeea8be8cc64")
+	)
+	(wire
+		(pts
 			(xy 80.01 161.29) (xy 80.01 153.67)
 		)
 		(stroke
@@ -6594,7 +6614,7 @@
 	)
 	(wire
 		(pts
-			(xy 69.85 257.81) (xy 72.39 257.81)
+			(xy 62.23 298.45) (xy 64.77 298.45)
 		)
 		(stroke
 			(width 0)
@@ -6644,7 +6664,7 @@
 	)
 	(wire
 		(pts
-			(xy 46.99 245.11) (xy 49.53 245.11)
+			(xy 44.45 278.13) (xy 46.99 278.13)
 		)
 		(stroke
 			(width 0)
@@ -6909,7 +6929,7 @@
 	)
 	(global_label "MCP_SO"
 		(shape input)
-		(at 46.99 247.65 180)
+		(at 44.45 278.13 180)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -6919,7 +6939,7 @@
 		)
 		(uuid "089830bb-a3a1-4353-a5be-fcdf21969181")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 36.5058 247.65 0)
+			(at 33.9658 278.13 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6942,6 +6962,28 @@
 		(uuid "091c26fe-0440-4a53-9f14-a6bbe1d0315b")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 246.6 184.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+				(hide yes)
+			)
+		)
+	)
+	(global_label "WSDATA"
+		(shape input)
+		(at 46.99 257.81 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "0a28f305-fc94-4e8d-90d7-e45c77478c6f")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 36.9291 257.81 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7151,7 +7193,7 @@
 	)
 	(global_label "MCP_5V_ENCINT_A"
 		(shape input)
-		(at 72.39 250.19 0)
+		(at 64.77 295.91 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -7161,7 +7203,7 @@
 		)
 		(uuid "27ce6407-aa4f-43a7-97fe-e71b548b0922")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 92.3085 250.19 0)
+			(at 84.6885 295.91 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7283,7 +7325,7 @@
 	)
 	(global_label "MCP_RESET"
 		(shape input)
-		(at 46.99 257.81 180)
+		(at 46.99 250.19 180)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -7293,7 +7335,7 @@
 		)
 		(uuid "385d2665-804e-4e2e-bef0-ced63751ccb1")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 33.3007 257.81 0)
+			(at 33.3007 250.19 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7525,7 +7567,7 @@
 	)
 	(global_label "MCP_5V_BTNINT"
 		(shape input)
-		(at 72.39 255.27 0)
+		(at 64.77 290.83 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -7535,7 +7577,7 @@
 		)
 		(uuid "620f6673-41ec-4326-ac71-e043163b6c96")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 90.0709 255.27 0)
+			(at 82.4509 290.83 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7547,7 +7589,7 @@
 	)
 	(global_label "MCP_5V_SO"
 		(shape input)
-		(at 72.39 247.65 0)
+		(at 54.61 278.13 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -7557,7 +7599,7 @@
 		)
 		(uuid "661f2759-4480-4425-8ecc-8447c368e666")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 86.1399 247.65 0)
+			(at 68.3599 278.13 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7789,7 +7831,7 @@
 	)
 	(global_label "MCP_5V_RESET"
 		(shape input)
-		(at 72.39 257.81 0)
+		(at 72.39 250.19 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -7799,7 +7841,29 @@
 		)
 		(uuid "92f5d1af-b1da-4e03-9f77-d58ebbd12794")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 89.345 257.81 0)
+			(at 89.345 250.19 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+	)
+	(global_label "WSDATA_5V"
+		(shape input)
+		(at 72.39 257.81 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "9327efbc-9c8e-4642-9129-954ee090b9d0")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 85.7166 257.81 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7877,7 +7941,7 @@
 	)
 	(global_label "MCP_BTNINT"
 		(shape input)
-		(at 46.99 255.27 180)
+		(at 39.37 290.83 180)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -7887,7 +7951,7 @@
 		)
 		(uuid "a2bf0134-31f2-4e7e-96cc-d8365c2179b4")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 32.5748 255.27 0)
+			(at 24.9548 290.83 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8141,7 +8205,7 @@
 	)
 	(global_label "MCP_ENCINT_B"
 		(shape input)
-		(at 46.99 252.73 180)
+		(at 39.37 298.45 180)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -8151,7 +8215,7 @@
 		)
 		(uuid "c443efb4-f27d-4f4a-846e-1f0c827a4403")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 30.1558 252.73 0)
+			(at 22.5358 298.45 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8251,7 +8315,7 @@
 	)
 	(global_label "MCP_5V_ENCINT_B"
 		(shape input)
-		(at 72.39 252.73 0)
+		(at 64.77 298.45 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -8261,7 +8325,7 @@
 		)
 		(uuid "d9a5f457-88f1-46cc-a40a-0f7fb4f8283f")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 92.4899 252.73 0)
+			(at 84.8699 298.45 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8427,7 +8491,7 @@
 	)
 	(global_label "MCP_ENCINT_A"
 		(shape input)
-		(at 46.99 250.19 180)
+		(at 39.37 295.91 180)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -8437,7 +8501,7 @@
 		)
 		(uuid "f7e27cd0-8197-4ea2-82f3-64514e8a567f")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 30.3372 250.19 0)
+			(at 22.7172 295.91 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -9741,6 +9805,73 @@
 			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
 					(reference "C94")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R_Small")
+		(at 49.53 278.13 90)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "53c7b328-dcbf-47ac-a2cc-778ee0092514")
+		(property "Reference" "R164"
+			(at 49.53 271.78 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "100"
+			(at 49.53 274.32 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
+			(at 49.53 278.13 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 49.53 278.13 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Resistor, small symbol"
+			(at 49.53 278.13 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "2"
+			(uuid "7a69b0e0-7388-473d-b265-8b72220afbe3")
+		)
+		(pin "1"
+			(uuid "2b91363c-a218-4e09-b2f4-6f3f158dff7f")
+		)
+		(instances
+			(project "BMCV"
+				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb"
+					(reference "R164")
 					(unit 1)
 				)
 			)
