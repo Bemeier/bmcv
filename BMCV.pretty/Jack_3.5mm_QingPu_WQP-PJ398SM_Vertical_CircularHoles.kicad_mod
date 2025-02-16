@@ -259,17 +259,6 @@
 		(layer "F.Fab")
 		(uuid "26bdea80-10b0-4fb9-ae7b-b2c233c959f0")
 	)
-	(fp_text user "KEEPOUT"
-		(at 0 0 0)
-		(layer "Cmts.User")
-		(uuid "7315ea65-45ec-4b6d-ae3c-5d071a2927f1")
-		(effects
-			(font
-				(size 0.4 0.4)
-				(thickness 0.051)
-			)
-		)
-	)
 	(fp_text user "${REFERENCE}"
 		(at 0 1.52 180)
 		(layer "F.Fab")
@@ -304,42 +293,6 @@
 		(layers "*.Cu" "*.Mask")
 		(remove_unused_layers no)
 		(uuid "d4c5c408-d503-4605-8374-886fbb668ae0")
-	)
-	(zone
-		(net 0)
-		(net_name "")
-		(layer "F.Cu")
-		(uuid "3f12b4ee-7fc8-413a-b4de-1610080175dc")
-		(hatch full 0.508)
-		(connect_pads
-			(clearance 0)
-		)
-		(min_thickness 0.254)
-		(filled_areas_thickness no)
-		(keepout
-			(tracks not_allowed)
-			(vias not_allowed)
-			(pads not_allowed)
-			(copperpour not_allowed)
-			(footprints not_allowed)
-		)
-		(fill
-			(thermal_gap 0.508)
-			(thermal_bridge_width 0.508)
-		)
-		(polygon
-			(pts
-				(xy 1.505141 0) (xy 1.48493 -0.245829) (xy 1.424841 -0.485055) (xy 1.326486 -0.711256) (xy 1.192508 -0.918355)
-				(xy 1.026504 -1.10079) (xy 0.832932 -1.253664) (xy 0.616992 -1.372869) (xy 0.384482 -1.455206) (xy 0.141646 -1.498461)
-				(xy -0.104993 -1.501475) (xy -0.348813 -1.464165) (xy -0.583266 -1.387534) (xy -0.802054 -1.27364)
-				(xy -0.999303 -1.125542) (xy -1.169714 -0.947216) (xy -1.308712 -0.743452) (xy -1.412564 -0.519722)
-				(xy -1.478481 -0.282035) (xy -1.504692 -0.036774) (xy -1.490493 0.209475) (xy -1.436266 0.450099)
-				(xy -1.343468 0.678634) (xy -1.214589 0.888945) (xy -1.053092 1.075382) (xy -0.863313 1.232939)
-				(xy -0.65035 1.357385) (xy -0.419921 1.445377) (xy -0.178215 1.494553) (xy 0.068278 1.503592) (xy 0.312936 1.47225)
-				(xy 0.549191 1.40137) (xy 0.770697 1.292856) (xy 0.971505 1.149621) (xy 1.146223 0.975512) (xy 1.290158 0.775205)
-				(xy 1.399445 0.554079) (xy 1.471149 0.318074) (xy 1.503344 0.073526)
-			)
-		)
 	)
 	(model "${KIPRJMOD}/BMCV.pretty/WQP-PJ398SM.step"
 		(offset
