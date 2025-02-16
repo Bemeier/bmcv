@@ -20,4 +20,4 @@ This work is licensed under a [Creative Commons Attribution 4.0 International Li
 
 [cc]: https://creativecommons.org/licenses/by-sa/4.0
 [shield]: https://licensebuttons.net/l/by-sa/4.0/88x31.png
-[render]: https://i.imgur.com/rx8m1Tg.png
+[render]: https://raw.githubusercontent.com/Bemeier/bmcv/refs/heads/main/render.png
