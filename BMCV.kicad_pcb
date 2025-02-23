@@ -106347,6 +106347,28 @@
 			)
 		)
 	)
+	(gr_rect
+		(start 66 109)
+		(end 71 114)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(fill solid)
+		(layer "B.SilkS")
+		(uuid "716bf0e6-f230-4345-b551-f3791890226b")
+	)
+	(gr_rect
+		(start 66 109)
+		(end 71 114)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(fill solid)
+		(layer "F.SilkS")
+		(uuid "ffa0ab14-f9fd-45b9-b6cf-43c67131918d")
+	)
 	(gr_line
 		(start 61 106)
 		(end 61.5 106)
@@ -111000,7 +111022,7 @@
 		(uuid "0c8e07dc-c004-4783-915b-2dfcf1615246")
 	)
 	(via
-		(at 68 108.5)
+		(at 68 108)
 		(size 0.6)
 		(drill 0.25)
 		(layers "F.Cu" "B.Cu")
@@ -115195,7 +115217,7 @@
 		(uuid "88e08f0f-b368-4425-abbc-21ad7746f76f")
 	)
 	(via
-		(at 68 110.5)
+		(at 65.5 111)
 		(size 0.6)
 		(drill 0.25)
 		(layers "F.Cu" "B.Cu")
@@ -115609,7 +115631,7 @@
 		(uuid "92a2a0d7-8698-4907-a22f-40f68f148201")
 	)
 	(via
-		(at 68 112.5)
+		(at 65.5 114.5)
 		(size 0.6)
 		(drill 0.25)
 		(layers "F.Cu" "B.Cu")
