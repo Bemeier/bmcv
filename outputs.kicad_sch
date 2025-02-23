@@ -6023,6 +6023,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C210791"
+			(at 77.47 105.41 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "27cb9863-de85-41dc-b9ad-c5a1eb7a87d2")
 		)
@@ -6139,6 +6148,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C210791"
+			(at 195.58 81.28 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "819d486f-d7ee-4890-8999-c1839c4095cc")
 		)
@@ -6181,7 +6199,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_Tantalum_SMD:CP_EIA-3216-18_Kemet-A"
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
 			(at 22.86 186.69 0)
 			(effects
 				(font
@@ -6199,7 +6217,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "C7171"
+		(property "Description" "Tantalum Capacitor (polarized)"
+			(at 22.86 186.69 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C237493"
 			(at 22.86 186.69 0)
 			(effects
 				(font
@@ -6403,7 +6430,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 48.26 186.69 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C14663"
 			(at 48.26 186.69 0)
 			(effects
 				(font
@@ -6471,7 +6507,7 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Quad operational amplifier"
+		(property "Description" "Quad 8pA 1.5V/us 3MHz TSSOP-14 Operational Amplifier ROHS"
 			(at 182.88 26.67 0)
 			(effects
 				(font
@@ -6508,6 +6544,15 @@
 			)
 		)
 		(property "Sim.Pins" "1=out1 2=in1- 3=in1+ 4=vcc 5=in2+ 6=in2- 7=out2 8=out3 9=in3- 10=in3+ 11=vee 12=in4+ 13=in4- 14=out4"
+			(at 182.88 26.67 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C529553"
 			(at 182.88 26.67 0)
 			(effects
 				(font
@@ -6594,7 +6639,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_Tantalum_SMD:CP_EIA-3216-18_Kemet-A"
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
 			(at 29.21 186.69 0)
 			(effects
 				(font
@@ -6612,7 +6657,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "C7171"
+		(property "Description" "Tantalum Capacitor (polarized)"
+			(at 29.21 186.69 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C237493"
 			(at 29.21 186.69 0)
 			(effects
 				(font
@@ -6821,6 +6875,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25076"
+			(at 158.75 24.13 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "f3001eaa-7915-4791-93a4-2994e1ab2aac")
 		)
@@ -6955,6 +7018,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C22775"
+			(at 200.66 76.2 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "4772cb66-e12a-4bd4-beae-a0cc098bbe14")
 		)
@@ -6997,7 +7069,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_Tantalum_SMD:CP_EIA-3216-18_Kemet-A"
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
 			(at 16.51 186.69 0)
 			(effects
 				(font
@@ -7015,7 +7087,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "C7171"
+		(property "Description" "Tantalum Capacitor (polarized)"
+			(at 16.51 186.69 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C237493"
 			(at 16.51 186.69 0)
 			(effects
 				(font
@@ -7046,7 +7127,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(uuid "217a1f3a-2067-428a-ba37-6b97d1127a85")
 		(property "Reference" "J3"
 			(at 101.6 23.4949 0)
@@ -7085,6 +7166,15 @@
 			)
 		)
 		(property "Description" "Audio Jack, 2 Poles (Mono / TS), Switched T Pole (Normalling)"
+			(at 96.52 25.4 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" ""
 			(at 96.52 25.4 0)
 			(effects
 				(font
@@ -7279,6 +7369,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C210791"
+			(at 195.58 106.68 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "2b15ec71-c21a-4926-919e-cbf386817c72")
 		)
@@ -7407,7 +7506,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 99.06 186.69 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C14663"
 			(at 99.06 186.69 0)
 			(effects
 				(font
@@ -7541,7 +7649,7 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Quad operational amplifier"
+		(property "Description" "Quad 8pA 1.5V/us 3MHz TSSOP-14 Operational Amplifier ROHS"
 			(at 40.64 128.27 0)
 			(effects
 				(font
@@ -7578,6 +7686,15 @@
 			)
 		)
 		(property "Sim.Pins" "1=out1 2=in1- 3=in1+ 4=vcc 5=in2+ 6=in2- 7=out2 8=out3 9=in3- 10=in3+ 11=vee 12=in4+ 13=in4- 14=out4"
+			(at 40.64 128.27 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C529553"
 			(at 40.64 128.27 0)
 			(effects
 				(font
@@ -7738,6 +7855,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C210791"
+			(at 195.58 55.88 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "e7ba84a8-d9c8-4169-a83a-728f49bde546")
 		)
@@ -7872,6 +7998,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C22775"
+			(at 82.55 25.4 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "9b31285f-9f13-4c8c-94eb-9cadbf7cd489")
 		)
@@ -7959,7 +8094,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(uuid "3a7e1bc0-28a5-4f6f-940b-d5e13a3c8312")
 		(property "Reference" "J2"
 			(at 102.87 75.438 0)
@@ -7996,6 +8131,15 @@
 			)
 		)
 		(property "Description" "Audio Jack, 2 Poles (Mono / TS), Switched T Pole (Normalling)"
+			(at 96.52 74.93 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" ""
 			(at 96.52 74.93 0)
 			(effects
 				(font
@@ -8049,7 +8193,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_Tantalum_SMD:CP_EIA-3216-18_Kemet-A"
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
 			(at 86.36 186.69 0)
 			(effects
 				(font
@@ -8067,7 +8211,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "C7171"
+		(property "Description" "Tantalum Capacitor (polarized)"
+			(at 86.36 186.69 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C237493"
 			(at 86.36 186.69 0)
 			(effects
 				(font
@@ -8135,7 +8288,7 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Quad operational amplifier"
+		(property "Description" "Quad 8pA 1.5V/us 3MHz TSSOP-14 Operational Amplifier ROHS"
 			(at 64.77 100.33 0)
 			(effects
 				(font
@@ -8172,6 +8325,15 @@
 			)
 		)
 		(property "Sim.Pins" "1=out1 2=in1- 3=in1+ 4=vcc 5=in2+ 6=in2- 7=out2 8=out3 9=in3- 10=in3+ 11=vee 12=in4+ 13=in4- 14=out4"
+			(at 64.77 100.33 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C529553"
 			(at 64.77 100.33 0)
 			(effects
 				(font
@@ -8409,7 +8571,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 158.75 186.69 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C14663"
 			(at 158.75 186.69 0)
 			(effects
 				(font
@@ -8460,7 +8631,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_Tantalum_SMD:CP_EIA-3216-18_Kemet-A"
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
 			(at 35.56 186.69 0)
 			(effects
 				(font
@@ -8478,7 +8649,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "C7171"
+		(property "Description" "Tantalum Capacitor (polarized)"
+			(at 35.56 186.69 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C237493"
 			(at 35.56 186.69 0)
 			(effects
 				(font
@@ -8685,6 +8865,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C22775"
+			(at 82.55 100.33 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "966b4229-13fc-4605-94be-2683244dc0d0")
 		)
@@ -8795,7 +8984,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
 			(at 48.26 55.88 0)
 			(effects
 				(font
@@ -8814,6 +9003,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 48.26 55.88 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C7250"
 			(at 48.26 55.88 0)
 			(effects
 				(font
@@ -8881,7 +9079,7 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Quad operational amplifier"
+		(property "Description" "Quad 8pA 1.5V/us 3MHz TSSOP-14 Operational Amplifier ROHS"
 			(at 182.88 101.6 0)
 			(effects
 				(font
@@ -8918,6 +9116,15 @@
 			)
 		)
 		(property "Sim.Pins" "1=out1 2=in1- 3=in1+ 4=vcc 5=in2+ 6=in2- 7=out2 8=out3 9=in3- 10=in3+ 11=vee 12=in4+ 13=in4- 14=out4"
+			(at 182.88 101.6 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C529553"
 			(at 182.88 101.6 0)
 			(effects
 				(font
@@ -9021,7 +9228,7 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Quad operational amplifier"
+		(property "Description" "Quad 8pA 1.5V/us 3MHz TSSOP-14 Operational Amplifier ROHS"
 			(at 182.88 50.8 0)
 			(effects
 				(font
@@ -9058,6 +9265,15 @@
 			)
 		)
 		(property "Sim.Pins" "1=out1 2=in1- 3=in1+ 4=vcc 5=in2+ 6=in2- 7=out2 8=out3 9=in3- 10=in3+ 11=vee 12=in4+ 13=in4- 14=out4"
+			(at 182.88 50.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C529553"
 			(at 182.88 50.8 0)
 			(effects
 				(font
@@ -9297,7 +9513,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 41.91 186.69 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C14663"
 			(at 41.91 186.69 0)
 			(effects
 				(font
@@ -9349,7 +9574,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
 			(at 48.26 31.75 0)
 			(effects
 				(font
@@ -9368,6 +9593,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 48.26 31.75 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C7250"
 			(at 48.26 31.75 0)
 			(effects
 				(font
@@ -9435,8 +9669,17 @@
 				(hide yes)
 			)
 		)
-		(property "Description" ""
+		(property "Description" "12us 2.7V~5.5V 14-bit TSSOP-24-EP Digital to Analog Converters (DAC) ROHS"
 			(at 234.95 132.08 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C578284"
+			(at 237.49 139.7 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -9573,7 +9816,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 54.61 186.69 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C14663"
 			(at 54.61 186.69 0)
 			(effects
 				(font
@@ -9783,6 +10035,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C22775"
+			(at 82.55 74.93 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "f0f7734c-b9b2-4121-9e9d-78058f30996f")
 		)
@@ -9891,6 +10152,15 @@
 			)
 		)
 		(property "Sim.Library" "${KICAD7_SYMBOL_DIR}/Simulation_SPICE.sp"
+			(at 195.58 31.75 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C210791"
 			(at 195.58 31.75 0)
 			(effects
 				(font
@@ -10032,6 +10302,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25076"
+			(at 40.64 72.39 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "ab34e520-05d2-473f-891a-f2e4eec91a40")
 		)
@@ -10159,7 +10438,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 60.96 186.69 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C14663"
 			(at 60.96 186.69 0)
 			(effects
 				(font
@@ -10235,6 +10523,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25076"
+			(at 40.64 46.99 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "be12a3e5-482a-4185-95c6-44ef7a388a2e")
 		)
@@ -10294,7 +10591,7 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Quad operational amplifier"
+		(property "Description" "Quad 8pA 1.5V/us 3MHz TSSOP-14 Operational Amplifier ROHS"
 			(at 64.77 49.53 0)
 			(effects
 				(font
@@ -10331,6 +10628,15 @@
 			)
 		)
 		(property "Sim.Pins" "1=out1 2=in1- 3=in1+ 4=vcc 5=in2+ 6=in2- 7=out2 8=out3 9=in3- 10=in3+ 11=vee 12=in4+ 13=in4- 14=out4"
+			(at 64.77 49.53 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C529553"
 			(at 64.77 49.53 0)
 			(effects
 				(font
@@ -10616,7 +10922,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
 			(at 166.37 107.95 0)
 			(effects
 				(font
@@ -10635,6 +10941,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 166.37 107.95 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C7250"
 			(at 166.37 107.95 0)
 			(effects
 				(font
@@ -10771,7 +11086,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 105.41 186.69 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C14663"
 			(at 105.41 186.69 0)
 			(effects
 				(font
@@ -10822,7 +11146,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_Tantalum_SMD:CP_EIA-3216-18_Kemet-A"
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
 			(at 80.01 186.69 0)
 			(effects
 				(font
@@ -10840,7 +11164,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "C7171"
+		(property "Description" "Tantalum Capacitor (polarized)"
+			(at 80.01 186.69 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C237493"
 			(at 80.01 186.69 0)
 			(effects
 				(font
@@ -11004,7 +11337,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(uuid "830df7c9-3964-48e5-bd87-a685865193af")
 		(property "Reference" "J7"
 			(at 219.71 24.7649 0)
@@ -11043,6 +11376,15 @@
 			)
 		)
 		(property "Description" "Audio Jack, 2 Poles (Mono / TS), Switched T Pole (Normalling)"
+			(at 214.63 26.67 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" ""
 			(at 214.63 26.67 0)
 			(effects
 				(font
@@ -11114,7 +11456,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 118.11 186.69 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C14663"
 			(at 118.11 186.69 0)
 			(effects
 				(font
@@ -11250,7 +11601,7 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Quad operational amplifier"
+		(property "Description" "Quad 8pA 1.5V/us 3MHz TSSOP-14 Operational Amplifier ROHS"
 			(at 171.45 128.27 0)
 			(effects
 				(font
@@ -11287,6 +11638,15 @@
 			)
 		)
 		(property "Sim.Pins" "1=out1 2=in1- 3=in1+ 4=vcc 5=in2+ 6=in2- 7=out2 8=out3 9=in3- 10=in3+ 11=vee 12=in4+ 13=in4- 14=out4"
+			(at 171.45 128.27 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C529553"
 			(at 171.45 128.27 0)
 			(effects
 				(font
@@ -11390,8 +11750,17 @@
 				(hide yes)
 			)
 		)
-		(property "Description" ""
+		(property "Description" "12us 2.7V~5.5V 14-bit TSSOP-24-EP Digital to Analog Converters (DAC) ROHS"
 			(at 100.33 135.89 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C578284"
+			(at 102.87 143.51 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11644,7 +12013,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_Tantalum_SMD:CP_EIA-3216-18_Kemet-A"
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
 			(at 73.66 186.69 0)
 			(effects
 				(font
@@ -11662,7 +12031,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "C7171"
+		(property "Description" "Tantalum Capacitor (polarized)"
+			(at 73.66 186.69 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C237493"
 			(at 73.66 186.69 0)
 			(effects
 				(font
@@ -11730,7 +12108,7 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Quad operational amplifier"
+		(property "Description" "Quad 8pA 1.5V/us 3MHz TSSOP-14 Operational Amplifier ROHS"
 			(at 182.88 76.2 0)
 			(effects
 				(font
@@ -11767,6 +12145,15 @@
 			)
 		)
 		(property "Sim.Pins" "1=out1 2=in1- 3=in1+ 4=vcc 5=in2+ 6=in2- 7=out2 8=out3 9=in3- 10=in3+ 11=vee 12=in4+ 13=in4- 14=out4"
+			(at 182.88 76.2 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C529553"
 			(at 182.88 76.2 0)
 			(effects
 				(font
@@ -11945,6 +12332,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C22775"
+			(at 200.66 26.67 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "aea929fc-4dc9-46bf-bf37-8bb50cb93250")
 		)
@@ -11967,7 +12363,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(uuid "9c0c43b9-ffb2-4153-83d2-297b4f600aa0")
 		(property "Reference" "J4"
 			(at 104.14 98.044 0)
@@ -12006,6 +12402,15 @@
 			)
 		)
 		(property "Description" "Audio Jack, 2 Poles (Mono / TS), Switched T Pole (Normalling)"
+			(at 96.52 100.33 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" ""
 			(at 96.52 100.33 0)
 			(effects
 				(font
@@ -12076,7 +12481,7 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Quad operational amplifier"
+		(property "Description" "Quad 8pA 1.5V/us 3MHz TSSOP-14 Operational Amplifier ROHS"
 			(at 64.77 74.93 0)
 			(effects
 				(font
@@ -12113,6 +12518,15 @@
 			)
 		)
 		(property "Sim.Pins" "1=out1 2=in1- 3=in1+ 4=vcc 5=in2+ 6=in2- 7=out2 8=out3 9=in3- 10=in3+ 11=vee 12=in4+ 13=in4- 14=out4"
+			(at 64.77 74.93 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C529553"
 			(at 64.77 74.93 0)
 			(effects
 				(font
@@ -12334,7 +12748,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
 			(at 166.37 57.15 0)
 			(effects
 				(font
@@ -12353,6 +12767,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 166.37 57.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C7250"
 			(at 166.37 57.15 0)
 			(effects
 				(font
@@ -12404,7 +12827,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
 			(at 48.26 106.68 0)
 			(effects
 				(font
@@ -12423,6 +12846,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 48.26 106.68 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C7250"
 			(at 48.26 106.68 0)
 			(effects
 				(font
@@ -12565,6 +12997,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25076"
+			(at 158.75 73.66 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "e125dbce-2dcb-464d-a423-8ad79a76ae6c")
 		)
@@ -12625,7 +13066,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 111.76 186.69 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C14663"
 			(at 111.76 186.69 0)
 			(effects
 				(font
@@ -12677,7 +13127,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
 			(at 166.37 82.55 0)
 			(effects
 				(font
@@ -12696,6 +13146,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 166.37 82.55 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C7250"
 			(at 166.37 82.55 0)
 			(effects
 				(font
@@ -12746,7 +13205,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_Tantalum_SMD:CP_EIA-3216-18_Kemet-A"
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
 			(at 92.71 186.69 0)
 			(effects
 				(font
@@ -12764,7 +13223,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "C7171"
+		(property "Description" "Tantalum Capacitor (polarized)"
+			(at 92.71 186.69 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C237493"
 			(at 92.71 186.69 0)
 			(effects
 				(font
@@ -12795,7 +13263,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(uuid "b399512a-369c-4bb0-aa20-165593fb7e43")
 		(property "Reference" "J6"
 			(at 219.71 74.2949 0)
@@ -12834,6 +13302,15 @@
 			)
 		)
 		(property "Description" "Audio Jack, 2 Poles (Mono / TS), Switched T Pole (Normalling)"
+			(at 214.63 76.2 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" ""
 			(at 214.63 76.2 0)
 			(effects
 				(font
@@ -13039,7 +13516,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 152.4 186.69 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C14663"
 			(at 152.4 186.69 0)
 			(effects
 				(font
@@ -13070,7 +13556,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(uuid "bc2453c3-d072-4e25-beb2-f7ac7e7405d1")
 		(property "Reference" "J5"
 			(at 219.71 48.8949 0)
@@ -13109,6 +13595,15 @@
 			)
 		)
 		(property "Description" "Audio Jack, 2 Poles (Mono / TS), Switched T Pole (Normalling)"
+			(at 214.63 50.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" ""
 			(at 214.63 50.8 0)
 			(effects
 				(font
@@ -13187,6 +13682,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25076"
+			(at 40.64 97.79 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "faac2bad-37fe-4829-b638-89ebef542578")
 		)
@@ -13254,6 +13758,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C22775"
+			(at 82.55 49.53 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "08446c21-6cfa-4f6b-a2e1-1fdab42d89b8")
 		)
@@ -13313,6 +13826,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 158.75 99.06 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C25076"
 			(at 158.75 99.06 0)
 			(effects
 				(font
@@ -13498,7 +14020,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
 			(at 48.26 81.28 0)
 			(effects
 				(font
@@ -13517,6 +14039,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 48.26 81.28 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C7250"
 			(at 48.26 81.28 0)
 			(effects
 				(font
@@ -13641,6 +14172,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C210791"
+			(at 77.47 80.01 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "93dc682e-e14d-455a-b959-27e959993870")
 		)
@@ -13700,7 +14240,7 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Quad operational amplifier"
+		(property "Description" "Quad 8pA 1.5V/us 3MHz TSSOP-14 Operational Amplifier ROHS"
 			(at 64.77 25.4 0)
 			(effects
 				(font
@@ -13737,6 +14277,15 @@
 			)
 		)
 		(property "Sim.Pins" "1=out1 2=in1- 3=in1+ 4=vcc 5=in2+ 6=in2- 7=out2 8=out3 9=in3- 10=in3+ 11=vee 12=in4+ 13=in4- 14=out4"
+			(at 64.77 25.4 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C529553"
 			(at 64.77 25.4 0)
 			(effects
 				(font
@@ -13891,7 +14440,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
 			(at 166.37 33.02 0)
 			(effects
 				(font
@@ -13910,6 +14459,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 166.37 33.02 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C7250"
 			(at 166.37 33.02 0)
 			(effects
 				(font
@@ -13977,6 +14535,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 40.64 22.86 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C25076"
 			(at 40.64 22.86 0)
 			(effects
 				(font
@@ -14235,6 +14802,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C210791"
+			(at 77.47 54.61 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "0d7bfdc9-f3ef-43a9-88ec-2af9fa2adaed")
 		)
@@ -14369,6 +14945,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25076"
+			(at 158.75 48.26 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "c1eb7126-0ef8-4ada-b96e-31b30481b2a6")
 		)
@@ -14458,7 +15043,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(uuid "e1c19446-d232-48c3-9cbb-cafda504bbb7")
 		(property "Reference" "J8"
 			(at 219.71 99.6949 0)
@@ -14497,6 +15082,15 @@
 			)
 		)
 		(property "Description" "Audio Jack, 2 Poles (Mono / TS), Switched T Pole (Normalling)"
+			(at 214.63 101.6 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" ""
 			(at 214.63 101.6 0)
 			(effects
 				(font
@@ -14624,6 +15218,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C210791"
+			(at 77.47 30.48 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "9eeed2e7-3ae3-4659-9630-d609b0381073")
 		)
@@ -14713,7 +15316,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(uuid "ee671d91-2f92-47ba-baae-990316fbc3c3")
 		(property "Reference" "J1"
 			(at 103.378 47.244 0)
@@ -14750,6 +15353,15 @@
 			)
 		)
 		(property "Description" "Audio Jack, 2 Poles (Mono / TS), Switched T Pole (Normalling)"
+			(at 96.52 49.53 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" ""
 			(at 96.52 49.53 0)
 			(effects
 				(font
@@ -14870,7 +15482,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_Tantalum_SMD:CP_EIA-3216-18_Kemet-A"
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
 			(at 146.05 186.69 0)
 			(effects
 				(font
@@ -14888,7 +15500,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "C7171"
+		(property "Description" "Tantalum Capacitor (polarized)"
+			(at 146.05 186.69 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C237493"
 			(at 146.05 186.69 0)
 			(effects
 				(font
@@ -14956,6 +15577,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 200.66 50.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C22775"
 			(at 200.66 50.8 0)
 			(effects
 				(font
@@ -15073,7 +15703,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_Tantalum_SMD:CP_EIA-3216-18_Kemet-A"
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
 			(at 139.7 186.69 0)
 			(effects
 				(font
@@ -15091,7 +15721,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "C7171"
+		(property "Description" "Tantalum Capacitor (polarized)"
+			(at 139.7 186.69 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C237493"
 			(at 139.7 186.69 0)
 			(effects
 				(font
@@ -15159,6 +15798,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 200.66 101.6 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C22775"
 			(at 200.66 101.6 0)
 			(effects
 				(font

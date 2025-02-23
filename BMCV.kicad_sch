@@ -8852,7 +8852,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 25.4 157.48 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C32949"
 			(at 25.4 157.48 0)
 			(effects
 				(font
@@ -8922,7 +8931,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 140.97 265.43 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C307331"
 			(at 140.97 265.43 0)
 			(effects
 				(font
@@ -8991,7 +9009,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 25.4 138.43 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C32949"
 			(at 25.4 138.43 0)
 			(effects
 				(font
@@ -9061,7 +9088,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 154.94 265.43 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C307331"
 			(at 154.94 265.43 0)
 			(effects
 				(font
@@ -9132,6 +9168,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 78.74 92.71 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C25905"
 			(at 78.74 92.71 0)
 			(effects
 				(font
@@ -9337,6 +9382,15 @@
 			)
 		)
 		(property "Description" "STMicroelectronics Arm Cortex-M4 MCU, 512KB flash, 128KB RAM, 170 MHz, 1.71-3.6V, 38 GPIO, LQFP48"
+			(at 283.21 111.76 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C730125"
 			(at 283.21 111.76 0)
 			(effects
 				(font
@@ -9740,7 +9794,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 41.91 191.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C307331"
 			(at 41.91 191.77 0)
 			(effects
 				(font
@@ -9837,7 +9900,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(fields_autoplaced yes)
 		(uuid "3e6bfd0f-987b-4ef3-9f41-2f6c69af2433")
 		(property "Reference" "SW14"
@@ -9877,6 +9940,15 @@
 			)
 		)
 		(property "Description" "Push button switch, generic, two pins"
+			(at 164.465 130.81 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C2834959"
 			(at 164.465 130.81 0)
 			(effects
 				(font
@@ -9974,7 +10046,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(fields_autoplaced yes)
 		(uuid "45798eb9-0c69-4eeb-a209-dc2c7f5523ef")
 		(property "Reference" "VR1"
@@ -10069,6 +10141,15 @@
 					(size 1.27 1.27)
 				)
 				(justify left top)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" ""
+			(at 59.69 189.23 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 				(hide yes)
 			)
 		)
@@ -10346,7 +10427,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 29.21 232.41 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C307331"
 			(at 29.21 232.41 0)
 			(effects
 				(font
@@ -10443,7 +10533,7 @@
 		(exclude_from_sim no)
 		(in_bom no)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(uuid "5ea6312d-2be3-4796-a4dc-0f015eadb6f7")
 		(property "Reference" "Z1"
 			(at 92.71 49.53 0)
@@ -10483,6 +10573,15 @@
 		)
 		(property "Description" ""
 			(at 95.25 48.895 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" ""
+			(at 93.98 49.53 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -10545,7 +10644,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 118.11 265.43 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C307331"
 			(at 118.11 265.43 0)
 			(effects
 				(font
@@ -10755,6 +10863,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25905"
+			(at 137.16 127 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "1f27de1e-ee28-46f1-b66a-c10394d2712c")
 		)
@@ -10816,7 +10933,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 167.64 265.43 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C307331"
 			(at 167.64 265.43 0)
 			(effects
 				(font
@@ -10886,7 +11012,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 128.27 265.43 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C15849"
 			(at 128.27 265.43 0)
 			(effects
 				(font
@@ -11029,6 +11164,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25744"
+			(at 186.69 75.565 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "33c3ac87-bdb0-407b-a6b7-687c90c1d95a")
 		)
@@ -11087,7 +11231,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "C3020671"
+		(property "Description" "38.4MHz SMD crystal oscillator 10pF ±10ppm ±10ppm SMD2520-4P Crystals ROHS"
+			(at 31.75 146.05 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C3020671"
 			(at 31.75 146.05 0)
 			(effects
 				(font
@@ -11172,6 +11325,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25905"
+			(at 68.58 92.71 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "77366894-6597-4c5b-b108-6a17121de79a")
 		)
@@ -11233,7 +11395,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 179.07 265.43 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C307331"
 			(at 179.07 265.43 0)
 			(effects
 				(font
@@ -11303,7 +11474,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 90.17 232.41 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C307331"
 			(at 90.17 232.41 0)
 			(effects
 				(font
@@ -11438,6 +11618,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 45.72 233.68 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C25744"
 			(at 45.72 233.68 0)
 			(effects
 				(font
@@ -11646,6 +11835,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" ""
+			(at 72.39 158.75 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "3"
 			(uuid "67416196-d35c-48d9-b026-06d1436dafb5")
 		)
@@ -11716,6 +11914,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 201.93 85.725 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C25744"
 			(at 201.93 85.725 0)
 			(effects
 				(font
@@ -11917,6 +12124,15 @@
 			)
 		)
 		(property "Description" "Bidirectional  level-shifting voltage translator, TSSOP-20"
+			(at 59.69 247.65 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C17206"
 			(at 59.69 247.65 0)
 			(effects
 				(font
@@ -12134,7 +12350,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(uuid "acb6a20f-3dd6-479d-8e37-98d3d6981e5a")
 		(property "Reference" "J14"
 			(at 22.86 105.4099 90)
@@ -12173,6 +12389,15 @@
 			)
 		)
 		(property "Description" "USB 2.0-only 14P Type-C Receptacle connector"
+			(at 41.91 106.68 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C22384784"
 			(at 41.91 106.68 0)
 			(effects
 				(font
@@ -12572,7 +12797,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(fields_autoplaced yes)
 		(uuid "d234b040-42dd-46fe-aba6-3838d93a2886")
 		(property "Reference" "J15"
@@ -12647,6 +12872,15 @@
 					(size 1.27 1.27)
 				)
 				(justify left)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" ""
+			(at 99.06 145.415 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 				(hide yes)
 			)
 		)
@@ -12778,7 +13012,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 174.625 129.54 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C307331"
 			(at 174.625 129.54 0)
 			(effects
 				(font
@@ -12809,7 +13052,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(fields_autoplaced yes)
 		(uuid "e4cb2878-6a29-4d40-9c05-cef9cde76236")
 		(property "Reference" "SW15"
@@ -12847,6 +13090,15 @@
 			)
 		)
 		(property "Description" "Push button switch, generic, two pins"
+			(at 124.46 127 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C2834959"
 			(at 124.46 127 0)
 			(effects
 				(font
@@ -12916,6 +13168,15 @@
 			)
 		)
 		(property "Description" "C8741"
+			(at 131.445 88.265 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C8741"
 			(at 131.445 88.265 0)
 			(effects
 				(font
@@ -13002,6 +13263,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 49.53 189.23 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C25905"
 			(at 49.53 189.23 0)
 			(effects
 				(font
@@ -13137,6 +13407,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 133.35 132.08 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C25744"
 			(at 133.35 132.08 0)
 			(effects
 				(font

@@ -4941,7 +4941,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "3-Channel 8-Bit PWM LED Driver, DIP-8/SOIC-8"
+		(property "Description" "20V 3 16.5mA 5V~24V FSOP-8 LED Drivers ROHS"
+			(at 110.49 146.05 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C5446692"
 			(at 110.49 146.05 0)
 			(effects
 				(font
@@ -5028,6 +5037,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 241.3 27.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C25744"
 			(at 241.3 27.94 0)
 			(effects
 				(font
@@ -5304,6 +5322,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25076"
+			(at 81.28 100.33 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "436400af-5266-4f0c-a9ef-a469eba2cce4")
 		)
@@ -5338,7 +5365,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "47"
+		(property "Value" "100"
 			(at 124.46 142.2399 0)
 			(effects
 				(font
@@ -5366,6 +5393,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 121.92 140.97 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C25076"
 			(at 121.92 140.97 0)
 			(effects
 				(font
@@ -5596,7 +5632,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(fields_autoplaced yes)
 		(uuid "0c38a71a-bec6-46cc-becf-cc941fccc612")
 		(property "Reference" "SW12"
@@ -5636,6 +5672,15 @@
 			)
 		)
 		(property "Description" "Single Pole Single Throw (SPST) switch with LED, generic"
+			(at 215.9 116.84 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" ""
 			(at 215.9 116.84 0)
 			(effects
 				(font
@@ -5729,6 +5774,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25076"
+			(at 166.37 22.86 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "1ced1f1b-5ee3-4553-85fe-2e47e4e87ad0")
 		)
@@ -5796,6 +5850,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25076"
+			(at 152.4 100.33 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "940cfcbb-7d69-41b1-a391-126cc8032c57")
 		)
@@ -5818,7 +5881,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(fields_autoplaced yes)
 		(uuid "10c55450-8a8f-40c9-8337-690b19d3439a")
 		(property "Reference" "SW13"
@@ -5858,6 +5921,15 @@
 			)
 		)
 		(property "Description" "Single Pole Single Throw (SPST) switch with LED, generic"
+			(at 251.46 116.84 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" ""
 			(at 251.46 116.84 0)
 			(effects
 				(font
@@ -6012,7 +6084,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 87.63 151.13 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C307331"
 			(at 87.63 151.13 0)
 			(effects
 				(font
@@ -6079,7 +6160,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "3-Channel 8-Bit PWM LED Driver, DIP-8/SOIC-8"
+		(property "Description" "20V 3 16.5mA 5V~24V FSOP-8 LED Drivers ROHS"
+			(at 147.32 146.05 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C5446692"
 			(at 147.32 146.05 0)
 			(effects
 				(font
@@ -6166,6 +6256,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 186.69 82.55 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C25105"
 			(at 186.69 82.55 0)
 			(effects
 				(font
@@ -6340,7 +6439,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "47"
+		(property "Value" "100"
 			(at 196.85 142.2399 0)
 			(effects
 				(font
@@ -6368,6 +6467,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 194.31 140.97 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C25076"
 			(at 194.31 140.97 0)
 			(effects
 				(font
@@ -6577,6 +6685,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25105"
+			(at 242.57 160.02 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "a4843c5e-4313-42a9-a16f-4a165c73c3e9")
 		)
@@ -6677,7 +6794,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "47"
+		(property "Value" "100"
 			(at 231.14 142.2399 0)
 			(effects
 				(font
@@ -6713,6 +6830,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25076"
+			(at 228.6 140.97 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "ff7d83ab-65f2-4971-9667-ff42ddc0082a")
 		)
@@ -6735,7 +6861,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(fields_autoplaced yes)
 		(uuid "259cebee-64f8-4fcd-a97f-d798928c074a")
 		(property "Reference" "SW4"
@@ -6775,6 +6901,15 @@
 			)
 		)
 		(property "Description" "Single Pole Single Throw (SPST) switch with LED, generic"
+			(at 160.02 39.37 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" ""
 			(at 160.02 39.37 0)
 			(effects
 				(font
@@ -6869,6 +7004,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25105"
+			(at 207.01 160.02 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "25363c30-52c1-4275-a352-8fa4ead6f2e7")
 		)
@@ -6903,7 +7047,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "47"
+		(property "Value" "100"
 			(at 161.29 142.2399 0)
 			(effects
 				(font
@@ -6931,6 +7075,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 158.75 140.97 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C25076"
 			(at 158.75 140.97 0)
 			(effects
 				(font
@@ -7007,6 +7160,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25744"
+			(at 119.38 106.68 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "11db7eb7-6088-4521-a0db-0a4c3a521d45")
 		)
@@ -7041,7 +7203,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "47"
+		(property "Value" "100"
 			(at 175.26 64.7699 0)
 			(effects
 				(font
@@ -7069,6 +7231,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 172.72 63.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C25076"
 			(at 172.72 63.5 0)
 			(effects
 				(font
@@ -7178,7 +7349,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "47"
+		(property "Value" "100"
 			(at 90.17 142.2399 0)
 			(effects
 				(font
@@ -7206,6 +7377,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 87.63 140.97 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C25076"
 			(at 87.63 140.97 0)
 			(effects
 				(font
@@ -7282,6 +7462,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25744"
+			(at 85.09 105.41 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "58776395-a04f-48d3-8ca3-088ce0d8ebb8")
 		)
@@ -7304,7 +7493,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(fields_autoplaced yes)
 		(uuid "3230450b-87cd-45a7-a3ef-046200707d73")
 		(property "Reference" "SW1"
@@ -7344,6 +7533,15 @@
 			)
 		)
 		(property "Description" "Single Pole Single Throw (SPST) switch with LED, generic"
+			(at 55.88 39.37 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" ""
 			(at 55.88 39.37 0)
 			(effects
 				(font
@@ -7430,6 +7628,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 48.26 105.41 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C25744"
 			(at 48.26 105.41 0)
 			(effects
 				(font
@@ -7526,7 +7733,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(fields_autoplaced yes)
 		(uuid "360228ba-1748-4eee-9190-d438b346e8cb")
 		(property "Reference" "SW5"
@@ -7566,6 +7773,15 @@
 			)
 		)
 		(property "Description" "Single Pole Single Throw (SPST) switch with LED, generic"
+			(at 195.58 39.37 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" ""
 			(at 195.58 39.37 0)
 			(effects
 				(font
@@ -7650,7 +7866,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "3-Channel 8-Bit PWM LED Driver, DIP-8/SOIC-8"
+		(property "Description" "20V 3 16.5mA 5V~24V FSOP-8 LED Drivers ROHS"
+			(at 39.37 146.05 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C5446692"
 			(at 39.37 146.05 0)
 			(effects
 				(font
@@ -7699,7 +7924,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(uuid "38385035-4714-4cd6-bb3b-719225065673")
 		(property "Reference" "SW10"
 			(at 154.94 115.5699 90)
@@ -7738,6 +7963,15 @@
 			)
 		)
 		(property "Description" "Single Pole Single Throw (SPST) switch with LED, generic"
+			(at 146.05 116.84 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" ""
 			(at 146.05 116.84 0)
 			(effects
 				(font
@@ -8032,6 +8266,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25744"
+			(at 101.6 27.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "cbda2c42-023f-4e26-92ce-7df6af9d4896")
 		)
@@ -8092,6 +8335,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 100.33 160.02 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C25105"
 			(at 100.33 160.02 0)
 			(effects
 				(font
@@ -8300,6 +8552,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25076"
+			(at 97.79 22.86 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "98b5fdd2-25c7-403e-8261-dc06428f55bd")
 		)
@@ -8361,7 +8622,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 208.28 73.66 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C307331"
 			(at 208.28 73.66 0)
 			(effects
 				(font
@@ -8638,6 +8908,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25076"
+			(at 257.81 100.33 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "39946972-a3ad-44fd-b93b-0448c5b5b7d7")
 		)
@@ -8766,7 +9045,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 158.75 151.13 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C307331"
 			(at 158.75 151.13 0)
 			(effects
 				(font
@@ -8929,7 +9217,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(fields_autoplaced yes)
 		(uuid "55ab2ff2-4226-44d9-a878-9a5ee11b8a8f")
 		(property "Reference" "SW7"
@@ -8969,6 +9257,15 @@
 			)
 		)
 		(property "Description" "Single Pole Single Throw (SPST) switch with LED, generic"
+			(at 38.1 116.84 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" ""
 			(at 38.1 116.84 0)
 			(effects
 				(font
@@ -9053,7 +9350,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "3-Channel 8-Bit PWM LED Driver, DIP-8/SOIC-8"
+		(property "Description" "20V 3 16.5mA 5V~24V FSOP-8 LED Drivers ROHS"
+			(at 217.17 146.05 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C5446692"
 			(at 217.17 146.05 0)
 			(effects
 				(font
@@ -9282,6 +9588,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25105"
+			(at 82.55 82.55 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "45f98466-8aba-4520-8ce7-9534ff09c5c4")
 		)
@@ -9382,7 +9697,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "47"
+		(property "Value" "100"
 			(at 266.7 142.2399 0)
 			(effects
 				(font
@@ -9410,6 +9725,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 264.16 140.97 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C25076"
 			(at 264.16 140.97 0)
 			(effects
 				(font
@@ -9641,7 +9965,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(fields_autoplaced yes)
 		(uuid "641f1b50-deba-42a7-9c88-e6a0f8d5465a")
 		(property "Reference" "SW8"
@@ -9681,6 +10005,15 @@
 			)
 		)
 		(property "Description" "Single Pole Single Throw (SPST) switch with LED, generic"
+			(at 74.93 116.84 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" ""
 			(at 74.93 116.84 0)
 			(effects
 				(font
@@ -9775,6 +10108,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25744"
+			(at 66.04 27.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "b16873da-19e6-446d-be9f-12519c7b032f")
 		)
@@ -9836,7 +10178,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 172.72 73.66 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C307331"
 			(at 172.72 73.66 0)
 			(effects
 				(font
@@ -9979,6 +10330,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25076"
+			(at 44.45 100.33 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "74764ff2-b955-4004-b08b-7ddd724e3ddf")
 		)
@@ -10001,7 +10361,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(fields_autoplaced yes)
 		(uuid "675d5d8e-47c1-494f-9c09-de0a52075233")
 		(property "Reference" "SW3"
@@ -10041,6 +10401,15 @@
 			)
 		)
 		(property "Description" "Single Pole Single Throw (SPST) switch with LED, generic"
+			(at 125.73 39.37 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" ""
 			(at 125.73 39.37 0)
 			(effects
 				(font
@@ -10101,7 +10470,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "47"
+		(property "Value" "100"
 			(at 210.82 64.7699 0)
 			(effects
 				(font
@@ -10129,6 +10498,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 208.28 63.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C25076"
 			(at 208.28 63.5 0)
 			(effects
 				(font
@@ -10397,7 +10775,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 68.58 73.66 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C307331"
 			(at 68.58 73.66 0)
 			(effects
 				(font
@@ -10941,6 +11328,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25744"
+			(at 170.18 27.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "5d19572f-ab1f-4ca5-ae2c-32745c49ef05")
 		)
@@ -11008,6 +11404,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25076"
+			(at 62.23 22.86 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "3b5c06e0-8428-469c-82dc-8ba77da33f33")
 		)
@@ -11042,7 +11447,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "47"
+		(property "Value" "100"
 			(at 71.12 64.7699 0)
 			(effects
 				(font
@@ -11070,6 +11475,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 68.58 63.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C25076"
 			(at 68.58 63.5 0)
 			(effects
 				(font
@@ -11146,6 +11560,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25105"
+			(at 137.16 160.02 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "f9e9dfc7-61e7-4c99-9e91-5303b858b2bc")
 		)
@@ -11213,6 +11636,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25076"
+			(at 237.49 22.86 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "c4a32970-fe05-46d3-8b3c-972ea94290e3")
 		)
@@ -11272,6 +11704,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 187.96 100.33 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C25076"
 			(at 187.96 100.33 0)
 			(effects
 				(font
@@ -11547,6 +11988,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25744"
+			(at 191.77 105.41 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "9bfcfdd1-2654-4c78-b95c-7f615d0dba14")
 		)
@@ -11741,7 +12191,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 194.31 151.13 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C307331"
 			(at 194.31 151.13 0)
 			(effects
 				(font
@@ -11817,6 +12276,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25076"
+			(at 201.93 22.86 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "3c2a7724-121f-4474-a886-6854449fb581")
 		)
@@ -11875,7 +12343,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "3-Channel 8-Bit PWM LED Driver, DIP-8/SOIC-8"
+		(property "Description" "20V 3 16.5mA 5V~24V FSOP-8 LED Drivers ROHS"
+			(at 161.29 68.58 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C5446692"
 			(at 161.29 68.58 0)
 			(effects
 				(font
@@ -11963,7 +12440,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 50.8 151.13 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C307331"
 			(at 50.8 151.13 0)
 			(effects
 				(font
@@ -12096,7 +12582,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "3-Channel 8-Bit PWM LED Driver, DIP-8/SOIC-8"
+		(property "Description" "20V 3 16.5mA 5V~24V FSOP-8 LED Drivers ROHS"
+			(at 92.71 68.58 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C5446692"
 			(at 92.71 68.58 0)
 			(effects
 				(font
@@ -12211,7 +12706,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(uuid "94f8011b-6139-4925-8cb0-f9063ae99129")
 		(property "Reference" "SW11"
 			(at 190.5 115.5699 90)
@@ -12250,6 +12745,15 @@
 			)
 		)
 		(property "Description" "Single Pole Single Throw (SPST) switch with LED, generic"
+			(at 181.61 116.84 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" ""
 			(at 181.61 116.84 0)
 			(effects
 				(font
@@ -12537,7 +13041,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "3-Channel 8-Bit PWM LED Driver, DIP-8/SOIC-8"
+		(property "Description" "20V 3 16.5mA 5V~24V FSOP-8 LED Drivers ROHS"
+			(at 252.73 146.05 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C5446692"
 			(at 252.73 146.05 0)
 			(effects
 				(font
@@ -12598,7 +13111,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "47"
+		(property "Value" "100"
 			(at 106.68 64.7699 0)
 			(effects
 				(font
@@ -12626,6 +13139,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 104.14 63.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C25076"
 			(at 104.14 63.5 0)
 			(effects
 				(font
@@ -12758,7 +13280,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "3-Channel 8-Bit PWM LED Driver, DIP-8/SOIC-8"
+		(property "Description" "20V 3 16.5mA 5V~24V FSOP-8 LED Drivers ROHS"
+			(at 196.85 68.58 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C5446692"
 			(at 196.85 68.58 0)
 			(effects
 				(font
@@ -12843,7 +13374,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "3-Channel 8-Bit PWM LED Driver, DIP-8/SOIC-8"
+		(property "Description" "20V 3 16.5mA 5V~24V FSOP-8 LED Drivers ROHS"
+			(at 127 68.58 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C5446692"
 			(at 127 68.58 0)
 			(effects
 				(font
@@ -13005,6 +13545,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25105"
+			(at 151.13 82.55 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "6e563682-3d6a-4472-97f5-2d1a89db903e")
 		)
@@ -13133,6 +13682,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 156.21 105.41 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C25744"
 			(at 156.21 105.41 0)
 			(effects
 				(font
@@ -13276,6 +13834,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25105"
+			(at 66.04 160.02 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "7bcda3ba-f183-442f-94eb-7fcfed844453")
 		)
@@ -13343,6 +13910,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25076"
+			(at 222.25 100.33 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "f941b30b-6e1e-4f24-b25d-1c84c85492c9")
 		)
@@ -13377,7 +13953,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "47"
+		(property "Value" "100"
 			(at 140.97 64.7699 0)
 			(effects
 				(font
@@ -13405,6 +13981,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 138.43 63.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C25076"
 			(at 138.43 63.5 0)
 			(effects
 				(font
@@ -13537,7 +14122,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "3-Channel 8-Bit PWM LED Driver, DIP-8/SOIC-8"
+		(property "Description" "20V 3 16.5mA 5V~24V FSOP-8 LED Drivers ROHS"
+			(at 57.15 68.58 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C5446692"
 			(at 57.15 68.58 0)
 			(effects
 				(font
@@ -13625,7 +14219,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 228.6 151.13 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C307331"
 			(at 228.6 151.13 0)
 			(effects
 				(font
@@ -13695,7 +14298,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 121.92 151.13 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C307331"
 			(at 121.92 151.13 0)
 			(effects
 				(font
@@ -13764,6 +14376,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 116.84 82.55 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C25105"
 			(at 116.84 82.55 0)
 			(effects
 				(font
@@ -14034,7 +14655,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 104.14 73.66 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C307331"
 			(at 104.14 73.66 0)
 			(effects
 				(font
@@ -14111,6 +14741,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25744"
+			(at 135.89 27.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "f5f200b0-cb2c-40d5-9cb4-07ed5844f426")
 		)
@@ -14172,7 +14811,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 264.16 151.13 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C307331"
 			(at 264.16 151.13 0)
 			(effects
 				(font
@@ -14315,6 +14963,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25744"
+			(at 261.62 105.41 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "93dd0982-e276-48af-8b2d-080375833642")
 		)
@@ -14449,6 +15106,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25105"
+			(at 46.99 82.55 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "e917a499-ac2e-44ea-a181-3844dfcfe803")
 		)
@@ -14509,6 +15175,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 205.74 27.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C25744"
 			(at 205.74 27.94 0)
 			(effects
 				(font
@@ -14607,7 +15282,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(fields_autoplaced yes)
 		(uuid "cab0ab34-f38f-499c-88d6-d64b867e8ac1")
 		(property "Reference" "SW6"
@@ -14647,6 +15322,15 @@
 			)
 		)
 		(property "Description" "Single Pole Single Throw (SPST) switch with LED, generic"
+			(at 231.14 39.37 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" ""
 			(at 231.14 39.37 0)
 			(effects
 				(font
@@ -15074,6 +15758,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25105"
+			(at 29.21 160.02 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "5383dd3f-5a68-4fc5-a91b-66ab022cfa51")
 		)
@@ -15200,7 +15893,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "3-Channel 8-Bit PWM LED Driver, DIP-8/SOIC-8"
+		(property "Description" "20V 3 16.5mA 5V~24V FSOP-8 LED Drivers ROHS"
+			(at 76.2 146.05 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C5446692"
 			(at 76.2 146.05 0)
 			(effects
 				(font
@@ -15294,6 +15996,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25076"
+			(at 115.57 101.6 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "bbc00607-f9fa-41d0-9426-e0b833c11205")
 		)
@@ -15328,7 +16039,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "47"
+		(property "Value" "100"
 			(at 53.34 142.2399 0)
 			(effects
 				(font
@@ -15356,6 +16067,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 50.8 140.97 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C25076"
 			(at 50.8 140.97 0)
 			(effects
 				(font
@@ -15425,7 +16145,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 138.43 73.66 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C307331"
 			(at 138.43 73.66 0)
 			(effects
 				(font
@@ -15494,6 +16223,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 222.25 82.55 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C25105"
 			(at 222.25 82.55 0)
 			(effects
 				(font
@@ -15657,7 +16395,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(fields_autoplaced yes)
 		(uuid "de37c361-225d-4ef8-9cab-67d690e50b98")
 		(property "Reference" "SW9"
@@ -15697,6 +16435,15 @@
 			)
 		)
 		(property "Description" "Single Pole Single Throw (SPST) switch with LED, generic"
+			(at 109.22 118.11 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" ""
 			(at 109.22 118.11 0)
 			(effects
 				(font
@@ -15944,7 +16691,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(fields_autoplaced yes)
 		(uuid "e7014eb5-11ca-4bd1-bfc3-0b4c575692f8")
 		(property "Reference" "SW2"
@@ -15984,6 +16731,15 @@
 			)
 		)
 		(property "Description" "Single Pole Single Throw (SPST) switch with LED, generic"
+			(at 91.44 39.37 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" ""
 			(at 91.44 39.37 0)
 			(effects
 				(font
@@ -16068,7 +16824,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "3-Channel 8-Bit PWM LED Driver, DIP-8/SOIC-8"
+		(property "Description" "20V 3 16.5mA 5V~24V FSOP-8 LED Drivers ROHS"
+			(at 182.88 146.05 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C5446692"
 			(at 182.88 146.05 0)
 			(effects
 				(font
@@ -16156,7 +16921,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 243.84 73.66 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C307331"
 			(at 243.84 73.66 0)
 			(effects
 				(font
@@ -16225,6 +16999,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 226.06 105.41 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C25744"
 			(at 226.06 105.41 0)
 			(effects
 				(font
@@ -16358,7 +17141,16 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "3-Channel 8-Bit PWM LED Driver, DIP-8/SOIC-8"
+		(property "Description" "20V 3 16.5mA 5V~24V FSOP-8 LED Drivers ROHS"
+			(at 232.41 68.58 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C5446692"
 			(at 232.41 68.58 0)
 			(effects
 				(font
@@ -16552,7 +17344,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "47"
+		(property "Value" "100"
 			(at 246.38 64.7699 0)
 			(effects
 				(font
@@ -16580,6 +17372,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 243.84 63.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C25076"
 			(at 243.84 63.5 0)
 			(effects
 				(font
@@ -16656,6 +17457,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C25105"
+			(at 172.72 160.02 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "f9a854ee-eabb-4964-976b-c0379b75f5b7")
 		)
@@ -16715,6 +17525,15 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+			(at 132.08 22.86 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C25076"
 			(at 132.08 22.86 0)
 			(effects
 				(font
