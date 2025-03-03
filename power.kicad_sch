@@ -3289,13 +3289,13 @@
 		(uuid "7779444b-10e7-4bc2-a9d4-b70960611b50")
 	)
 	(label "PWR_LED_K"
-		(at 27.94 35.56 0)
+		(at 27.94 35.56 180)
 		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 0.8 0.8)
 			)
-			(justify left bottom)
+			(justify right bottom)
 		)
 		(uuid "8ecb5a89-573e-453f-8880-58f36983ddc8")
 	)
