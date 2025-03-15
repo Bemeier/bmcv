@@ -8401,7 +8401,6 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(fields_autoplaced yes)
 		(uuid "3da4f08d-639f-45ab-843f-e0b52f2d29e6")
 		(property "Reference" "#PWR043"
 			(at 252.73 160.02 0)
@@ -8413,7 +8412,7 @@
 			)
 		)
 		(property "Value" "+3.3V"
-			(at 252.73 151.13 0)
+			(at 257.175 156.21 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -10192,7 +10191,6 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(fields_autoplaced yes)
 		(uuid "6b1e84d1-8cd7-41f3-8451-2b26da3b8410")
 		(property "Reference" "#PWR064"
 			(at 118.11 163.83 0)
@@ -10204,7 +10202,7 @@
 			)
 		)
 		(property "Value" "+3.3V"
-			(at 118.11 154.94 0)
+			(at 121.92 160.02 0)
 			(effects
 				(font
 					(size 1.27 1.27)
