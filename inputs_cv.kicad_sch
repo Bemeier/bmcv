@@ -1530,32 +1530,31 @@
 				)
 			)
 		)
-		(symbol "Device:Varistor"
+		(symbol "Diode:SD12_SOD323"
 			(pin_numbers hide)
 			(pin_names
-				(offset 0)
-			)
+				(offset 1.016) hide)
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
-			(property "Reference" "RV"
-				(at 3.175 0 90)
+			(property "Reference" "D"
+				(at 0 2.54 0)
 				(effects
 					(font
 						(size 1.27 1.27)
 					)
 				)
 			)
-			(property "Value" "Varistor"
-				(at -3.175 0 90)
+			(property "Value" "SD12_SOD323"
+				(at 0 -2.54 0)
 				(effects
 					(font
 						(size 1.27 1.27)
 					)
 				)
 			)
-			(property "Footprint" ""
-				(at -1.778 0 90)
+			(property "Footprint" "Diode_SMD:D_SOD-323"
+				(at 0 -5.08 0)
 				(effects
 					(font
 						(size 1.27 1.27)
@@ -1563,7 +1562,7 @@
 					(hide yes)
 				)
 			)
-			(property "Datasheet" "~"
+			(property "Datasheet" "https://www.littelfuse.com/~/media/electronics/datasheets/tvs_diode_arrays/littelfuse_tvs_diode_array_sd_c_datasheet.pdf.pdf"
 				(at 0 0 0)
 				(effects
 					(font
@@ -1572,7 +1571,7 @@
 					(hide yes)
 				)
 			)
-			(property "Description" "Voltage dependent resistor"
+			(property "Description" "12V, 450W Discrete Bidirectional TVS Diode, SOD-323"
 				(at 0 0 0)
 				(effects
 					(font
@@ -1581,7 +1580,7 @@
 					(hide yes)
 				)
 			)
-			(property "Sim.Name" "kicad_builtin_varistor"
+			(property "ki_keywords" "transient voltage suppressor thyrector transil"
 				(at 0 0 0)
 				(effects
 					(font
@@ -1590,7 +1589,7 @@
 					(hide yes)
 				)
 			)
-			(property "Sim.Device" "SUBCKT"
+			(property "ki_fp_filters" "D?SOD?323*"
 				(at 0 0 0)
 				(effects
 					(font
@@ -1599,76 +1598,10 @@
 					(hide yes)
 				)
 			)
-			(property "Sim.Pins" "1=A 2=B"
-				(at 0 0 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(hide yes)
-				)
-			)
-			(property "Sim.Params" "threshold=1k"
-				(at 0 0 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(hide yes)
-				)
-			)
-			(property "Sim.Library" "${KICAD7_SYMBOL_DIR}/Simulation_SPICE.sp"
-				(at 0 0 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(hide yes)
-				)
-			)
-			(property "ki_keywords" "VDR resistance"
-				(at 0 0 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(hide yes)
-				)
-			)
-			(property "ki_fp_filters" "RV_* Varistor*"
-				(at 0 0 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(hide yes)
-				)
-			)
-			(symbol "Varistor_0_0"
-				(text "U"
-					(at -1.778 -2.032 0)
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(symbol "Varistor_0_1"
-				(rectangle
-					(start -1.016 -2.54)
-					(end 1.016 2.54)
-					(stroke
-						(width 0.254)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
+			(symbol "SD12_SOD323_0_1"
 				(polyline
 					(pts
-						(xy -1.905 2.54) (xy -1.905 1.27) (xy 1.905 -1.27)
+						(xy 1.27 0) (xy -1.27 0)
 					)
 					(stroke
 						(width 0)
@@ -1678,12 +1611,48 @@
 						(type none)
 					)
 				)
+				(polyline
+					(pts
+						(xy -2.54 -1.27) (xy 0 0) (xy -2.54 1.27) (xy -2.54 -1.27)
+					)
+					(stroke
+						(width 0.2032)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.508 1.27) (xy 0 1.27) (xy 0 -1.27) (xy -0.508 -1.27)
+					)
+					(stroke
+						(width 0.2032)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 2.54 1.27) (xy 2.54 -1.27) (xy 0 0) (xy 2.54 1.27)
+					)
+					(stroke
+						(width 0.2032)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
 			)
-			(symbol "Varistor_1_1"
+			(symbol "SD12_SOD323_1_1"
 				(pin passive line
-					(at 0 3.81 270)
-					(length 1.27)
-					(name "~"
+					(at -3.81 0 0)
+					(length 2.54)
+					(name "A1"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -1699,9 +1668,9 @@
 					)
 				)
 				(pin passive line
-					(at 0 -3.81 90)
-					(length 1.27)
-					(name "~"
+					(at 3.81 0 180)
+					(length 2.54)
+					(name "A2"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -2275,12 +2244,6 @@
 		(uuid "0dd3b035-a874-4f80-bdb9-b0f2a9272200")
 	)
 	(junction
-		(at 99.06 44.45)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "0f361dbd-a3de-404b-8876-a32a7fa8d63f")
-	)
-	(junction
 		(at 110.49 93.98)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -2407,6 +2370,12 @@
 		(uuid "bbb72f4e-ffb4-4f0d-9450-fd3d29bfac0b")
 	)
 	(junction
+		(at 99.06 44.45)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "c133c208-e254-4189-b94e-786b1473b231")
+	)
+	(junction
 		(at 110.49 68.58)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -2513,6 +2482,16 @@
 			(type default)
 		)
 		(uuid "07b25cb4-ea69-4205-985d-b6fd59c155fe")
+	)
+	(wire
+		(pts
+			(xy 99.06 44.45) (xy 110.49 44.45)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "09cccf53-bfa1-4ce3-8252-13900f2670f0")
 	)
 	(wire
 		(pts
@@ -3016,7 +2995,7 @@
 	)
 	(wire
 		(pts
-			(xy 99.06 44.45) (xy 110.49 44.45)
+			(xy 90.17 44.45) (xy 99.06 44.45)
 		)
 		(stroke
 			(width 0)
@@ -3126,13 +3105,13 @@
 	)
 	(wire
 		(pts
-			(xy 90.17 44.45) (xy 99.06 44.45)
+			(xy 99.06 44.45) (xy 99.06 49.53)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "67064e8b-a103-471b-b6f1-17326a98952d")
+		(uuid "673ed71d-57e0-4599-b2e6-ba30bbf40c5c")
 	)
 	(wire
 		(pts
@@ -3193,16 +3172,6 @@
 			(type default)
 		)
 		(uuid "7764ab42-eba4-4c4e-9fb9-1c194f011abf")
-	)
-	(wire
-		(pts
-			(xy 99.06 44.45) (xy 99.06 49.53)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "77c71ce8-f825-4aaa-8ce5-f63c76eba933")
 	)
 	(wire
 		(pts
@@ -3646,16 +3615,6 @@
 	)
 	(wire
 		(pts
-			(xy 99.06 57.15) (xy 99.06 59.69)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "baf01b1d-529a-4b80-a502-7fc5ecfddf43")
-	)
-	(wire
-		(pts
 			(xy 110.49 68.58) (xy 119.38 68.58)
 		)
 		(stroke
@@ -3903,6 +3862,16 @@
 			(type default)
 		)
 		(uuid "de36a626-4c23-4b57-9309-0cfab687f061")
+	)
+	(wire
+		(pts
+			(xy 99.06 57.15) (xy 99.06 59.69)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e14cb84f-bffe-4f1b-b7d2-6ba75a2f232c")
 	)
 	(wire
 		(pts
@@ -4732,6 +4701,33 @@
 				(hide yes)
 			)
 		)
+		(property "Manufacturer" ""
+			(at 107.95 184.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 107.95 184.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
+			(at 107.95 184.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "9996008a-1ce9-4456-b361-92ac04d760e9")
 		)
@@ -4808,6 +4804,33 @@
 				(hide yes)
 			)
 		)
+		(property "Manufacturer" ""
+			(at 87.63 68.58 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 87.63 68.58 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
+			(at 87.63 68.58 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "dac268fb-74a8-4c25-bb39-1b3dbd840cd8")
 		)
@@ -4824,8 +4847,8 @@
 		)
 	)
 	(symbol
-		(lib_id "Device:Varistor")
-		(at 99.06 102.87 0)
+		(lib_id "Diode:SD12_SOD323")
+		(at 99.06 102.87 90)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -4834,16 +4857,16 @@
 		(fields_autoplaced yes)
 		(uuid "16a6f3d8-55b9-443f-8843-28f6c31ffbd6")
 		(property "Reference" "RV3"
-			(at 101.6 101.7932 0)
+			(at 101.6 102.8699 90)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify left)
+				(justify right)
 			)
 		)
-		(property "Value" "B72500D0160H060"
-			(at 101.6 104.3332 0)
+		(property "Value" "SD12C-01FTG"
+			(at 100.5232 100.33 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4852,8 +4875,8 @@
 				(hide yes)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
-			(at 97.282 102.87 90)
+		(property "Footprint" "Diode_SMD:D_SOD-323"
+			(at 104.14 102.87 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4861,7 +4884,7 @@
 				(hide yes)
 			)
 		)
-		(property "Datasheet" "~"
+		(property "Datasheet" "https://www.littelfuse.com/~/media/electronics/datasheets/tvs_diode_arrays/littelfuse_tvs_diode_array_sd_c_datasheet.pdf.pdf"
 			(at 99.06 102.87 0)
 			(effects
 				(font
@@ -4870,7 +4893,7 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Voltage dependent resistor"
+		(property "Description" "12V, 450W Discrete Bidirectional TVS Diode, SOD-323"
 			(at 99.06 102.87 0)
 			(effects
 				(font
@@ -4924,7 +4947,34 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC Part #" "C210791"
+		(property "LCSC Part #" "C135970"
+			(at 99.06 102.87 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" ""
+			(at 99.06 102.87 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 99.06 102.87 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
 			(at 99.06 102.87 0)
 			(effects
 				(font
@@ -5078,6 +5128,33 @@
 				(hide yes)
 			)
 		)
+		(property "Manufacturer" ""
+			(at 43.18 184.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 43.18 184.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
+			(at 43.18 184.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "ed9e8daf-d37d-48ac-9801-53b1812d4294")
 		)
@@ -5184,6 +5261,33 @@
 			)
 		)
 		(property "LCSC Part #" "C529553"
+			(at 104.14 158.75 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" ""
+			(at 104.14 158.75 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 104.14 158.75 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
 			(at 104.14 158.75 0)
 			(effects
 				(font
@@ -5307,6 +5411,33 @@
 				(hide yes)
 			)
 		)
+		(property "Manufacturer" ""
+			(at 110.49 53.34 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 110.49 53.34 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
+			(at 110.49 53.34 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "fe71a4d1-5796-444e-871e-f7d1c52a9e36")
 		)
@@ -5377,6 +5508,33 @@
 			)
 		)
 		(property "LCSC Part #" "C237493"
+			(at 247.65 146.05 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" ""
+			(at 247.65 146.05 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 247.65 146.05 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
 			(at 247.65 146.05 0)
 			(effects
 				(font
@@ -5463,6 +5621,33 @@
 				(hide yes)
 			)
 		)
+		(property "Manufacturer" ""
+			(at 62.23 184.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 62.23 184.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
+			(at 62.23 184.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "fad6d973-1dbd-4516-be56-a5cf92111120")
 		)
@@ -5533,6 +5718,33 @@
 			)
 		)
 		(property "LCSC Part #" "C237493"
+			(at 215.9 146.05 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" ""
+			(at 215.9 146.05 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 215.9 146.05 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
 			(at 215.9 146.05 0)
 			(effects
 				(font
@@ -5617,6 +5829,33 @@
 				(hide yes)
 			)
 		)
+		(property "Manufacturer" ""
+			(at 87.63 93.98 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 87.63 93.98 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
+			(at 87.63 93.98 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "48a165a4-ba22-4a27-8dea-ec6cf648d084")
 		)
@@ -5687,6 +5926,33 @@
 			)
 		)
 		(property "LCSC Part #" "C307331"
+			(at 228.6 146.05 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" ""
+			(at 228.6 146.05 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 228.6 146.05 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
 			(at 228.6 146.05 0)
 			(effects
 				(font
@@ -5874,6 +6140,33 @@
 				(hide yes)
 			)
 		)
+		(property "Manufacturer" ""
+			(at 127 46.99 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 127 46.99 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
+			(at 127 46.99 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "4"
 			(uuid "ebaaff32-b94a-4bed-887d-17d6e82033b5")
 		)
@@ -5986,6 +6279,33 @@
 				(hide yes)
 			)
 		)
+		(property "Manufacturer" ""
+			(at 87.63 119.38 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 87.63 119.38 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
+			(at 87.63 119.38 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "7fa0fc4a-8c31-48b5-b7a2-a59c7737ee80")
 		)
@@ -6056,6 +6376,33 @@
 			)
 		)
 		(property "LCSC Part #" "C237493"
+			(at 49.53 184.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" ""
+			(at 49.53 184.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 49.53 184.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
 			(at 49.53 184.15 0)
 			(effects
 				(font
@@ -6538,6 +6885,33 @@
 				(hide yes)
 			)
 		)
+		(property "Manufacturer" ""
+			(at 144.78 96.52 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 144.78 96.52 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
+			(at 144.78 96.52 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "02758284-756b-40fc-b87b-cb8343a29f01")
 		)
@@ -6748,6 +7122,33 @@
 				(hide yes)
 			)
 		)
+		(property "Manufacturer" ""
+			(at 144.78 46.99 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 144.78 46.99 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
+			(at 144.78 46.99 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "14775b83-e5eb-4112-90bc-f031b2c73d5a")
 		)
@@ -6817,6 +7218,33 @@
 			)
 		)
 		(property "LCSC Part #" ""
+			(at 71.12 46.99 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" ""
+			(at 71.12 46.99 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 71.12 46.99 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
 			(at 71.12 46.99 0)
 			(effects
 				(font
@@ -7105,6 +7533,33 @@
 				(hide yes)
 			)
 		)
+		(property "Manufacturer" ""
+			(at 114.3 184.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 114.3 184.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
+			(at 114.3 184.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "f35260cf-8b5e-4570-9ab4-8c0bafe19746")
 		)
@@ -7176,6 +7631,33 @@
 			)
 		)
 		(property "LCSC Part #" "C7250"
+			(at 110.49 128.27 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" ""
+			(at 110.49 128.27 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 110.49 128.27 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
 			(at 110.49 128.27 0)
 			(effects
 				(font
@@ -7289,6 +7771,33 @@
 			)
 		)
 		(property "LCSC Part #" "C529553"
+			(at 127 121.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" ""
+			(at 127 121.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 127 121.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
 			(at 127 121.92 0)
 			(effects
 				(font
@@ -7608,6 +8117,33 @@
 				(hide yes)
 			)
 		)
+		(property "Manufacturer" ""
+			(at 222.25 146.05 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 222.25 146.05 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
+			(at 222.25 146.05 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "79f08ee6-d0f3-44d1-a642-2c0a01209f04")
 		)
@@ -7817,6 +8353,33 @@
 				(hide yes)
 			)
 		)
+		(property "Manufacturer" ""
+			(at 71.12 121.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 71.12 121.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
+			(at 71.12 121.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "S"
 			(uuid "4b14342c-2046-438a-b188-5610484aa762")
 		)
@@ -7891,6 +8454,33 @@
 			)
 		)
 		(property "LCSC Part #" "C7250"
+			(at 110.49 77.47 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" ""
+			(at 110.49 77.47 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 110.49 77.47 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
 			(at 110.49 77.47 0)
 			(effects
 				(font
@@ -7978,6 +8568,33 @@
 				(hide yes)
 			)
 		)
+		(property "Manufacturer" ""
+			(at 193.04 143.51 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 193.04 143.51 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
+			(at 193.04 143.51 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "411ef746-6408-4e0b-8468-276b46bca8d2")
 		)
@@ -8057,6 +8674,33 @@
 				(hide yes)
 			)
 		)
+		(property "Manufacturer" ""
+			(at 110.49 102.87 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 110.49 102.87 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
+			(at 110.49 102.87 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "180f2b5a-20ee-44b3-995c-b4a63ebac791")
 		)
@@ -8126,6 +8770,33 @@
 			)
 		)
 		(property "LCSC Part #" ""
+			(at 71.12 71.12 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" ""
+			(at 71.12 71.12 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 71.12 71.12 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
 			(at 71.12 71.12 0)
 			(effects
 				(font
@@ -8279,6 +8950,33 @@
 				(hide yes)
 			)
 		)
+		(property "Manufacturer" ""
+			(at 218.44 78.74 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 218.44 78.74 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
+			(at 218.44 78.74 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "13"
 			(uuid "7bb29784-868f-44d2-a389-0cc579029ddb")
 		)
@@ -8421,6 +9119,33 @@
 				(hide yes)
 			)
 		)
+		(property "Manufacturer" ""
+			(at 144.78 121.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 144.78 121.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
+			(at 144.78 121.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "07a0dd21-090c-4c61-bb08-2a21bcb33dc8")
 		)
@@ -8491,6 +9216,33 @@
 			)
 		)
 		(property "LCSC Part #" "C237493"
+			(at 101.6 184.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" ""
+			(at 101.6 184.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 101.6 184.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
 			(at 101.6 184.15 0)
 			(effects
 				(font
@@ -8647,8 +9399,8 @@
 		)
 	)
 	(symbol
-		(lib_id "Device:Varistor")
-		(at 99.06 53.34 0)
+		(lib_id "Diode:SD12_SOD323")
+		(at 99.06 53.34 90)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -8656,7 +9408,7 @@
 		(dnp no)
 		(uuid "be86e534-d944-451c-8233-c772566d486b")
 		(property "Reference" "RV1"
-			(at 103.886 52.324 0)
+			(at 105.41 53.34 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8664,17 +9416,18 @@
 				(justify left)
 			)
 		)
-		(property "Value" "B72500D0160H060"
-			(at 101.854 62.484 90)
+		(property "Value" "SD12C-01FTG"
+			(at 95.25 53.34 90)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
+				(hide yes)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
-			(at 97.282 53.34 90)
+		(property "Footprint" "Diode_SMD:D_SOD-323"
+			(at 104.14 53.34 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8682,7 +9435,7 @@
 				(hide yes)
 			)
 		)
-		(property "Datasheet" "~"
+		(property "Datasheet" "https://www.littelfuse.com/~/media/electronics/datasheets/tvs_diode_arrays/littelfuse_tvs_diode_array_sd_c_datasheet.pdf.pdf"
 			(at 99.06 53.34 0)
 			(effects
 				(font
@@ -8691,7 +9444,7 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Voltage dependent resistor"
+		(property "Description" "12V, 450W Discrete Bidirectional TVS Diode, SOD-323"
 			(at 99.06 53.34 0)
 			(effects
 				(font
@@ -8745,7 +9498,34 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC Part #" "C210791"
+		(property "LCSC Part #" "C135970"
+			(at 99.06 53.34 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" ""
+			(at 99.06 53.34 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 99.06 53.34 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
 			(at 99.06 53.34 0)
 			(effects
 				(font
@@ -8824,6 +9604,33 @@
 			)
 		)
 		(property "LCSC Part #" "C14663"
+			(at 55.88 184.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" ""
+			(at 55.88 184.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 55.88 184.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
 			(at 55.88 184.15 0)
 			(effects
 				(font
@@ -8975,6 +9782,33 @@
 				(hide yes)
 			)
 		)
+		(property "Manufacturer" ""
+			(at 144.78 71.12 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 144.78 71.12 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
+			(at 144.78 71.12 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "1dba4f66-4233-43e4-b909-01efb0ef9d91")
 		)
@@ -9044,6 +9878,33 @@
 			)
 		)
 		(property "LCSC Part #" ""
+			(at 71.12 96.52 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" ""
+			(at 71.12 96.52 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 71.12 96.52 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
 			(at 71.12 96.52 0)
 			(effects
 				(font
@@ -9335,6 +10196,33 @@
 				(hide yes)
 			)
 		)
+		(property "Manufacturer" ""
+			(at 182.88 143.51 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 182.88 143.51 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
+			(at 182.88 143.51 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "349e7b2c-1dd3-413a-910f-7268c05a16d2")
 		)
@@ -9417,8 +10305,8 @@
 		)
 	)
 	(symbol
-		(lib_id "Device:Varistor")
-		(at 99.06 77.47 0)
+		(lib_id "Diode:SD12_SOD323")
+		(at 99.06 77.47 90)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -9427,16 +10315,16 @@
 		(fields_autoplaced yes)
 		(uuid "d5fe6fc5-38d7-43d1-bd13-4b667c80d9b5")
 		(property "Reference" "RV2"
-			(at 101.6 76.3932 0)
+			(at 101.6 77.4699 90)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify left)
+				(justify right)
 			)
 		)
-		(property "Value" "B72500D0160H060"
-			(at 101.6 78.9332 0)
+		(property "Value" "SD12C-01FTG"
+			(at 100.5232 74.93 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -9445,8 +10333,8 @@
 				(hide yes)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
-			(at 97.282 77.47 90)
+		(property "Footprint" "Diode_SMD:D_SOD-323"
+			(at 104.14 77.47 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -9454,7 +10342,7 @@
 				(hide yes)
 			)
 		)
-		(property "Datasheet" "~"
+		(property "Datasheet" "https://www.littelfuse.com/~/media/electronics/datasheets/tvs_diode_arrays/littelfuse_tvs_diode_array_sd_c_datasheet.pdf.pdf"
 			(at 99.06 77.47 0)
 			(effects
 				(font
@@ -9463,7 +10351,7 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Voltage dependent resistor"
+		(property "Description" "12V, 450W Discrete Bidirectional TVS Diode, SOD-323"
 			(at 99.06 77.47 0)
 			(effects
 				(font
@@ -9517,7 +10405,34 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC Part #" "C210791"
+		(property "LCSC Part #" "C135970"
+			(at 99.06 77.47 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" ""
+			(at 99.06 77.47 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 99.06 77.47 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
 			(at 99.06 77.47 0)
 			(effects
 				(font
@@ -9736,6 +10651,33 @@
 				(hide yes)
 			)
 		)
+		(property "Manufacturer" ""
+			(at 87.63 44.45 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 87.63 44.45 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
+			(at 87.63 44.45 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "10e63616-57fa-4f1f-a288-4c300d765762")
 		)
@@ -9806,6 +10748,33 @@
 			)
 		)
 		(property "LCSC Part #" "C307331"
+			(at 254 146.05 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" ""
+			(at 254 146.05 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 254 146.05 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
 			(at 254 146.05 0)
 			(effects
 				(font
@@ -9892,6 +10861,33 @@
 				(hide yes)
 			)
 		)
+		(property "Manufacturer" ""
+			(at 120.65 184.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 120.65 184.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
+			(at 120.65 184.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "582f55dd-dd6a-49d3-bb57-1973c8050d68")
 		)
@@ -9908,8 +10904,8 @@
 		)
 	)
 	(symbol
-		(lib_id "Device:Varistor")
-		(at 99.06 128.27 0)
+		(lib_id "Diode:SD12_SOD323")
+		(at 99.06 128.27 90)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -9918,16 +10914,16 @@
 		(fields_autoplaced yes)
 		(uuid "f0b09473-cfe2-4635-b05e-05e1619cfbbc")
 		(property "Reference" "RV4"
-			(at 101.6 127.1932 0)
+			(at 101.6 128.2699 90)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify left)
+				(justify right)
 			)
 		)
-		(property "Value" "B72500D0160H060"
-			(at 101.6 129.7332 0)
+		(property "Value" "SD12C-01FTG"
+			(at 100.5232 125.73 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -9936,8 +10932,8 @@
 				(hide yes)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
-			(at 97.282 128.27 90)
+		(property "Footprint" "Diode_SMD:D_SOD-323"
+			(at 104.14 128.27 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -9945,7 +10941,7 @@
 				(hide yes)
 			)
 		)
-		(property "Datasheet" "~"
+		(property "Datasheet" "https://www.littelfuse.com/~/media/electronics/datasheets/tvs_diode_arrays/littelfuse_tvs_diode_array_sd_c_datasheet.pdf.pdf"
 			(at 99.06 128.27 0)
 			(effects
 				(font
@@ -9954,7 +10950,7 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Voltage dependent resistor"
+		(property "Description" "12V, 450W Discrete Bidirectional TVS Diode, SOD-323"
 			(at 99.06 128.27 0)
 			(effects
 				(font
@@ -10008,7 +11004,34 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC Part #" "C210791"
+		(property "LCSC Part #" "C135970"
+			(at 99.06 128.27 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" ""
+			(at 99.06 128.27 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 99.06 128.27 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
 			(at 99.06 128.27 0)
 			(effects
 				(font
@@ -10122,6 +11145,33 @@
 			)
 		)
 		(property "LCSC Part #" "C529553"
+			(at 127 71.12 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" ""
+			(at 127 71.12 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 127 71.12 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
 			(at 127 71.12 0)
 			(effects
 				(font
@@ -10405,6 +11455,33 @@
 			)
 		)
 		(property "LCSC Part #" "C529553"
+			(at 127 96.52 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" ""
+			(at 127 96.52 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 127 96.52 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
 			(at 127 96.52 0)
 			(effects
 				(font
