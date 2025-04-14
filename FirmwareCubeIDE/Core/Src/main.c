@@ -535,10 +535,12 @@ void MCP23S17_Init(void) {
 	MCP23S17_ReadRegister(MCP_HW_ADDR_0, MCP_GPIOB);
 }
 
+uint8_t cmd_byte = 0;
+
 void DAC_Write(int16_t value)
 {
-	uint8_t channel = 0;
-    uint8_t cmd_byte = (0b0000 << 4) | (channel & 0x03);
+	uint8_t channel = 4;
+    cmd_byte = (0b0000 << 4) | (channel);
 
     uint8_t tx_buf[3];
     tx_buf[0] = cmd_byte;
@@ -572,6 +574,10 @@ void DAC_Init(void)
     // Step 1: Set all GPIOs to default state
     DAC_SYNC_HIGH();
     DAC_LDAC_HIGH();
+    DAC_LDAC_HIGH();
+
+    HAL_Delay(1); // Short delay to let power stabilize if needed
+
     DAC_CLR_LOW(); // CLR/Reset
 
     HAL_Delay(1); // Short delay to let power stabilize if needed
@@ -669,21 +675,19 @@ int main(void)
 	//HAL_Delay(200);
 	//HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
 
+	  /*
 	gpioa_state = MCP23S17_ReadRegister(MCP_HW_ADDR_1, MCP_GPIOA);
 	gpiob_state = MCP23S17_ReadRegister(MCP_HW_ADDR_1, MCP_GPIOB);
-
-
-	if (gpioa_state + gpiob_state > 0) {
-		//HAL_GPIO_EXTI_Callback(0);
-	}
+*/
 
     if ((HAL_GetTick() - last_update) >= delay_ms) {
         last_update = HAL_GetTick();
-        DAC_Write(sine_table[sine_index]);
+        DAC_Write(16000); //sine_table[sine_index]
         sine_index = (sine_index + 1) % SINE_STEPS;
     	HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
     }
 
+    /*
 	HAL_GPIO_EXTI_Callback(0);
 	ADC_Start();
 
@@ -700,7 +704,8 @@ int main(void)
 	    USBD_MIDI_SendReport(&hUsbDeviceFS, buffUsbReport, MIDI_EPIN_SIZE);
 	    buffUsbReportNextIndex = 0;
 	}
-	HAL_Delay(1);
+	*/
+	HAL_Delay(2);
 	/*
 */
 	/*
@@ -931,7 +936,7 @@ static void MX_SPI2_Init(void)
   hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi2.Init.NSS = SPI_NSS_SOFT;
-  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_256;
   hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
