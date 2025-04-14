@@ -7109,9 +7109,9 @@
 			)
 		)
 	)
-	(global_label "MCP_5V_ENCINT_A"
+	(global_label "MCP_5V_ENC_INT"
 		(shape input)
-		(at 72.39 255.27 0)
+		(at 72.39 252.73 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -7121,7 +7121,7 @@
 		)
 		(uuid "27ce6407-aa4f-43a7-97fe-e71b548b0922")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 92.3085 255.27 0)
+			(at 91.2199 252.73 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7265,7 +7265,7 @@
 	)
 	(global_label "MCP_RESET"
 		(shape input)
-		(at 46.99 257.81 180)
+		(at 46.99 255.27 180)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -7275,7 +7275,7 @@
 		)
 		(uuid "385d2665-804e-4e2e-bef0-ced63751ccb1")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 33.3007 257.81 0)
+			(at 33.3007 255.27 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7395,9 +7395,9 @@
 			)
 		)
 	)
-	(global_label "MCP_ENCINT_A"
+	(global_label "MCP_ENC_INT"
 		(shape input)
-		(at 300.99 81.28 0)
+		(at 300.99 83.82 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -7407,7 +7407,7 @@
 		)
 		(uuid "476c1927-6e52-4025-b957-3f6cd5617ea0")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 317.6428 81.28 0)
+			(at 316.5542 83.82 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7991,7 +7991,7 @@
 	)
 	(global_label "MCP_5V_RESET"
 		(shape input)
-		(at 72.39 257.81 0)
+		(at 72.39 255.27 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -8001,7 +8001,7 @@
 		)
 		(uuid "92f5d1af-b1da-4e03-9f77-d58ebbd12794")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 89.345 257.81 0)
+			(at 89.345 255.27 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8187,9 +8187,9 @@
 			)
 		)
 	)
-	(global_label "MCP_ENCINT_B"
+	(global_label "MCP_BTN_INT"
 		(shape input)
-		(at 300.99 83.82 0)
+		(at 300.99 81.28 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -8199,7 +8199,7 @@
 		)
 		(uuid "abac49b0-a8f3-457a-9325-8d456e67aa16")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 317.8242 83.82 0)
+			(at 316.3728 81.28 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8429,9 +8429,9 @@
 			)
 		)
 	)
-	(global_label "MCP_ENCINT_B"
+	(global_label "MCP_BTN_INT"
 		(shape input)
-		(at 46.99 252.73 180)
+		(at 46.99 257.81 180)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -8441,7 +8441,7 @@
 		)
 		(uuid "c443efb4-f27d-4f4a-846e-1f0c827a4403")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 30.1558 252.73 0)
+			(at 31.6072 257.81 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8539,9 +8539,9 @@
 			)
 		)
 	)
-	(global_label "MCP_5V_ENCINT_B"
+	(global_label "MCP_5V_BTN_INT"
 		(shape input)
-		(at 72.39 252.73 0)
+		(at 72.39 257.81 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -8551,7 +8551,7 @@
 		)
 		(uuid "d9a5f457-88f1-46cc-a40a-0f7fb4f8283f")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 92.4899 252.73 0)
+			(at 91.0385 257.81 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8759,9 +8759,9 @@
 			)
 		)
 	)
-	(global_label "MCP_ENCINT_A"
+	(global_label "MCP_ENC_INT"
 		(shape input)
-		(at 46.99 255.27 180)
+		(at 46.99 252.73 180)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -8771,7 +8771,7 @@
 		)
 		(uuid "f7e27cd0-8197-4ea2-82f3-64514e8a567f")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 30.3372 255.27 0)
+			(at 31.4258 252.73 0)
 			(effects
 				(font
 					(size 1.27 1.27)
