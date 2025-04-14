@@ -273,17 +273,18 @@ float adc_to_voltage(int16_t adc_value) {
 }
 
 void ADC_Start() {
-	if (!converting) {
+	if (converting == 0) {
 		converting = 1;
 		HAL_GPIO_WritePin(OUT_ADC_CNVST_GPIO_Port, OUT_ADC_CNVST_Pin, GPIO_PIN_RESET);
 		HAL_GPIO_TogglePin(OUT_ADC_ADDR_GPIO_Port, OUT_ADC_ADDR_Pin);
 		HAL_GPIO_WritePin(OUT_ADC_CNVST_GPIO_Port, OUT_ADC_CNVST_Pin, GPIO_PIN_SET);
 	}
 }
+uint32_t cvtcnt = 0;
 
 uint8_t ADC_Read()
 {
-	if (!converting) {
+	if (converting == 0) {
 		return 0;
 	}
 
@@ -308,7 +309,7 @@ uint8_t ADC_Read()
     adc_i[1+offset] = sign_extend_14bit(adc_b_raw);
     adc_f[0+offset] = adc_to_voltage(adc_i[0+offset]);
     adc_f[1+offset] = adc_to_voltage(adc_i[1+offset]);
-
+    cvtcnt++;
     converting = 0;
     return 1;
 }
@@ -316,7 +317,6 @@ uint8_t ADC_Read()
 void ADC_Init(void)
 {
     // Set default pin levels
-    HAL_GPIO_WritePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin, RESET);
     HAL_GPIO_WritePin(OUT_ADC_CS_GPIO_Port, OUT_ADC_CS_Pin, GPIO_PIN_SET);
     HAL_GPIO_WritePin(OUT_ADC_CNVST_GPIO_Port, OUT_ADC_CNVST_Pin, GPIO_PIN_SET);
     HAL_GPIO_WritePin(OUT_ADC_ADDR_GPIO_Port, OUT_ADC_ADDR_Pin, GPIO_PIN_RESET);
@@ -440,9 +440,14 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
 	if (GPIO_Pin == INT_ADC_BUSY_Pin) {
 	    if (!ADC_Read()) {
-	        HAL_GPIO_WritePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin, RESET);
-	    	HAL_Delay(100);
+	    	HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
 	    }
+	    /*
+        HAL_GPIO_WritePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin, SET);
+    	HAL_Delay(100);
+        HAL_GPIO_WritePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin, RESET);
+    	HAL_Delay(50);
+    	*/
 	}
 
 
@@ -534,8 +539,6 @@ void MCP23S17_Init(void) {
 	MCP23S17_ReadRegister(MCP_HW_ADDR_0, MCP_GPIOA);
 	MCP23S17_ReadRegister(MCP_HW_ADDR_0, MCP_GPIOB);
 }
-
-uint8_t cmd_byte = 0;
 
 void DAC_Write(int16_t value)
 {
@@ -684,24 +687,20 @@ int main(void)
 	//HAL_Delay(200);
 	//HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
 
-	  /*
 	gpioa_state = MCP23S17_ReadRegister(MCP_HW_ADDR_1, MCP_GPIOA);
 	gpiob_state = MCP23S17_ReadRegister(MCP_HW_ADDR_1, MCP_GPIOB);
-*/
-
-    if ((HAL_GetTick() - last_update) >= delay_ms) {
-    }
-
 
     last_update = HAL_GetTick();
-    DAC_Write(sine_table[sine_index]);
+    //DAC_Write(sine_table[sine_index]);
     sine_index = (sine_index + 1) % SINE_STEPS;
-	HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
 
-    /*
 	HAL_GPIO_EXTI_Callback(0);
+
+	HAL_Delay(1);
+
 	ADC_Start();
 
+	/*
 
 	if (USBD_MIDI_GetState(&hUsbDeviceFS) == MIDI_IDLE) {
 		uint8_t midi_value0 = (uint8_t)(fminf(fmaxf(adc_f[0], 0.0f), 5.0f) * (127.0f / 5.0f));
@@ -716,7 +715,8 @@ int main(void)
 	    buffUsbReportNextIndex = 0;
 	}
 	*/
-	//HAL_Delay(2);
+
+
 	/*
 */
 	/*
@@ -947,7 +947,7 @@ static void MX_SPI2_Init(void)
   hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi2.Init.NSS = SPI_NSS_SOFT;
-  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_256;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
   hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
