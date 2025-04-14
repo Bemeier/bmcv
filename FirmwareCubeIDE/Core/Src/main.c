@@ -19,11 +19,11 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "usb_device.h"
-#include "usbd_midi.h"
-#include <math.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "usbd_midi.h"
+#include <math.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -94,6 +94,16 @@ void MIDI_addToUSBReport(uint8_t cable, uint8_t message, uint8_t param1, uint8_t
   }
 }
 
+// DAC
+
+#define DAC_SYNC_LOW()     HAL_GPIO_WritePin(GPIOA, OUT_DAC_SYNC_Pin, GPIO_PIN_RESET)
+#define DAC_SYNC_HIGH()    HAL_GPIO_WritePin(GPIOA, OUT_DAC_SYNC_Pin, GPIO_PIN_SET)
+
+#define DAC_LDAC_LOW()     HAL_GPIO_WritePin(GPIOA, OUT_DAC_LDAC_Pin, GPIO_PIN_RESET)
+#define DAC_LDAC_HIGH()    HAL_GPIO_WritePin(GPIOA, OUT_DAC_LDAC_Pin, GPIO_PIN_SET)
+
+#define DAC_CLR_LOW()      HAL_GPIO_WritePin(GPIOA, OUT_DAC_CLR_Pin, GPIO_PIN_RESET)
+#define DAC_CLR_HIGH()     HAL_GPIO_WritePin(GPIOA, OUT_DAC_CLR_Pin, GPIO_PIN_SET)
 
 
 // MCP
@@ -525,6 +535,56 @@ void MCP23S17_Init(void) {
 	MCP23S17_ReadRegister(MCP_HW_ADDR_0, MCP_GPIOB);
 }
 
+void DAC_Write(int16_t value)
+{
+	uint8_t channel = 0;
+    uint8_t cmd_byte = (0b0000 << 4) | (channel & 0x03);
+
+    uint8_t tx_buf[3];
+    tx_buf[0] = cmd_byte;
+    tx_buf[1] = (value >> 8) & 0xFF;
+    tx_buf[2] = value & 0xFF;
+
+    DAC_SYNC_LOW();
+    HAL_SPI_Transmit(&hspi2, tx_buf, 3, HAL_MAX_DELAY);
+    DAC_SYNC_HIGH();
+
+
+    HAL_Delay(1);
+
+    DAC_LDAC_LOW();
+
+    HAL_Delay(1);
+
+    DAC_LDAC_HIGH();
+}
+
+#define SINE_STEPS     100       // Number of points per wave cycle
+#define SINE_AMPLITUDE 32767     // Max int16_t value for DAC full scale
+#define SINE_FREQ_HZ   1        // Output frequency in Hz
+#define CHANNEL        0         // DAC Channel A
+
+float sine_table[SINE_STEPS];
+uint32_t delay_ms = 50;// (1000 / SINE_FREQ_HZ) / SINE_STEPS;
+
+void DAC_Init(void)
+{
+    // Step 1: Set all GPIOs to default state
+    DAC_SYNC_HIGH();
+    DAC_LDAC_HIGH();
+    DAC_CLR_LOW(); // CLR/Reset
+
+    HAL_Delay(1); // Short delay to let power stabilize if needed
+
+    DAC_CLR_HIGH();
+
+
+    for (int i = 0; i < SINE_STEPS; i++)
+    {
+        sine_table[i] = SINE_AMPLITUDE * sinf(2 * M_PI * i / SINE_STEPS);
+    }
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -576,6 +636,8 @@ int main(void)
 
   ADC_Init();
 
+  DAC_Init();
+
 
   for (uint8_t ledidx = 0; ledidx < LED_COUNT; ledidx++) {
 	  ws2811_setled(ledidx, 0, 0, 255);
@@ -588,6 +650,10 @@ int main(void)
 	  ws2811_encode(0xFF0000);
   }
   */
+
+  uint32_t last_update = HAL_GetTick();
+  uint16_t sine_index = 0;
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -598,7 +664,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    HAL_GPIO_WritePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin, SET);
+    //HAL_GPIO_WritePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin, SET);
 	//HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
 	//HAL_Delay(200);
 	//HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
@@ -610,6 +676,13 @@ int main(void)
 	if (gpioa_state + gpiob_state > 0) {
 		//HAL_GPIO_EXTI_Callback(0);
 	}
+
+    if ((HAL_GetTick() - last_update) >= delay_ms) {
+        last_update = HAL_GetTick();
+        DAC_Write(sine_table[sine_index]);
+        sine_index = (sine_index + 1) % SINE_STEPS;
+    	HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
+    }
 
 	HAL_GPIO_EXTI_Callback(0);
 	ADC_Start();
@@ -1106,13 +1179,16 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, OUT_MCP_CS_Pin|OUT_DAC_CLR_Pin|OUT_DAC_LDAC_Pin|OUT_DAC_SYNC_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(OUT_MCP_CS_GPIO_Port, OUT_MCP_CS_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, OUT_MCP_RESET_Pin|OUT_ADC_ADDR_Pin|SLIDER_LED_Pin|LEVEL_SHIFTER_EN_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, OUT_ADC_CS_Pin|OUT_ADC_CNVST_Pin, GPIO_PIN_SET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOA, OUT_DAC_CLR_Pin|OUT_DAC_LDAC_Pin|OUT_DAC_SYNC_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pins : IN_BTN_MCU2_Pin IN_BTN_MCU5_Pin IN_BTN_MCU4_Pin */
   GPIO_InitStruct.Pin = IN_BTN_MCU2_Pin|IN_BTN_MCU5_Pin|IN_BTN_MCU4_Pin;
@@ -1138,12 +1214,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : OUT_MCP_CS_Pin */
-  GPIO_InitStruct.Pin = OUT_MCP_CS_Pin;
+  /*Configure GPIO pins : OUT_MCP_CS_Pin OUT_DAC_CLR_Pin OUT_DAC_LDAC_Pin OUT_DAC_SYNC_Pin */
+  GPIO_InitStruct.Pin = OUT_MCP_CS_Pin|OUT_DAC_CLR_Pin|OUT_DAC_LDAC_Pin|OUT_DAC_SYNC_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-  HAL_GPIO_Init(OUT_MCP_CS_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pins : OUT_MCP_RESET_Pin SLIDER_LED_Pin LEVEL_SHIFTER_EN_Pin */
   GPIO_InitStruct.Pin = OUT_MCP_RESET_Pin|SLIDER_LED_Pin|LEVEL_SHIFTER_EN_Pin;
@@ -1164,13 +1240,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(INT_ADC_BUSY_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : OUT_DAC_CLR_Pin OUT_DAC_LDAC_Pin OUT_DAC_SYNC_Pin */
-  GPIO_InitStruct.Pin = OUT_DAC_CLR_Pin|OUT_DAC_LDAC_Pin|OUT_DAC_SYNC_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pins : RESET_SW_Pin IN_BTN_MCU1_Pin */
   GPIO_InitStruct.Pin = RESET_SW_Pin|IN_BTN_MCU1_Pin;
