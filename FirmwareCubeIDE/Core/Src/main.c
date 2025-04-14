@@ -539,51 +539,60 @@ uint8_t cmd_byte = 0;
 
 void DAC_Write(int16_t value)
 {
-	uint8_t channel = 4;
-    cmd_byte = (0b0000 << 4) | (channel);
-
     uint8_t tx_buf[3];
-    tx_buf[0] = cmd_byte;
+    tx_buf[0] = (0b00000100);
     tx_buf[1] = (value >> 8) & 0xFF;
     tx_buf[2] = value & 0xFF;
 
     DAC_SYNC_LOW();
     HAL_SPI_Transmit(&hspi2, tx_buf, 3, HAL_MAX_DELAY);
     DAC_SYNC_HIGH();
-
-
-    HAL_Delay(1);
-
-    DAC_LDAC_LOW();
-
-    HAL_Delay(1);
-
-    DAC_LDAC_HIGH();
 }
 
 #define SINE_STEPS     100       // Number of points per wave cycle
-#define SINE_AMPLITUDE 32767     // Max int16_t value for DAC full scale
+#define SINE_AMPLITUDE 31000     // Max int16_t value for DAC full scale
 #define SINE_FREQ_HZ   1        // Output frequency in Hz
 #define CHANNEL        0         // DAC Channel A
 
 float sine_table[SINE_STEPS];
-uint32_t delay_ms = 50;// (1000 / SINE_FREQ_HZ) / SINE_STEPS;
+uint32_t delay_ms = 5;// (1000 / SINE_FREQ_HZ) / SINE_STEPS;
 
 void DAC_Init(void)
 {
     // Step 1: Set all GPIOs to default state
     DAC_SYNC_HIGH();
     DAC_LDAC_HIGH();
-    DAC_LDAC_HIGH();
-
-    HAL_Delay(1); // Short delay to let power stabilize if needed
-
-    DAC_CLR_LOW(); // CLR/Reset
-
-    HAL_Delay(1); // Short delay to let power stabilize if needed
-
+    DAC_CLR_LOW();
+    HAL_Delay(1);
     DAC_CLR_HIGH();
 
+    //control_bits |= (range_code & 0x07);  // Bits 2:0 = range select
+    // All other control bits = 0 (normal operation, Slew Rate Off, etc.)
+
+    HAL_Delay(1); // Short delay to let power stabilize if needed
+
+    uint8_t tx_buf[3];
+    tx_buf[0] = (0b00001100);// | (channel & 0x07);
+    uint16_t control_bits = 0b0000000000000100;
+    tx_buf[1] = (control_bits >> 8) & 0xFF;
+    tx_buf[2] =  control_bits & 0xFF;
+
+    HAL_GPIO_WritePin(OUT_DAC_SYNC_GPIO_Port, OUT_DAC_SYNC_Pin, GPIO_PIN_RESET);
+    HAL_SPI_Transmit(&hspi2, tx_buf, 3, HAL_MAX_DELAY);
+    HAL_GPIO_WritePin(OUT_DAC_SYNC_GPIO_Port, OUT_DAC_SYNC_Pin, GPIO_PIN_SET);
+
+    HAL_Delay(1); // Short delay to let power stabilize if needed
+
+    tx_buf[0] = (0b00010000);
+    tx_buf[1] = 0xFF;
+    tx_buf[2] = 0xFF;
+
+    HAL_GPIO_WritePin(OUT_DAC_SYNC_GPIO_Port, OUT_DAC_SYNC_Pin, GPIO_PIN_RESET);
+    HAL_SPI_Transmit(&hspi2, tx_buf, 3, HAL_MAX_DELAY);
+    HAL_GPIO_WritePin(OUT_DAC_SYNC_GPIO_Port, OUT_DAC_SYNC_Pin, GPIO_PIN_SET);
+    HAL_Delay(1); // Short delay to let power stabilize if needed
+
+    DAC_LDAC_LOW();
 
     for (int i = 0; i < SINE_STEPS; i++)
     {
@@ -681,11 +690,13 @@ int main(void)
 */
 
     if ((HAL_GetTick() - last_update) >= delay_ms) {
-        last_update = HAL_GetTick();
-        DAC_Write(16000); //sine_table[sine_index]
-        sine_index = (sine_index + 1) % SINE_STEPS;
-    	HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
     }
+
+
+    last_update = HAL_GetTick();
+    DAC_Write(sine_table[sine_index]);
+    sine_index = (sine_index + 1) % SINE_STEPS;
+	HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
 
     /*
 	HAL_GPIO_EXTI_Callback(0);
@@ -705,7 +716,7 @@ int main(void)
 	    buffUsbReportNextIndex = 0;
 	}
 	*/
-	HAL_Delay(2);
+	//HAL_Delay(2);
 	/*
 */
 	/*
