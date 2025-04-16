@@ -96,14 +96,18 @@ void MIDI_addToUSBReport(uint8_t cable, uint8_t message, uint8_t param1, uint8_t
 
 // DAC
 
-#define DAC_SYNC_LOW()     HAL_GPIO_WritePin(GPIOA, OUT_DAC_SYNC_Pin, GPIO_PIN_RESET)
-#define DAC_SYNC_HIGH()    HAL_GPIO_WritePin(GPIOA, OUT_DAC_SYNC_Pin, GPIO_PIN_SET)
+#define DAC_CS_LOW()     HAL_GPIO_WritePin(GPIOA, OUT_DAC_SYNC_Pin, GPIO_PIN_RESET)
+#define DAC_CS_HIGH()    HAL_GPIO_WritePin(GPIOA, OUT_DAC_SYNC_Pin, GPIO_PIN_SET)
 
 #define DAC_LDAC_LOW()     HAL_GPIO_WritePin(GPIOA, OUT_DAC_LDAC_Pin, GPIO_PIN_RESET)
 #define DAC_LDAC_HIGH()    HAL_GPIO_WritePin(GPIOA, OUT_DAC_LDAC_Pin, GPIO_PIN_SET)
 
 #define DAC_CLR_LOW()      HAL_GPIO_WritePin(GPIOA, OUT_DAC_CLR_Pin, GPIO_PIN_RESET)
 #define DAC_CLR_HIGH()     HAL_GPIO_WritePin(GPIOA, OUT_DAC_CLR_Pin, GPIO_PIN_SET)
+
+
+#define ADC_CS_LOW() 		HAL_GPIO_WritePin(OUT_ADC_CS_GPIO_Port, OUT_ADC_CS_Pin, GPIO_PIN_RESET);
+#define ADC_CS_HIGH() 		HAL_GPIO_WritePin(OUT_ADC_CS_GPIO_Port, OUT_ADC_CS_Pin, GPIO_PIN_SET);
 
 
 // MCP
@@ -271,15 +275,6 @@ int16_t sign_extend_14bit(uint16_t val) {
 float adc_to_voltage(int16_t adc_value) {
     return ((float)adc_value / 8192.0f) * 10.0f;  // Assuming full scale ±10V
 }
-
-void ADC_Start() {
-	if (converting == 0) {
-		converting = 1;
-		HAL_GPIO_WritePin(OUT_ADC_CNVST_GPIO_Port, OUT_ADC_CNVST_Pin, GPIO_PIN_RESET);
-		HAL_GPIO_TogglePin(OUT_ADC_ADDR_GPIO_Port, OUT_ADC_ADDR_Pin);
-		HAL_GPIO_WritePin(OUT_ADC_CNVST_GPIO_Port, OUT_ADC_CNVST_Pin, GPIO_PIN_SET);
-	}
-}
 uint32_t cvtcnt = 0;
 
 uint8_t ADC_Read()
@@ -312,6 +307,16 @@ uint8_t ADC_Read()
     cvtcnt++;
     converting = 0;
     return 1;
+}
+
+
+void ADC_Start() {
+	if (converting == 0) {
+		converting = 1;
+		HAL_GPIO_WritePin(OUT_ADC_CNVST_GPIO_Port, OUT_ADC_CNVST_Pin, GPIO_PIN_RESET);
+		HAL_GPIO_TogglePin(OUT_ADC_ADDR_GPIO_Port, OUT_ADC_ADDR_Pin);
+		HAL_GPIO_WritePin(OUT_ADC_CNVST_GPIO_Port, OUT_ADC_CNVST_Pin, GPIO_PIN_SET);
+	}
 }
 
 void ADC_Init(void)
@@ -438,17 +443,16 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		b_state_prev = b_state;
 	}
 
+	/*
 	if (GPIO_Pin == INT_ADC_BUSY_Pin) {
 	    if (!ADC_Read()) {
-	    	HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
+	        HAL_GPIO_WritePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin, SET);
+	    	HAL_Delay(100);
+	        HAL_GPIO_WritePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin, RESET);
+	    	HAL_Delay(50);
 	    }
-	    /*
-        HAL_GPIO_WritePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin, SET);
-    	HAL_Delay(100);
-        HAL_GPIO_WritePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin, RESET);
-    	HAL_Delay(50);
-    	*/
 	}
+	*/
 
 
 
@@ -543,27 +547,71 @@ void MCP23S17_Init(void) {
 void DAC_Write(int16_t value)
 {
     uint8_t tx_buf[3];
-    tx_buf[0] = (0b00000100);
+    tx_buf[0] = (0b00000000);
     tx_buf[1] = (value >> 8) & 0xFF;
     tx_buf[2] = value & 0xFF;
 
-    DAC_SYNC_LOW();
+    DAC_CS_LOW();
     HAL_SPI_Transmit(&hspi2, tx_buf, 3, HAL_MAX_DELAY);
-    DAC_SYNC_HIGH();
+    DAC_CS_HIGH();
 }
 
-#define SINE_STEPS     100       // Number of points per wave cycle
+//uint8_t CH_IDX = 0;
+uint8_t DAC_BUF[24] = { 0 };
+uint16_t DAC_DATA[8] = { 0 };
+
+
+static inline void WRITE_DAC_VALUE(int idx, int16_t data) {
+	DAC_BUF[idx * 3 + 1] = (data >> 8) & 0xFF;
+	DAC_BUF[idx * 3 + 2] = data & 0xFF;
+}
+
+void ADC_DAC_Transaction() {
+    uint8_t rx_buf[6] = {0};
+    uint16_t adc_a_raw = 0;
+    uint16_t adc_b_raw = 0;
+
+    for (uint8_t CH_IDX = 0; CH_IDX < 4; CH_IDX++) {
+		uint8_t offset = (HAL_GPIO_ReadPin(OUT_ADC_ADDR_GPIO_Port, OUT_ADC_ADDR_Pin) == GPIO_PIN_SET) ? 2 : 0;
+		HAL_GPIO_WritePin(OUT_ADC_CNVST_GPIO_Port, OUT_ADC_CNVST_Pin, GPIO_PIN_RESET);
+		HAL_GPIO_TogglePin(OUT_ADC_ADDR_GPIO_Port, OUT_ADC_ADDR_Pin);
+		HAL_GPIO_WritePin(OUT_ADC_CNVST_GPIO_Port, OUT_ADC_CNVST_Pin, GPIO_PIN_SET);
+
+		// TRANSMIT 1 channel to both DACs
+		ADC_CS_LOW();
+		DAC_CS_LOW();
+		HAL_SPI_TransmitReceive(&hspi2, &DAC_BUF[CH_IDX*6], rx_buf, 6, HAL_MAX_DELAY); //
+		DAC_CS_HIGH();
+		ADC_CS_HIGH();
+		adc_a_raw = ((rx_buf[0] << 6) | (rx_buf[1] >> 2)) & 0x3FFF;
+		adc_b_raw = (((rx_buf[1] & 0x03) << 12) | (rx_buf[2] << 4) | (rx_buf[3] >> 4)) & 0x3FFF;
+		adc_i[0+offset] = sign_extend_14bit(adc_a_raw);
+		adc_i[1+offset] = sign_extend_14bit(adc_b_raw);
+		adc_f[0+offset] = adc_to_voltage(adc_i[0+offset]);
+		adc_f[1+offset] = adc_to_voltage(adc_i[1+offset]);
+    }
+}
+
+#define SINE_STEPS     128       // Number of points per wave cycle
 #define SINE_AMPLITUDE 31000     // Max int16_t value for DAC full scale
 #define SINE_FREQ_HZ   1        // Output frequency in Hz
 #define CHANNEL        0         // DAC Channel A
 
 float sine_table[SINE_STEPS];
-uint32_t delay_ms = 5;// (1000 / SINE_FREQ_HZ) / SINE_STEPS;
 
 void DAC_Init(void)
 {
+	DAC_BUF[ 0] = (0b00000000); // DAC1 CHA
+	DAC_BUF[ 3] = (0b00000000); // DAC2 CHA
+	DAC_BUF[ 6] = (0b00000001); // DAC1 CHB
+	DAC_BUF[ 9] = (0b00000001); // DAC2 CHB
+	DAC_BUF[12] = (0b00000010); // DAC1 CHC
+	DAC_BUF[15] = (0b00000010); // DAC2 CHC
+	DAC_BUF[18] = (0b00000011); // DAC1 CHD
+	DAC_BUF[21] = (0b00000011); // DAC2 CHD
+
     // Step 1: Set all GPIOs to default state
-    DAC_SYNC_HIGH();
+    DAC_CS_HIGH();
     DAC_LDAC_HIGH();
     DAC_CLR_LOW();
     HAL_Delay(1);
@@ -601,6 +649,7 @@ void DAC_Init(void)
     {
         sine_table[i] = SINE_AMPLITUDE * sinf(2 * M_PI * i / SINE_STEPS);
     }
+
 }
 
 /* USER CODE END 0 */
@@ -669,7 +718,6 @@ int main(void)
   }
   */
 
-  uint32_t last_update = HAL_GetTick();
   uint16_t sine_index = 0;
 
   /* USER CODE END 2 */
@@ -690,15 +738,24 @@ int main(void)
 	gpioa_state = MCP23S17_ReadRegister(MCP_HW_ADDR_1, MCP_GPIOA);
 	gpiob_state = MCP23S17_ReadRegister(MCP_HW_ADDR_1, MCP_GPIOB);
 
-    last_update = HAL_GetTick();
     //DAC_Write(sine_table[sine_index]);
+
     sine_index = (sine_index + 1) % SINE_STEPS;
+    for (uint8_t i = 0; i < 8; i++) {
+    	WRITE_DAC_VALUE(i, sine_table[(sine_index + i * 16) % SINE_STEPS]);
+    }
+
+    ADC_DAC_Transaction();
+    /*
+    ADC_DAC_Transaction();
+    ADC_DAC_Transaction();
+    ADC_DAC_Transaction();
+    */
 
 	HAL_GPIO_EXTI_Callback(0);
 
-	HAL_Delay(1);
 
-	ADC_Start();
+	//ADC_Start();
 
 	/*
 
@@ -947,7 +1004,7 @@ static void MX_SPI2_Init(void)
   hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi2.Init.NSS = SPI_NSS_SOFT;
-  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_256;
   hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
