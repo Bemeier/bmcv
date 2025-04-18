@@ -159,9 +159,11 @@ void MIDI_addToUSBReport(uint8_t cable, uint8_t message, uint8_t param1, uint8_t
 uint8_t gpioa_state;
 uint8_t gpiob_state;
 
+uint16_t ADC_HALF_RANGE = 4096;
+
 
 // WS2812
-#define LED_COUNT 24
+#define LED_COUNT 21
 #define WS2811_BITS 24
 #define RST_PERIODS 64
 #define WS2811_BUF_LEN ((WS2811_BITS * LED_COUNT) + RST_PERIODS)
@@ -186,7 +188,58 @@ WS8211_LED_DATA ws2811_rgb_data[LED_COUNT];
 uint32_t ws2811_pwm_data[WS2811_BUF_LEN];
 volatile uint8_t WS_DATA_COMPLETE_FLAG;
 
+void set_led_hsv(uint8_t h, uint8_t s, uint8_t v, WS8211_LED_DATA* led) {
+    uint8_t region, remainder, p, q, t;
 
+    if (s == 0) {
+        led->color.r = v;
+        led->color.g = v;
+        led->color.b = v;
+        return;
+    }
+
+    region = h / 43;
+    remainder = (h - region * 43) * 6;
+
+    p = (v * (255 - s)) >> 8;
+    q = (v * (255 - ((s * remainder) >> 8))) >> 8;
+    t = (v * (255 - ((s * (255 - remainder)) >> 8))) >> 8;
+
+    switch (region) {
+        case 0:
+            led->color.r = v; led->color.g = t; led->color.b = p; break;
+        case 1:
+            led->color.r = q; led->color.g = v; led->color.b = p; break;
+        case 2:
+            led->color.r = p; led->color.g = v; led->color.b = t; break;
+        case 3:
+            led->color.r = p; led->color.g = q; led->color.b = v; break;
+        case 4:
+            led->color.r = t; led->color.g = p; led->color.b = v; break;
+        default:
+            led->color.r = v; led->color.g = p; led->color.b = q; break;
+    }
+}
+
+
+void set_led_adc_range(int16_t val, WS8211_LED_DATA* led) {
+	// int16_t only safe because we know ADC values are only 14 bits, so they won't overflow here.
+	int16_t abs_val = abs(val);
+	int16_t blue_range = abs_val - ADC_HALF_RANGE;
+	uint8_t base_val = 255;
+	if (blue_range < 0) {
+		blue_range = 0;
+		base_val = (abs_val / 16) & 0xFF;
+	}
+	led->color.b = ((blue_range / 16) & 0xFF);
+	if (val > 0) {
+		led->color.g = base_val;
+		led->color.r =  0;
+	} else {
+		led->color.r = base_val;
+		led->color.b = 0;
+	}
+}
 
 void ws2811_init() {
 	for (uint16_t bufidx = 0; bufidx < WS2811_BUF_LEN; bufidx++) {
@@ -622,14 +675,19 @@ void DAC_Init(void)
 
     HAL_Delay(1); // Short delay to let power stabilize if needed
 
-    uint8_t tx_buf[3];
-    tx_buf[0] = (0b00001100);// | (channel & 0x07);
     uint16_t control_bits = 0b0000000000000100;
+
+    uint8_t tx_buf[6];
+    tx_buf[0] = (0b00001100);
     tx_buf[1] = (control_bits >> 8) & 0xFF;
     tx_buf[2] =  control_bits & 0xFF;
+    tx_buf[3] = (0b00001100);
+    tx_buf[4] = (control_bits >> 8) & 0xFF;
+    tx_buf[5] =  control_bits & 0xFF;
+
 
     HAL_GPIO_WritePin(OUT_DAC_SYNC_GPIO_Port, OUT_DAC_SYNC_Pin, GPIO_PIN_RESET);
-    HAL_SPI_Transmit(&hspi2, tx_buf, 3, HAL_MAX_DELAY);
+    HAL_SPI_Transmit(&hspi2, tx_buf, 6, HAL_MAX_DELAY);
     HAL_GPIO_WritePin(OUT_DAC_SYNC_GPIO_Port, OUT_DAC_SYNC_Pin, GPIO_PIN_SET);
 
     HAL_Delay(1); // Short delay to let power stabilize if needed
@@ -637,9 +695,12 @@ void DAC_Init(void)
     tx_buf[0] = (0b00010000);
     tx_buf[1] = 0xFF;
     tx_buf[2] = 0xFF;
+    tx_buf[3] = (0b00010000);
+    tx_buf[4] = 0xFF;
+    tx_buf[5] = 0xFF;
 
     HAL_GPIO_WritePin(OUT_DAC_SYNC_GPIO_Port, OUT_DAC_SYNC_Pin, GPIO_PIN_RESET);
-    HAL_SPI_Transmit(&hspi2, tx_buf, 3, HAL_MAX_DELAY);
+    HAL_SPI_Transmit(&hspi2, tx_buf, 6, HAL_MAX_DELAY);
     HAL_GPIO_WritePin(OUT_DAC_SYNC_GPIO_Port, OUT_DAC_SYNC_Pin, GPIO_PIN_SET);
     HAL_Delay(1); // Short delay to let power stabilize if needed
 
@@ -650,6 +711,15 @@ void DAC_Init(void)
         sine_table[i] = SINE_AMPLITUDE * sinf(2 * M_PI * i / SINE_STEPS);
     }
 
+}
+uint8_t val1;
+
+void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
+{
+    if (htim->Instance == TIM3 && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_4)
+    {
+    	WS_DATA_COMPLETE_FLAG = 1;
+    }
 }
 
 /* USER CODE END 0 */
@@ -707,7 +777,7 @@ int main(void)
 
 
   for (uint8_t ledidx = 0; ledidx < LED_COUNT; ledidx++) {
-	  ws2811_setled(ledidx, 0, 0, 255);
+	  ws2811_setled(ledidx, 255, 0, 0);
   }
   ws2811_commit();
 
@@ -724,9 +794,12 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  uint32_t time_ms;
+  float freq = 0.2f;
 
   while (1)
   {
+	time_ms = HAL_GetTick();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -742,8 +815,17 @@ int main(void)
 
     sine_index = (sine_index + 1) % SINE_STEPS;
     for (uint8_t i = 0; i < 8; i++) {
-    	WRITE_DAC_VALUE(i, sine_table[(sine_index + i * 16) % SINE_STEPS]);
+    	int16_t val = sine_table[(sine_index + i * 16) % SINE_STEPS];
+    	if (i % 2 == 0 && val > 0) {
+    		val = SINE_AMPLITUDE;
+    	} else if (i % 2 == 0 && val <= 0) {
+    		val = -SINE_AMPLITUDE;
+    	}
+    	WRITE_DAC_VALUE(i, val);
     }
+
+
+
 
     ADC_DAC_Transaction();
     /*
@@ -776,15 +858,20 @@ int main(void)
 
 	/*
 */
-	/*
 	if (WS_DATA_COMPLETE_FLAG == 1) {
+		WS_DATA_COMPLETE_FLAG = 0;
+		float hue = sinf(2.0f * M_PI * freq * time_ms / 1000.0f) * 127.5f + 127.5f;
+	    //set_led_hsv(hue, 255, 255, &ws2811_rgb_data[0]);
+		set_led_adc_range(adc_i[0], &ws2811_rgb_data[0]);
+	    ws2811_commit();
+
 		result = HAL_TIM_PWM_Start_DMA(&htim3, TIM_CHANNEL_4, ws2811_pwm_data, WS2811_BUF_LEN);
 		if (result != HAL_OK) {
-			WS_DATA_COMPLETE_FLAG = 1;
-		} else {
-			//WS_DATA_COMPLETE_FLAG = 0;
+			HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
+			HAL_Delay(100);
 		}
 	}
+	/*
 	*/
 
     /*
@@ -1004,7 +1091,7 @@ static void MX_SPI2_Init(void)
   hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi2.Init.NSS = SPI_NSS_SOFT;
-  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_256;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
   hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
