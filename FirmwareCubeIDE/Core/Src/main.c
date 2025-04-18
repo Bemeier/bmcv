@@ -33,8 +33,9 @@
 #define PORT_A_OFFSET 0
 #define PORT_B_OFFSET 8
 
-#define FRAM_READ    0x03  // Read Memory Data
-#define FRAM_WRITE   0x02  // Write Memory Data
+#define FRAM_WRITE   0x02
+#define FRAM_READ    0x03
+#define FRAM_WREN    0x06
 
 // Encoder A pin location on MCP GP Pins (first 0-7 = port A, 8-15 = port B)
 uint8_t enc_pins_a[N_ENCODERS] = {
@@ -593,8 +594,18 @@ void ADC_DAC_Transaction() {
     }
 }
 
+void FRAM_WriteEnable() {
+    uint8_t tx[1] = {
+    	FRAM_WREN
+    };
+
+    // No need to manually toggle CS (NSS is managed by hardware)
+    HAL_SPI_Transmit(&hspi3, tx, 1, HAL_MAX_DELAY);
+}
+
+
 void FRAM_WriteByte(uint16_t addr, uint8_t data) {
-    uint8_t tx[] = {
+    uint8_t tx[4] = {
         FRAM_WRITE,
         (addr >> 8) & 0xFF,
         addr & 0xFF,
@@ -602,21 +613,22 @@ void FRAM_WriteByte(uint16_t addr, uint8_t data) {
     };
 
     // No need to manually toggle CS (NSS is managed by hardware)
-    HAL_SPI_Transmit(&hspi3, tx, sizeof(tx), HAL_MAX_DELAY);
+    HAL_SPI_Transmit(&hspi3, tx, 4, HAL_MAX_DELAY);
 }
 
 uint8_t FRAM_ReadByte(uint16_t addr) {
-    uint8_t tx[] = {
+    uint8_t tx[4] = {
         FRAM_READ,
         (addr >> 8) & 0xFF,
-        addr & 0xFF
+        addr & 0xFF,
+		0
     };
-    uint8_t rx;
+    uint8_t rx[4] = { 0 };
 
     // No need to manually toggle CS (NSS is managed by hardware)
-    HAL_SPI_TransmitReceive(&hspi3, tx, &rx, 1, HAL_MAX_DELAY);
+    HAL_SPI_TransmitReceive(&hspi3, tx, rx, 4, HAL_MAX_DELAY);
 
-    return rx;
+    return rx[0];
 }
 
 #define SINE_STEPS     128       // Number of points per wave cycle
@@ -686,6 +698,8 @@ void DAC_Init(void)
 
 }
 uint8_t val1;
+uint8_t test_val;
+uint8_t read_val;
 
 void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
 {
@@ -749,6 +763,7 @@ int main(void)
   DAC_Init();
 
 
+
   for (uint8_t ledidx = 0; ledidx < LED_COUNT; ledidx++) {
 	  ws2811_setled(ledidx, 255, 0, 0);
   }
@@ -789,16 +804,15 @@ int main(void)
 	gpiob_state = MCP23S17_ReadRegister(MCP_HW_ADDR_1, MCP_GPIOB);
 
 
-	/*
-	uint8_t test_val = 0x5A;
+	FRAM_WriteEnable();
+	test_val = 0x5A;
 	FRAM_WriteByte(0x0010, test_val);
-	uint8_t read_val = FRAM_ReadByte(0x0010);
+	read_val = FRAM_ReadByte(0x0010);
 
 	if (read_val != test_val) {
 		HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
-		HAL_Delay(100);
+		HAL_Delay(1000);
 	}
-	*/
 
 
     sine_index = (sine_index + 1) % SINE_STEPS;
@@ -848,7 +862,7 @@ int main(void)
 		result = HAL_TIM_PWM_Start_DMA(&htim3, TIM_CHANNEL_4, ws2811_pwm_data, WS2811_BUF_LEN);
 		if (result != HAL_OK) {
 			HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
-			HAL_Delay(slider/5);
+			HAL_Delay(100);
 		}
 	}
 	/*
@@ -1105,11 +1119,11 @@ static void MX_SPI3_Init(void)
   hspi3.Instance = SPI3;
   hspi3.Init.Mode = SPI_MODE_MASTER;
   hspi3.Init.Direction = SPI_DIRECTION_2LINES;
-  hspi3.Init.DataSize = SPI_DATASIZE_4BIT;
+  hspi3.Init.DataSize = SPI_DATASIZE_8BIT;
   hspi3.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi3.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi3.Init.NSS = SPI_NSS_HARD_OUTPUT;
-  hspi3.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi3.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
   hspi3.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi3.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi3.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
