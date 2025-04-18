@@ -33,6 +33,9 @@
 #define PORT_A_OFFSET 0
 #define PORT_B_OFFSET 8
 
+#define FRAM_READ    0x03  // Read Memory Data
+#define FRAM_WRITE   0x02  // Write Memory Data
+
 // Encoder A pin location on MCP GP Pins (first 0-7 = port A, 8-15 = port B)
 uint8_t enc_pins_a[N_ENCODERS] = {
     PORT_B_OFFSET + 2,  // Encoder 1 A
@@ -328,49 +331,7 @@ int16_t sign_extend_14bit(uint16_t val) {
 float adc_to_voltage(int16_t adc_value) {
     return ((float)adc_value / 8192.0f) * 10.0f;  // Assuming full scale ±10V
 }
-uint32_t cvtcnt = 0;
 
-uint8_t ADC_Read()
-{
-	if (converting == 0) {
-		return 0;
-	}
-
-    uint8_t dummy_tx[4] = { 0x00, 0x00, 0x00, 0x00 };
-    uint8_t rx_buf[4] = {0};
-    uint8_t offset = (HAL_GPIO_ReadPin(OUT_ADC_ADDR_GPIO_Port, OUT_ADC_ADDR_Pin) == GPIO_PIN_SET) ? 2 : 0;
-
-    // Read data
-    HAL_GPIO_WritePin(OUT_ADC_CS_GPIO_Port, OUT_ADC_CS_Pin, GPIO_PIN_RESET);
-    int8_t result = HAL_SPI_TransmitReceive(&hspi2, dummy_tx, rx_buf, 4, HAL_MAX_DELAY);
-    HAL_GPIO_WritePin(OUT_ADC_CS_GPIO_Port, OUT_ADC_CS_Pin, GPIO_PIN_SET);
-
-    if (result != HAL_OK) {
-        return 0;
-    }
-
-
-    uint16_t adc_a_raw = ((rx_buf[0] << 6) | (rx_buf[1] >> 2)) & 0x3FFF;
-    uint16_t adc_b_raw = (((rx_buf[1] & 0x03) << 12) | (rx_buf[2] << 4) | (rx_buf[3] >> 4)) & 0x3FFF;
-
-    adc_i[0+offset] = sign_extend_14bit(adc_a_raw);
-    adc_i[1+offset] = sign_extend_14bit(adc_b_raw);
-    adc_f[0+offset] = adc_to_voltage(adc_i[0+offset]);
-    adc_f[1+offset] = adc_to_voltage(adc_i[1+offset]);
-    cvtcnt++;
-    converting = 0;
-    return 1;
-}
-
-
-void ADC_Start() {
-	if (converting == 0) {
-		converting = 1;
-		HAL_GPIO_WritePin(OUT_ADC_CNVST_GPIO_Port, OUT_ADC_CNVST_Pin, GPIO_PIN_RESET);
-		HAL_GPIO_TogglePin(OUT_ADC_ADDR_GPIO_Port, OUT_ADC_ADDR_Pin);
-		HAL_GPIO_WritePin(OUT_ADC_CNVST_GPIO_Port, OUT_ADC_CNVST_Pin, GPIO_PIN_SET);
-	}
-}
 
 void ADC_Init(void)
 {
@@ -596,19 +557,6 @@ void MCP23S17_Init(void) {
 	MCP23S17_ReadRegister(MCP_HW_ADDR_0, MCP_GPIOA);
 	MCP23S17_ReadRegister(MCP_HW_ADDR_0, MCP_GPIOB);
 }
-
-void DAC_Write(int16_t value)
-{
-    uint8_t tx_buf[3];
-    tx_buf[0] = (0b00000000);
-    tx_buf[1] = (value >> 8) & 0xFF;
-    tx_buf[2] = value & 0xFF;
-
-    DAC_CS_LOW();
-    HAL_SPI_Transmit(&hspi2, tx_buf, 3, HAL_MAX_DELAY);
-    DAC_CS_HIGH();
-}
-
 //uint8_t CH_IDX = 0;
 uint8_t DAC_BUF[24] = { 0 };
 uint16_t DAC_DATA[8] = { 0 };
@@ -645,9 +593,34 @@ void ADC_DAC_Transaction() {
     }
 }
 
+void FRAM_WriteByte(uint16_t addr, uint8_t data) {
+    uint8_t tx[] = {
+        FRAM_WRITE,
+        (addr >> 8) & 0xFF,
+        addr & 0xFF,
+        data
+    };
+
+    // No need to manually toggle CS (NSS is managed by hardware)
+    HAL_SPI_Transmit(&hspi3, tx, sizeof(tx), HAL_MAX_DELAY);
+}
+
+uint8_t FRAM_ReadByte(uint16_t addr) {
+    uint8_t tx[] = {
+        FRAM_READ,
+        (addr >> 8) & 0xFF,
+        addr & 0xFF
+    };
+    uint8_t rx;
+
+    // No need to manually toggle CS (NSS is managed by hardware)
+    HAL_SPI_TransmitReceive(&hspi3, tx, &rx, 1, HAL_MAX_DELAY);
+
+    return rx;
+}
+
 #define SINE_STEPS     128       // Number of points per wave cycle
 #define SINE_AMPLITUDE 31000     // Max int16_t value for DAC full scale
-#define SINE_FREQ_HZ   1        // Output frequency in Hz
 #define CHANNEL        0         // DAC Channel A
 
 float sine_table[SINE_STEPS];
@@ -808,10 +781,25 @@ int main(void)
 	//HAL_Delay(200);
 	//HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
 
+	HAL_ADC_Start(&hadc1);
+	HAL_ADC_PollForConversion(&hadc1, 20);
+	slider = HAL_ADC_GetValue(&hadc1);
+
 	gpioa_state = MCP23S17_ReadRegister(MCP_HW_ADDR_1, MCP_GPIOA);
 	gpiob_state = MCP23S17_ReadRegister(MCP_HW_ADDR_1, MCP_GPIOB);
 
-    //DAC_Write(sine_table[sine_index]);
+
+	/*
+	uint8_t test_val = 0x5A;
+	FRAM_WriteByte(0x0010, test_val);
+	uint8_t read_val = FRAM_ReadByte(0x0010);
+
+	if (read_val != test_val) {
+		HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
+		HAL_Delay(100);
+	}
+	*/
+
 
     sine_index = (sine_index + 1) % SINE_STEPS;
     for (uint8_t i = 0; i < 8; i++) {
@@ -825,19 +813,10 @@ int main(void)
     }
 
 
-
-
     ADC_DAC_Transaction();
-    /*
-    ADC_DAC_Transaction();
-    ADC_DAC_Transaction();
-    ADC_DAC_Transaction();
-    */
 
 	HAL_GPIO_EXTI_Callback(0);
 
-
-	//ADC_Start();
 
 	/*
 
@@ -862,13 +841,14 @@ int main(void)
 		WS_DATA_COMPLETE_FLAG = 0;
 		float hue = sinf(2.0f * M_PI * freq * time_ms / 1000.0f) * 127.5f + 127.5f;
 	    //set_led_hsv(hue, 255, 255, &ws2811_rgb_data[0]);
-		set_led_adc_range(adc_i[0], &ws2811_rgb_data[0]);
+		//set_led_adc_range(adc_i[0], &ws2811_rgb_data[0]);
+		set_led_adc_range(slider, &ws2811_rgb_data[0]);
 	    ws2811_commit();
 
 		result = HAL_TIM_PWM_Start_DMA(&htim3, TIM_CHANNEL_4, ws2811_pwm_data, WS2811_BUF_LEN);
 		if (result != HAL_OK) {
 			HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
-			HAL_Delay(100);
+			HAL_Delay(slider/5);
 		}
 	}
 	/*
@@ -887,9 +867,7 @@ int main(void)
 		HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
 		state = newState;
 	}
-		HAL_ADC_Start(&hadc1);
-		HAL_ADC_PollForConversion(&hadc1, 20);
-		slider = HAL_ADC_GetValue(&hadc1);
+
 		HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
 		HAL_Delay(100+(slider/5));
 		HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
