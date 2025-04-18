@@ -2210,6 +2210,12 @@
 		(uuid "13ea951e-91c9-43fe-9463-0aeac32b6cc4")
 	)
 	(junction
+		(at 162.56 99.06)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "18889c2d-bec8-44bd-90b3-c36f32942803")
+	)
+	(junction
 		(at 256.54 134.62)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -2300,6 +2306,12 @@
 		(uuid "671e88e9-7190-434d-baf8-01a0deb80fa9")
 	)
 	(junction
+		(at 44.45 97.79)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "6774cea8-a185-41fe-b93e-2c16056c3a21")
+	)
+	(junction
 		(at 195.58 76.2)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -2318,10 +2330,22 @@
 		(uuid "71c9e1c3-b838-484d-893e-c876de92f63b")
 	)
 	(junction
+		(at 162.56 24.13)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "78838020-df38-463e-a014-092f9af16532")
+	)
+	(junction
 		(at 41.91 180.34)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "79da3e0d-b547-4744-8c1e-8c104590d41f")
+	)
+	(junction
+		(at 44.45 22.86)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "7a836499-9e09-44a6-8b8b-6b9a322fe517")
 	)
 	(junction
 		(at 121.92 142.24)
@@ -2352,6 +2376,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "81bec07e-e8ec-4c0b-975f-83cde3827412")
+	)
+	(junction
+		(at 44.45 46.99)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "839c12a3-1231-4542-82b7-7ebae22df050")
 	)
 	(junction
 		(at 158.75 180.34)
@@ -2468,6 +2498,12 @@
 		(uuid "bc208c9b-54a2-4dc0-86e8-fb59c29d0754")
 	)
 	(junction
+		(at 44.45 72.39)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "c0476464-1663-4d9b-8e3f-932feece6c40")
+	)
+	(junction
 		(at 111.76 180.34)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -2546,6 +2582,12 @@
 		(uuid "e5ce5ad8-13ae-43d0-9ea2-1e728aa1ba1a")
 	)
 	(junction
+		(at 162.56 48.26)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "efdf60b9-b59f-4c48-909d-ff6efa1701a9")
+	)
+	(junction
 		(at 73.66 74.93)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -2562,6 +2604,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "f7825d2e-24e8-4845-8f11-20bb2995a88c")
+	)
+	(junction
+		(at 162.56 73.66)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "f785930d-e87f-4e96-be89-4a8f9aced15d")
 	)
 	(junction
 		(at 111.76 191.77)
@@ -2801,6 +2849,16 @@
 	)
 	(wire
 		(pts
+			(xy 44.45 46.99) (xy 48.26 46.99)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "14236a63-2a56-49fc-9448-a4265d7ff55d")
+	)
+	(wire
+		(pts
 			(xy 80.01 191.77) (xy 86.36 191.77)
 		)
 		(stroke
@@ -2841,13 +2899,23 @@
 	)
 	(wire
 		(pts
-			(xy 43.18 22.86) (xy 48.26 22.86)
+			(xy 43.18 22.86) (xy 44.45 22.86)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
 		(uuid "16206f39-6d47-4bbb-8253-80f4cc34da10")
+	)
+	(wire
+		(pts
+			(xy 44.45 109.22) (xy 44.45 113.03)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1652f772-9106-4ec9-8699-9dc6cdb2088a")
 	)
 	(wire
 		(pts
@@ -2928,6 +2996,16 @@
 			(type default)
 		)
 		(uuid "1cd5d6b1-411c-4e39-b59b-6f8f7e79e267")
+	)
+	(wire
+		(pts
+			(xy 44.45 22.86) (xy 44.45 29.21)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1ce12fed-ad7d-4b66-94c1-5f9eed059180")
 	)
 	(wire
 		(pts
@@ -3241,6 +3319,16 @@
 	)
 	(wire
 		(pts
+			(xy 162.56 59.69) (xy 162.56 63.5)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3524c690-69ba-4478-9dde-5f676d9f3449")
+	)
+	(wire
+		(pts
 			(xy 87.63 52.07) (xy 87.63 53.34)
 		)
 		(stroke
@@ -3278,6 +3366,16 @@
 			(type default)
 		)
 		(uuid "38dfca5a-6bea-45af-8605-33504728b680")
+	)
+	(wire
+		(pts
+			(xy 44.45 58.42) (xy 44.45 62.23)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3b42c549-b11d-40df-a118-e24af93b97d5")
 	)
 	(wire
 		(pts
@@ -3511,6 +3609,16 @@
 	)
 	(wire
 		(pts
+			(xy 162.56 24.13) (xy 162.56 30.48)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "510d3f27-25e6-45d2-8032-b8876e9959c9")
+	)
+	(wire
+		(pts
 			(xy 55.88 57.15) (xy 55.88 52.07)
 		)
 		(stroke
@@ -3541,6 +3649,16 @@
 	)
 	(wire
 		(pts
+			(xy 162.56 85.09) (xy 162.56 88.9)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "55aa8d9e-5918-4dab-b7f9-459d44c4b765")
+	)
+	(wire
+		(pts
 			(xy 195.58 50.8) (xy 195.58 52.07)
 		)
 		(stroke
@@ -3548,6 +3666,16 @@
 			(type default)
 		)
 		(uuid "5600ef62-eced-4d53-83c8-fa9dc40db511")
+	)
+	(wire
+		(pts
+			(xy 162.56 48.26) (xy 162.56 54.61)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "56f7ea92-fac3-44fe-b7c0-d922a5a504f3")
 	)
 	(wire
 		(pts
@@ -3721,6 +3849,16 @@
 	)
 	(wire
 		(pts
+			(xy 44.45 34.29) (xy 44.45 38.1)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "639ac3c3-2330-45fc-b1d1-8d33beee3519")
+	)
+	(wire
+		(pts
 			(xy 205.74 53.34) (xy 205.74 54.61)
 		)
 		(stroke
@@ -3791,6 +3929,16 @@
 	)
 	(wire
 		(pts
+			(xy 44.45 97.79) (xy 44.45 104.14)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "71b36256-b7cc-4f02-b0bb-23f3bdfaa4ea")
+	)
+	(wire
+		(pts
 			(xy 88.9 129.54) (xy 88.9 124.46)
 		)
 		(stroke
@@ -3801,7 +3949,7 @@
 	)
 	(wire
 		(pts
-			(xy 43.18 97.79) (xy 48.26 97.79)
+			(xy 43.18 97.79) (xy 44.45 97.79)
 		)
 		(stroke
 			(width 0)
@@ -3841,6 +3989,16 @@
 	)
 	(wire
 		(pts
+			(xy 162.56 24.13) (xy 166.37 24.13)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "732a07bd-fe2f-4026-88ef-99e256c13a49")
+	)
+	(wire
+		(pts
 			(xy 99.06 180.34) (xy 105.41 180.34)
 		)
 		(stroke
@@ -3848,6 +4006,16 @@
 			(type default)
 		)
 		(uuid "7371e87d-5266-41e5-acf8-a890d4994ef9")
+	)
+	(wire
+		(pts
+			(xy 44.45 72.39) (xy 44.45 78.74)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "73a7e531-f154-4762-a1c1-dc78cfd3641c")
 	)
 	(wire
 		(pts
@@ -3901,7 +4069,7 @@
 	)
 	(wire
 		(pts
-			(xy 161.29 24.13) (xy 166.37 24.13)
+			(xy 161.29 24.13) (xy 162.56 24.13)
 		)
 		(stroke
 			(width 0)
@@ -4041,13 +4209,23 @@
 	)
 	(wire
 		(pts
-			(xy 161.29 99.06) (xy 166.37 99.06)
+			(xy 161.29 99.06) (xy 162.56 99.06)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
 		(uuid "88fef8b8-1a1c-4026-99e9-4e3ef5a4d7c2")
+	)
+	(wire
+		(pts
+			(xy 44.45 22.86) (xy 48.26 22.86)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8996c919-3f48-4a3b-9c29-0047a112a08a")
 	)
 	(wire
 		(pts
@@ -4058,6 +4236,16 @@
 			(type default)
 		)
 		(uuid "8ae60e84-7c89-4e20-b153-59f2c211c9a4")
+	)
+	(wire
+		(pts
+			(xy 44.45 83.82) (xy 44.45 87.63)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8b74a9b0-465c-4e55-b996-05e6a23c8f59")
 	)
 	(wire
 		(pts
@@ -4138,6 +4326,16 @@
 			(type default)
 		)
 		(uuid "91340df6-57bd-4727-83a5-d7fb628c0965")
+	)
+	(wire
+		(pts
+			(xy 162.56 73.66) (xy 162.56 80.01)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "91ea33d1-e91e-4945-a379-4b7d0af25807")
 	)
 	(wire
 		(pts
@@ -4301,13 +4499,23 @@
 	)
 	(wire
 		(pts
-			(xy 161.29 73.66) (xy 166.37 73.66)
+			(xy 161.29 73.66) (xy 162.56 73.66)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
 		(uuid "a18c2972-127c-411d-b14a-d59f94f6f12b")
+	)
+	(wire
+		(pts
+			(xy 162.56 99.06) (xy 166.37 99.06)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a18d4654-e031-43e7-ad8b-fa6e424ec89c")
 	)
 	(wire
 		(pts
@@ -4551,7 +4759,7 @@
 	)
 	(wire
 		(pts
-			(xy 43.18 72.39) (xy 48.26 72.39)
+			(xy 43.18 72.39) (xy 44.45 72.39)
 		)
 		(stroke
 			(width 0)
@@ -4628,6 +4836,16 @@
 			(type default)
 		)
 		(uuid "c0157454-6313-4651-8f63-0dbd3fcd5398")
+	)
+	(wire
+		(pts
+			(xy 162.56 35.56) (xy 162.56 39.37)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c0bd99e9-e44f-4b9d-bcce-787463f119fa")
 	)
 	(wire
 		(pts
@@ -4841,6 +5059,16 @@
 	)
 	(wire
 		(pts
+			(xy 162.56 99.06) (xy 162.56 105.41)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d466aa1f-ffca-46d5-8751-1cccb5011f18")
+	)
+	(wire
+		(pts
 			(xy 83.82 160.02) (xy 90.17 160.02)
 		)
 		(stroke
@@ -4911,7 +5139,7 @@
 	)
 	(wire
 		(pts
-			(xy 43.18 46.99) (xy 48.26 46.99)
+			(xy 43.18 46.99) (xy 44.45 46.99)
 		)
 		(stroke
 			(width 0)
@@ -4941,6 +5169,16 @@
 	)
 	(wire
 		(pts
+			(xy 162.56 110.49) (xy 162.56 114.3)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "db1d448a-96a7-4778-a972-44960d88cf50")
+	)
+	(wire
+		(pts
 			(xy 152.4 180.34) (xy 152.4 184.15)
 		)
 		(stroke
@@ -4951,7 +5189,17 @@
 	)
 	(wire
 		(pts
-			(xy 161.29 48.26) (xy 166.37 48.26)
+			(xy 162.56 48.26) (xy 166.37 48.26)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "dc75b9bf-4be4-4be0-8ebd-e70ff2a3056e")
+	)
+	(wire
+		(pts
+			(xy 161.29 48.26) (xy 162.56 48.26)
 		)
 		(stroke
 			(width 0)
@@ -4968,6 +5216,16 @@
 			(type default)
 		)
 		(uuid "ddd6ccd6-bcf1-4699-91b1-c3a0556fb13e")
+	)
+	(wire
+		(pts
+			(xy 44.45 97.79) (xy 48.26 97.79)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "de3b8306-dd62-4179-84fb-857bcbd7eb44")
 	)
 	(wire
 		(pts
@@ -5131,6 +5389,16 @@
 	)
 	(wire
 		(pts
+			(xy 44.45 72.39) (xy 48.26 72.39)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ebcb93c1-867b-4126-acd2-5865e1fe47e0")
+	)
+	(wire
+		(pts
 			(xy 83.82 151.13) (xy 90.17 151.13)
 		)
 		(stroke
@@ -5261,6 +5529,16 @@
 	)
 	(wire
 		(pts
+			(xy 44.45 46.99) (xy 44.45 53.34)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f7c1f6cb-4061-41a6-990e-d830065849c8")
+	)
+	(wire
+		(pts
 			(xy 77.47 25.4) (xy 80.01 25.4)
 		)
 		(stroke
@@ -5278,6 +5556,16 @@
 			(type default)
 		)
 		(uuid "f9216447-4b89-46fc-a611-9ff3954a2bdf")
+	)
+	(wire
+		(pts
+			(xy 162.56 73.66) (xy 166.37 73.66)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "fa8ca49a-34b6-4fe7-bfaa-6fc0752011e1")
 	)
 	(wire
 		(pts
@@ -7272,6 +7560,73 @@
 		)
 	)
 	(symbol
+		(lib_id "power:GND")
+		(at 44.45 38.1 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "1d8f577a-04aa-4a1d-8243-6068bed12863")
+		(property "Reference" "#PWR0306"
+			(at 44.45 44.45 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 44.45 43.18 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Footprint" ""
+			(at 44.45 38.1 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 44.45 38.1 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 44.45 38.1 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "28fa605c-e390-495b-b963-112194654a19")
+		)
+		(instances
+			(project "BMCV"
+				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/c2475fd4-68fe-4ef9-bdf0-a69958495d48"
+					(reference "#PWR0306")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Device:C_Polarized_Small_US")
 		(at 16.51 186.69 0)
 		(unit 1)
@@ -7371,6 +7726,73 @@
 			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/c2475fd4-68fe-4ef9-bdf0-a69958495d48"
 					(reference "C68")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 44.45 62.23 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "20e0001e-336c-4439-a85d-129764689e4a")
+		(property "Reference" "#PWR0305"
+			(at 44.45 68.58 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 44.45 67.31 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Footprint" ""
+			(at 44.45 62.23 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 44.45 62.23 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 44.45 62.23 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "6521b07c-d7b8-43d4-9fa8-dcd9206c1706")
+		)
+		(instances
+			(project "BMCV"
+				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/c2475fd4-68fe-4ef9-bdf0-a69958495d48"
+					(reference "#PWR0305")
 					(unit 1)
 				)
 			)
@@ -7697,6 +8119,73 @@
 			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/c2475fd4-68fe-4ef9-bdf0-a69958495d48"
 					(reference "RV12")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 162.56 88.9 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "27b3ce35-4ea1-417e-b078-dd6a0c1d7b44")
+		(property "Reference" "#PWR0309"
+			(at 162.56 95.25 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 162.56 93.98 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Footprint" ""
+			(at 162.56 88.9 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 162.56 88.9 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 162.56 88.9 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "3941ce75-7343-4507-8360-877156da2c11")
+		)
+		(instances
+			(project "BMCV"
+				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/c2475fd4-68fe-4ef9-bdf0-a69958495d48"
+					(reference "#PWR0309")
 					(unit 1)
 				)
 			)
@@ -8892,6 +9381,73 @@
 		)
 	)
 	(symbol
+		(lib_id "power:GND")
+		(at 162.56 39.37 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "3bc43f9a-d1bc-4e40-981b-56c8300f767a")
+		(property "Reference" "#PWR0307"
+			(at 162.56 45.72 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 162.56 44.45 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Footprint" ""
+			(at 162.56 39.37 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 162.56 39.37 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 162.56 39.37 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "6bf284fc-ce59-4ed5-91c5-586912f9b84a")
+		)
+		(instances
+			(project "BMCV"
+				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/c2475fd4-68fe-4ef9-bdf0-a69958495d48"
+					(reference "#PWR0307")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "PCM_4ms_Power-symbol:+3.3V")
 		(at 252.73 156.21 0)
 		(unit 1)
@@ -8951,6 +9507,73 @@
 			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/c2475fd4-68fe-4ef9-bdf0-a69958495d48"
 					(reference "#PWR043")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 44.45 87.63 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "3e6cad2e-2c40-4931-b340-7cf59cb92d2d")
+		(property "Reference" "#PWR0304"
+			(at 44.45 93.98 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 44.45 92.71 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Footprint" ""
+			(at 44.45 87.63 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 44.45 87.63 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 44.45 87.63 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "19c925c8-67f0-4043-b345-60c45c721a25")
+		)
+		(instances
+			(project "BMCV"
+				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/c2475fd4-68fe-4ef9-bdf0-a69958495d48"
+					(reference "#PWR0304")
 					(unit 1)
 				)
 			)
@@ -9123,6 +9746,111 @@
 			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/c2475fd4-68fe-4ef9-bdf0-a69958495d48"
 					(reference "C73")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C_Small")
+		(at 44.45 31.75 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "45de989e-34ac-4280-acea-6839232e5002")
+		(property "Reference" "C107"
+			(at 36.83 30.48 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "220n"
+			(at 38.1 33.02 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
+			(at 44.45 31.75 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 44.45 31.75 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 44.45 31.75 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C16772"
+			(at 44.45 31.75 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" ""
+			(at 44.45 31.75 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 44.45 31.75 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
+			(at 44.45 31.75 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "cd621893-0c65-415c-a48a-249d4b8e9799")
+		)
+		(pin "2"
+			(uuid "7229a7fc-c264-4f99-9aef-a85869c93fa6")
+		)
+		(instances
+			(project "BMCV"
+				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/c2475fd4-68fe-4ef9-bdf0-a69958495d48"
+					(reference "C107")
 					(unit 1)
 				)
 			)
@@ -9993,6 +10721,111 @@
 		)
 	)
 	(symbol
+		(lib_id "Device:C_Small")
+		(at 162.56 107.95 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "52857e79-0bf9-4721-aaf6-72dea0a550a7")
+		(property "Reference" "C111"
+			(at 154.94 106.68 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "220n"
+			(at 156.21 109.22 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
+			(at 162.56 107.95 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 162.56 107.95 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 162.56 107.95 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C16772"
+			(at 162.56 107.95 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" ""
+			(at 162.56 107.95 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 162.56 107.95 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
+			(at 162.56 107.95 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "4ea61e70-12b5-48ab-974f-a3bc117c62a3")
+		)
+		(pin "2"
+			(uuid "b4568b34-030d-4cd8-a7a0-6a54b13c63b4")
+		)
+		(instances
+			(project "BMCV"
+				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/c2475fd4-68fe-4ef9-bdf0-a69958495d48"
+					(reference "C111")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "power:GND")
 		(at 77.47 111.76 0)
 		(unit 1)
@@ -10121,6 +10954,111 @@
 			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/c2475fd4-68fe-4ef9-bdf0-a69958495d48"
 					(reference "#PWR0244")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C_Small")
+		(at 162.56 82.55 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "544e26bf-e5d5-4d87-bb44-fa956f1e8ee7")
+		(property "Reference" "C110"
+			(at 154.94 81.28 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "220n"
+			(at 156.21 83.82 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
+			(at 162.56 82.55 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 162.56 82.55 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 162.56 82.55 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C16772"
+			(at 162.56 82.55 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" ""
+			(at 162.56 82.55 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 162.56 82.55 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
+			(at 162.56 82.55 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "c97cc47c-8ff6-4730-9cdb-04dbd7e26d47")
+		)
+		(pin "2"
+			(uuid "aa8d5d19-2fc4-48dd-a9ee-2de6be7ff013")
+		)
+		(instances
+			(project "BMCV"
+				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/c2475fd4-68fe-4ef9-bdf0-a69958495d48"
+					(reference "C110")
 					(unit 1)
 				)
 			)
@@ -10745,6 +11683,111 @@
 			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/c2475fd4-68fe-4ef9-bdf0-a69958495d48"
 					(reference "#PWR071")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C_Small")
+		(at 162.56 33.02 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "64d9abd5-b9b5-4ef4-a093-61ebbb227a4c")
+		(property "Reference" "C108"
+			(at 154.94 31.75 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "220n"
+			(at 156.21 34.29 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
+			(at 162.56 33.02 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 162.56 33.02 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 162.56 33.02 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C16772"
+			(at 162.56 33.02 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" ""
+			(at 162.56 33.02 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 162.56 33.02 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
+			(at 162.56 33.02 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "33616177-78d4-4bb8-904c-3a1fc0e23349")
+		)
+		(pin "2"
+			(uuid "36f9b070-b68b-41e3-b669-eb8097526652")
+		)
+		(instances
+			(project "BMCV"
+				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/c2475fd4-68fe-4ef9-bdf0-a69958495d48"
+					(reference "C108")
 					(unit 1)
 				)
 			)
@@ -13840,6 +14883,178 @@
 	)
 	(symbol
 		(lib_id "power:GND")
+		(at 162.56 114.3 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "9f607f0c-0d56-4ec8-95f0-44421c309192")
+		(property "Reference" "#PWR0310"
+			(at 162.56 120.65 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 162.56 119.38 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Footprint" ""
+			(at 162.56 114.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 162.56 114.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 162.56 114.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "fcf819e1-b0df-4195-8640-05b90e382e51")
+		)
+		(instances
+			(project "BMCV"
+				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/c2475fd4-68fe-4ef9-bdf0-a69958495d48"
+					(reference "#PWR0310")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C_Small")
+		(at 162.56 57.15 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "9f8ca3d4-b5cb-4e59-8751-0eb7e6dea571")
+		(property "Reference" "C109"
+			(at 154.94 55.88 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "220n"
+			(at 156.21 58.42 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
+			(at 162.56 57.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 162.56 57.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 162.56 57.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C16772"
+			(at 162.56 57.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" ""
+			(at 162.56 57.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 162.56 57.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
+			(at 162.56 57.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "34aee250-db9b-48b9-87c4-7997455edf16")
+		)
+		(pin "2"
+			(uuid "db959a7e-20b2-45a2-9b9f-6ed517ba077b")
+		)
+		(instances
+			(project "BMCV"
+				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/c2475fd4-68fe-4ef9-bdf0-a69958495d48"
+					(reference "C109")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
 		(at 77.47 86.36 0)
 		(unit 1)
 		(exclude_from_sim no)
@@ -14079,6 +15294,111 @@
 		)
 	)
 	(symbol
+		(lib_id "Device:C_Small")
+		(at 44.45 55.88 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "abf379b6-758e-4f29-b50c-87aed818834b")
+		(property "Reference" "C106"
+			(at 36.83 54.61 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "220n"
+			(at 38.1 57.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
+			(at 44.45 55.88 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 44.45 55.88 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 44.45 55.88 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C16772"
+			(at 44.45 55.88 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" ""
+			(at 44.45 55.88 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 44.45 55.88 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
+			(at 44.45 55.88 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "49913928-5568-4234-8bb9-d9d44bc5d5e9")
+		)
+		(pin "2"
+			(uuid "7006de5b-885c-42e0-973b-8f27cbdd1ba4")
+		)
+		(instances
+			(project "BMCV"
+				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/c2475fd4-68fe-4ef9-bdf0-a69958495d48"
+					(reference "C106")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Device:R_Small")
 		(at 48.26 106.68 0)
 		(unit 1)
@@ -14179,6 +15499,178 @@
 			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/c2475fd4-68fe-4ef9-bdf0-a69958495d48"
 					(reference "R16")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C_Small")
+		(at 44.45 81.28 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "ac54afdf-2de5-4416-9514-bc3cf4f19970")
+		(property "Reference" "C105"
+			(at 36.83 80.01 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "220n"
+			(at 38.1 82.55 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
+			(at 44.45 81.28 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 44.45 81.28 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 44.45 81.28 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C16772"
+			(at 44.45 81.28 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" ""
+			(at 44.45 81.28 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 44.45 81.28 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
+			(at 44.45 81.28 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "2a91c540-f4c0-42e4-83ff-ef0e05779f78")
+		)
+		(pin "2"
+			(uuid "b9db8a82-bf62-43b5-91ab-070de4c16b44")
+		)
+		(instances
+			(project "BMCV"
+				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/c2475fd4-68fe-4ef9-bdf0-a69958495d48"
+					(reference "C105")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 162.56 63.5 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "ac827716-3da3-4525-b141-dde3f1dac259")
+		(property "Reference" "#PWR0308"
+			(at 162.56 69.85 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 162.56 68.58 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Footprint" ""
+			(at 162.56 63.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 162.56 63.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 162.56 63.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "fecf3e68-a143-4163-b06f-c16c0a4dd230")
+		)
+		(instances
+			(project "BMCV"
+				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/c2475fd4-68fe-4ef9-bdf0-a69958495d48"
+					(reference "#PWR0308")
 					(unit 1)
 				)
 			)
@@ -15435,6 +16927,111 @@
 		)
 	)
 	(symbol
+		(lib_id "Device:C_Small")
+		(at 44.45 106.68 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "c1865ebb-4e6f-41b5-8aa0-fe0f9391faf3")
+		(property "Reference" "C104"
+			(at 36.83 105.41 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "220n"
+			(at 38.1 107.95 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
+			(at 44.45 106.68 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 44.45 106.68 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Multilayer Ceramic Capacitor (unpolarized)"
+			(at 44.45 106.68 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part #" "C16772"
+			(at 44.45 106.68 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" ""
+			(at 44.45 106.68 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Part Number" ""
+			(at 44.45 106.68 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Specifications" ""
+			(at 44.45 106.68 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "1c4e556d-ada0-4d38-8d90-a0d196552116")
+		)
+		(pin "2"
+			(uuid "6413c689-7429-4001-9091-67068afd7049")
+		)
+		(instances
+			(project "BMCV"
+				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/c2475fd4-68fe-4ef9-bdf0-a69958495d48"
+					(reference "C104")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "power:GND")
 		(at 266.7 157.48 0)
 		(unit 1)
@@ -15997,6 +17594,73 @@
 			(project "BMCV"
 				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/c2475fd4-68fe-4ef9-bdf0-a69958495d48"
 					(reference "U39")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 44.45 113.03 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "cd26923c-3657-479f-98b1-f87406cfbf37")
+		(property "Reference" "#PWR0303"
+			(at 44.45 119.38 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 44.45 118.11 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Footprint" ""
+			(at 44.45 113.03 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 44.45 113.03 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 44.45 113.03 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "602192ec-edce-47a6-80bb-bba18d6b276d")
+		)
+		(instances
+			(project "BMCV"
+				(path "/9b519346-c6ba-4bde-a176-1e9938a671fb/c2475fd4-68fe-4ef9-bdf0-a69958495d48"
+					(reference "#PWR0303")
 					(unit 1)
 				)
 			)

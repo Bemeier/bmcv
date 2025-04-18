@@ -7029,7 +7029,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "1nF"
+		(property "Value" "1n"
 			(at 86.36 54.61 0)
 			(effects
 				(font
@@ -7268,7 +7268,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "1nF"
+		(property "Value" "1n"
 			(at 86.36 78.74 0)
 			(effects
 				(font
@@ -8605,7 +8605,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "1nF"
+		(property "Value" "1n"
 			(at 86.36 129.54 0)
 			(effects
 				(font
@@ -9291,7 +9291,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "680nF"
+		(property "Value" "680n"
 			(at 195.58 144.7735 0)
 			(effects
 				(font
@@ -10052,7 +10052,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "1nF"
+		(property "Value" "1n"
 			(at 86.36 104.14 0)
 			(effects
 				(font
@@ -11024,7 +11024,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "680nF"
+		(property "Value" "680n"
 			(at 180.34 144.7735 0)
 			(effects
 				(font
