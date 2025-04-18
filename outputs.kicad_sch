@@ -9553,7 +9553,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "10M"
+		(property "Value" "1M"
 			(at 50.8 57.1499 0)
 			(effects
 				(font
@@ -9589,7 +9589,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC Part #" "C7250"
+		(property "LCSC Part #" "C22935"
 			(at 48.26 55.88 0)
 			(effects
 				(font
@@ -10251,7 +10251,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "10M"
+		(property "Value" "1M"
 			(at 50.8 33.0199 0)
 			(effects
 				(font
@@ -10287,7 +10287,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC Part #" "C7250"
+		(property "LCSC Part #" "C22935"
 			(at 48.26 31.75 0)
 			(effects
 				(font
@@ -11841,7 +11841,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "10M"
+		(property "Value" "1M"
 			(at 168.91 109.2199 0)
 			(effects
 				(font
@@ -11877,7 +11877,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC Part #" "C7250"
+		(property "LCSC Part #" "C22935"
 			(at 166.37 107.95 0)
 			(effects
 				(font
@@ -13991,7 +13991,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "10M"
+		(property "Value" "1M"
 			(at 168.91 58.4199 0)
 			(effects
 				(font
@@ -14027,7 +14027,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC Part #" "C7250"
+		(property "LCSC Part #" "C22935"
 			(at 166.37 57.15 0)
 			(effects
 				(font
@@ -14097,7 +14097,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "10M"
+		(property "Value" "1M"
 			(at 50.8 107.9499 0)
 			(effects
 				(font
@@ -14133,7 +14133,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC Part #" "C7250"
+		(property "LCSC Part #" "C22935"
 			(at 48.26 106.68 0)
 			(effects
 				(font
@@ -14478,7 +14478,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "10M"
+		(property "Value" "1M"
 			(at 168.91 83.8199 0)
 			(effects
 				(font
@@ -14514,7 +14514,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC Part #" "C7250"
+		(property "LCSC Part #" "C22935"
 			(at 166.37 82.55 0)
 			(effects
 				(font
@@ -15587,7 +15587,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "10M"
+		(property "Value" "1M"
 			(at 50.8 82.5499 0)
 			(effects
 				(font
@@ -15623,7 +15623,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC Part #" "C7250"
+		(property "LCSC Part #" "C22935"
 			(at 48.26 81.28 0)
 			(effects
 				(font
@@ -16088,7 +16088,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "10M"
+		(property "Value" "1M"
 			(at 168.91 34.2899 0)
 			(effects
 				(font
@@ -16124,7 +16124,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC Part #" "C7250"
+		(property "LCSC Part #" "C22935"
 			(at 166.37 33.02 0)
 			(effects
 				(font

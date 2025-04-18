@@ -5038,12 +5038,6 @@
 		(uuid "cc15a0ae-7b6a-46b1-911e-ba286186fac3")
 	)
 	(junction
-		(at 140.97 175.26)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "ce9141d0-e734-46cf-b043-7640ca0ea31b")
-	)
-	(junction
 		(at 29.21 237.49)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -5070,6 +5064,10 @@
 	(no_connect
 		(at 140.97 182.88)
 		(uuid "1587da63-5e30-46e0-aa81-1a3976f10bd3")
+	)
+	(no_connect
+		(at 140.97 172.72)
+		(uuid "50e1d610-3b74-49b9-8823-c7bb3e5342e2")
 	)
 	(no_connect
 		(at 64.77 114.3)
@@ -5221,7 +5219,7 @@
 	)
 	(wire
 		(pts
-			(xy 140.97 177.8) (xy 137.16 177.8)
+			(xy 137.16 177.8) (xy 146.05 177.8)
 		)
 		(stroke
 			(width 0)
@@ -5508,16 +5506,6 @@
 			(type default)
 		)
 		(uuid "3478cce4-52d0-4363-a2fe-240fc42ffec6")
-	)
-	(wire
-		(pts
-			(xy 140.97 172.72) (xy 140.97 175.26)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "3594f78c-81a5-44d6-8091-b0e98f7d3ea6")
 	)
 	(wire
 		(pts
@@ -6058,16 +6046,6 @@
 			(type default)
 		)
 		(uuid "88604a00-f787-4f40-913f-7d165fd5fa0a")
-	)
-	(wire
-		(pts
-			(xy 140.97 175.26) (xy 146.05 175.26)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "89216c2e-ac54-4f66-acc5-866236da77a1")
 	)
 	(wire
 		(pts
@@ -6628,16 +6606,6 @@
 			(type default)
 		)
 		(uuid "e4873c1c-1c19-46c2-873a-ee88fdcfb32d")
-	)
-	(wire
-		(pts
-			(xy 140.97 175.26) (xy 140.97 177.8)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "e62451fa-e73e-4666-8cec-d56675e37515")
 	)
 	(wire
 		(pts
@@ -8497,7 +8465,7 @@
 	)
 	(global_label "ADC_DAC_SDO"
 		(shape input)
-		(at 146.05 175.26 0)
+		(at 146.05 177.8 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -8507,7 +8475,7 @@
 		)
 		(uuid "d22f3739-a8f1-438e-87cc-2c8c121f5bb1")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 162.0376 175.26 0)
+			(at 162.0376 177.8 0)
 			(effects
 				(font
 					(size 1.27 1.27)
