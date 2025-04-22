@@ -19,12 +19,12 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "usb_device.h"
-#include "dualmpc.h"
-
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "usbd_midi.h"
 #include <math.h>
+#include "dualmcp.h"
+#include "dac_adc.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -38,6 +38,8 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
+volatile uint8_t mcp_poll = 0;
 
 // FRAM
 
@@ -64,26 +66,9 @@ void MIDI_addToUSBReport(uint8_t cable, uint8_t message, uint8_t param1, uint8_t
   }
 }
 
-// DAC
-
-#define DAC_CS_LOW()     HAL_GPIO_WritePin(GPIOA, OUT_DAC_SYNC_Pin, GPIO_PIN_RESET)
-#define DAC_CS_HIGH()    HAL_GPIO_WritePin(GPIOA, OUT_DAC_SYNC_Pin, GPIO_PIN_SET)
-
-#define DAC_LDAC_LOW()     HAL_GPIO_WritePin(GPIOA, OUT_DAC_LDAC_Pin, GPIO_PIN_RESET)
-#define DAC_LDAC_HIGH()    HAL_GPIO_WritePin(GPIOA, OUT_DAC_LDAC_Pin, GPIO_PIN_SET)
-
-#define DAC_CLR_LOW()      HAL_GPIO_WritePin(GPIOA, OUT_DAC_CLR_Pin, GPIO_PIN_RESET)
-#define DAC_CLR_HIGH()     HAL_GPIO_WritePin(GPIOA, OUT_DAC_CLR_Pin, GPIO_PIN_SET)
-
-
-#define ADC_CS_LOW() 		HAL_GPIO_WritePin(OUT_ADC_CS_GPIO_Port, OUT_ADC_CS_Pin, GPIO_PIN_RESET);
-#define ADC_CS_HIGH() 		HAL_GPIO_WritePin(OUT_ADC_CS_GPIO_Port, OUT_ADC_CS_Pin, GPIO_PIN_SET);
-
-
-// MCP
-DUALMPC mpc;
-
-uint16_t ADC_HALF_RANGE = 4096;
+// MCP & DAC
+DUALMCP mcp;
+DAC_ADC dacadc;
 
 
 // WS2812
@@ -149,7 +134,7 @@ void set_led_hsv(uint8_t h, uint8_t s, uint8_t v, WS8211_LED_DATA* led) {
 void set_led_adc_range(int16_t val, WS8211_LED_DATA* led) {
 	// int16_t only safe because we know ADC values are only 14 bits, so they won't overflow here.
 	int16_t abs_val = abs(val);
-	int16_t blue_range = abs_val - ADC_HALF_RANGE;
+	int16_t blue_range = abs_val - 4096;
 	uint8_t base_val = 255;
 	if (blue_range < 0) {
 		blue_range = 0;
@@ -195,8 +180,6 @@ void ws2811_commit() {
 	}
 }
 
-volatile int16_t adc_i[4] = {0};
-volatile float adc_f[4] = {0};
 volatile uint8_t addr = 0;
 volatile uint8_t converting = 0;
 
@@ -213,6 +196,8 @@ ADC_HandleTypeDef hadc1;
 SPI_HandleTypeDef hspi1;
 SPI_HandleTypeDef hspi2;
 SPI_HandleTypeDef hspi3;
+DMA_HandleTypeDef hdma_spi1_rx;
+DMA_HandleTypeDef hdma_spi1_tx;
 
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
@@ -247,71 +232,31 @@ static void MX_TIM2_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-int16_t sign_extend_14bit(uint16_t val) {
-    return (int16_t)((int32_t)(val << 18) >> 18);
-}
-
-float adc_to_voltage(int16_t adc_value) {
-    return ((float)adc_value / 8192.0f) * 10.0f;  // Assuming full scale ±10V
-}
-
-
-void ADC_Init(void)
-{
-    // Set default pin levels
-    HAL_GPIO_WritePin(OUT_ADC_CS_GPIO_Port, OUT_ADC_CS_Pin, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(OUT_ADC_CNVST_GPIO_Port, OUT_ADC_CNVST_Pin, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(OUT_ADC_ADDR_GPIO_Port, OUT_ADC_ADDR_Pin, GPIO_PIN_RESET);
-
-    HAL_Delay(1); // Let things settle
-
-    // Optional: do a dummy read to check communication
-}
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-
 	if(GPIO_Pin == INT_MCP_ENC_Pin || GPIO_Pin == 0) {
-		ReadEncoders(&mpc);
+		if (mcp.spi_dma_state == 0) {
+			ReadEncodersDMA(&mcp);
+		}
 	}
 
 }
 
-//uint8_t CH_IDX = 0;
-uint8_t DAC_BUF[24] = { 0 };
-uint16_t DAC_DATA[8] = { 0 };
-
-
-static inline void WRITE_DAC_VALUE(int idx, int16_t data) {
-	DAC_BUF[idx * 3 + 1] = (data >> 8) & 0xFF;
-	DAC_BUF[idx * 3 + 2] = data & 0xFF;
+void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef * hspi) {
+	if (hspi->Instance == mcp.spiHandle->Instance) {
+		MCP_DMA_Complete(&mcp);
+	}
 }
 
-void ADC_DAC_Transaction() {
-    uint8_t rx_buf[6] = {0};
-    uint16_t adc_a_raw = 0;
-    uint16_t adc_b_raw = 0;
-
-    for (uint8_t CH_IDX = 0; CH_IDX < 4; CH_IDX++) {
-		uint8_t offset = (HAL_GPIO_ReadPin(OUT_ADC_ADDR_GPIO_Port, OUT_ADC_ADDR_Pin) == GPIO_PIN_SET) ? 2 : 0;
-		HAL_GPIO_WritePin(OUT_ADC_CNVST_GPIO_Port, OUT_ADC_CNVST_Pin, GPIO_PIN_RESET);
-		HAL_GPIO_TogglePin(OUT_ADC_ADDR_GPIO_Port, OUT_ADC_ADDR_Pin);
-		HAL_GPIO_WritePin(OUT_ADC_CNVST_GPIO_Port, OUT_ADC_CNVST_Pin, GPIO_PIN_SET);
-
-		// TRANSMIT 1 channel to both DACs
-		ADC_CS_LOW();
-		DAC_CS_LOW();
-		HAL_SPI_TransmitReceive(&hspi2, &DAC_BUF[CH_IDX*6], rx_buf, 6, HAL_MAX_DELAY); //
-		DAC_CS_HIGH();
-		ADC_CS_HIGH();
-		adc_a_raw = ((rx_buf[0] << 6) | (rx_buf[1] >> 2)) & 0x3FFF;
-		adc_b_raw = (((rx_buf[1] & 0x03) << 12) | (rx_buf[2] << 4) | (rx_buf[3] >> 4)) & 0x3FFF;
-		adc_i[0+offset] = sign_extend_14bit(adc_a_raw);
-		adc_i[1+offset] = sign_extend_14bit(adc_b_raw);
-		adc_f[0+offset] = adc_to_voltage(adc_i[0+offset]);
-		adc_f[1+offset] = adc_to_voltage(adc_i[1+offset]);
+void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
+{
+    if (htim->Instance == TIM3 && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_4)
+    {
+    	WS_DATA_COMPLETE_FLAG = 1;
     }
 }
+
 
 void FRAM_WriteEnable() {
     uint8_t tx[1] = {
@@ -360,77 +305,9 @@ uint8_t FRAM_ReadByte(uint16_t addr) {
 
 float sine_table[SINE_STEPS];
 
-void DAC_Init(void)
-{
-	DAC_BUF[ 0] = (0b00000000); // DAC1 CHA
-	DAC_BUF[ 3] = (0b00000000); // DAC2 CHA
-	DAC_BUF[ 6] = (0b00000001); // DAC1 CHB
-	DAC_BUF[ 9] = (0b00000001); // DAC2 CHB
-	DAC_BUF[12] = (0b00000010); // DAC1 CHC
-	DAC_BUF[15] = (0b00000010); // DAC2 CHC
-	DAC_BUF[18] = (0b00000011); // DAC1 CHD
-	DAC_BUF[21] = (0b00000011); // DAC2 CHD
-
-    // Step 1: Set all GPIOs to default state
-    DAC_CS_HIGH();
-    DAC_LDAC_HIGH();
-    DAC_CLR_LOW();
-    HAL_Delay(1);
-    DAC_CLR_HIGH();
-
-    //control_bits |= (range_code & 0x07);  // Bits 2:0 = range select
-    // All other control bits = 0 (normal operation, Slew Rate Off, etc.)
-
-    HAL_Delay(1); // Short delay to let power stabilize if needed
-
-    uint16_t control_bits = 0b0000000000000100;
-
-    uint8_t tx_buf[6];
-    tx_buf[0] = (0b00001100);
-    tx_buf[1] = (control_bits >> 8) & 0xFF;
-    tx_buf[2] =  control_bits & 0xFF;
-    tx_buf[3] = (0b00001100);
-    tx_buf[4] = (control_bits >> 8) & 0xFF;
-    tx_buf[5] =  control_bits & 0xFF;
-
-
-    HAL_GPIO_WritePin(OUT_DAC_SYNC_GPIO_Port, OUT_DAC_SYNC_Pin, GPIO_PIN_RESET);
-    HAL_SPI_Transmit(&hspi2, tx_buf, 6, HAL_MAX_DELAY);
-    HAL_GPIO_WritePin(OUT_DAC_SYNC_GPIO_Port, OUT_DAC_SYNC_Pin, GPIO_PIN_SET);
-
-    HAL_Delay(1); // Short delay to let power stabilize if needed
-
-    tx_buf[0] = (0b00010000);
-    tx_buf[1] = 0xFF;
-    tx_buf[2] = 0xFF;
-    tx_buf[3] = (0b00010000);
-    tx_buf[4] = 0xFF;
-    tx_buf[5] = 0xFF;
-
-    HAL_GPIO_WritePin(OUT_DAC_SYNC_GPIO_Port, OUT_DAC_SYNC_Pin, GPIO_PIN_RESET);
-    HAL_SPI_Transmit(&hspi2, tx_buf, 6, HAL_MAX_DELAY);
-    HAL_GPIO_WritePin(OUT_DAC_SYNC_GPIO_Port, OUT_DAC_SYNC_Pin, GPIO_PIN_SET);
-    HAL_Delay(1); // Short delay to let power stabilize if needed
-
-    DAC_LDAC_LOW();
-
-    for (int i = 0; i < SINE_STEPS; i++)
-    {
-        sine_table[i] = SINE_AMPLITUDE * sinf(2 * M_PI * i / SINE_STEPS);
-    }
-
-}
 uint8_t val1;
 uint8_t test_val;
 uint8_t read_val;
-
-void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
-{
-    if (htim->Instance == TIM3 && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_4)
-    {
-    	WS_DATA_COMPLETE_FLAG = 1;
-    }
-}
 
 volatile float adc_freq_hz = 0;           // Smoothed ADC frequency estimate
 volatile uint32_t last_sample_time = 0;   // Last tick (ms) of ADC sample
@@ -485,18 +362,39 @@ int main(void)
   ws2811_init();
 
   // Should move to init function:
-  mpc.spiHandle = &hspi1;
-  mpc.csPortHandle = OUT_MCP_CS_GPIO_Port;
-  mpc.csPin = OUT_MCP_CS_Pin;
-  mpc.resetPortHandle = OUT_MCP_RESET_GPIO_Port;
-  mpc.resetPin = OUT_MCP_RESET_Pin;
+  mcp.spiHandle = &hspi1;
+  mcp.csPortHandle = OUT_MCP_CS_GPIO_Port;
+  mcp.csPin = OUT_MCP_CS_Pin;
+  mcp.resetPortHandle = OUT_MCP_RESET_GPIO_Port;
+  mcp.resetPin = OUT_MCP_RESET_Pin;
 
-  MCP23S17_Init(&mpc);
 
-  ADC_Init();
 
-  DAC_Init();
+  dacadc.spiHandle = &hspi2;
+  dacadc.csadcPortHandle = OUT_ADC_CS_GPIO_Port;
+  dacadc.csadcPin = OUT_ADC_CS_Pin;
+  dacadc.cnvstPortHandle = OUT_ADC_CNVST_GPIO_Port;
+  dacadc.cnvstPin = OUT_ADC_CNVST_Pin;
+  dacadc.addrPortHandle = OUT_ADC_ADDR_GPIO_Port;
+  dacadc.adrrPin = OUT_ADC_ADDR_Pin;
+  dacadc.csdacPortHandle = OUT_DAC_SYNC_GPIO_Port;
+  dacadc.csdacPin = OUT_DAC_SYNC_Pin;
+  dacadc.ldacPortHandle = OUT_DAC_LDAC_GPIO_Port;
+  dacadc.ldacPin = OUT_DAC_LDAC_Pin;
+  dacadc.clrPortHandle = OUT_DAC_CLR_GPIO_Port;
+  dacadc.clrPin = OUT_DAC_CLR_Pin;
 
+  MCP23S17_Init(&mcp);
+
+  ADC_Init(&dacadc);
+
+  DAC_Init(&dacadc);
+
+
+  for (int i = 0; i < SINE_STEPS; i++)
+  {
+      sine_table[i] = SINE_AMPLITUDE * sinf(2 * M_PI * i / SINE_STEPS);
+  }
 
 
   for (uint8_t ledidx = 0; ledidx < LED_COUNT; ledidx++) {
@@ -525,6 +423,12 @@ int main(void)
   while (1)
   {
 	time_ms = HAL_GetTick();
+
+	if (mcp_poll == 1 && mcp.spi_dma_state == 0) {
+    	mcp_poll = 0;
+    	ReadButtonsDMA(&mcp);
+	}
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -560,16 +464,17 @@ int main(void)
     	} else if (i % 2 == 0 && val <= 0) {
     		val = -SINE_AMPLITUDE;
     	}
-    	WRITE_DAC_VALUE(i, val);
+    	WRITE_DAC_VALUE(&dacadc, i, val);
     }
 
 
-    ADC_DAC_Transaction();
+    ADC_DAC_Transaction(&dacadc);
 
 
 	/*
 
 	if (USBD_MIDI_GetState(&hUsbDeviceFS) == MIDI_IDLE) {
+	// need to switch to adc_i
 		uint8_t midi_value0 = (uint8_t)(fminf(fmaxf(adc_f[0], 0.0f), 5.0f) * (127.0f / 5.0f));
 		uint8_t midi_value1 = (uint8_t)(fminf(fmaxf(adc_f[1], 0.0f), 5.0f) * (127.0f / 5.0f));
 		uint8_t midi_value2 = (uint8_t)(fminf(fmaxf(adc_f[2], 0.0f), 5.0f) * (127.0f / 5.0f));
@@ -1089,6 +994,12 @@ static void MX_DMA_Init(void)
   /* DMA1_Channel1_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
+  /* DMA1_Channel2_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel2_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel2_IRQn);
+  /* DMA1_Channel3_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel3_IRQn);
   /* DMAMUX_OVR_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMAMUX_OVR_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMAMUX_OVR_IRQn);
@@ -1202,14 +1113,15 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
-volatile uint8_t mcp_busy = 0;
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
     if (htim->Instance == TIM2) { // ~ 100 Hz
-    	ReadButtons(&mpc);
 
-    	ReadEncoders(&mpc);
+    	mcp_poll = 1;
+
+    	// ReadButtons(&mcp);
+    	// ReadEncoders(&mcp);
 
         uint32_t now = HAL_GetTick();  // Time in ms
         uint32_t dt = now - last_sample_time;

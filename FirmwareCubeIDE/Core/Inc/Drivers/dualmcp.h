@@ -1,5 +1,5 @@
-#ifndef INC_DRIVERS_DUALMPC_H_
-#define INC_DRIVERS_DUALMPC_H_
+#ifndef INC_DRIVERS_DUALmcp_H_
+#define INC_DRIVERS_DUALmcp_H_
 #include "stm32g4xx_hal.h"
 
 #define N_ENCODERS 8
@@ -23,15 +23,8 @@ typedef struct {
 	int8_t    enc_button_state[N_ENCODERS];
 	uint8_t   tx_buf[8];
 	uint8_t   rx_buf[8];
-} DUALMPC;
-
-/*
-#define MCP_CS_LOW()    HAL_GPIO_WritePin(OUT_MCP_CS_GPIO_Port, OUT_MCP_CS_Pin, GPIO_PIN_RESET)
-#define MCP_CS_HIGH()   HAL_GPIO_WritePin(OUT_MCP_CS_GPIO_Port, OUT_MCP_CS_Pin, GPIO_PIN_SET)
-
-#define MCP_RESET_LOW() HAL_GPIO_WritePin(OUT_MCP_RESET_GPIO_Port, OUT_MCP_RESET_Pin, GPIO_PIN_RESET)
-#define MCP_RESET_HIGH() HAL_GPIO_WritePin(OUT_MCP_RESET_GPIO_Port, OUT_MCP_RESET_Pin, GPIO_PIN_SET)
-*/
+	volatile uint8_t   spi_dma_state;
+} DUALMCP;
 
 #define MCP_IODIRA    0x00
 #define MCP_IODIRB    0x01
@@ -72,20 +65,28 @@ typedef struct {
 #define PORT_A_OFFSET 0
 #define PORT_B_OFFSET 8
 
-void MCP23S17_Init(DUALMPC * mpc);
+void MCP23S17_Init(DUALMCP * mcp);
 
-uint8_t MCP23S17_TransmitRegister(DUALMPC * mpc, uint8_t hw_addr, uint8_t reg, uint8_t data, uint8_t write);
+uint8_t MCP23S17_TransmitRegister(DUALMCP * mcp, uint8_t hw_addr, uint8_t reg, uint8_t data, uint8_t write);
 
-uint8_t MCP23S17_ReadRegister(DUALMPC * mpc, uint8_t hw_addr, uint8_t reg);
+uint8_t MCP23S17_ReadRegister(DUALMCP * mcp, uint8_t hw_addr, uint8_t reg);
 
-uint8_t MCP23S17_WriteRegister(DUALMPC * mpc, uint8_t hw_addr, uint8_t reg, uint8_t data);
+uint8_t MCP23S17_WriteRegister(DUALMCP * mcp, uint8_t hw_addr, uint8_t reg, uint8_t data);
 
-void ProcessEncoderStates(DUALMPC * mpc);
+void ProcessEncoderStates(DUALMCP * mcp);
 
-void UpdateEncoderPinStates(DUALMPC * mpc, uint8_t gpioa, uint8_t gpiob);
+void UpdateEncoderPinStates(DUALMCP * mcp, uint8_t gpioa, uint8_t gpiob);
 
-void ReadEncoders(DUALMPC * mpc);
+void ReadEncoders(DUALMCP * mcp);
 
-void ReadButtons(DUALMPC * mpc);
+void ReadButtons(DUALMCP * mcp);
 
-#endif /* INC_DRIVERS_DUALMPC_H_ */
+uint8_t ReadButtonsDMA(DUALMCP * mcp);
+
+void ReadEncoders(DUALMCP * mcp);
+
+uint8_t ReadEncodersDMA(DUALMCP * mcp);
+
+void MCP_DMA_Complete(DUALMCP * mcp);
+
+#endif /* INC_DRIVERS_DUALmcp_H_ */
