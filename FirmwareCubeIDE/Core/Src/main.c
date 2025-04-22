@@ -804,15 +804,17 @@ int main(void)
 	gpiob_state = MCP23S17_ReadRegister(MCP_HW_ADDR_1, MCP_GPIOB);
 
 
-	FRAM_WriteEnable();
 	test_val = 0x5A;
+	FRAM_WriteEnable();
 	FRAM_WriteByte(0x0010, test_val);
 	read_val = FRAM_ReadByte(0x0010);
 
+	/*
 	if (read_val != test_val) {
 		HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
 		HAL_Delay(1000);
 	}
+	*/
 
 
     sine_index = (sine_index + 1) % SINE_STEPS;
