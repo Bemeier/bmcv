@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "usb_device.h"
+#include "dualmpc.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -28,55 +29,20 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-#define N_ENCODERS 8
-
-#define PORT_A_OFFSET 0
-#define PORT_B_OFFSET 8
-
 #define FRAM_WRITE   0x02
 #define FRAM_READ    0x03
 #define FRAM_WREN    0x06
 
-// Encoder A pin location on MCP GP Pins (first 0-7 = port A, 8-15 = port B)
-uint8_t enc_pins_a[N_ENCODERS] = {
-    PORT_B_OFFSET + 2,  // Encoder 1 A
-    PORT_B_OFFSET + 1,  // Encoder 2 A
-    PORT_A_OFFSET + 7,  // Encoder 3 A
-    PORT_A_OFFSET + 5,  // Encoder 4 A
-    PORT_A_OFFSET + 2,  // Encoder 5 A
-    PORT_A_OFFSET + 0,  // Encoder 6 A
-    PORT_B_OFFSET + 4,  // Encoder 7 A
-    PORT_B_OFFSET + 6   // Encoder 8 A
-};
-
-// as above, but for the Encoder B Pins
-uint8_t enc_pins_b[N_ENCODERS] = {
-    PORT_B_OFFSET + 3,  // Encoder 1 B
-    PORT_B_OFFSET + 0,  // Encoder 2 B
-    PORT_A_OFFSET + 6,  // Encoder 3 B
-    PORT_A_OFFSET + 4,  // Encoder 4 B
-    PORT_A_OFFSET + 3,  // Encoder 5 B
-    PORT_A_OFFSET + 1,  // Encoder 6 B
-    PORT_B_OFFSET + 5,  // Encoder 7 B
-    PORT_B_OFFSET + 7   // Encoder 8 B
-};
-
-uint8_t  volatile a_state = 0; // bit mask state of encoders a pin state
-uint8_t  volatile b_state = 0; // bit mask state of encoders b pin state
-uint8_t volatile a_state_prev = 0;
-uint8_t volatile b_state_prev = 0;
-
-int16_t volatile enc_position_state[N_ENCODERS] = {0}; // Tracked position per encoder
-
-// Buttons
-uint8_t enc_pins_button[N_ENCODERS];
-int8_t  volatile enc_button_state[N_ENCODERS];
 
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
+// FRAM
+
+#define FRAM_CS_LOW()    HAL_GPIO_WritePin(SPI3_FRAM_CS_GPIO_Port, SPI3_FRAM_CS_Pin, GPIO_PIN_RESET)
+#define FRAM_CS_HIGH()    HAL_GPIO_WritePin(SPI3_FRAM_CS_GPIO_Port, SPI3_FRAM_CS_Pin, GPIO_PIN_SET)
 
 // MIDI
 extern USBD_HandleTypeDef hUsbDeviceFS;
@@ -115,53 +81,7 @@ void MIDI_addToUSBReport(uint8_t cable, uint8_t message, uint8_t param1, uint8_t
 
 
 // MCP
-
-#define MCP_CS_LOW()    HAL_GPIO_WritePin(OUT_MCP_CS_GPIO_Port, OUT_MCP_CS_Pin, GPIO_PIN_RESET)
-#define MCP_CS_HIGH()   HAL_GPIO_WritePin(OUT_MCP_CS_GPIO_Port, OUT_MCP_CS_Pin, GPIO_PIN_SET)
-
-#define MCP_RESET_LOW() HAL_GPIO_WritePin(OUT_MCP_RESET_GPIO_Port, OUT_MCP_RESET_Pin, GPIO_PIN_RESET)
-#define MCP_RESET_HIGH() HAL_GPIO_WritePin(OUT_MCP_RESET_GPIO_Port, OUT_MCP_RESET_Pin, GPIO_PIN_SET)
-
-#define MCP_IODIRA     0x00
-#define MCP_IODIRB     0x01
-
-#define MCP_IOPOLA     0x02
-#define MCP_IOPOLB     0x03
-
-#define MCP_GPINTENA      0x04
-#define MCP_GPINTENB      0x05
-
-#define MCP_DEFVALA      0x06
-#define MCP_DEFVALB      0x07
-
-#define MCP_INTCONA    0x08
-#define MCP_INTCONB    0x09
-
-#define MCP_IOCONA      0x0A
-#define MCP_IOCONB      0x0B
-
-#define MCP_GPPUA      0x0C
-#define MCP_GPPUB      0x0D
-
-#define MCP_INTFA 0x0E
-#define MCP_INTFB 0x0F
-
-#define MCP_INTCAPA 0x10
-#define MCP_INTCAPB 0x11
-
-#define MCP_GPIOA      0x12
-#define MCP_GPIOB      0x13
-
-#define MCP_OLATA      0x14
-#define MCP_OLATB      0x15
-
-
-#define MCP_HW_ADDR_0   0x00  // A2=0, A1=0, A0=1 = MCP for Encoders
-#define MCP_HW_ADDR_1   0x01  // A2=0, A1=0, A0=1 = MCP for Switches
-
-
-uint8_t gpioa_state;
-uint8_t gpiob_state;
+DUALMPC mpc;
 
 uint16_t ADC_HALF_RANGE = 4096;
 
@@ -295,6 +215,7 @@ SPI_HandleTypeDef hspi2;
 SPI_HandleTypeDef hspi3;
 
 TIM_HandleTypeDef htim1;
+TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
 DMA_HandleTypeDef hdma_tim3_ch4;
@@ -318,6 +239,7 @@ static void MX_SPI3_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_TIM4_Init(void);
+static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -346,218 +268,15 @@ void ADC_Init(void)
     // Optional: do a dummy read to check communication
 }
 
-uint8_t MCP23S17_TransmitRegister(uint8_t hw_addr, uint8_t reg, uint8_t data, uint8_t write)
-{
-    uint8_t opcode = 0x40 | ((hw_addr & 0x07) << 1) | (write ? 0 : 1);
-    uint8_t tx_buf[3] = {opcode, reg, data};
-    uint8_t rx_buf[3] = {0};
-
-    MCP_CS_LOW();
-    HAL_SPI_TransmitReceive(&hspi1, tx_buf, rx_buf, 3, HAL_MAX_DELAY);
-    MCP_CS_HIGH();
-
-    return rx_buf[2];
-}
-
-uint8_t MCP23S17_ReadRegister(uint8_t hw_addr, uint8_t reg)
-{
-    return MCP23S17_TransmitRegister(hw_addr, reg, 0x00, 0);
-}
-
-// Write version
-uint8_t MCP23S17_WriteRegister(uint8_t hw_addr, uint8_t reg, uint8_t data)
-{
-    return MCP23S17_TransmitRegister(hw_addr, reg, data, 1);
-}
-
-void ProcessEncoderStates(uint8_t prev_a, uint8_t prev_b, uint8_t curr_a, uint8_t curr_b)
-{
-    const int8_t encoder_table[16] = {
-         0, -1,  1,  0,
-         1,  0,  0, -1,
-        -1,  0,  0,  1,
-         0,  1, -1,  0
-    };
-
-    for (int i = 0; i < N_ENCODERS; i++) {
-        uint8_t a_old = (prev_a >> i) & 0x01;
-        uint8_t b_old = (prev_b >> i) & 0x01;
-        uint8_t a_new = (curr_a >> i) & 0x01;
-        uint8_t b_new = (curr_b >> i) & 0x01;
-
-        uint8_t prev_state = (a_old << 1) | b_old;
-        uint8_t curr_state = (a_new << 1) | b_new;
-
-        uint8_t index = (prev_state << 2) | curr_state;
-        int8_t delta = encoder_table[index];
-
-        if (curr_state == 0b00) {  // Or try 0b11 or another depending on your encoder
-            enc_position_state[i] += delta;
-        }
-        //enc_position_state[i] += delta;
-    }
-}
-
-void UpdateEncoderPinStates(uint8_t gpioa, uint8_t gpiob)
-{
-    uint8_t new_a_state = 0;
-    uint8_t new_b_state = 0;
-
-    for (int i = 0; i < N_ENCODERS; i++) {
-        // Read pin A
-        uint8_t pin_a = enc_pins_a[i];
-        uint8_t pin_a_state = 0;
-
-        if (pin_a < 8) {
-            pin_a_state = (gpioa >> pin_a) & 0x01;
-        } else {
-            pin_a_state = (gpiob >> (pin_a - 8)) & 0x01;
-        }
-
-        // Read pin B
-        uint8_t pin_b = enc_pins_b[i];
-        uint8_t pin_b_state = 0;
-
-        if (pin_b < 8) {
-            pin_b_state = (gpioa >> pin_b) & 0x01;
-        } else {
-            pin_b_state = (gpiob >> (pin_b - 8)) & 0x01;
-        }
-        // Set bit i in result states
-        new_a_state |= (pin_a_state << i);
-        new_b_state |= (pin_b_state << i);
-    }
-
-    a_state = new_a_state;
-    b_state = new_b_state;
-}
-
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 
 	if(GPIO_Pin == INT_MCP_ENC_Pin || GPIO_Pin == 0) {
-
-		/*
-		enc_gpioa_state = MCP23S17_ReadRegister(MCP_HW_ADDR_0, MCP_INTCAPA);
-		enc_gpiob_state = MCP23S17_ReadRegister(MCP_HW_ADDR_0, MCP_INTCAPB);
-
-	    UpdateEncoderPinStates(enc_gpioa_state, enc_gpiob_state);
-	    ProcessEncoderStates(a_state_prev, b_state_prev, a_state, b_state);
-
-	    a_state_prev = a_state;
-	    b_state_prev = b_state;
-		*/
-
-		int8_t enc_gpioa_state = MCP23S17_ReadRegister(MCP_HW_ADDR_0, MCP_GPIOA);
-		int8_t enc_gpiob_state = MCP23S17_ReadRegister(MCP_HW_ADDR_0, MCP_GPIOB);
-
-		UpdateEncoderPinStates(enc_gpioa_state, enc_gpiob_state);
-		ProcessEncoderStates(a_state_prev, b_state_prev, a_state, b_state);
-
-		a_state_prev = a_state;
-		b_state_prev = b_state;
+		ReadEncoders(&mpc);
 	}
-
-	/*
-	if (GPIO_Pin == INT_ADC_BUSY_Pin) {
-	    if (!ADC_Read()) {
-	        HAL_GPIO_WritePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin, SET);
-	    	HAL_Delay(100);
-	        HAL_GPIO_WritePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin, RESET);
-	    	HAL_Delay(50);
-	    }
-	}
-	*/
-
-
-
-    /*
-    if(GPIO_Pin == INT_MCP_ENCA_Pin) //  (intfa) //
-    {
-        intA_count++;
-        intfa = MCP23S17_ReadRegister(MCP_HW_ADDR_0, MCP_INTFA);
-    }
-
-    if (GPIO_Pin == INT_MCP_ENCB_Pin) // (intfb) //
-    {
-        intB_count++;
-        intfb = MCP23S17_ReadRegister(MCP_HW_ADDR_0, MCP_INTFB);
-    }
-    */
-	//HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
 
 }
 
-void MCP23S17_Init(void) {
-    // Reset MCP
-    MCP_RESET_LOW();
-    HAL_Delay(50);
-    MCP_RESET_HIGH();
-    HAL_Delay(50);
-
-    // IOCON bits
-    // 1	INTPOL	1	Active-high
-	// 2	ODR	    0	Push/pull
-	// 3	HAEN	1	Required for addressing
-    // 6	MIRROR	1	Mirror interrupt lines (we're only using A)
-    MCP23S17_WriteRegister(MCP_HW_ADDR_1, MCP_IOCONA, 0x4A);
-    MCP23S17_WriteRegister(MCP_HW_ADDR_1, MCP_IOCONB, 0x4A);
-
-    // Set IOCON bits
-    // 1	INTPOL	1	Active-high
-	// 2	ODR	    0	Push/pull
-	// 3	HAEN	1	Enable addressing
-    // 6	MIRROR	1	Mirror interrupt lines (we're only using A)
-    MCP23S17_WriteRegister(MCP_HW_ADDR_0, MCP_IOCONA, 0x4A);  // IOCON 0b00001100 - 0x0C
-    MCP23S17_WriteRegister(MCP_HW_ADDR_0, MCP_IOCONB, 0x4A);  // IOCON 0b00001100 - 0x0C
-
-
-    // Button/Switch MCP_HW_ADDR_1
-
-    // Set both ports as inputs, no pullups (have external ones)
-    MCP23S17_WriteRegister(MCP_HW_ADDR_1, MCP_IODIRA, 0xFF);
-    MCP23S17_WriteRegister(MCP_HW_ADDR_1, MCP_IODIRB, 0xFF);
-    MCP23S17_WriteRegister(MCP_HW_ADDR_1, MCP_GPPUA, 0x00);
-    MCP23S17_WriteRegister(MCP_HW_ADDR_1, MCP_GPPUB, 0x00);
-
-    // Disable interrupt
-    MCP23S17_WriteRegister(MCP_HW_ADDR_1, MCP_GPINTENA, 0x00);
-    MCP23S17_WriteRegister(MCP_HW_ADDR_1, MCP_GPINTENB, 0x00);
-
-    // Disable interrupts, but all switches are pulled low by default:
-    MCP23S17_WriteRegister(MCP_HW_ADDR_1, MCP_DEFVALA, 0x00);
-    MCP23S17_WriteRegister(MCP_HW_ADDR_1, MCP_DEFVALB, 0x00);
-
-
-    // Encoder MCP_HW_ADDR_0
-
-    // Invert Logic (encoder pulses = HIGH)
-    MCP23S17_WriteRegister(MCP_HW_ADDR_1, MCP_IOPOLA, 0x00);
-    MCP23S17_WriteRegister(MCP_HW_ADDR_1, MCP_IOPOLB, 0x00);
-
-    // Set both ports as inputs, no pullups (have external ones)
-    MCP23S17_WriteRegister(MCP_HW_ADDR_0, MCP_IODIRA, 0xFF);
-    MCP23S17_WriteRegister(MCP_HW_ADDR_0, MCP_IODIRB, 0xFF);
-    MCP23S17_WriteRegister(MCP_HW_ADDR_0, MCP_GPPUA, 0x00);
-    MCP23S17_WriteRegister(MCP_HW_ADDR_0, MCP_GPPUB, 0x00);
-
-    // Enable interrupt-on-change for all pins
-    MCP23S17_WriteRegister(MCP_HW_ADDR_0, MCP_GPINTENA, 0xFF);
-    MCP23S17_WriteRegister(MCP_HW_ADDR_0, MCP_GPINTENB, 0xFF);
-
-    // Trigger interrupt on *any change*, not compared to DEFVAL
-    MCP23S17_WriteRegister(MCP_HW_ADDR_0, MCP_INTCONA, 0x00);
-    MCP23S17_WriteRegister(MCP_HW_ADDR_0, MCP_INTCONB, 0x00);
-
-    // Not used, but default value is HIGH for encoders
-    MCP23S17_WriteRegister(MCP_HW_ADDR_0, MCP_DEFVALA, 0xFF);
-    MCP23S17_WriteRegister(MCP_HW_ADDR_0, MCP_DEFVALB, 0xFF);
-
-
-    HAL_Delay(50);
-	MCP23S17_ReadRegister(MCP_HW_ADDR_0, MCP_GPIOA);
-	MCP23S17_ReadRegister(MCP_HW_ADDR_0, MCP_GPIOB);
-}
 //uint8_t CH_IDX = 0;
 uint8_t DAC_BUF[24] = { 0 };
 uint16_t DAC_DATA[8] = { 0 };
@@ -599,8 +318,9 @@ void FRAM_WriteEnable() {
     	FRAM_WREN
     };
 
-    // No need to manually toggle CS (NSS is managed by hardware)
+    FRAM_CS_LOW();
     HAL_SPI_Transmit(&hspi3, tx, 1, HAL_MAX_DELAY);
+    FRAM_CS_HIGH();
 }
 
 
@@ -612,8 +332,9 @@ void FRAM_WriteByte(uint16_t addr, uint8_t data) {
         data
     };
 
-    // No need to manually toggle CS (NSS is managed by hardware)
+    FRAM_CS_LOW();
     HAL_SPI_Transmit(&hspi3, tx, 4, HAL_MAX_DELAY);
+    FRAM_CS_HIGH();
 }
 
 uint8_t FRAM_ReadByte(uint16_t addr) {
@@ -625,10 +346,12 @@ uint8_t FRAM_ReadByte(uint16_t addr) {
     };
     uint8_t rx[4] = { 0 };
 
-    // No need to manually toggle CS (NSS is managed by hardware)
-    HAL_SPI_TransmitReceive(&hspi3, tx, rx, 4, HAL_MAX_DELAY);
 
-    return rx[0];
+    FRAM_CS_LOW();
+    HAL_SPI_TransmitReceive(&hspi3, tx, rx, 4, HAL_MAX_DELAY);
+    FRAM_CS_HIGH();
+
+    return rx[3];
 }
 
 #define SINE_STEPS     128       // Number of points per wave cycle
@@ -709,6 +432,10 @@ void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
     }
 }
 
+volatile float adc_freq_hz = 0;           // Smoothed ADC frequency estimate
+volatile uint32_t last_sample_time = 0;   // Last tick (ms) of ADC sample
+const float filter_alpha = 0.1f;          // Low-pass filter coefficient
+
 /* USER CODE END 0 */
 
 /**
@@ -749,6 +476,7 @@ int main(void)
   MX_TIM3_Init();
   MX_TIM4_Init();
   MX_USB_Device_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 
   HAL_GPIO_WritePin(LEVEL_SHIFTER_EN_GPIO_Port, LEVEL_SHIFTER_EN_Pin, SET);
@@ -756,7 +484,14 @@ int main(void)
 
   ws2811_init();
 
-  MCP23S17_Init();
+  // Should move to init function:
+  mpc.spiHandle = &hspi1;
+  mpc.csPortHandle = OUT_MCP_CS_GPIO_Port;
+  mpc.csPin = OUT_MCP_CS_Pin;
+  mpc.resetPortHandle = OUT_MCP_RESET_GPIO_Port;
+  mpc.resetPin = OUT_MCP_RESET_Pin;
+
+  MCP23S17_Init(&mpc);
 
   ADC_Init();
 
@@ -784,6 +519,8 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   uint32_t time_ms;
   float freq = 0.2f;
+  HAL_ADC_Start_IT(&hadc1);
+  HAL_TIM_Base_Start_IT(&htim2);
 
   while (1)
   {
@@ -796,13 +533,11 @@ int main(void)
 	//HAL_Delay(200);
 	//HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
 
+	/*
 	HAL_ADC_Start(&hadc1);
-	HAL_ADC_PollForConversion(&hadc1, 20);
+	HAL_ADC_PollForConversion(&hadc1, 100);
 	slider = HAL_ADC_GetValue(&hadc1);
-
-	gpioa_state = MCP23S17_ReadRegister(MCP_HW_ADDR_1, MCP_GPIOA);
-	gpiob_state = MCP23S17_ReadRegister(MCP_HW_ADDR_1, MCP_GPIOB);
-
+	*/
 
 	test_val = 0x5A;
 	FRAM_WriteEnable();
@@ -830,8 +565,6 @@ int main(void)
 
 
     ADC_DAC_Transaction();
-
-	HAL_GPIO_EXTI_Callback(0);
 
 
 	/*
@@ -976,21 +709,25 @@ static void MX_ADC1_Init(void)
   /** Common config
   */
   hadc1.Instance = ADC1;
-  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV256;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc1.Init.GainCompensation = 0;
   hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
   hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   hadc1.Init.LowPowerAutoWait = DISABLE;
-  hadc1.Init.ContinuousConvMode = DISABLE;
+  hadc1.Init.ContinuousConvMode = ENABLE;
   hadc1.Init.NbrOfConversion = 1;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc1.Init.DMAContinuousRequests = DISABLE;
   hadc1.Init.Overrun = ADC_OVR_DATA_PRESERVED;
-  hadc1.Init.OversamplingMode = DISABLE;
+  hadc1.Init.OversamplingMode = ENABLE;
+  hadc1.Init.Oversampling.Ratio = ADC_OVERSAMPLING_RATIO_32;
+  hadc1.Init.Oversampling.RightBitShift = ADC_RIGHTBITSHIFT_4;
+  hadc1.Init.Oversampling.TriggeredMode = ADC_TRIGGEREDMODE_SINGLE_TRIGGER;
+  hadc1.Init.Oversampling.OversamplingStopReset = ADC_REGOVERSAMPLING_CONTINUED_MODE;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
   {
     Error_Handler();
@@ -1008,7 +745,7 @@ static void MX_ADC1_Init(void)
   */
   sConfig.Channel = ADC_CHANNEL_2;
   sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_2CYCLES_5;
+  sConfig.SamplingTime = ADC_SAMPLETIME_247CYCLES_5;
   sConfig.SingleDiff = ADC_SINGLE_ENDED;
   sConfig.OffsetNumber = ADC_OFFSET_NONE;
   sConfig.Offset = 0;
@@ -1186,6 +923,51 @@ static void MX_TIM1_Init(void)
   /* USER CODE BEGIN TIM1_Init 2 */
 
   /* USER CODE END TIM1_Init 2 */
+
+}
+
+/**
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM2_Init(void)
+{
+
+  /* USER CODE BEGIN TIM2_Init 0 */
+
+  /* USER CODE END TIM2_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM2_Init 1 */
+
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 14400-1;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 99;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM2_Init 2 */
+
+  /* USER CODE END TIM2_Init 2 */
 
 }
 
@@ -1420,6 +1202,36 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
+volatile uint8_t mcp_busy = 0;
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+    if (htim->Instance == TIM2) { // ~ 100 Hz
+    	ReadButtons(&mpc);
+
+    	ReadEncoders(&mpc);
+
+        uint32_t now = HAL_GetTick();  // Time in ms
+        uint32_t dt = now - last_sample_time;
+
+        if (dt > 0) {
+            float current_freq = 1000.0f / dt;  // Convert ms to Hz
+            adc_freq_hz = (1.0f - filter_alpha) * adc_freq_hz + filter_alpha * current_freq;
+        }
+
+        last_sample_time = now;
+    }
+}
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
+{
+    if (hadc->Instance == ADC1)
+    {
+
+
+        slider = HAL_ADC_GetValue(hadc);
+    }
+}
 /* USER CODE END 4 */
 
 /**
