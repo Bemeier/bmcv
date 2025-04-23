@@ -44,6 +44,35 @@ void ADC_DAC_Transaction(DAC_ADC * dacadc) {
     }
 }
 
+uint8_t DAC_ADC_DMA_Next(DAC_ADC * dacadc) {
+	dacadc->CH_IDX = (dacadc->CH_IDX + 1) % 4;
+	dacadc->offset = (HAL_GPIO_ReadPin(dacadc->addrPortHandle, dacadc->adrrPin) == GPIO_PIN_SET) ? 2 : 0;
+	HAL_GPIO_WritePin(dacadc->cnvstPortHandle, dacadc->cnvstPin, GPIO_PIN_RESET);
+	HAL_GPIO_TogglePin(dacadc->addrPortHandle, dacadc->adrrPin);
+	HAL_GPIO_WritePin(dacadc->cnvstPortHandle, dacadc->cnvstPin, GPIO_PIN_SET);
+
+	HAL_GPIO_WritePin(dacadc->csadcPortHandle, dacadc->csadcPin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(dacadc->csdacPortHandle, dacadc->csdacPin, GPIO_PIN_RESET);
+
+	int8_t res = HAL_SPI_TransmitReceive_DMA(dacadc->spiHandle, &(dacadc->DAC_BUF[dacadc->CH_IDX*6]), dacadc->rx_buf, 6);
+    if (res == HAL_OK) {
+    	return 1;
+    }
+
+	HAL_GPIO_WritePin(dacadc->csdacPortHandle, dacadc->csdacPin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(dacadc->csadcPortHandle, dacadc->csadcPin, GPIO_PIN_SET);
+	dacadc->CH_IDX = 5;
+	return 0;
+}
+
+void DAC_ADC_DMA_Complete(DAC_ADC * dacadc) {
+	HAL_GPIO_WritePin(dacadc->csdacPortHandle, dacadc->csdacPin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(dacadc->csadcPortHandle, dacadc->csadcPin, GPIO_PIN_SET);
+	uint16_t adc_a_raw = ((dacadc->rx_buf[0] << 6) | (dacadc->rx_buf[1] >> 2)) & 0x3FFF;
+	uint16_t adc_b_raw = (((dacadc->rx_buf[1] & 0x03) << 12) | (dacadc->rx_buf[2] << 4) | (dacadc->rx_buf[3] >> 4)) & 0x3FFF;
+	dacadc->adc_i[0+dacadc->offset] = sign_extend_14bit(adc_a_raw);
+	dacadc->adc_i[1+dacadc->offset] = sign_extend_14bit(adc_b_raw);
+}
 
 void DAC_Init(DAC_ADC * dacadc) {
 	dacadc->DAC_BUF[ 0] = (0b00000000); // DAC1 CHA

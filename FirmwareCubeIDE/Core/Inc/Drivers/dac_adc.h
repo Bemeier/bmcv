@@ -23,6 +23,10 @@ typedef struct {
 	GPIO_TypeDef      *clrPortHandle;
 	uint16_t           clrPin;
 
+	volatile uint8_t CH_IDX;
+	uint8_t rx_buf[6];
+	uint8_t offset;
+
 	uint8_t DAC_BUF[24];
 	uint16_t DAC_DATA[8];
 
@@ -37,6 +41,9 @@ void WRITE_DAC_VALUE(DAC_ADC * dacadc, int idx, int16_t data);
 void ADC_DAC_Transaction(DAC_ADC * dacadc);
 
 void DAC_Init(DAC_ADC * dacadc);
+
+uint8_t DAC_ADC_DMA_Next(DAC_ADC * dacadc);
+void DAC_ADC_DMA_Complete(DAC_ADC * dacadc);
 
 int16_t sign_extend_14bit(uint16_t val);
 

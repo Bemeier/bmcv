@@ -19,12 +19,14 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "usb_device.h"
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "usbd_midi.h"
 #include <math.h>
 #include "dualmcp.h"
 #include "dac_adc.h"
+#include "helpers.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -40,6 +42,7 @@
 /* USER CODE BEGIN PD */
 
 volatile uint8_t mcp_poll = 0;
+volatile uint8_t dacadc_poll = 0;
 
 // FRAM
 
@@ -198,6 +201,8 @@ SPI_HandleTypeDef hspi2;
 SPI_HandleTypeDef hspi3;
 DMA_HandleTypeDef hdma_spi1_rx;
 DMA_HandleTypeDef hdma_spi1_tx;
+DMA_HandleTypeDef hdma_spi2_rx;
+DMA_HandleTypeDef hdma_spi2_tx;
 
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
@@ -232,6 +237,7 @@ static void MX_TIM2_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+uint8_t nextDac = 0;
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
@@ -246,6 +252,11 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef * hspi) {
 	if (hspi->Instance == mcp.spiHandle->Instance) {
 		MCP_DMA_Complete(&mcp);
+	}
+
+	if (hspi->Instance == dacadc.spiHandle->Instance) {
+		DAC_ADC_DMA_Complete(&dacadc);
+		nextDac = 1;
 	}
 }
 
@@ -420,6 +431,10 @@ int main(void)
   HAL_ADC_Start_IT(&hadc1);
   HAL_TIM_Base_Start_IT(&htim2);
 
+  HAL_Delay(10);
+
+  DAC_ADC_DMA_Next(&dacadc);
+
   while (1)
   {
 	time_ms = HAL_GetTick();
@@ -427,28 +442,59 @@ int main(void)
 	if (mcp_poll == 1 && mcp.spi_dma_state == 0) {
     	mcp_poll = 0;
     	ReadButtonsDMA(&mcp);
+
+		if (USBD_MIDI_GetState(&hUsbDeviceFS) == MIDI_IDLE) {
+			MIDI_addToUSBReport(0, 0xB0, 0x10, sclamp(dacadc.adc_i[0]/32, 0, 127));
+			MIDI_addToUSBReport(0, 0xB0, 0x11, sclamp(dacadc.adc_i[1]/32, 0, 127));
+			MIDI_addToUSBReport(0, 0xB0, 0x12, sclamp(dacadc.adc_i[2]/32, 0, 127));
+			MIDI_addToUSBReport(0, 0xB0, 0x13, sclamp(dacadc.adc_i[3]/32, 0, 127));
+			USBD_MIDI_SendReport(&hUsbDeviceFS, buffUsbReport, MIDI_EPIN_SIZE);
+			buffUsbReportNextIndex = 0;
+		}
+
+		if (WS_DATA_COMPLETE_FLAG == 1) {
+			WS_DATA_COMPLETE_FLAG = 0;
+			//float hue = sinf(2.0f * M_PI * freq * time_ms / 1000.0f) * 127.5f + 127.5f;
+			//set_led_hsv(hue, 255, 255, &ws2811_rgb_data[0]);
+			//set_led_adc_range(adc_i[0], &ws2811_rgb_data[0]);
+			set_led_adc_range(slider, &ws2811_rgb_data[0]);
+			ws2811_commit();
+
+			result = HAL_TIM_PWM_Start_DMA(&htim3, TIM_CHANNEL_4, ws2811_pwm_data, WS2811_BUF_LEN);
+			if (result != HAL_OK) {
+				HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
+				HAL_Delay(100);
+			}
+		}
+
 	}
 
-    /* USER CODE END WHILE */
+	// TODO: dma busy flag?
+	if (nextDac) {
+		if (dacadc.CH_IDX == 0) {
+		    sine_index = (sine_index + 1) % SINE_STEPS;
+		    for (uint8_t i = 0; i < 8; i++) {
+		    	int16_t val = sine_table[(sine_index + i * 16) % SINE_STEPS];
+		    	if (i % 2 == 0 && val > 0) {
+		    		val = SINE_AMPLITUDE;
+		    	} else if (i % 2 == 0 && val <= 0) {
+		    		val = -SINE_AMPLITUDE;
+		    	}
+		    	WRITE_DAC_VALUE(&dacadc, i, val);
+		    }
+		}
 
-    /* USER CODE BEGIN 3 */
-    //HAL_GPIO_WritePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin, SET);
-	//HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
-	//HAL_Delay(200);
-	//HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
+		nextDac = 0;
+		DAC_ADC_DMA_Next(&dacadc);
+	}
+
 
 	/*
-	HAL_ADC_Start(&hadc1);
-	HAL_ADC_PollForConversion(&hadc1, 100);
-	slider = HAL_ADC_GetValue(&hadc1);
-	*/
-
 	test_val = 0x5A;
 	FRAM_WriteEnable();
 	FRAM_WriteByte(0x0010, test_val);
 	read_val = FRAM_ReadByte(0x0010);
 
-	/*
 	if (read_val != test_val) {
 		HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
 		HAL_Delay(1000);
@@ -456,57 +502,9 @@ int main(void)
 	*/
 
 
-    sine_index = (sine_index + 1) % SINE_STEPS;
-    for (uint8_t i = 0; i < 8; i++) {
-    	int16_t val = sine_table[(sine_index + i * 16) % SINE_STEPS];
-    	if (i % 2 == 0 && val > 0) {
-    		val = SINE_AMPLITUDE;
-    	} else if (i % 2 == 0 && val <= 0) {
-    		val = -SINE_AMPLITUDE;
-    	}
-    	WRITE_DAC_VALUE(&dacadc, i, val);
-    }
 
 
-    ADC_DAC_Transaction(&dacadc);
-
-
-	/*
-
-	if (USBD_MIDI_GetState(&hUsbDeviceFS) == MIDI_IDLE) {
-	// need to switch to adc_i
-		uint8_t midi_value0 = (uint8_t)(fminf(fmaxf(adc_f[0], 0.0f), 5.0f) * (127.0f / 5.0f));
-		uint8_t midi_value1 = (uint8_t)(fminf(fmaxf(adc_f[1], 0.0f), 5.0f) * (127.0f / 5.0f));
-		uint8_t midi_value2 = (uint8_t)(fminf(fmaxf(adc_f[2], 0.0f), 5.0f) * (127.0f / 5.0f));
-		uint8_t midi_value3 = (uint8_t)(fminf(fmaxf(adc_f[3], 0.0f), 5.0f) * (127.0f / 5.0f));
-		MIDI_addToUSBReport(0, 0xB0, 0x10, midi_value0);
-		MIDI_addToUSBReport(0, 0xB0, 0x11, midi_value1);
-		MIDI_addToUSBReport(0, 0xB0, 0x12, midi_value2);
-		MIDI_addToUSBReport(0, 0xB0, 0x13, midi_value3);
-	    USBD_MIDI_SendReport(&hUsbDeviceFS, buffUsbReport, MIDI_EPIN_SIZE);
-	    buffUsbReportNextIndex = 0;
-	}
-	*/
-
-
-	/*
-*/
-	if (WS_DATA_COMPLETE_FLAG == 1) {
-		WS_DATA_COMPLETE_FLAG = 0;
-		float hue = sinf(2.0f * M_PI * freq * time_ms / 1000.0f) * 127.5f + 127.5f;
-	    //set_led_hsv(hue, 255, 255, &ws2811_rgb_data[0]);
-		//set_led_adc_range(adc_i[0], &ws2811_rgb_data[0]);
-		set_led_adc_range(slider, &ws2811_rgb_data[0]);
-	    ws2811_commit();
-
-		result = HAL_TIM_PWM_Start_DMA(&htim3, TIM_CHANNEL_4, ws2811_pwm_data, WS2811_BUF_LEN);
-		if (result != HAL_OK) {
-			HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
-			HAL_Delay(100);
-		}
-	}
-	/*
-	*/
+    /* USER CODE END WHILE */
 
     /*
 	HAL_Delay(500);
@@ -1000,6 +998,12 @@ static void MX_DMA_Init(void)
   /* DMA1_Channel3_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Channel3_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel3_IRQn);
+  /* DMA1_Channel4_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel4_IRQn);
+  /* DMA1_Channel5_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel5_IRQn);
   /* DMAMUX_OVR_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMAMUX_OVR_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMAMUX_OVR_IRQn);
@@ -1120,9 +1124,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
     	mcp_poll = 1;
 
-    	// ReadButtons(&mcp);
-    	// ReadEncoders(&mcp);
+    	if (dacadc.CH_IDX == 5) {
+    		dacadc.CH_IDX = 0;
+    		nextDac = 1;
+    	}
 
+    	/*
         uint32_t now = HAL_GetTick();  // Time in ms
         uint32_t dt = now - last_sample_time;
 
@@ -1132,6 +1139,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         }
 
         last_sample_time = now;
+        */
     }
 }
 
