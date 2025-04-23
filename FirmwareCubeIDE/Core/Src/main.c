@@ -43,6 +43,8 @@
 
 volatile uint8_t mcp_poll = 0;
 volatile uint8_t dacadc_poll = 0;
+volatile uint8_t led_poll = 0;
+volatile uint8_t midi_poll = 0;
 
 // FRAM
 
@@ -83,8 +85,8 @@ DAC_ADC dacadc;
 
 
 // Over 72
-#define WS2811_1 38        //
-#define WS2811_0 14        //
+#define WS2811_1 36        //
+#define WS2811_0 16        //
 
 typedef union {
 	struct {
@@ -323,6 +325,7 @@ uint8_t read_val;
 volatile float adc_freq_hz = 0;           // Smoothed ADC frequency estimate
 volatile uint32_t last_sample_time = 0;   // Last tick (ms) of ADC sample
 const float filter_alpha = 0.1f;          // Low-pass filter coefficient
+int16_t lastSlider = 0;
 
 /* USER CODE END 0 */
 
@@ -442,31 +445,35 @@ int main(void)
 	if (mcp_poll == 1 && mcp.spi_dma_state == 0) {
     	mcp_poll = 0;
     	ReadButtonsDMA(&mcp);
+	}
 
-		if (USBD_MIDI_GetState(&hUsbDeviceFS) == MIDI_IDLE) {
-			MIDI_addToUSBReport(0, 0xB0, 0x10, sclamp(dacadc.adc_i[0]/32, 0, 127));
-			MIDI_addToUSBReport(0, 0xB0, 0x11, sclamp(dacadc.adc_i[1]/32, 0, 127));
-			MIDI_addToUSBReport(0, 0xB0, 0x12, sclamp(dacadc.adc_i[2]/32, 0, 127));
-			MIDI_addToUSBReport(0, 0xB0, 0x13, sclamp(dacadc.adc_i[3]/32, 0, 127));
-			USBD_MIDI_SendReport(&hUsbDeviceFS, buffUsbReport, MIDI_EPIN_SIZE);
-			buffUsbReportNextIndex = 0;
+	if (midi_poll && USBD_MIDI_GetState(&hUsbDeviceFS) == MIDI_IDLE) {
+		midi_poll = 0;
+		MIDI_addToUSBReport(0, 0xB0, 0x10, sclamp(dacadc.adc_i[0]/32, 0, 127));
+		MIDI_addToUSBReport(0, 0xB0, 0x11, sclamp(dacadc.adc_i[1]/32, 0, 127));
+		MIDI_addToUSBReport(0, 0xB0, 0x12, sclamp(dacadc.adc_i[2]/32, 0, 127));
+		MIDI_addToUSBReport(0, 0xB0, 0x13, sclamp(dacadc.adc_i[3]/32, 0, 127));
+		USBD_MIDI_SendReport(&hUsbDeviceFS, buffUsbReport, MIDI_EPIN_SIZE);
+		buffUsbReportNextIndex = 0;
+	}
+
+	int16_t delta = abs(lastSlider - slider);
+
+	if (led_poll && WS_DATA_COMPLETE_FLAG == 1) {
+		WS_DATA_COMPLETE_FLAG = 0;
+		led_poll = 0;
+		//float hue = sinf(2.0f * M_PI * freq * time_ms / 1000.0f) * 127.5f + 127.5f;
+		//set_led_hsv(hue, 255, 255, &ws2811_rgb_data[0]);
+		//set_led_adc_range(adc_i[0], &ws2811_rgb_data[0]);
+		set_led_adc_range(slider, &ws2811_rgb_data[0]);
+		ws2811_commit();
+		lastSlider = slider;
+
+		result = HAL_TIM_PWM_Start_DMA(&htim3, TIM_CHANNEL_4, ws2811_pwm_data, WS2811_BUF_LEN);
+		if (result != HAL_OK) {
+			HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
+			HAL_Delay(100);
 		}
-
-		if (WS_DATA_COMPLETE_FLAG == 1) {
-			WS_DATA_COMPLETE_FLAG = 0;
-			//float hue = sinf(2.0f * M_PI * freq * time_ms / 1000.0f) * 127.5f + 127.5f;
-			//set_led_hsv(hue, 255, 255, &ws2811_rgb_data[0]);
-			//set_led_adc_range(adc_i[0], &ws2811_rgb_data[0]);
-			set_led_adc_range(slider, &ws2811_rgb_data[0]);
-			ws2811_commit();
-
-			result = HAL_TIM_PWM_Start_DMA(&htim3, TIM_CHANNEL_4, ws2811_pwm_data, WS2811_BUF_LEN);
-			if (result != HAL_OK) {
-				HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
-				HAL_Delay(100);
-			}
-		}
-
 	}
 
 	// TODO: dma busy flag?
@@ -506,42 +513,8 @@ int main(void)
 
     /* USER CODE END WHILE */
 
-    /*
-	HAL_Delay(500);
-	HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
-
-	now = uwTick;
-	*/
-
-	/*
-	int newState = HAL_GPIO_ReadPin (GPIOC, IN_BTN_MCU2_Pin);
-	if (newState != state) {
-		HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
-		state = newState;
-	}
-
-		HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
-		HAL_Delay(100+(slider/5));
-		HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
-		HAL_Delay(200);
-
-	if (!(now % 10)) { // Just call every 10th loop
-		ws2812_demos_tick(&ws2812);
-	}
-
-	if (now >= next_blink) { // Every 500 ms
-		HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
-		next_blink = now + 500;
-	}
-
-	if (now >= next_tick) {
-		loop_count = 0;
-		next_tick = now + 1000;
-	}
-	++loop_count;
-	*/
+    /* USER CODE BEGIN 3 */
   }
-
   /* USER CODE END 3 */
 }
 
@@ -848,9 +821,9 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 14400-1;
+  htim2.Init.Prescaler = 14400;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 99;
+  htim2.Init.Period = 32;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -1117,19 +1090,28 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
+uint8_t task = 0;
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
     if (htim->Instance == TIM2) { // ~ 100 Hz
 
-    	mcp_poll = 1;
+    	task = task + 1;
+    	if (task == 1) {
+        	mcp_poll = 1;
 
-    	if (dacadc.CH_IDX == 5) {
-    		dacadc.CH_IDX = 0;
-    		nextDac = 1;
+        	if (dacadc.CH_IDX == 5) {
+        		dacadc.CH_IDX = 0;
+        		nextDac = 1;
+        	}
+    	} else if (task == 2) {
+    		led_poll = 1;
+    	} else if (task == 2) {
+    		midi_poll = 1;
+    	} else {
+    		task = 0;
     	}
 
-    	/*
         uint32_t now = HAL_GetTick();  // Time in ms
         uint32_t dt = now - last_sample_time;
 
@@ -1139,7 +1121,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         }
 
         last_sample_time = now;
-        */
     }
 }
 
