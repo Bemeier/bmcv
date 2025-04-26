@@ -26,6 +26,7 @@
 #include <math.h>
 #include "dualmcp.h"
 #include "dac_adc.h"
+#include "envelope.h"
 #include "helpers.h"
 /* USER CODE END Includes */
 
@@ -74,6 +75,7 @@ void MIDI_addToUSBReport(uint8_t cable, uint8_t message, uint8_t param1, uint8_t
 // MCP & DAC
 DUALMCP mcp;
 DAC_ADC dacadc;
+ENVELOPE env[4];
 
 
 // WS2812
@@ -213,7 +215,7 @@ TIM_HandleTypeDef htim4;
 DMA_HandleTypeDef hdma_tim3_ch4;
 
 /* USER CODE BEGIN PV */
-int slider = 0;
+uint16_t slider = 0;
 int state = 0;
 uint32_t now = 0, next_blink = 500, next_tick = 1000, loop_count = 0;
 HAL_StatusTypeDef result;
@@ -327,6 +329,12 @@ volatile uint32_t last_sample_time = 0;   // Last tick (ms) of ADC sample
 const float filter_alpha = 0.1f;          // Low-pass filter coefficient
 int16_t lastSlider = 0;
 
+void init_cycle_counter() {
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+    DWT->CYCCNT = 0;
+    DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -369,6 +377,9 @@ int main(void)
   MX_USB_Device_Init();
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
+
+  init_cycle_counter();
+  generate_quant_lut();
 
   HAL_GPIO_WritePin(LEVEL_SHIFTER_EN_GPIO_Port, LEVEL_SHIFTER_EN_Pin, SET);
   HAL_Delay(20);
@@ -429,8 +440,6 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  uint32_t time_ms;
-  float freq = 0.2f;
   HAL_ADC_Start_IT(&hadc1);
   HAL_TIM_Base_Start_IT(&htim2);
 
@@ -438,9 +447,18 @@ int main(void)
 
   DAC_ADC_DMA_Next(&dacadc);
 
+  uint32_t last_time = 0;
+  uint32_t now = 0;
+  uint32_t elapsed_cycles = 0;
+
   while (1)
   {
-	time_ms = HAL_GetTick();
+    now = DWT->CYCCNT;
+    elapsed_cycles = now - last_time;
+    last_time = now;
+    uint32_t elapsed_us = elapsed_cycles / (SystemCoreClock / 1000000);
+
+	WRITE_DAC_VALUE(&dacadc, 6, update_envelope(&env[0], elapsed_us));
 
 	if (mcp_poll == 1 && mcp.spi_dma_state == 0) {
     	mcp_poll = 0;
@@ -453,11 +471,10 @@ int main(void)
 		MIDI_addToUSBReport(0, 0xB0, 0x11, sclamp(dacadc.adc_i[1]/32, 0, 127));
 		MIDI_addToUSBReport(0, 0xB0, 0x12, sclamp(dacadc.adc_i[2]/32, 0, 127));
 		MIDI_addToUSBReport(0, 0xB0, 0x13, sclamp(dacadc.adc_i[3]/32, 0, 127));
+		MIDI_addToUSBReport(0, 0xB0, 0x14, sclamp(slider / 64 , 0, 127));
 		USBD_MIDI_SendReport(&hUsbDeviceFS, buffUsbReport, MIDI_EPIN_SIZE);
 		buffUsbReportNextIndex = 0;
 	}
-
-	int16_t delta = abs(lastSlider - slider);
 
 	if (led_poll && WS_DATA_COMPLETE_FLAG == 1) {
 		WS_DATA_COMPLETE_FLAG = 0;
@@ -476,11 +493,22 @@ int main(void)
 		}
 	}
 
+	WRITE_DAC_VALUE(&dacadc, 6, dacadc.adc_i[0]);
+	for (uint8_t ch = 0; ch < 4; ch++) {
+		if (dacadc.trig_flag[ch]) {
+			dacadc.trig_flag[ch] = 0;
+			if (ch == 0) {
+				HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
+				trigger_envelope(&env[0], 30000, 100000);
+			}
+		}
+	}
+
 	// TODO: dma busy flag?
 	if (nextDac) {
 		if (dacadc.CH_IDX == 0) {
 		    sine_index = (sine_index + 1) % SINE_STEPS;
-		    for (uint8_t i = 0; i < 8; i++) {
+		    for (uint8_t i = 0; i < 6; i++) {
 		    	int16_t val = sine_table[(sine_index + i * 16) % SINE_STEPS];
 		    	if (i % 2 == 0 && val > 0) {
 		    		val = SINE_AMPLITUDE;
@@ -490,6 +518,8 @@ int main(void)
 		    	WRITE_DAC_VALUE(&dacadc, i, val);
 		    }
 		}
+
+    	WRITE_DAC_VALUE(&dacadc, 7, quantize_adc(dacadc.adc_i[3]));
 
 		nextDac = 0;
 		DAC_ADC_DMA_Next(&dacadc);
@@ -1106,7 +1136,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         	}
     	} else if (task == 2) {
     		led_poll = 1;
-    	} else if (task == 2) {
+    	} else if (task == 3) {
     		midi_poll = 1;
     	} else {
     		task = 0;

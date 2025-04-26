@@ -20,8 +20,7 @@ void WRITE_DAC_VALUE(DAC_ADC * dacadc, int idx, int16_t data) {
 
 void ADC_DAC_Transaction(DAC_ADC * dacadc) {
     uint8_t rx_buf[6] = {0};
-    uint16_t adc_a_raw = 0;
-    uint16_t adc_b_raw = 0;
+    uint16_t adc_raw[2] = {0};
 
     for (uint8_t CH_IDX = 0; CH_IDX < 4; CH_IDX++) {
 		uint8_t offset = (HAL_GPIO_ReadPin(dacadc->addrPortHandle, dacadc->adrrPin) == GPIO_PIN_SET) ? 2 : 0;
@@ -35,12 +34,20 @@ void ADC_DAC_Transaction(DAC_ADC * dacadc) {
 		HAL_SPI_TransmitReceive(dacadc->spiHandle, &(dacadc->DAC_BUF[CH_IDX*6]), rx_buf, 6, HAL_MAX_DELAY); //
 		HAL_GPIO_WritePin(dacadc->csdacPortHandle, dacadc->csdacPin, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(dacadc->csadcPortHandle, dacadc->csadcPin, GPIO_PIN_SET);
-		adc_a_raw = ((rx_buf[0] << 6) | (rx_buf[1] >> 2)) & 0x3FFF;
-		adc_b_raw = (((rx_buf[1] & 0x03) << 12) | (rx_buf[2] << 4) | (rx_buf[3] >> 4)) & 0x3FFF;
-		dacadc->adc_i[0+offset] = sign_extend_14bit(adc_a_raw);
-		dacadc->adc_i[1+offset] = sign_extend_14bit(adc_b_raw);
-		//dacadc->adc_f[0+offset] = adc_to_voltage(adc_i[0+offset]);
-		//dacadc->adc_f[1+offset] = adc_to_voltage(adc_i[1+offset]);
+		adc_raw[0] = ((rx_buf[0] << 6) | (rx_buf[1] >> 2)) & 0x3FFF;
+		adc_raw[1] = (((rx_buf[1] & 0x03) << 12) | (rx_buf[2] << 4) | (rx_buf[3] >> 4)) & 0x3FFF;
+
+		for (uint8_t ch = 0; ch < 2; ch++) {
+			dacadc->adc_i[ch+offset] = sign_extend_14bit(adc_raw[ch]);
+			dacadc->adc_i_prev[ch+offset] = sign_extend_14bit(adc_raw[ch]);
+			if (dacadc->trig_state[ch+offset] < 1 && dacadc->adc_i_prev[ch+offset] < TRIG_THRESH && dacadc->adc_i[ch+offset] >= TRIG_THRESH) {
+				dacadc->trig_state[ch+offset] = 1;
+				dacadc->trig_flag[ch+offset] = 1;
+			} else if (dacadc->adc_i[ch+offset] < TRIG_THRESH_LOW) {
+				dacadc->trig_state[ch+offset] = 0;
+			}
+			dacadc->adc_i_prev[ch+offset] = dacadc->adc_i[ch+offset];
+		}
     }
 }
 

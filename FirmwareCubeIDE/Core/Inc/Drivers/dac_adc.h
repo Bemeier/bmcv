@@ -2,6 +2,9 @@
 #define INC_DRIVERS_DAC_ADC_H_
 #include "stm32g4xx_hal.h"
 
+#define TRIG_THRESH 1024
+#define TRIG_THRESH_LOW 800
+
 typedef struct {
 	SPI_HandleTypeDef *spiHandle;
 
@@ -31,7 +34,9 @@ typedef struct {
 	uint16_t DAC_DATA[8];
 
 	volatile int16_t adc_i[4];
-	//volatile float adc_f[4];
+	volatile int16_t adc_i_prev[4];
+	volatile int8_t trig_state[4];
+	volatile int8_t trig_flag[4];
 } DAC_ADC;
 
 void ADC_Init(DAC_ADC * dacadc);
