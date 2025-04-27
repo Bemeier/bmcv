@@ -458,6 +458,7 @@ int main(void)
     last_time = now;
     uint32_t elapsed_us = elapsed_cycles / (SystemCoreClock / 1000000);
 
+
 	WRITE_DAC_VALUE(&dacadc, 6, update_envelope(&env[0], elapsed_us));
 
 	if (mcp_poll == 1 && mcp.spi_dma_state == 0) {
@@ -493,13 +494,12 @@ int main(void)
 		}
 	}
 
-	WRITE_DAC_VALUE(&dacadc, 6, dacadc.adc_i[0]);
 	for (uint8_t ch = 0; ch < 4; ch++) {
 		if (dacadc.trig_flag[ch]) {
 			dacadc.trig_flag[ch] = 0;
 			if (ch == 0) {
 				HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
-				trigger_envelope(&env[0], 30000, 100000);
+				trigger_envelope(&env[0], 25000, 150000, (int8_t) 127 - ((mcp.enc_position_state[7]*4) % 255));
 			}
 		}
 	}
