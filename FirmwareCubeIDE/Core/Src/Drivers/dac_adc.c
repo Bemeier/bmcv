@@ -102,10 +102,12 @@ void DAC_Init(DAC_ADC * dacadc) {
 
     // Step 1: Set all GPIOs to default state
 	HAL_GPIO_WritePin(dacadc->csdacPortHandle, dacadc->csdacPin, GPIO_PIN_SET);
+	/*
     HAL_GPIO_WritePin(dacadc->ldacPortHandle, dacadc->ldacPin, GPIO_PIN_SET);
     HAL_GPIO_WritePin(dacadc->clrPortHandle, dacadc->clrPin, GPIO_PIN_RESET);
     HAL_Delay(1);
     HAL_GPIO_WritePin(dacadc->clrPortHandle, dacadc->clrPin, GPIO_PIN_SET);
+	*/
 
     //control_bits |= (range_code & 0x07);  // Bits 2:0 = range select
     // All other control bits = 0 (normal operation, Slew Rate Off, etc.)

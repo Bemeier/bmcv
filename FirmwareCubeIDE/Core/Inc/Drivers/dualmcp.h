@@ -5,22 +5,23 @@
 #define N_ENCODERS 8
 
 typedef struct {
-	SPI_HandleTypeDef *spiHandle;
+	volatile SPI_HandleTypeDef *spiHandle;
 	GPIO_TypeDef      *csPortHandle;
 	uint16_t           csPin;
 	GPIO_TypeDef      *resetPortHandle;
 	uint16_t           resetPin;
 	uint8_t   gpioa_state;
 	uint8_t   gpiob_state;
-	uint8_t   a_state; // bit mask state of encoders a pin state
-	uint8_t   b_state; // bit mask state of encoders b pin state
+	uint8_t   a_state;
+	uint8_t   b_state;
 	uint8_t   a_state_prev;
 	uint8_t   b_state_prev;
+	uint8_t   button_pins[N_ENCODERS];
 	uint8_t   enc_pins_a[N_ENCODERS];
 	uint8_t   enc_pins_b[N_ENCODERS];
-	int16_t   enc_position_state[N_ENCODERS]; // Tracked position per encoder
+	volatile int16_t   enc_position_state[N_ENCODERS]; // Tracked position per encoder
 	uint8_t   enc_pins_button[N_ENCODERS];
-	int8_t    enc_button_state[N_ENCODERS];
+	volatile int8_t    enc_button_state[N_ENCODERS];
 	uint8_t   tx_buf[8];
 	uint8_t   rx_buf[8];
 	volatile uint8_t   spi_dma_state;
@@ -74,6 +75,8 @@ uint8_t MCP23S17_ReadRegister(DUALMCP * mcp, uint8_t hw_addr, uint8_t reg);
 uint8_t MCP23S17_WriteRegister(DUALMCP * mcp, uint8_t hw_addr, uint8_t reg, uint8_t data);
 
 void ProcessEncoderStates(DUALMCP * mcp);
+
+void ProcessButtonStates(DUALMCP * mcp);
 
 void UpdateEncoderPinStates(DUALMCP * mcp, uint8_t gpioa, uint8_t gpiob);
 

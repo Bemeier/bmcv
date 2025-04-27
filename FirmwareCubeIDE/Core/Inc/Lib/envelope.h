@@ -8,8 +8,8 @@ typedef enum { IDLE, ATTACK, DECAY } EnvelopeState;
 
 typedef struct {
 	EnvelopeState state;
-	uint16_t value;
-	uint16_t smoothed_value;
+	int16_t value;
+	int16_t smoothed_value;
 	int8_t shape;
     uint32_t phase_progress; // 0 to ENV_MAX
     uint32_t phase_increment; // How fast phase progresses
@@ -17,6 +17,6 @@ typedef struct {
 } ENVELOPE;
 
 void trigger_envelope(ENVELOPE * env, uint32_t attack_ms, uint32_t decay_ms, int8_t shape);
-uint16_t update_envelope(ENVELOPE * env, uint32_t elapsed_us);
+int16_t update_envelope(ENVELOPE * env, uint32_t elapsed_us);
 
 #endif /* INC_ENVELOPE_H_ */

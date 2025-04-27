@@ -73,7 +73,7 @@ uint32_t apply_curve_blend(uint32_t progress, int8_t shape) {
 }
 
 
-uint16_t update_envelope(ENVELOPE * env, uint32_t elapsed_us) {
+int16_t update_envelope(ENVELOPE * env, uint32_t elapsed_us) {
     switch (env->state) {
         case ATTACK:
         	env->phase_progress += env->phase_increment * elapsed_us / 1000;

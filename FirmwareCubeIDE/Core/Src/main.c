@@ -22,10 +22,10 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "usbd_midi.h"
 #include <math.h>
-#include "dualmcp.h"
 #include "dac_adc.h"
+#include "usbd_midi.h"
+#include "dualmcp.h"
 #include "envelope.h"
 #include "helpers.h"
 /* USER CODE END Includes */
@@ -246,9 +246,12 @@ uint8_t nextDac = 0;
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	if(GPIO_Pin == INT_MCP_ENC_Pin || GPIO_Pin == 0) {
+    mcp_poll = 1;
+    /*
 		if (mcp.spi_dma_state == 0) {
 			ReadEncodersDMA(&mcp);
 		}
+    */
 	}
 
 }
@@ -458,11 +461,13 @@ int main(void)
     last_time = now;
     uint32_t elapsed_us = elapsed_cycles / (SystemCoreClock / 1000000);
 
-
-	WRITE_DAC_VALUE(&dacadc, 6, update_envelope(&env[0], elapsed_us));
+  int16_t envVal = update_envelope(&env[0], elapsed_us);
+	WRITE_DAC_VALUE(&dacadc, 6, envVal);
+	set_led_adc_range(envVal/4, &ws2811_rgb_data[0]);
 
 	if (mcp_poll == 1 && mcp.spi_dma_state == 0) {
     	mcp_poll = 0;
+			//ReadEncodersDMA(&mcp);
     	ReadButtonsDMA(&mcp);
 	}
 
@@ -483,7 +488,6 @@ int main(void)
 		//float hue = sinf(2.0f * M_PI * freq * time_ms / 1000.0f) * 127.5f + 127.5f;
 		//set_led_hsv(hue, 255, 255, &ws2811_rgb_data[0]);
 		//set_led_adc_range(adc_i[0], &ws2811_rgb_data[0]);
-		set_led_adc_range(slider, &ws2811_rgb_data[0]);
 		ws2811_commit();
 		lastSlider = slider;
 
@@ -499,7 +503,8 @@ int main(void)
 			dacadc.trig_flag[ch] = 0;
 			if (ch == 0) {
 				HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
-				trigger_envelope(&env[0], 25000, 150000, (int8_t) 127 - ((mcp.enc_position_state[7]*4) % 255));
+
+				trigger_envelope(&env[0], 10000 + slider * 20, 10000 + slider * 60, (int8_t) 127 - ((mcp.enc_position_state[7]*4) % 256));
 			}
 		}
 	}

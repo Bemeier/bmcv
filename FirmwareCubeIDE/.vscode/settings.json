@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "usbd_midi.h": "c",
+        "dac_adc.h": "c",
+        "dualmcp.h": "c"
+    }
+}

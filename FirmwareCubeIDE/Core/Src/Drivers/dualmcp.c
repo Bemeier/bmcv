@@ -26,6 +26,18 @@ uint8_t MCP23S17_WriteRegister(DUALMCP * mcp, uint8_t hw_addr, uint8_t reg, uint
     return MCP23S17_TransmitRegister(mcp, hw_addr, reg, data, 1);
 }
 
+void ProcessButtonStates(DUALMCP * mcp)
+{
+    for (uint8_t b = 0; b < N_ENCODERS; b++) {
+        uint8_t pin = mcp->button_pins[b];
+        if (pin < 8) {
+            mcp->enc_button_state[b] = (mcp->gpioa_state >> pin) & 0x01;
+        } else {
+            mcp->enc_button_state[b] = (mcp->gpiob_state >> (pin - 8)) & 0x01;
+        }
+    }
+}
+
 void ProcessEncoderStates(DUALMCP * mcp)
 {
     const int8_t encoder_table[16] = {
@@ -142,6 +154,7 @@ void MCP_DMA_Complete(DUALMCP * mcp) {
     if (mcp->spi_dma_state == 2) {
         mcp->gpioa_state = mcp->rx_buf[6];
         mcp->gpiob_state = mcp->rx_buf[7];
+        ProcessButtonStates(mcp);
     	ReadEncodersDMA(mcp);
     	return;
     }
@@ -157,6 +170,17 @@ void MCP_DMA_Complete(DUALMCP * mcp) {
 
 void MCP23S17_Init(DUALMCP * mcp) {
 	mcp->spi_dma_state = 0;
+
+	mcp->button_pins[0] = PORT_A_OFFSET + 0;  // Encoder 1
+	mcp->button_pins[1] = PORT_A_OFFSET + 0;  // Encoder 2
+	mcp->button_pins[2] = PORT_A_OFFSET + 0;  // Encoder 3
+	mcp->button_pins[3] = PORT_A_OFFSET + 0;  // Encoder 4
+	mcp->button_pins[4] = PORT_A_OFFSET + 5;  // Encoder 5
+	mcp->button_pins[5] = PORT_A_OFFSET + 0;  // Encoder 6
+	mcp->button_pins[6] = PORT_A_OFFSET + 0;  // Encoder 7
+	mcp->button_pins[7] = PORT_B_OFFSET + 3;  // Encoder 8
+    // Offset: 0 1 2 3 4 5  6  7
+    // Value:  0 1 2 4 6 8 16 32
 
 	mcp->enc_pins_a[0] = PORT_B_OFFSET + 2;  // Encoder 1 A
 	mcp->enc_pins_a[1] = PORT_B_OFFSET + 1;  // Encoder 2 A
