@@ -1,7 +1,7 @@
 (footprint "TC002-N11AXXX-RGB"
-	(version 20240108)
+	(version 20241229)
 	(generator "pcbnew")
-	(generator_version "8.0")
+	(generator_version "9.0")
 	(layer "F.Cu")
 	(property "Reference" "REF**"
 		(at 0 -0.5 0)
@@ -20,19 +20,6 @@
 		(unlocked yes)
 		(layer "F.Fab")
 		(uuid "c09437bc-2f7c-4b72-a83b-d6859ca09883")
-		(effects
-			(font
-				(size 1 1)
-				(thickness 0.15)
-			)
-		)
-	)
-	(property "Footprint" ""
-		(at 0 0 0)
-		(unlocked yes)
-		(layer "F.Fab")
-		(hide yes)
-		(uuid "0f5c3a8f-11a9-4991-bb5e-d3b7fe48b9ae")
 		(effects
 			(font
 				(size 1 1)
@@ -164,7 +151,7 @@
 		(uuid "97b8b1f5-0c5e-4f11-ae6b-4ea707d8e655")
 	)
 	(pad "5" thru_hole circle
-		(at -0.9 -2.9)
+		(at -0.925 -3)
 		(size 1.3 1.3)
 		(drill 0.8)
 		(layers "*.Cu" "*.Mask")
@@ -172,7 +159,7 @@
 		(uuid "9ac3da77-c91d-45d5-bb3e-e8929ae11e7c")
 	)
 	(pad "6" thru_hole circle
-		(at 0.9 -2.9)
+		(at 0.925 -3)
 		(size 1.3 1.3)
 		(drill 0.8)
 		(layers "*.Cu" "*.Mask")
@@ -180,7 +167,7 @@
 		(uuid "23fa58fe-9be7-47f6-8217-f5094b3d32f1")
 	)
 	(pad "7" thru_hole circle
-		(at 0.9 2.9)
+		(at 0.925 3 90)
 		(size 1.3 1.3)
 		(drill 0.8)
 		(layers "*.Cu" "*.Mask")
@@ -188,13 +175,14 @@
 		(uuid "a3fa3082-9f0e-47de-99f4-9e5d9054fabe")
 	)
 	(pad "8" thru_hole circle
-		(at -0.9 2.9)
+		(at -0.925 3)
 		(size 1.3 1.3)
 		(drill 0.8)
 		(layers "*.Cu" "*.Mask")
 		(remove_unused_layers no)
 		(uuid "6c37ae06-98c6-4611-85e2-4d8ed7481aa9")
 	)
+	(embedded_fonts no)
 	(model "${KIPRJMOD}/BMCV.pretty/TC002-N11AXXX-RGB.step"
 		(offset
 			(xyz 0 0 0)
@@ -207,7 +195,19 @@
 		)
 	)
 	(model "${KIPRJMOD}/BMCV.pretty/S2.step"
+		(hide yes)
 		(opacity 0.8400)
+		(offset
+			(xyz 0 0 0)
+		)
+		(scale
+			(xyz 1 1 1)
+		)
+		(rotate
+			(xyz 0 0 0)
+		)
+	)
+	(model "${KIPRJMOD}/BMCV.pretty/GENERIC_10_5mm_cap.step"
 		(offset
 			(xyz 0 0 0)
 		)
