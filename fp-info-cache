@@ -1,4 +1,4 @@
-24787714375650572
+24789483755432543
 Audio_Module
 Reverb_BTDR-1H
 Digital Reverberation Unit, http://www.belton.co.kr/inc/downfile.php?seq=17&file=pdf (footprint from http://www.uk-electronic.de/PDF/BTDR-1.pdf)
@@ -13,6 +13,13 @@ audio belton reverb
 0
 7
 7
+BMCV
+ALPHA_B10KX2
+
+
+0
+6
+6
 BMCV
 BMCVPanel
 
