@@ -29,11 +29,20 @@ uint8_t MCP23S17_WriteRegister(DUALMCP * mcp, uint8_t hw_addr, uint8_t reg, uint
 void ProcessButtonStates(DUALMCP * mcp)
 {
     for (uint8_t b = 0; b < N_ENCODERS; b++) {
-        uint8_t pin = mcp->button_pins[b];
+        uint8_t pin = mcp->enc_button_pins[b];
         if (pin < 8) {
             mcp->enc_button_state[b] = (mcp->gpioa_state >> pin) & 0x01;
         } else {
             mcp->enc_button_state[b] = (mcp->gpiob_state >> (pin - 8)) & 0x01;
+        }
+    }
+
+    for (uint8_t b = 0; b < N_ENCODERS; b++) {
+        uint8_t pin = mcp->bottom_button_pins[b];
+        if (pin < 8) {
+            mcp->bottom_button_state[b] = (mcp->gpioa_state >> pin) & 0x01;
+        } else {
+            mcp->bottom_button_state[b] = (mcp->gpiob_state >> (pin - 8)) & 0x01;
         }
     }
 }
@@ -171,14 +180,24 @@ void MCP_DMA_Complete(DUALMCP * mcp) {
 void MCP23S17_Init(DUALMCP * mcp) {
 	mcp->spi_dma_state = 0;
 
-	mcp->button_pins[0] = PORT_A_OFFSET + 0;  // Encoder 1
-	mcp->button_pins[1] = PORT_A_OFFSET + 0;  // Encoder 2
-	mcp->button_pins[2] = PORT_A_OFFSET + 0;  // Encoder 3
-	mcp->button_pins[3] = PORT_A_OFFSET + 0;  // Encoder 4
-	mcp->button_pins[4] = PORT_A_OFFSET + 5;  // Encoder 5
-	mcp->button_pins[5] = PORT_A_OFFSET + 0;  // Encoder 6
-	mcp->button_pins[6] = PORT_A_OFFSET + 0;  // Encoder 7
-	mcp->button_pins[7] = PORT_B_OFFSET + 3;  // Encoder 8
+	mcp->enc_button_pins[0] = PORT_A_OFFSET + 4;  // Encoder 1
+	mcp->enc_button_pins[1] = PORT_A_OFFSET + 6;  // Encoder 2
+	mcp->enc_button_pins[2] = PORT_A_OFFSET + 7;  // Encoder 3
+	mcp->enc_button_pins[3] = PORT_B_OFFSET + 0;  // Encoder 4
+	mcp->enc_button_pins[4] = PORT_A_OFFSET + 5;  // Encoder 5 <- correct
+	mcp->enc_button_pins[5] = PORT_B_OFFSET + 1;  // Encoder 6
+	mcp->enc_button_pins[6] = PORT_B_OFFSET + 2;  // Encoder 7
+	mcp->enc_button_pins[7] = PORT_B_OFFSET + 3;  // Encoder 8 <-correct
+
+    mcp->bottom_button_pins[0] = PORT_A_OFFSET + 0;
+    mcp->bottom_button_pins[1] = PORT_A_OFFSET + 1;
+    mcp->bottom_button_pins[2] = PORT_A_OFFSET + 2;
+    mcp->bottom_button_pins[3] = PORT_A_OFFSET + 3;
+
+    mcp->bottom_button_pins[4] = PORT_B_OFFSET + 4;
+    mcp->bottom_button_pins[5] = PORT_B_OFFSET + 5;
+    mcp->bottom_button_pins[6] = PORT_B_OFFSET + 6;
+    mcp->bottom_button_pins[7] = PORT_B_OFFSET + 7;
     // Offset: 0 1 2 3 4 5  6  7
     // Value:  0 1 2 4 6 8 16 32
 

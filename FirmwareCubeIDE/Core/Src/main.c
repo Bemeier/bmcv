@@ -467,6 +467,13 @@ int main(void)
 
 	if (mcp_poll == 1 && mcp.spi_dma_state == 0) {
     	mcp_poll = 0;
+
+      mcp.bottom_button_state[8] = HAL_GPIO_ReadPin(IN_BTN_MCU1_GPIO_Port, IN_BTN_MCU1_Pin);
+      mcp.bottom_button_state[9] = HAL_GPIO_ReadPin(IN_BTN_MCU2_GPIO_Port, IN_BTN_MCU2_Pin);
+      mcp.bottom_button_state[10] = HAL_GPIO_ReadPin(IN_BTN_MCU3_GPIO_Port, IN_BTN_MCU3_Pin);
+      mcp.bottom_button_state[11] = HAL_GPIO_ReadPin(IN_BTN_MCU4_GPIO_Port, IN_BTN_MCU4_Pin);
+      mcp.bottom_button_state[12] = HAL_GPIO_ReadPin(IN_BTN_MCU5_GPIO_Port, IN_BTN_MCU5_Pin);
+
 			//ReadEncodersDMA(&mcp);
     	ReadButtonsDMA(&mcp);
 	}
@@ -494,7 +501,7 @@ int main(void)
 		result = HAL_TIM_PWM_Start_DMA(&htim3, TIM_CHANNEL_4, ws2811_pwm_data, WS2811_BUF_LEN);
 		if (result != HAL_OK) {
 			HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
-			HAL_Delay(100);
+			//HAL_Delay(100);
 		}
 	}
 
@@ -1047,7 +1054,9 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOB, OUT_ADC_CS_Pin|OUT_ADC_CNVST_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, OUT_DAC_CLR_Pin|OUT_DAC_LDAC_Pin|OUT_DAC_SYNC_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOA, OUT_DAC_CLR_Pin|OUT_DAC_SYNC_Pin, GPIO_PIN_SET);
+
+  HAL_GPIO_WritePin(GPIOA, OUT_DAC_LDAC_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : IN_BTN_MCU2_Pin IN_BTN_MCU5_Pin IN_BTN_MCU4_Pin */
   GPIO_InitStruct.Pin = IN_BTN_MCU2_Pin|IN_BTN_MCU5_Pin|IN_BTN_MCU4_Pin;

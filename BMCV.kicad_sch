@@ -5616,7 +5616,7 @@
 		(uuid "6ee533c1-13e1-45bc-be3b-d3526faf89e2")
 	)
 	(no_connect
-		(at 29.21 189.865)
+		(at 41.91 189.865)
 		(uuid "800874be-bf6e-426e-bb2d-e8f944b6de21")
 	)
 	(wire
@@ -6048,16 +6048,6 @@
 			(type default)
 		)
 		(uuid "3aa2e8ac-3827-4e83-b586-761095f76151")
-	)
-	(wire
-		(pts
-			(xy 41.91 186.69) (xy 41.91 189.865)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "3bf3b8b4-16a3-4eda-82c0-cd25866d9a5e")
 	)
 	(wire
 		(pts
@@ -6801,6 +6791,16 @@
 	)
 	(wire
 		(pts
+			(xy 29.21 186.69) (xy 29.21 189.865)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9d717812-a6de-45a3-b382-718237998f77")
+	)
+	(wire
+		(pts
 			(xy 140.97 187.96) (xy 140.97 193.04)
 		)
 		(stroke
@@ -7081,16 +7081,6 @@
 	)
 	(wire
 		(pts
-			(xy 43.18 186.69) (xy 41.91 186.69)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "c680c75f-0799-4ec6-a1da-cb08d028b8f8")
-	)
-	(wire
-		(pts
 			(xy 364.49 226.695) (xy 367.03 226.695)
 		)
 		(stroke
@@ -7328,6 +7318,16 @@
 			(type default)
 		)
 		(uuid "ef45660a-02f4-455e-8914-796c4f63acaa")
+	)
+	(wire
+		(pts
+			(xy 29.21 186.69) (xy 43.18 186.69)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f0678365-8720-4940-9e3f-96e20a625fa7")
 	)
 	(wire
 		(pts
@@ -14033,6 +14033,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part #" "C151417"
+			(at 236.22 227.33 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(property "Height" ""
 			(at 236.22 227.33 0)
 			(effects
@@ -18360,9 +18369,9 @@
 		(at 229.87 96.52 180)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(fields_autoplaced yes)
 		(uuid "fd09284a-ccd2-49a4-a18d-31d8ebcca768")
 		(property "Reference" "J13"
