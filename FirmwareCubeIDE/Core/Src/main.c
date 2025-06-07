@@ -24,19 +24,16 @@
 /* USER CODE BEGIN Includes */
 #include <math.h>
 #include "dac_adc.h"
-#include "usbd_midi.h"
 #include "dualmcp.h"
 #include "envelope.h"
 #include "helpers.h"
+#include "ws2811.h"
+#include "fram.h"
+#include "midi.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-#define FRAM_WRITE   0x02
-#define FRAM_READ    0x03
-#define FRAM_WREN    0x06
-
-
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -47,147 +44,11 @@ volatile uint8_t dacadc_poll = 0;
 volatile uint8_t led_poll = 0;
 volatile uint8_t midi_poll = 0;
 
-// FRAM
-
-#define FRAM_CS_LOW()    HAL_GPIO_WritePin(SPI3_FRAM_CS_GPIO_Port, SPI3_FRAM_CS_Pin, GPIO_PIN_RESET)
-#define FRAM_CS_HIGH()    HAL_GPIO_WritePin(SPI3_FRAM_CS_GPIO_Port, SPI3_FRAM_CS_Pin, GPIO_PIN_SET)
-
-// MIDI
-extern USBD_HandleTypeDef hUsbDeviceFS;
-static uint8_t buffUsbReport[MIDI_EPIN_SIZE] = {0};
-static uint8_t buffUsbReportNextIndex = 0;
-
-void MIDI_addToUSBReport(uint8_t cable, uint8_t message, uint8_t param1, uint8_t param2)
-{
-  buffUsbReport[buffUsbReportNextIndex++] = (cable << 4) | (message >> 4);
-  buffUsbReport[buffUsbReportNextIndex++] = (message);
-  buffUsbReport[buffUsbReportNextIndex++] = (param1);
-  buffUsbReport[buffUsbReportNextIndex++] = (param2);
-
-  if (buffUsbReportNextIndex == MIDI_EPIN_SIZE)
-  {
-    while (USBD_MIDI_GetState(&hUsbDeviceFS) != MIDI_IDLE) {};
-    USBD_MIDI_SendReport(&hUsbDeviceFS, buffUsbReport, MIDI_EPIN_SIZE);
-    buffUsbReportNextIndex = 0;
-  }
-}
 
 // MCP & DAC
 DUALMCP mcp;
 DAC_ADC dacadc;
 ENVELOPE env[4];
-
-
-// WS2812
-#define LED_COUNT 21
-#define WS2811_BITS 24
-#define RST_PERIODS 256
-#define WS2811_BUF_LEN ((WS2811_BITS * LED_COUNT) + RST_PERIODS)
-
-
-
-// Over 72
-//#define WS2811_1 54        //
-//#define WS2811_0 16        //
-uint8_t WS2811_1 = 42; // 42
-uint8_t WS2811_0 = 14; // 14
-
-typedef union {
-	struct {
-		uint8_t r;
-		uint8_t g;
-		uint8_t b;
-	} color;
-
-	uint32_t data;
-} WS8211_LED_DATA;
-
-WS8211_LED_DATA ws2811_rgb_data[LED_COUNT];
-uint32_t ws2811_pwm_data[WS2811_BUF_LEN];
-volatile uint8_t WS_DATA_COMPLETE_FLAG;
-
-void set_led_hsv(uint8_t h, uint8_t s, uint8_t v, WS8211_LED_DATA* led) {
-    uint8_t region, remainder, p, q, t;
-
-    if (s == 0) {
-        led->color.r = v;
-        led->color.g = v;
-        led->color.b = v;
-        return;
-    }
-
-    region = h / 43;
-    remainder = (h - region * 43) * 6;
-
-    p = (v * (255 - s)) >> 8;
-    q = (v * (255 - ((s * remainder) >> 8))) >> 8;
-    t = (v * (255 - ((s * (255 - remainder)) >> 8))) >> 8;
-
-    switch (region) {
-        case 0:
-            led->color.r = v; led->color.g = t; led->color.b = p; break;
-        case 1:
-            led->color.r = q; led->color.g = v; led->color.b = p; break;
-        case 2:
-            led->color.r = p; led->color.g = v; led->color.b = t; break;
-        case 3:
-            led->color.r = p; led->color.g = q; led->color.b = v; break;
-        case 4:
-            led->color.r = t; led->color.g = p; led->color.b = v; break;
-        default:
-            led->color.r = v; led->color.g = p; led->color.b = q; break;
-    }
-}
-
-
-void set_led_adc_range(int16_t val, WS8211_LED_DATA* led) {
-	// int16_t only safe because we know ADC values are only 14 bits, so they won't overflow here.
-	int16_t abs_val = abs(val);
-	int16_t blue_range = abs_val - 4096;
-	uint8_t base_val = 255;
-	if (blue_range < 0) {
-		blue_range = 0;
-		base_val = (abs_val / 16) & 0xFF;
-	}
-	led->color.b = ((blue_range / 16) & 0xFF);
-	if (val > 0) {
-		led->color.g = base_val;
-		led->color.r =  0;
-	} else {
-		led->color.r = base_val;
-		led->color.b = 0;
-	}
-}
-
-void ws2811_init() {
-	for (uint16_t bufidx = 0; bufidx < WS2811_BUF_LEN; bufidx++) {
-		ws2811_pwm_data[bufidx] = 0;
-	}
-	WS_DATA_COMPLETE_FLAG = 1;
-}
-
-void ws2811_setled(uint8_t index, uint8_t r, uint8_t g, uint8_t b) {
-	ws2811_rgb_data[index].color.r = r;
-	ws2811_rgb_data[index].color.g = g;
-	ws2811_rgb_data[index].color.b = b;
-}
-
-void ws2811_commit() {
-	uint16_t bufidx = 0;
-
-	for (uint8_t led = 0; led < LED_COUNT; led++) {
-		for (uint8_t bits = 0; bits < WS2811_BITS; bits++, bufidx++) {
-			uint8_t byte = (bits / 8) * 8;
-			uint8_t bit = 7 - (bits % 8);
-			uint8_t bitIndex = byte + bit;
-
-			if ((ws2811_rgb_data[led].data >> bitIndex) & 0x01)
-				ws2811_pwm_data[bufidx] = WS2811_1;
-			else
-				ws2811_pwm_data[bufidx] = WS2811_0;
-		}
-	}
-}
 
 volatile uint8_t addr = 0;
 volatile uint8_t converting = 0;
@@ -245,17 +106,10 @@ static void MX_TIM2_Init(void);
 
 uint8_t nextDac = 0;
 
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-{
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 	if(GPIO_Pin == INT_MCP_ENC_Pin || GPIO_Pin == 0) {
     mcp_poll = 1;
-    /*
-		if (mcp.spi_dma_state == 0) {
-			ReadEncodersDMA(&mcp);
-		}
-    */
 	}
-
 }
 
 void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef * hspi) {
@@ -271,10 +125,7 @@ void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef * hspi) {
 
 void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
 {
-    if (htim->Instance == TIM3 && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_4)
-    {
-    	WS_DATA_COMPLETE_FLAG = 1;
-    }
+    ws2811_dma_complete_callback(htim);
 }
 
 
@@ -390,7 +241,7 @@ int main(void)
   HAL_GPIO_WritePin(LEVEL_SHIFTER_EN_GPIO_Port, LEVEL_SHIFTER_EN_Pin, GPIO_PIN_SET);
   HAL_Delay(20);
 
-  ws2811_init();
+  ws2811_init(&htim3, TIM_CHANNEL_4);
 
   // Should move to init function:
   mcp.spiHandle = &hspi1;
@@ -423,20 +274,6 @@ int main(void)
       sine_table[i] = SINE_AMPLITUDE * sinf(2 * M_PI * i / SINE_STEPS);
   }
 
-
-  for (uint8_t ledidx = 0; ledidx < LED_COUNT; ledidx++) {
-	  ws2811_setled(ledidx, 255, 0, 0);
-  }
-  ws2811_commit();
-
-  /*
-  result = HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
-  if (result != HAL_OK) {
-	  ws2811_encode(0xFF0000);
-  }
-  */
-
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -465,45 +302,38 @@ int main(void)
 
 	if (mcp_poll == 1 && mcp.spi_dma_state == 0) {
     	mcp_poll = 0;
-
-      mcp.bottom_button_state[8] = HAL_GPIO_ReadPin(IN_BTN_MCU1_GPIO_Port, IN_BTN_MCU1_Pin);
-      mcp.bottom_button_state[9] = HAL_GPIO_ReadPin(IN_BTN_MCU2_GPIO_Port, IN_BTN_MCU2_Pin);
-      mcp.bottom_button_state[10] = HAL_GPIO_ReadPin(IN_BTN_MCU3_GPIO_Port, IN_BTN_MCU3_Pin);
-      mcp.bottom_button_state[11] = HAL_GPIO_ReadPin(IN_BTN_MCU4_GPIO_Port, IN_BTN_MCU4_Pin);
-      mcp.bottom_button_state[12] = HAL_GPIO_ReadPin(IN_BTN_MCU5_GPIO_Port, IN_BTN_MCU5_Pin);
-
-			//ReadEncodersDMA(&mcp);
+      mcp.button_state[N_ENCODERS*2+0] = HAL_GPIO_ReadPin(IN_BTN_MCU1_GPIO_Port, IN_BTN_MCU1_Pin);
+      mcp.button_state[N_ENCODERS*2+1] = HAL_GPIO_ReadPin(IN_BTN_MCU2_GPIO_Port, IN_BTN_MCU2_Pin);
+      mcp.button_state[N_ENCODERS*2+2] = HAL_GPIO_ReadPin(IN_BTN_MCU3_GPIO_Port, IN_BTN_MCU3_Pin);
+      mcp.button_state[N_ENCODERS*2+3] = HAL_GPIO_ReadPin(IN_BTN_MCU4_GPIO_Port, IN_BTN_MCU4_Pin);
+      mcp.button_state[N_ENCODERS*2+4] = HAL_GPIO_ReadPin(IN_BTN_MCU5_GPIO_Port, IN_BTN_MCU5_Pin);
+      mcp.button_state[N_ENCODERS*2+5] = HAL_GPIO_ReadPin(MENU_BTN_2_GPIO_Port, MENU_BTN_2_Pin);
+      mcp.button_state[N_ENCODERS*2+6] = HAL_GPIO_ReadPin(BOOT_SW_GPIO_Port, BOOT_SW_Pin);
+      mcp.button_state[N_ENCODERS*2+7] = HAL_GPIO_ReadPin(MENU_BTN_3_GPIO_Port, MENU_BTN_3_Pin);
     	ReadButtonsDMA(&mcp);
 	}
 
-	if (midi_poll && USBD_MIDI_GetState(&hUsbDeviceFS) == MIDI_IDLE) {
+	if (midi_poll && midi_idle()) {
 		midi_poll = 0;
-		MIDI_addToUSBReport(0, 0xB0, 0x10, sclamp(dacadc.adc_i[0]/32, 0, 127));
-		MIDI_addToUSBReport(0, 0xB0, 0x11, sclamp(dacadc.adc_i[1]/32, 0, 127));
-		MIDI_addToUSBReport(0, 0xB0, 0x12, sclamp(dacadc.adc_i[2]/32, 0, 127));
-		MIDI_addToUSBReport(0, 0xB0, 0x13, sclamp(dacadc.adc_i[3]/32, 0, 127));
-		MIDI_addToUSBReport(0, 0xB0, 0x14, sclamp(slider / 64 , 0, 127));
-		USBD_MIDI_SendReport(&hUsbDeviceFS, buffUsbReport, MIDI_EPIN_SIZE);
-		buffUsbReportNextIndex = 0;
+    MIDI_addToUSBReport(0, 0xB0, 0x10, sclamp(dacadc.adc_i[0]/32, 0, 127));
+    MIDI_addToUSBReport(0, 0xB0, 0x11, sclamp(dacadc.adc_i[1]/32, 0, 127));
+    MIDI_addToUSBReport(0, 0xB0, 0x12, sclamp(dacadc.adc_i[2]/32, 0, 127));
+    MIDI_addToUSBReport(0, 0xB0, 0x13, sclamp(dacadc.adc_i[3]/32, 0, 127));
+    update_midi();
 	}
 
-	if (led_poll && WS_DATA_COMPLETE_FLAG == 1) {
-		WS_DATA_COMPLETE_FLAG = 0;
+	if (led_poll && ws2811_dma_completed()) {
 		led_poll = 0;
 		//float hue = sinf(2.0f * M_PI * freq * time_ms / 1000.0f) * 127.5f + 127.5f;
+		//set_led_hsv(128, 255, 80, &ws2811_rgb_data[0]);
     for (uint8_t ledidx = 0; ledidx < LED_COUNT; ledidx++) {
-      //ws2811_setled(ledidx, 255, 0, 0);
-		  set_led_hsv((dacadc.adc_i[0] + 4096) / 32, 255, 80, &ws2811_rgb_data[ledidx]);
+		  ws2811_setled_hsv(ledidx, (dacadc.adc_i[0] + 4096) / 32, 250, 16);
     }
-		//set_led_adc_range(adc_i[0], &ws2811_rgb_data[0]);
-		ws2811_commit();
-		lastSlider = slider;
 
-		result = HAL_TIM_PWM_Start_DMA(&htim3, TIM_CHANNEL_4, ws2811_pwm_data, WS2811_BUF_LEN);
-		if (result != HAL_OK) {
-			//HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
-			//HAL_Delay(100);
-		}
+		//set_led_hsv(255, 255, 80, &ws2811_rgb_data[LED_COUNT-1]);
+		//set_led_adc_range(adc_i[0], &ws2811_rgb_data[0]);
+
+    ws2811_update();
 	}
 
 	for (uint8_t ch = 0; ch < 4; ch++) {
@@ -515,14 +345,6 @@ int main(void)
 			}
 		}
 	}
-
-  /*
-  int16_t v1 = mcp.enc_position_state[4]; 
-  int16_t v0 = mcp.enc_position_state[6];
-
-  WS2811_1 = (v1 < 4) ? 4 : (v1 > 127) ? 127 : (uint8_t) v1;
-  WS2811_0 = (v0 < 4) ? 4 : (v0 > 127) ? 127 : (uint8_t) v0;
-  */
 
 	// TODO: dma busy flag?
 	if (nextDac) {
@@ -925,7 +747,7 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 1;
+  htim3.Init.Prescaler = 2-1;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim3.Init.Period = 89;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;

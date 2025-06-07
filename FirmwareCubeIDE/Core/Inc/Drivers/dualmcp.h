@@ -5,7 +5,7 @@
 #define N_ENCODERS 8
 
 typedef struct {
-	volatile SPI_HandleTypeDef *spiHandle;
+	SPI_HandleTypeDef *spiHandle;
 	GPIO_TypeDef      *csPortHandle;
 	uint16_t           csPin;
 	GPIO_TypeDef      *resetPortHandle;
@@ -24,6 +24,7 @@ typedef struct {
 	uint8_t   enc_pins_button[N_ENCODERS];
 	volatile int8_t    enc_button_state[N_ENCODERS];
 	volatile int8_t    bottom_button_state[13];
+	uint8_t   button_state[N_ENCODERS + 13 + 3];
 	uint8_t   tx_buf[8];
 	uint8_t   rx_buf[8];
 	volatile uint8_t   spi_dma_state;

@@ -7705,6 +7705,28 @@
 			)
 		)
 	)
+	(global_label "BOOT"
+		(shape input)
+		(at 267.97 124.46 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "221bbaf6-6d34-49ad-860f-b58d8acdf2ab")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 260.0862 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+				(hide yes)
+			)
+		)
+	)
 	(global_label "MCP_SCK"
 		(shape input)
 		(at 46.99 245.11 180)
@@ -8224,28 +8246,6 @@
 		(uuid "5cbdce7c-23ad-459f-bfee-a0bf09a836d0")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 254.5224 129.54 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-				(hide yes)
-			)
-		)
-	)
-	(global_label "BTN_MENU_1"
-		(shape input)
-		(at 267.97 124.46 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "5f04a2a9-7491-4ae1-a5ee-c46ec1bac3fb")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 253.0106 124.46 0)
 			(effects
 				(font
 					(size 1.27 1.27)

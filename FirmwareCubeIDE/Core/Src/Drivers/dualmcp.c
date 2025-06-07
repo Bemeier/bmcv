@@ -31,18 +31,18 @@ void ProcessButtonStates(DUALMCP * mcp)
     for (uint8_t b = 0; b < N_ENCODERS; b++) {
         uint8_t pin = mcp->enc_button_pins[b];
         if (pin < 8) {
-            mcp->enc_button_state[b] = (mcp->gpioa_state >> pin) & 0x01;
+            mcp->button_state[b] = (mcp->gpioa_state >> pin) & 0x01;
         } else {
-            mcp->enc_button_state[b] = (mcp->gpiob_state >> (pin - 8)) & 0x01;
+            mcp->button_state[b] = (mcp->gpiob_state >> (pin - 8)) & 0x01;
         }
     }
 
     for (uint8_t b = 0; b < N_ENCODERS; b++) {
         uint8_t pin = mcp->bottom_button_pins[b];
         if (pin < 8) {
-            mcp->bottom_button_state[b] = (mcp->gpioa_state >> pin) & 0x01;
+            mcp->button_state[N_ENCODERS+b] = (mcp->gpioa_state >> pin) & 0x01;
         } else {
-            mcp->bottom_button_state[b] = (mcp->gpiob_state >> (pin - 8)) & 0x01;
+            mcp->button_state[N_ENCODERS+b] = (mcp->gpiob_state >> (pin - 8)) & 0x01;
         }
     }
 }
