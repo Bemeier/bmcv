@@ -7,7 +7,10 @@
 #define FRAM_READ    0x03
 #define FRAM_WREN    0x06
 
-#define FRAM_CS_LOW()    HAL_GPIO_WritePin(SPI3_FRAM_CS_GPIO_Port, SPI3_FRAM_CS_Pin, GPIO_PIN_RESET)
-#define FRAM_CS_HIGH()    HAL_GPIO_WritePin(SPI3_FRAM_CS_GPIO_Port, SPI3_FRAM_CS_Pin, GPIO_PIN_SET)
+void fram_init(SPI_HandleTypeDef * spi, GPIO_TypeDef * port, uint16_t pin);
+
+uint8_t fram_ReadByte(uint16_t addr);
+void fram_WriteByte(uint16_t addr, uint8_t data);
+uint8_t fram_ReadByte(uint16_t addr);
 
 #endif /* INC_DRIVERS_FRAM_H_ */

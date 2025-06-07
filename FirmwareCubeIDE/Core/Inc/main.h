@@ -65,8 +65,6 @@ void Error_Handler(void);
 #define IN_BTN_MCU5_GPIO_Port GPIOC
 #define IN_BTN_MCU4_Pin GPIO_PIN_15
 #define IN_BTN_MCU4_GPIO_Port GPIOC
-#define BOOT_SW_Pin GPIO_PIN_10
-#define BOOT_SW_GPIO_Port GPIOG
 #define IN_BTN_MCU3_Pin GPIO_PIN_0
 #define IN_BTN_MCU3_GPIO_Port GPIOA
 #define ADC1_IN2_SLIDER_Pin GPIO_PIN_1
@@ -122,8 +120,8 @@ void Error_Handler(void);
 #define MENU_BTN_3_GPIO_Port GPIOB
 #define LEVEL_SHIFTER_EN_Pin GPIO_PIN_7
 #define LEVEL_SHIFTER_EN_GPIO_Port GPIOB
-#define RESET_SW_Pin GPIO_PIN_8
-#define RESET_SW_GPIO_Port GPIOB
+#define MENU_BTN_BOOT_Pin GPIO_PIN_8
+#define MENU_BTN_BOOT_GPIO_Port GPIOB
 #define IN_BTN_MCU1_Pin GPIO_PIN_9
 #define IN_BTN_MCU1_GPIO_Port GPIOB
 
