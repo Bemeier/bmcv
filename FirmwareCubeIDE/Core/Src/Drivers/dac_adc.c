@@ -144,7 +144,7 @@ void DAC_Init(DAC_ADC * dacadc) {
 
     HAL_Delay(1);
 
-    HAL_GPIO_WritePin(dacadc->ldacPortHandle, dacadc->ldacPin, GPIO_PIN_RESET);
+    //HAL_GPIO_WritePin(dacadc->ldacPortHandle, dacadc->ldacPin, GPIO_PIN_RESET);
 
 }
 

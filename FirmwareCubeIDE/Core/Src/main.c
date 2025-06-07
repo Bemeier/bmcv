@@ -81,14 +81,16 @@ ENVELOPE env[4];
 // WS2812
 #define LED_COUNT 21
 #define WS2811_BITS 24
-#define RST_PERIODS 64
+#define RST_PERIODS 256
 #define WS2811_BUF_LEN ((WS2811_BITS * LED_COUNT) + RST_PERIODS)
 
 
 
 // Over 72
-#define WS2811_1 36        //
-#define WS2811_0 16        //
+//#define WS2811_1 54        //
+//#define WS2811_0 16        //
+uint8_t WS2811_1 = 42; // 42
+uint8_t WS2811_0 = 14; // 14
 
 typedef union {
 	struct {
@@ -318,7 +320,7 @@ uint8_t FRAM_ReadByte(uint16_t addr) {
 }
 
 #define SINE_STEPS     128       // Number of points per wave cycle
-#define SINE_AMPLITUDE 31000     // Max int16_t value for DAC full scale
+#define SINE_AMPLITUDE 16000     // Max int16_t value for DAC full scale
 #define CHANNEL        0         // DAC Channel A
 
 float sine_table[SINE_STEPS];
@@ -326,6 +328,7 @@ float sine_table[SINE_STEPS];
 uint8_t val1;
 uint8_t test_val;
 uint8_t read_val;
+uint16_t sine_index = 0;
 
 volatile float adc_freq_hz = 0;           // Smoothed ADC frequency estimate
 volatile uint32_t last_sample_time = 0;   // Last tick (ms) of ADC sample
@@ -384,7 +387,7 @@ int main(void)
   init_cycle_counter();
   generate_quant_lut();
 
-  HAL_GPIO_WritePin(LEVEL_SHIFTER_EN_GPIO_Port, LEVEL_SHIFTER_EN_Pin, SET);
+  HAL_GPIO_WritePin(LEVEL_SHIFTER_EN_GPIO_Port, LEVEL_SHIFTER_EN_Pin, GPIO_PIN_SET);
   HAL_Delay(20);
 
   ws2811_init();
@@ -407,10 +410,6 @@ int main(void)
   dacadc.adrrPin = OUT_ADC_ADDR_Pin;
   dacadc.csdacPortHandle = OUT_DAC_SYNC_GPIO_Port;
   dacadc.csdacPin = OUT_DAC_SYNC_Pin;
-  dacadc.ldacPortHandle = OUT_DAC_LDAC_GPIO_Port;
-  dacadc.ldacPin = OUT_DAC_LDAC_Pin;
-  dacadc.clrPortHandle = OUT_DAC_CLR_GPIO_Port;
-  dacadc.clrPin = OUT_DAC_CLR_Pin;
 
   MCP23S17_Init(&mcp);
 
@@ -437,7 +436,6 @@ int main(void)
   }
   */
 
-  uint16_t sine_index = 0;
 
   /* USER CODE END 2 */
 
@@ -463,7 +461,7 @@ int main(void)
 
   int16_t envVal = update_envelope(&env[0], elapsed_us);
 	WRITE_DAC_VALUE(&dacadc, 6, envVal);
-	set_led_adc_range(envVal/4, &ws2811_rgb_data[0]);
+	//set_led_adc_range(envVal/4, &ws2811_rgb_data[0]);
 
 	if (mcp_poll == 1 && mcp.spi_dma_state == 0) {
     	mcp_poll = 0;
@@ -493,14 +491,17 @@ int main(void)
 		WS_DATA_COMPLETE_FLAG = 0;
 		led_poll = 0;
 		//float hue = sinf(2.0f * M_PI * freq * time_ms / 1000.0f) * 127.5f + 127.5f;
-		//set_led_hsv(hue, 255, 255, &ws2811_rgb_data[0]);
+    for (uint8_t ledidx = 0; ledidx < LED_COUNT; ledidx++) {
+      //ws2811_setled(ledidx, 255, 0, 0);
+		  set_led_hsv((dacadc.adc_i[0] + 4096) / 32, 255, 80, &ws2811_rgb_data[ledidx]);
+    }
 		//set_led_adc_range(adc_i[0], &ws2811_rgb_data[0]);
 		ws2811_commit();
 		lastSlider = slider;
 
 		result = HAL_TIM_PWM_Start_DMA(&htim3, TIM_CHANNEL_4, ws2811_pwm_data, WS2811_BUF_LEN);
 		if (result != HAL_OK) {
-			HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
+			//HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
 			//HAL_Delay(100);
 		}
 	}
@@ -509,12 +510,19 @@ int main(void)
 		if (dacadc.trig_flag[ch]) {
 			dacadc.trig_flag[ch] = 0;
 			if (ch == 0) {
-				HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
-
+				//HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
 				trigger_envelope(&env[0], 10000 + slider * 20, 10000 + slider * 60, (int8_t) 127 - ((mcp.enc_position_state[7]*4) % 256));
 			}
 		}
 	}
+
+  /*
+  int16_t v1 = mcp.enc_position_state[4]; 
+  int16_t v0 = mcp.enc_position_state[6];
+
+  WS2811_1 = (v1 < 4) ? 4 : (v1 > 127) ? 127 : (uint8_t) v1;
+  WS2811_0 = (v0 < 4) ? 4 : (v0 > 127) ? 127 : (uint8_t) v0;
+  */
 
 	// TODO: dma busy flag?
 	if (nextDac) {
@@ -528,22 +536,30 @@ int main(void)
 		    		val = -SINE_AMPLITUDE;
 		    	}
 		    	WRITE_DAC_VALUE(&dacadc, i, val);
+
+          /*
+		    	if (i % 2 == 0) {
+		    	  WRITE_DAC_VALUE(&dacadc, i, SINE_AMPLITUDE);
+		    	} else {
+		    	  WRITE_DAC_VALUE(&dacadc, i, -SINE_AMPLITUDE);
+		    	}
+          */
 		    }
 		}
 
-    	WRITE_DAC_VALUE(&dacadc, 7, quantize_adc(dacadc.adc_i[3]));
+    WRITE_DAC_VALUE(&dacadc, 7, quantize_adc(dacadc.adc_i[3]));
 
 		nextDac = 0;
 		DAC_ADC_DMA_Next(&dacadc);
 	}
 
 
-	/*
 	test_val = 0x5A;
 	FRAM_WriteEnable();
 	FRAM_WriteByte(0x0010, test_val);
 	read_val = FRAM_ReadByte(0x0010);
 
+	/*
 	if (read_val != test_val) {
 		HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
 		HAL_Delay(1000);
@@ -909,9 +925,9 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 2;
+  htim3.Init.Prescaler = 1;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 72;
+  htim3.Init.Period = 89;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
@@ -1048,15 +1064,13 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOA, OUT_MCP_CS_Pin|SPI3_FRAM_CS_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, OUT_MCP_RESET_Pin|OUT_ADC_ADDR_Pin|SLIDER_LED_Pin|LEVEL_SHIFTER_EN_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, OUT_MCP_RESET_Pin|OUT_ADC_ADDR_Pin|LEVEL_SHIFTER_EN_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, OUT_ADC_CS_Pin|OUT_ADC_CNVST_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, OUT_DAC_CLR_Pin|OUT_DAC_SYNC_Pin, GPIO_PIN_SET);
-
-  HAL_GPIO_WritePin(GPIOA, OUT_DAC_LDAC_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, EXTRA_PA9_Pin|OUT_DAC_SYNC_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pins : IN_BTN_MCU2_Pin IN_BTN_MCU5_Pin IN_BTN_MCU4_Pin */
   GPIO_InitStruct.Pin = IN_BTN_MCU2_Pin|IN_BTN_MCU5_Pin|IN_BTN_MCU4_Pin;
@@ -1070,11 +1084,11 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(BOOT_SW_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : IN_BTN_MCU3_Pin */
-  GPIO_InitStruct.Pin = IN_BTN_MCU3_Pin;
+  /*Configure GPIO pins : IN_BTN_MCU3_Pin MENU_BTN_2_Pin */
+  GPIO_InitStruct.Pin = IN_BTN_MCU3_Pin|MENU_BTN_2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(IN_BTN_MCU3_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pins : INT_MCP_BTN_Pin INT_MCP_ENC_Pin */
   GPIO_InitStruct.Pin = INT_MCP_BTN_Pin|INT_MCP_ENC_Pin;
@@ -1082,10 +1096,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : OUT_MCP_CS_Pin OUT_DAC_CLR_Pin OUT_DAC_LDAC_Pin OUT_DAC_SYNC_Pin
-                           SPI3_FRAM_CS_Pin */
-  GPIO_InitStruct.Pin = OUT_MCP_CS_Pin|OUT_DAC_CLR_Pin|OUT_DAC_LDAC_Pin|OUT_DAC_SYNC_Pin
-                          |SPI3_FRAM_CS_Pin;
+  /*Configure GPIO pins : OUT_MCP_CS_Pin EXTRA_PA9_Pin OUT_DAC_SYNC_Pin SPI3_FRAM_CS_Pin */
+  GPIO_InitStruct.Pin = OUT_MCP_CS_Pin|EXTRA_PA9_Pin|OUT_DAC_SYNC_Pin|SPI3_FRAM_CS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
@@ -1104,18 +1116,18 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(INT_ADC_BUSY_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : SLIDER_LED_Pin LEVEL_SHIFTER_EN_Pin */
-  GPIO_InitStruct.Pin = SLIDER_LED_Pin|LEVEL_SHIFTER_EN_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : RESET_SW_Pin IN_BTN_MCU1_Pin */
-  GPIO_InitStruct.Pin = RESET_SW_Pin|IN_BTN_MCU1_Pin;
+  /*Configure GPIO pins : MENU_BTN_3_Pin RESET_SW_Pin IN_BTN_MCU1_Pin */
+  GPIO_InitStruct.Pin = MENU_BTN_3_Pin|RESET_SW_Pin|IN_BTN_MCU1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : LEVEL_SHIFTER_EN_Pin */
+  GPIO_InitStruct.Pin = LEVEL_SHIFTER_EN_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(LEVEL_SHIFTER_EN_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI2_IRQn, 0, 0);

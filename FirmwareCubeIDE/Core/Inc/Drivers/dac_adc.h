@@ -20,12 +20,6 @@ typedef struct {
 	GPIO_TypeDef      *csdacPortHandle;
 	uint16_t           csdacPin;
 
-	GPIO_TypeDef      *ldacPortHandle;
-	uint16_t           ldacPin;
-
-	GPIO_TypeDef      *clrPortHandle;
-	uint16_t           clrPin;
-
 	uint8_t CH_IDX;
 	uint8_t rx_buf[6];
 	uint8_t offset;

@@ -104,10 +104,10 @@ void Error_Handler(void);
 #define SPI2_DAC_ADC_MISO_GPIO_Port GPIOB
 #define SPI2_DAC_ADC_MOSI_Pin GPIO_PIN_15
 #define SPI2_DAC_ADC_MOSI_GPIO_Port GPIOB
-#define OUT_DAC_CLR_Pin GPIO_PIN_8
-#define OUT_DAC_CLR_GPIO_Port GPIOA
-#define OUT_DAC_LDAC_Pin GPIO_PIN_9
-#define OUT_DAC_LDAC_GPIO_Port GPIOA
+#define MENU_BTN_2_Pin GPIO_PIN_8
+#define MENU_BTN_2_GPIO_Port GPIOA
+#define EXTRA_PA9_Pin GPIO_PIN_9
+#define EXTRA_PA9_GPIO_Port GPIOA
 #define OUT_DAC_SYNC_Pin GPIO_PIN_10
 #define OUT_DAC_SYNC_GPIO_Port GPIOA
 #define SPI3_FRAM_CS_Pin GPIO_PIN_15
@@ -118,8 +118,8 @@ void Error_Handler(void);
 #define SPI3_FRAM_MISO_GPIO_Port GPIOB
 #define SPI3_FRAM_MOSI_Pin GPIO_PIN_5
 #define SPI3_FRAM_MOSI_GPIO_Port GPIOB
-#define SLIDER_LED_Pin GPIO_PIN_6
-#define SLIDER_LED_GPIO_Port GPIOB
+#define MENU_BTN_3_Pin GPIO_PIN_6
+#define MENU_BTN_3_GPIO_Port GPIOB
 #define LEVEL_SHIFTER_EN_Pin GPIO_PIN_7
 #define LEVEL_SHIFTER_EN_GPIO_Port GPIOB
 #define RESET_SW_Pin GPIO_PIN_8
