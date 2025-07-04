@@ -22,8 +22,6 @@ typedef struct {
 	uint8_t   enc_pins_b[N_ENCODERS];
 	volatile int16_t   enc_position_state[N_ENCODERS]; // Tracked position per encoder
 	uint8_t   enc_pins_button[N_ENCODERS];
-	volatile int8_t    enc_button_state[N_ENCODERS];
-	volatile int8_t    bottom_button_state[13];
 	uint8_t   button_state[N_ENCODERS + 13 + 3];
 	uint8_t   tx_buf[8];
 	uint8_t   rx_buf[8];
@@ -69,30 +67,32 @@ typedef struct {
 #define PORT_A_OFFSET 0
 #define PORT_B_OFFSET 8
 
-void MCP23S17_Init(DUALMCP * mcp);
+DUALMCP * mcp_instance(void);
 
-uint8_t MCP23S17_TransmitRegister(DUALMCP * mcp, uint8_t hw_addr, uint8_t reg, uint8_t data, uint8_t write);
+void mcp_init(SPI_HandleTypeDef * spi);
 
-uint8_t MCP23S17_ReadRegister(DUALMCP * mcp, uint8_t hw_addr, uint8_t reg);
+uint8_t mcp_transmit_register(uint8_t hw_addr, uint8_t reg, uint8_t data, uint8_t write);
 
-uint8_t MCP23S17_WriteRegister(DUALMCP * mcp, uint8_t hw_addr, uint8_t reg, uint8_t data);
+uint8_t mcp_read_register(uint8_t hw_addr, uint8_t reg);
 
-void ProcessEncoderStates(DUALMCP * mcp);
+uint8_t mcp_write_register(uint8_t hw_addr, uint8_t reg, uint8_t data);
 
-void ProcessButtonStates(DUALMCP * mcp);
+void ProcessEncoderStates();
 
-void UpdateEncoderPinStates(DUALMCP * mcp, uint8_t gpioa, uint8_t gpiob);
+void ProcessButtonStates();
 
-void ReadEncoders(DUALMCP * mcp);
+void UpdateEncoderPinStates(uint8_t gpioa, uint8_t gpiob);
 
-void ReadButtons(DUALMCP * mcp);
+void ReadEncoders();
 
-uint8_t ReadButtonsDMA(DUALMCP * mcp);
+void ReadButtons();
 
-void ReadEncoders(DUALMCP * mcp);
+uint8_t ReadButtonsDMA();
 
-uint8_t ReadEncodersDMA(DUALMCP * mcp);
+void ReadEncoders();
 
-void MCP_DMA_Complete(DUALMCP * mcp);
+uint8_t ReadEncodersDMA();
+
+void mcp_dma_complete();
 
 #endif /* INC_DRIVERS_DUALmcp_H_ */

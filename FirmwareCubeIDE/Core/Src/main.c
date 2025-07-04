@@ -30,6 +30,7 @@
 #include "ws2811.h"
 #include "fram.h"
 #include "midi.h"
+#include "bmcv.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -45,8 +46,6 @@ volatile uint8_t led_poll = 0;
 volatile uint8_t midi_poll = 0;
 
 // MCP & DAC
-DUALMCP mcp;
-DAC_ADC dacadc;
 ENVELOPE env[4];
 
 /* USER CODE END PD */
@@ -109,12 +108,12 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 }
 
 void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef * hspi) {
-	if (hspi->Instance == mcp.spiHandle->Instance) {
-		MCP_DMA_Complete(&mcp);
+	if (hspi->Instance == mcp_instance()->spiHandle->Instance) {
+		mcp_dma_complete();
 	}
 
-	if (hspi->Instance == dacadc.spiHandle->Instance) {
-		DAC_ADC_DMA_Complete(&dacadc);
+	if (hspi->Instance == dacadc_instance()->spiHandle->Instance) {
+    dacadc_dma_complete();
 		nextDac = 1;
 	}
 }
@@ -138,7 +137,6 @@ uint16_t sine_index = 0;
 volatile float adc_freq_hz = 0;           // Smoothed ADC frequency estimate
 volatile uint32_t last_sample_time = 0;   // Last tick (ms) of ADC sample
 const float filter_alpha = 0.1f;          // Low-pass filter coefficient
-int16_t lastSlider = 0;
 
 void init_cycle_counter() {
     CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
@@ -199,31 +197,11 @@ int main(void)
 
   fram_init(&hspi3, SPI3_FRAM_CS_GPIO_Port, SPI3_FRAM_CS_Pin);
 
-  // Should move to init function:
-  mcp.spiHandle = &hspi1;
-  mcp.csPortHandle = OUT_MCP_CS_GPIO_Port;
-  mcp.csPin = OUT_MCP_CS_Pin;
-  mcp.resetPortHandle = OUT_MCP_RESET_GPIO_Port;
-  mcp.resetPin = OUT_MCP_RESET_Pin;
+  mcp_init(&hspi1);
 
+  dacadc_init(&hspi2);
 
-
-  dacadc.spiHandle = &hspi2;
-  dacadc.csadcPortHandle = OUT_ADC_CS_GPIO_Port;
-  dacadc.csadcPin = OUT_ADC_CS_Pin;
-  dacadc.cnvstPortHandle = OUT_ADC_CNVST_GPIO_Port;
-  dacadc.cnvstPin = OUT_ADC_CNVST_Pin;
-  dacadc.addrPortHandle = OUT_ADC_ADDR_GPIO_Port;
-  dacadc.adrrPin = OUT_ADC_ADDR_Pin;
-  dacadc.csdacPortHandle = OUT_DAC_SYNC_GPIO_Port;
-  dacadc.csdacPin = OUT_DAC_SYNC_Pin;
-
-  MCP23S17_Init(&mcp);
-
-  ADC_Init(&dacadc);
-
-  DAC_Init(&dacadc);
-
+  init_bmcv();
 
   for (int i = 0; i < SINE_STEPS; i++)
   {
@@ -239,18 +217,25 @@ int main(void)
 
   HAL_Delay(10);
 
-  DAC_ADC_DMA_Next(&dacadc);
+  dacadc_dma_next();
 
   uint32_t last_time = 0;
   uint32_t now = 0;
   uint32_t elapsed_cycles = 0;
 
+  uint32_t start_time = HAL_GetTick();
+
   while (1)
   {
+    uint32_t current_time = HAL_GetTick();
+    uint32_t elapsed_time = current_time - start_time;
+
     now = DWT->CYCCNT;
     elapsed_cycles = now - last_time;
     last_time = now;
     uint32_t elapsed_us = elapsed_cycles / (SystemCoreClock / 1000000);
+
+    update_bmcv(elapsed_time, slider);
 
     /*
     int16_t envVal = update_envelope(&env[0], elapsed_us);
@@ -258,28 +243,28 @@ int main(void)
   	set_led_adc_range(envVal/4, &ws2811_rgb_data[0]);
     */
 
-    if (mcp_poll == 1 && mcp.spi_dma_state == 0) {
+    if (mcp_poll == 1 && mcp_instance()->spi_dma_state == 0) {
         mcp_poll = 0;
-        mcp.button_state[N_ENCODERS*2+0] = HAL_GPIO_ReadPin(IN_BTN_MCU1_GPIO_Port,   IN_BTN_MCU1_Pin);
-        mcp.button_state[N_ENCODERS*2+1] = HAL_GPIO_ReadPin(IN_BTN_MCU2_GPIO_Port,   IN_BTN_MCU2_Pin);
-        mcp.button_state[N_ENCODERS*2+2] = HAL_GPIO_ReadPin(IN_BTN_MCU3_GPIO_Port,   IN_BTN_MCU3_Pin);
-        mcp.button_state[N_ENCODERS*2+3] = HAL_GPIO_ReadPin(IN_BTN_MCU4_GPIO_Port,   IN_BTN_MCU4_Pin);
-        mcp.button_state[N_ENCODERS*2+4] = HAL_GPIO_ReadPin(IN_BTN_MCU5_GPIO_Port,   IN_BTN_MCU5_Pin);
-        mcp.button_state[N_ENCODERS*2+5] = HAL_GPIO_ReadPin(MENU_BTN_2_GPIO_Port,    MENU_BTN_2_Pin);
-        mcp.button_state[N_ENCODERS*2+6] = HAL_GPIO_ReadPin(MENU_BTN_BOOT_GPIO_Port, MENU_BTN_BOOT_Pin);
-        mcp.button_state[N_ENCODERS*2+7] = HAL_GPIO_ReadPin(MENU_BTN_3_GPIO_Port,    MENU_BTN_3_Pin);
+        mcp_instance()->button_state[N_ENCODERS*2+0] = HAL_GPIO_ReadPin(IN_BTN_MCU1_GPIO_Port,   IN_BTN_MCU1_Pin);
+        mcp_instance()->button_state[N_ENCODERS*2+1] = HAL_GPIO_ReadPin(IN_BTN_MCU2_GPIO_Port,   IN_BTN_MCU2_Pin);
+        mcp_instance()->button_state[N_ENCODERS*2+2] = HAL_GPIO_ReadPin(IN_BTN_MCU3_GPIO_Port,   IN_BTN_MCU3_Pin);
+        mcp_instance()->button_state[N_ENCODERS*2+3] = HAL_GPIO_ReadPin(IN_BTN_MCU4_GPIO_Port,   IN_BTN_MCU4_Pin);
+        mcp_instance()->button_state[N_ENCODERS*2+4] = HAL_GPIO_ReadPin(IN_BTN_MCU5_GPIO_Port,   IN_BTN_MCU5_Pin);
+        mcp_instance()->button_state[N_ENCODERS*2+5] = HAL_GPIO_ReadPin(MENU_BTN_2_GPIO_Port,    MENU_BTN_2_Pin);
+        mcp_instance()->button_state[N_ENCODERS*2+6] = HAL_GPIO_ReadPin(MENU_BTN_BOOT_GPIO_Port, MENU_BTN_BOOT_Pin);
+        mcp_instance()->button_state[N_ENCODERS*2+7] = HAL_GPIO_ReadPin(MENU_BTN_3_GPIO_Port,    MENU_BTN_3_Pin);
 
         // Process buttons?
 
-        ReadButtonsDMA(&mcp);
+        ReadButtonsDMA();
     }
 
     if (midi_poll && midi_idle()) {
       midi_poll = 0;
-      MIDI_addToUSBReport(0, 0xB0, 0x10, sclamp(dacadc.adc_i[0]/32, 0, 127));
-      MIDI_addToUSBReport(0, 0xB0, 0x11, sclamp(dacadc.adc_i[1]/32, 0, 127));
-      MIDI_addToUSBReport(0, 0xB0, 0x12, sclamp(dacadc.adc_i[2]/32, 0, 127));
-      MIDI_addToUSBReport(0, 0xB0, 0x13, sclamp(dacadc.adc_i[3]/32, 0, 127));
+      MIDI_addToUSBReport(0, 0xB0, 0x10, sclamp(dacadc_instance()->adc_i[0]/32, 0, 127));
+      MIDI_addToUSBReport(0, 0xB0, 0x11, sclamp(dacadc_instance()->adc_i[1]/32, 0, 127));
+      MIDI_addToUSBReport(0, 0xB0, 0x12, sclamp(dacadc_instance()->adc_i[2]/32, 0, 127));
+      MIDI_addToUSBReport(0, 0xB0, 0x13, sclamp(dacadc_instance()->adc_i[3]/32, 0, 127));
       update_midi();
     }
 
@@ -287,9 +272,11 @@ int main(void)
       led_poll = 0;
       //float hue = sinf(2.0f * M_PI * freq * time_ms / 1000.0f) * 127.5f + 127.5f;
       //set_led_hsv(128, 255, 80, &ws2811_rgb_data[0]);
+      /*
       for (uint8_t ledidx = 0; ledidx < LED_COUNT; ledidx++) {
-        ws2811_setled_hsv(ledidx, (dacadc.adc_i[0] + 4096) / 32, 250, 16);
+        ws2811_setled_hsv(ledidx, (dacadc_instance()->adc_i[0] + 4096) / 32, 250, 16);
       }
+      */
 
       //set_led_hsv(255, 255, 80, &ws2811_rgb_data[LED_COUNT-1]);
       //set_led_adc_range(adc_i[0], &ws2811_rgb_data[0]);
@@ -297,15 +284,17 @@ int main(void)
       ws2811_update();
     }
 
+    /*
     for (uint8_t ch = 0; ch < 4; ch++) {
-      if (dacadc.trig_flag[ch]) {
-        dacadc.trig_flag[ch] = 0;
+      if (dacadc_instance()->trig_flag[ch]) {
+        dacadc_instance()->trig_flag[ch] = 0;
         if (ch == 0) {
           //HAL_GPIO_TogglePin(SLIDER_LED_GPIO_Port, SLIDER_LED_Pin);
-          trigger_envelope(&env[0], 10000 + slider * 20, 10000 + slider * 60, (int8_t) 127 - ((mcp.enc_position_state[7]*4) % 256));
+          trigger_envelope(&env[0], 10000 + slider * 20, 10000 + slider * 60, (int8_t) 127 - ((mcp_instance()->enc_position_state[7]*4) % 256));
         }
       }
     }
+    */
 
     // TODO: dma busy flag?
     if (nextDac) {
@@ -328,7 +317,7 @@ int main(void)
 
       // COMPUTE OUTPUT?
       nextDac = 0;
-      DAC_ADC_DMA_Next(&dacadc);
+      dacadc_dma_next();
     }
 
     /* USER CODE END WHILE */
@@ -911,8 +900,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     	if (task == 1) {
         	mcp_poll = 1;
 
-        	if (dacadc.CH_IDX == 5) {
-        		dacadc.CH_IDX = 0;
+        	if (dacadc_instance()->CH_IDX == 5) {
+        		dacadc_instance()->CH_IDX = 0;
         		nextDac = 1;
         	}
     	} else if (task == 2) {
@@ -939,8 +928,6 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
     if (hadc->Instance == ADC1)
     {
-
-
         slider = HAL_ADC_GetValue(hadc);
     }
 }

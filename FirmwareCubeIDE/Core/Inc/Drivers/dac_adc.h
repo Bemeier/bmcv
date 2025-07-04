@@ -33,19 +33,21 @@ typedef struct {
 	int8_t trig_flag[4];
 } DAC_ADC;
 
-void ADC_Init(DAC_ADC * dacadc);
+void dacadc_init(SPI_HandleTypeDef * spi);
 
-void WRITE_DAC_VALUE(DAC_ADC * dacadc, int idx, int16_t data);
+void dacadc_write(uint8_t idx, int16_t data);
 
-void ADC_DAC_Transaction(DAC_ADC * dacadc);
+void dacadc_transaction();
 
-void DAC_Init(DAC_ADC * dacadc);
+void dac_init();
 
-uint8_t DAC_ADC_DMA_Next(DAC_ADC * dacadc);
-void DAC_ADC_DMA_Complete(DAC_ADC * dacadc);
+uint8_t dacadc_dma_next();
+void dacadc_dma_complete();
 
 int16_t sign_extend_14bit(uint16_t val);
 
 float adc_to_voltage(int16_t adc_value);
+
+DAC_ADC* dacadc_instance(void);
 
 #endif /* INC_DRIVERS_DAC_ADC_H_ */

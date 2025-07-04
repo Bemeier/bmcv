@@ -78,7 +78,27 @@ void ws2811_setled_adcr(uint16_t idx, int16_t val) {
 		led->color.r =  0;
 	} else {
 		led->color.r = base_val;
-		led->color.b = 0;
+		led->color.g = 0;
+	}
+}
+
+void ws2811_setled_dac(uint16_t idx, int32_t val) {
+    WS2811_LED_DATA * led = &ws2811_rgb_data[idx];
+	// int16_t only safe because we know ADC values are only 14 bits, so they won't overflow here.
+	int32_t abs_val = abs(val);
+	int32_t blue_range = abs_val - 16384;
+	uint8_t base_val = 255;
+	if (blue_range < 0) {
+		blue_range = 0;
+		base_val = (abs_val / 64) & 0xFF;
+	}
+	led->color.b = ((blue_range / 64) & 0xFF);
+	if (val > 0) {
+		led->color.g = base_val;
+		led->color.r =  0;
+	} else {
+		led->color.r = base_val;
+		led->color.g = 0;
 	}
 }
 
