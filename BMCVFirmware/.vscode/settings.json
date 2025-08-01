@@ -27,5 +27,5 @@
   "[json]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
-  "stm32-for-vscode.openOCDPath": false
+  "mcu-debug.rtos-views.showRTOS": false
 }
