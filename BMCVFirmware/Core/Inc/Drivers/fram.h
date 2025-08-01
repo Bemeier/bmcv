@@ -1,7 +1,7 @@
 #ifndef INC_DRIVERS_FRAM_H_
 #define INC_DRIVERS_FRAM_H_
 
-#include "stm32g4xx_hal.h"
+#include "stm32g4xx_hal.h" // IWYU pragma: keep
 
 #define FRAM_WRITE 0x02
 #define FRAM_READ 0x03

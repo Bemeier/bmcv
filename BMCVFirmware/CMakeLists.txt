@@ -17,7 +17,7 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Debug")
 endif()
 
-set(CMAKE_PROJECT_NAME FirmwareCubeIDE)
+set(CMAKE_PROJECT_NAME BMCVFirmware)
 
 # Toolchain
 include("cmake/gcc-arm-none-eabi.cmake")
