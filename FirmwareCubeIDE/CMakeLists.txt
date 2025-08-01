@@ -1,50 +1,44 @@
 cmake_minimum_required(VERSION 3.22)
 
-#
-# This file is generated only once,
-# and is not re-generated if converter is called multiple times.
-#
-# User is free to modify the file as much as necessary
-#
-
-# Setup compiler settings
+# Compiler settings
 set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS ON)
 
+set(CMAKE_CXX_CLANG_TIDY "clang-tidy;-checks=bugprone-*,performance-*,portability-*")
 
-# Define the build type
+if(EXISTS "${CMAKE_SOURCE_DIR}/toolchain.cmake")
+  message(STATUS "Including user toolchain.cmake")
+  include("${CMAKE_SOURCE_DIR}/toolchain.cmake")
+endif()
+
+# Build type
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Debug")
 endif()
 
-# Set the project name
 set(CMAKE_PROJECT_NAME FirmwareCubeIDE)
 
-# Include toolchain file
+# Toolchain
 include("cmake/gcc-arm-none-eabi.cmake")
 
-# Enable compile command to ease indexing with e.g. clangd
+# Enable compile_commands.json for clangd
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
+set(COMPILE_COMMANDS_SRC "${CMAKE_BINARY_DIR}/compile_commands.json")
+set(COMPILE_COMMANDS_DST "${CMAKE_SOURCE_DIR}/compile_commands.json")
 
-# Core project settings
 project(${CMAKE_PROJECT_NAME})
 message("Build type: " ${CMAKE_BUILD_TYPE})
 
-# Enable CMake support for ASM and C languages
 enable_language(C ASM)
 
-# Create an executable object type
+# Executable target
 add_executable(${CMAKE_PROJECT_NAME})
 
-# Add STM32CubeMX generated sources
+# Include STM32CubeMX subproject — adds drivers, libs, includes, defines
 add_subdirectory(cmake/stm32cubemx)
 
-# Link directories setup
-target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
-    # Add user defined library search paths
-)
-
+# Optional: Your custom sources
 file(GLOB MY_DRIVER_SOURCES
     Core/Src/Drivers/*.c
     Core/Src/Lib/*.c
@@ -54,29 +48,32 @@ file(GLOB USB_MIDI_SOURCES
     Middlewares/ST/STM32_USB_Device_Library/Class/MIDI/Src/*.c
 )
 
-# Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
-    # Add user sources here
     ${MY_DRIVER_SOURCES}
     ${USB_MIDI_SOURCES}
 )
 
-# Add include paths
+# Optional: Your custom includes
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
-    # Add user defined include paths
     Middlewares/ST/STM32_USB_Device_Library/Class/MIDI/Inc
     Core/Inc/Drivers
     Core/Inc/Lib
 )
 
-# Add project symbols (macros)
+# Optional: Add your own defines
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
-    # Add user defined symbols
+    # Add user-defined macros here
 )
 
-# Add linked libraries
+# Optional: Add your own linked libraries
 target_link_libraries(${CMAKE_PROJECT_NAME}
     stm32cubemx
-
-    # Add user defined libraries
 )
+
+add_custom_target(copy_compile_commands ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${COMPILE_COMMANDS_SRC}" "${COMPILE_COMMANDS_DST}"
+    COMMENT "Copy compile_commands.json to project root for clangd"
+    VERBATIM
+)
+
+add_dependencies(copy_compile_commands ${CMAKE_PROJECT_NAME})

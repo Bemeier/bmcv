@@ -8,17 +8,19 @@ set(MX_Defines_Syms
     $<$<CONFIG:Debug>:DEBUG>
 )
 
+message(STATUS "STM32CUBE_FW_PATH = '${STM32CUBE_FW_PATH}'")
+
 # STM32CubeMX generated include paths
 set(MX_Include_Dirs
     ${CMAKE_SOURCE_DIR}/USB_Device/App
     ${CMAKE_SOURCE_DIR}/USB_Device/Target
     ${CMAKE_SOURCE_DIR}/Core/Inc
-    C:/Users/janko/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Drivers/STM32G4xx_HAL_Driver/Inc
-    C:/Users/janko/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Drivers/STM32G4xx_HAL_Driver/Inc/Legacy
-    C:/Users/janko/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Middlewares/ST/STM32_USB_Device_Library/Core/Inc
-    C:/Users/janko/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Middlewares/ST/STM32_USB_Device_Library/Class/HID/Inc
-    C:/Users/janko/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Drivers/CMSIS/Device/ST/STM32G4xx/Include
-    C:/Users/janko/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Drivers/CMSIS/Include
+    ${STM32CUBE_FW_PATH}/Drivers/STM32G4xx_HAL_Driver/Inc
+    ${STM32CUBE_FW_PATH}/Drivers/STM32G4xx_HAL_Driver/Inc/Legacy
+    ${STM32CUBE_FW_PATH}/Middlewares/ST/STM32_USB_Device_Library/Core/Inc
+    ${STM32CUBE_FW_PATH}/Middlewares/ST/STM32_USB_Device_Library/Class/HID/Inc
+    ${STM32CUBE_FW_PATH}/Drivers/CMSIS/Device/ST/STM32G4xx/Include
+    ${STM32CUBE_FW_PATH}/Drivers/CMSIS/Include
 )
 
 # STM32CubeMX generated application sources
@@ -37,39 +39,39 @@ set(MX_Application_Src
 # STM32 HAL/LL Drivers
 set(STM32_Drivers_Src
     ${CMAKE_SOURCE_DIR}/Core/Src/system_stm32g4xx.c
-    C:/Users/janko/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_pcd.c
-    C:/Users/janko/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_pcd_ex.c
-    C:/Users/janko/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_ll_usb.c
-    C:/Users/janko/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal.c
-    C:/Users/janko/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_rcc.c
-    C:/Users/janko/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_rcc_ex.c
-    C:/Users/janko/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_flash.c
-    C:/Users/janko/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_flash_ex.c
-    C:/Users/janko/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_flash_ramfunc.c
-    C:/Users/janko/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_gpio.c
-    C:/Users/janko/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_exti.c
-    C:/Users/janko/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_dma.c
-    C:/Users/janko/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_dma_ex.c
-    C:/Users/janko/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_pwr.c
-    C:/Users/janko/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_pwr_ex.c
-    C:/Users/janko/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_cortex.c
-    C:/Users/janko/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_adc.c
-    C:/Users/janko/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_adc_ex.c
-    C:/Users/janko/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_ll_adc.c
-    C:/Users/janko/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_spi.c
-    C:/Users/janko/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_spi_ex.c
-    C:/Users/janko/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_tim.c
-    C:/Users/janko/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_tim_ex.c
+    ${STM32CUBE_FW_PATH}/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_pcd.c
+    ${STM32CUBE_FW_PATH}/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_pcd_ex.c
+    ${STM32CUBE_FW_PATH}/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_ll_usb.c
+    ${STM32CUBE_FW_PATH}/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal.c
+    ${STM32CUBE_FW_PATH}/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_rcc.c
+    ${STM32CUBE_FW_PATH}/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_rcc_ex.c
+    ${STM32CUBE_FW_PATH}/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_flash.c
+    ${STM32CUBE_FW_PATH}/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_flash_ex.c
+    ${STM32CUBE_FW_PATH}/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_flash_ramfunc.c
+    ${STM32CUBE_FW_PATH}/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_gpio.c
+    ${STM32CUBE_FW_PATH}/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_exti.c
+    ${STM32CUBE_FW_PATH}/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_dma.c
+    ${STM32CUBE_FW_PATH}/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_dma_ex.c
+    ${STM32CUBE_FW_PATH}/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_pwr.c
+    ${STM32CUBE_FW_PATH}/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_pwr_ex.c
+    ${STM32CUBE_FW_PATH}/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_cortex.c
+    ${STM32CUBE_FW_PATH}/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_adc.c
+    ${STM32CUBE_FW_PATH}/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_adc_ex.c
+    ${STM32CUBE_FW_PATH}/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_ll_adc.c
+    ${STM32CUBE_FW_PATH}/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_spi.c
+    ${STM32CUBE_FW_PATH}/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_spi_ex.c
+    ${STM32CUBE_FW_PATH}/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_tim.c
+    ${STM32CUBE_FW_PATH}/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_tim_ex.c
 )
 
 # Drivers Midllewares
 
 
 set(USB_Device_Library_Src
-    C:/Users/janko/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_core.c
-    C:/Users/janko/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ctlreq.c
-    C:/Users/janko/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ioreq.c
-    C:/Users/janko/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Middlewares/ST/STM32_USB_Device_Library/Class/HID/Src/usbd_hid.c
+    ${STM32CUBE_FW_PATH}/Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_core.c
+    ${STM32CUBE_FW_PATH}/Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ctlreq.c
+    ${STM32CUBE_FW_PATH}/Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ioreq.c
+    ${STM32CUBE_FW_PATH}/Middlewares/ST/STM32_USB_Device_Library/Class/HID/Src/usbd_hid.c
 )
 
 # Link directories setup
@@ -79,7 +81,8 @@ set(MX_LINK_DIRS
 # Project static libraries
 set(MX_LINK_LIBS 
     STM32_Drivers
-    USB_Device_Library	
+    USB_Device_Library
+	
 )
 # Interface library for includes and symbols
 add_library(stm32cubemx INTERFACE)

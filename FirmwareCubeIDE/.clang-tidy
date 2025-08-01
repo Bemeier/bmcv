@@ -1,0 +1,13 @@
+Checks: >
+  -*,
+  bugprone-*,
+  performance-*,
+  readability-*,
+  clang-analyzer-*,
+  cppcoreguidelines-*,
+  portability-*,
+  misc-*
+
+WarningsAsErrors: ""
+HeaderFilterRegex: "^Core/(?!.*stm32g4).*"
+FormatStyle: file

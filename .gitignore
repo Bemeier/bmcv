@@ -31,6 +31,9 @@ fp-info-cache
 
 Firmware
 FirmwareCubeIDE/Debug
+FirmwareCubeIDE/.cache
+FirmwareCubeIDE/toolchain.cmake
+FirmwareCubeIDE/build.ninja
 
 CMakeLists.txt.user
 CMakeCache.txt
