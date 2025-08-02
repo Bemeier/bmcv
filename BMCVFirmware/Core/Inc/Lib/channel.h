@@ -1,12 +1,13 @@
 #ifndef INC_LIB_CHANNEL_H_
 #define INC_LIB_CHANNEL_H_
 
-#include <stdint.h>
 #include "state.h"
+#include <stdint.h>
 
-#define  N_SCENES 7
+#define N_SCENES 7
 
-typedef struct {
+typedef struct
+{
     uint8_t button;
     uint8_t led;
     uint8_t encoder;
@@ -16,9 +17,9 @@ typedef struct {
     // amplitude, frequency, phase, shape ...
 } Channel;
 
-void init_channel(Channel * ch);
+void init_channel(Channel* ch);
 
-// Updating => calculating output value 
-void update_channel(Channel * ch, State * state);
+// Updating => calculating output value
+void update_channel(Channel* ch, State* state);
 
 #endif /* INC_LIB_CHANNEL_H_ */

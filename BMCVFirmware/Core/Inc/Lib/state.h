@@ -37,7 +37,7 @@ typedef struct
     uint16_t button_released_t[N_BUTTONS]; // how long button was pressed once released
 
     int16_t encoder_state[N_ENCODERS];
-    int8_t encoder_delta[N_ENCODERS]; // change of encoder since last state
+    int16_t encoder_delta[N_ENCODERS]; // change of encoder since last state
 
     uint16_t slider_position;
 } State;

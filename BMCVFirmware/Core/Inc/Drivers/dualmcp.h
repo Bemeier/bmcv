@@ -1,15 +1,16 @@
 #ifndef INC_DRIVERS_DUALmcp_H_
 #define INC_DRIVERS_DUALmcp_H_
 #include "stm32g4xx_hal.h" // IWYU pragma: keep
+#include <stdint.h>
 
 #define N_ENCODERS 8
 
 typedef struct
 {
-    SPI_HandleTypeDef *spiHandle;
-    GPIO_TypeDef *csPortHandle;
+    SPI_HandleTypeDef* spiHandle;
+    GPIO_TypeDef* csPortHandle;
     uint16_t csPin;
-    GPIO_TypeDef *resetPortHandle;
+    GPIO_TypeDef* resetPortHandle;
     uint16_t resetPin;
     uint8_t gpioa_state;
     uint8_t gpiob_state;
@@ -68,15 +69,23 @@ typedef struct
 #define PORT_A_OFFSET 0
 #define PORT_B_OFFSET 8
 
-DUALMCP *mcp_instance(void);
+void mcp_init(SPI_HandleTypeDef* spi);
 
-void mcp_init(SPI_HandleTypeDef *spi);
+int8_t mcp_read();
+
+uint8_t mcp_button_state(uint8_t buttonIndex);
+
+int16_t mcp_encoder_state(uint8_t encoderIndex);
 
 uint8_t mcp_transmit_register(uint8_t hw_addr, uint8_t reg, uint8_t data, uint8_t write);
 
 uint8_t mcp_read_register(uint8_t hw_addr, uint8_t reg);
 
 uint8_t mcp_write_register(uint8_t hw_addr, uint8_t reg, uint8_t data);
+
+void mcp_handle_txrx_complete(SPI_HandleTypeDef* hspi);
+
+void ReadMCUButtons();
 
 void ProcessEncoderStates();
 

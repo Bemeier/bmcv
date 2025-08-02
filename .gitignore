@@ -29,23 +29,4 @@ fp-info-cache
 # Exported BOM files
 *.xml
 
-Firmware
-BMCVFirmware/Debug
-BMCVFirmware/.cache
-BMCVFirmware/toolchain.cmake
-BMCVFirmware/build.ninja
-
-CMakeLists.txt.user
-CMakeCache.txt
-CMakeFiles
-CMakeScripts
-Testing
-Makefile
-cmake_install.cmake
-install_manifest.txt
-compile_commands.json
-CTestTestfile.cmake
 _deps
-CMakeUserPresets.json
-
-build

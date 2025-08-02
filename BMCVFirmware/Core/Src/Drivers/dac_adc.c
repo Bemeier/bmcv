@@ -4,19 +4,19 @@
 
 static DAC_ADC dacadc;
 
-const DAC_ADC *dacadc_instance(void) { return &dacadc; }
+const DAC_ADC* dacadc_instance(void) { return &dacadc; }
 
-void dacadc_init(SPI_HandleTypeDef *spi)
+void dacadc_init(SPI_HandleTypeDef* spi)
 {
-    dacadc.spiHandle = spi;
+    dacadc.spiHandle       = spi;
     dacadc.csadcPortHandle = OUT_ADC_CS_GPIO_Port;
-    dacadc.csadcPin = OUT_ADC_CS_Pin;
+    dacadc.csadcPin        = OUT_ADC_CS_Pin;
     dacadc.cnvstPortHandle = OUT_ADC_CNVST_GPIO_Port;
-    dacadc.cnvstPin = OUT_ADC_CNVST_Pin;
-    dacadc.addrPortHandle = OUT_ADC_ADDR_GPIO_Port;
-    dacadc.adrrPin = OUT_ADC_ADDR_Pin;
+    dacadc.cnvstPin        = OUT_ADC_CNVST_Pin;
+    dacadc.addrPortHandle  = OUT_ADC_ADDR_GPIO_Port;
+    dacadc.adrrPin         = OUT_ADC_ADDR_Pin;
     dacadc.csdacPortHandle = OUT_DAC_SYNC_GPIO_Port;
-    dacadc.csdacPin = OUT_DAC_SYNC_Pin;
+    dacadc.csdacPin        = OUT_DAC_SYNC_Pin;
 
     // Set default pin levels
     HAL_GPIO_WritePin(dacadc.csadcPortHandle, dacadc.csadcPin, GPIO_PIN_SET);
@@ -37,13 +37,12 @@ void dacadc_write(uint8_t idx, int16_t data)
 
 void dacadc_transaction()
 {
-    uint8_t rx_buf[6] = {0};
+    uint8_t rx_buf[6]   = {0};
     uint16_t adc_raw[2] = {0};
 
     for (uint8_t CH_IDX = 0; CH_IDX < 4; CH_IDX++)
     {
-        uint8_t offset =
-            (HAL_GPIO_ReadPin(dacadc.addrPortHandle, dacadc.adrrPin) == GPIO_PIN_SET) ? 2 : 0;
+        uint8_t offset = (HAL_GPIO_ReadPin(dacadc.addrPortHandle, dacadc.adrrPin) == GPIO_PIN_SET) ? 2 : 0;
         HAL_GPIO_WritePin(dacadc.cnvstPortHandle, dacadc.cnvstPin, GPIO_PIN_RESET);
         HAL_GPIO_TogglePin(dacadc.addrPortHandle, dacadc.adrrPin);
         HAL_GPIO_WritePin(dacadc.cnvstPortHandle, dacadc.cnvstPin, GPIO_PIN_SET);
@@ -61,12 +60,11 @@ void dacadc_transaction()
         for (uint8_t ch = 0; ch < 2; ch++)
         {
             dacadc.adc_i[ch + offset] = sign_extend_14bit(adc_raw[ch]);
-            if (dacadc.trig_state[ch + offset] < 1 &&
-                dacadc.adc_i_prev[ch + offset] < TRIG_THRESH &&
+            if (dacadc.trig_state[ch + offset] < 1 && dacadc.adc_i_prev[ch + offset] < TRIG_THRESH &&
                 dacadc.adc_i[ch + offset] >= TRIG_THRESH)
             {
                 dacadc.trig_state[ch + offset] = 1;
-                dacadc.trig_flag[ch + offset] = 1;
+                dacadc.trig_flag[ch + offset]  = 1;
             }
             else if (dacadc.adc_i[ch + offset] < TRIG_THRESH_LOW)
             {
@@ -90,8 +88,7 @@ int8_t dacadc_update()
 uint8_t dacadc_dma_next()
 {
     dacadc.CH_IDX = (dacadc.CH_IDX + 1) % DAC_CHANNELS;
-    dacadc.offset =
-        (HAL_GPIO_ReadPin(dacadc.addrPortHandle, dacadc.adrrPin) == GPIO_PIN_SET) ? 2 : 0;
+    dacadc.offset = (HAL_GPIO_ReadPin(dacadc.addrPortHandle, dacadc.adrrPin) == GPIO_PIN_SET) ? 2 : 0;
     HAL_GPIO_WritePin(dacadc.cnvstPortHandle, dacadc.cnvstPin, GPIO_PIN_RESET);
     HAL_GPIO_TogglePin(dacadc.addrPortHandle, dacadc.adrrPin);
     HAL_GPIO_WritePin(dacadc.cnvstPortHandle, dacadc.cnvstPin, GPIO_PIN_SET);
@@ -99,9 +96,8 @@ uint8_t dacadc_dma_next()
     HAL_GPIO_WritePin(dacadc.csadcPortHandle, dacadc.csadcPin, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(dacadc.csdacPortHandle, dacadc.csdacPin, GPIO_PIN_RESET);
 
-    int8_t res = HAL_SPI_TransmitReceive_DMA(
-        dacadc.spiHandle, &(dacadc.DAC_BUF[dacadc.CH_IDX * DAC_CHANNEL_DATA_WIDTH]), dacadc.rx_buf,
-        DAC_CHANNEL_DATA_WIDTH);
+    int8_t res = HAL_SPI_TransmitReceive_DMA(dacadc.spiHandle, &(dacadc.DAC_BUF[dacadc.CH_IDX * DAC_CHANNEL_DATA_WIDTH]), dacadc.rx_buf,
+                                             DAC_CHANNEL_DATA_WIDTH);
     if (res == HAL_OK)
     {
         return 1;
@@ -113,7 +109,7 @@ uint8_t dacadc_dma_next()
     return 0;
 }
 
-uint8_t dacadc_dma_complete(SPI_HandleTypeDef *hspi)
+uint8_t dacadc_dma_complete(SPI_HandleTypeDef* hspi)
 {
     if (hspi->Instance != dacadc.spiHandle->Instance)
     {
@@ -124,19 +120,16 @@ uint8_t dacadc_dma_complete(SPI_HandleTypeDef *hspi)
     HAL_GPIO_WritePin(dacadc.csadcPortHandle, dacadc.csadcPin, GPIO_PIN_SET);
 
     uint16_t adc_raw[2] = {0};
-    adc_raw[0] = ((dacadc.rx_buf[0] << 6) | (dacadc.rx_buf[1] >> 2)) & 0x3FFF;
-    adc_raw[1] =
-        (((dacadc.rx_buf[1] & 0x03) << 12) | (dacadc.rx_buf[2] << 4) | (dacadc.rx_buf[3] >> 4)) &
-        0x3FFF;
+    adc_raw[0]          = ((dacadc.rx_buf[0] << 6) | (dacadc.rx_buf[1] >> 2)) & 0x3FFF;
+    adc_raw[1]          = (((dacadc.rx_buf[1] & 0x03) << 12) | (dacadc.rx_buf[2] << 4) | (dacadc.rx_buf[3] >> 4)) & 0x3FFF;
     for (uint8_t ch = 0; ch < 2; ch++)
     {
         dacadc.adc_i[ch + dacadc.offset] = sign_extend_14bit(adc_raw[ch]);
-        if (dacadc.trig_state[ch + dacadc.offset] < 1 &&
-            dacadc.adc_i_prev[ch + dacadc.offset] < TRIG_THRESH &&
+        if (dacadc.trig_state[ch + dacadc.offset] < 1 && dacadc.adc_i_prev[ch + dacadc.offset] < TRIG_THRESH &&
             dacadc.adc_i[ch + dacadc.offset] >= TRIG_THRESH)
         {
             dacadc.trig_state[ch + dacadc.offset] = 1;
-            dacadc.trig_flag[ch + dacadc.offset] = 1;
+            dacadc.trig_flag[ch + dacadc.offset]  = 1;
         }
         else if (dacadc.adc_i[ch + dacadc.offset] < TRIG_THRESH_LOW)
         {
@@ -150,10 +143,10 @@ uint8_t dacadc_dma_complete(SPI_HandleTypeDef *hspi)
 
 void dac_init()
 {
-    dacadc.DAC_BUF[0] = (0b00000000);  // DAC1 CHA
-    dacadc.DAC_BUF[3] = (0b00000000);  // DAC2 CHA
-    dacadc.DAC_BUF[6] = (0b00000001);  // DAC1 CHB
-    dacadc.DAC_BUF[9] = (0b00000001);  // DAC2 CHB
+    dacadc.DAC_BUF[0]  = (0b00000000); // DAC1 CHA
+    dacadc.DAC_BUF[3]  = (0b00000000); // DAC2 CHA
+    dacadc.DAC_BUF[6]  = (0b00000001); // DAC1 CHB
+    dacadc.DAC_BUF[9]  = (0b00000001); // DAC2 CHB
     dacadc.DAC_BUF[12] = (0b00000010); // DAC1 CHC
     dacadc.DAC_BUF[15] = (0b00000010); // DAC2 CHC
     dacadc.DAC_BUF[18] = (0b00000011); // DAC1 CHD
@@ -197,11 +190,11 @@ void dac_init()
     // HAL_GPIO_WritePin(dacadc.ldacPortHandle, dacadc.ldacPin, GPIO_PIN_RESET);
 }
 
-int16_t sign_extend_14bit(uint16_t val) { return (int16_t)((int32_t)(val << 18) >> 18); }
+int16_t sign_extend_14bit(uint16_t val) { return (int16_t) ((int32_t) (val << 18) >> 18); }
 
 float adc_to_voltage(int16_t adc_value)
 {
-    return ((float)adc_value / 8192.0f) * 10.0f; // Assuming full scale ±10V
+    return ((float) adc_value / 8192.0f) * 10.0f; // Assuming full scale ±10V
 }
 
 int16_t get_adc(uint8_t channel) { return dacadc.adc_i[channel]; }

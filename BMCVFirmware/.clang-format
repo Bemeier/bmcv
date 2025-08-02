@@ -2,8 +2,12 @@ BasedOnStyle: LLVM
 IndentWidth: 4
 TabWidth: 4
 UseTab: Never
-ColumnLimit: 100
+ColumnLimit: 140
 BreakBeforeBraces: Allman
 AllowShortIfStatementsOnASingleLine: false
-SortIncludes: true
+SpacesBeforeTrailingComments: 1
+SpaceAfterCStyleCast: true
 IncludeBlocks: Preserve
+AlignConsecutiveAssignments: true
+PointerAlignment: Left
+SortIncludes: true

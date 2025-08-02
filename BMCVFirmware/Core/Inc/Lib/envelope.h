@@ -22,7 +22,7 @@ typedef struct
     uint32_t phase_decrement; // How fast phase progresses
 } ENVELOPE;
 
-void trigger_envelope(ENVELOPE *env, uint32_t attack_ms, uint32_t decay_ms, int8_t shape);
-int16_t update_envelope(ENVELOPE *env, uint32_t elapsed_us);
+void trigger_envelope(ENVELOPE* env, uint32_t attack_ms, uint32_t decay_ms, int8_t shape);
+int16_t update_envelope(ENVELOPE* env, uint32_t elapsed_us);
 
 #endif /* INC_ENVELOPE_H_ */

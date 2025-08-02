@@ -1,7 +1,22 @@
 CompileFlags:
-  Add:
-    - -v
-    - --clang-tidy
-    - --log=verbose
-#    - --query-driver=C:/ST/STM32CubeCLT_1.18.0/GNU-tools-for-STM32/bin/arm-none-eabi-*
-#    - -IC:/ST/STM32CubeCLT_1.18.0/GNU-tools-for-STM32/arm-none-eabi/include
+  CompilationDatabase: build/Debug
+
+Diagnostics:
+  ClangTidy:
+    CheckOptions:
+      performance-no-int-to-ptr: false
+      cppcoreguidelines-avoid-non-const-global-variables.AllowInternalLinkage: true
+      bugprone-easily-swappable-parameters.MinimumLength: 6
+      readability-identifier-length.MinimumParameterNameLength: 0
+      readability-identifier-length.MinimumLoopCounterNameLength: 0
+      readability-identifier-naming.ParameterCase: "camelBack"
+      readability-identifier-naming.VariableCase: lower_case
+      readability-identifier-naming.FunctionCase: lower_case
+      readability-identifier-naming.ClassCase: CamelCase
+      readability-identifier-naming.MacroDefinitionCase: UPPER_CASE
+      readability-identifier-naming.ConstantCase: UPPER_CASE
+      readability-identifier-naming.PrivateMemberPrefix: "_"
+      readability-identifier-naming.MemberCase: lower_case
+#    WarningsAsErrors: ""
+#    HeaderFilterRegex: "^Core/(?!.*stm32g4).*"
+#    FormatStyle: file
