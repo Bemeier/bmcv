@@ -1,0 +1,7 @@
+CompileFlags:
+  Add:
+    - -v
+    - --clang-tidy
+    - --log=verbose
+#    - --query-driver=C:/ST/STM32CubeCLT_1.18.0/GNU-tools-for-STM32/bin/arm-none-eabi-*
+#    - -IC:/ST/STM32CubeCLT_1.18.0/GNU-tools-for-STM32/arm-none-eabi/include

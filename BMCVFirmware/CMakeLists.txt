@@ -44,6 +44,13 @@ file(GLOB MY_DRIVER_SOURCES
     Core/Src/Lib/*.c
 )
 
+# Derive toolchain root
+#get_filename_component(COMPILER_DIR "${CMAKE_C_COMPILER}" DIRECTORY)
+#get_filename_component(TOOLCHAIN_ROOT "${COMPILER_DIR}" DIRECTORY)
+
+#message("Toolchain include path: ${TOOLCHAIN_ROOT}/arm-none-eabi/include")
+#include_directories(SYSTEM "${TOOLCHAIN_ROOT}/arm-none-eabi/include")
+
 file(GLOB USB_MIDI_SOURCES
     Middlewares/ST/STM32_USB_Device_Library/Class/MIDI/Src/*.c
 )

@@ -8,6 +8,12 @@ Checks: >
   portability-*,
   misc-*
 
+CheckOptions:
+  - key: cppcoreguidelines-avoid-non-const-global-variables.AllowInternalLinkage
+    value: true
+  - key: performance-no-int-to-ptr
+    value: false
+
 WarningsAsErrors: ""
 HeaderFilterRegex: "^Core/(?!.*stm32g4).*"
 FormatStyle: file
