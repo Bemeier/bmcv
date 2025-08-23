@@ -35,6 +35,7 @@ void dacadc_write(uint8_t idx, int16_t data)
     dacadc.DAC_BUF[idx * 3 + 2] = data & 0xFF;
 }
 
+/*
 void dacadc_transaction()
 {
     uint8_t rx_buf[6]   = {0};
@@ -74,6 +75,7 @@ void dacadc_transaction()
         }
     }
 }
+*/
 
 int8_t dacadc_update()
 {

@@ -25,7 +25,7 @@ typedef union
     uint32_t data;
 } WS2811_LED_DATA;
 
-void ws2811_init(TIM_HandleTypeDef *htim, uint32_t channel);
+void ws2811_init(TIM_HandleTypeDef* htim, uint32_t channel);
 
 void ws2811_setled_rgb(uint16_t idx, uint8_t r, uint8_t g, uint8_t b);
 void ws2811_setled_hsv(uint16_t idx, uint8_t h, uint8_t s, uint8_t v);
@@ -35,7 +35,7 @@ void ws2811_setled_dac(uint16_t idx, int32_t val);
 void ws2811_commit();
 void ws2811_update();
 
-void ws2811_dma_complete_callback(TIM_HandleTypeDef *htim);
+void ws2811_dma_complete_callback(TIM_HandleTypeDef* htim);
 uint8_t ws2811_dma_completed(void);
 
 #endif /* INC_DRIVERS_WS2811_H_ */

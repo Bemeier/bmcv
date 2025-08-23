@@ -46,6 +46,10 @@
       "cwd": "${workspaceFolder}",
       "preBuild": "${command:st-stm32-ide-debug-launch.build}",
       "runEntry": "main",
+      "liveWatch": {
+        "enabled": true,
+        "samplesPerSecond": "4"
+      },
       "imagesAndSymbols": [
         {
           "imageFileName": "${command:st-stm32-ide-debug-launch.get-projects-binary-from-context1}"

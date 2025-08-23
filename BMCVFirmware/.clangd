@@ -1,6 +1,5 @@
 CompileFlags:
   CompilationDatabase: build/Debug
-
 Diagnostics:
   ClangTidy:
     CheckOptions:
@@ -9,14 +8,11 @@ Diagnostics:
       bugprone-easily-swappable-parameters.MinimumLength: 6
       readability-identifier-length.MinimumParameterNameLength: 0
       readability-identifier-length.MinimumLoopCounterNameLength: 0
-      readability-identifier-naming.ParameterCase: "camelBack"
+      readability-identifier-naming.ParameterCase: camelBack
       readability-identifier-naming.VariableCase: lower_case
       readability-identifier-naming.FunctionCase: lower_case
       readability-identifier-naming.ClassCase: CamelCase
       readability-identifier-naming.MacroDefinitionCase: UPPER_CASE
       readability-identifier-naming.ConstantCase: UPPER_CASE
-      readability-identifier-naming.PrivateMemberPrefix: "_"
+      readability-identifier-naming.PrivateMemberPrefix: _
       readability-identifier-naming.MemberCase: lower_case
-#    WarningsAsErrors: ""
-#    HeaderFilterRegex: "^Core/(?!.*stm32g4).*"
-#    FormatStyle: file

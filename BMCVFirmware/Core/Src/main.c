@@ -24,9 +24,9 @@
 /* USER CODE BEGIN Includes */
 #include "bmcv.h"
 #include "dac_adc.h"
-#include "dualmcp.h"
 #include "fram.h"
 #include "helpers.h"
+#include "mcp.h"
 #include "ws2811.h"
 #include <stdint.h>
 
@@ -163,15 +163,9 @@ int main(void)
 
     dacadc_dma_next();
 
-    uint32_t start_time = HAL_GetTick();
-
     while (1)
     {
-        uint32_t current_time = HAL_GetTick();
-        uint32_t elapsed_time = current_time - start_time;
-
-        bmcv_state_update(elapsed_time);
-        bmcv_main(elapsed_time);
+        bmcv_main(HAL_GetTick());
         /* USER CODE END WHILE */
 
         /* USER CODE BEGIN 3 */
