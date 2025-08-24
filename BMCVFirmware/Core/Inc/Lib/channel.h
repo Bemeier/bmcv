@@ -82,7 +82,12 @@ typedef struct
     int16_t shape[N_SCENES];
     uint32_t blink_until;
     uint32_t blink_hue;
+    int16_t output_level;
+    float target_phase;
+    float normalized_phase;
     float shared_phase;
+    float phase_correction;
+    float diff;
     ChannelQuantizeMode quantize_mode;
 
     // amplitude, frequency, phase, shape ...

@@ -14,7 +14,7 @@ void Clock_Trigger(uint32_t now_us)
 {
     g_clk.pp_counter++;
     g_clk.last_ipi_us = now_us - g_clk.last_edge_us;
-    if (g_clk.last_edge_us > 0 && g_clk.last_ipi_us < 5000000)
+    if (g_clk.last_edge_us > 0) // && g_clk.last_ipi_us > 5000000)
     {
         g_clk.beat_freq = 1000000.0f / (float) (g_clk.last_ipi_us * g_clk.PPB);
         g_clk.bpm       = g_clk.beat_freq * 60.0f;
@@ -27,12 +27,13 @@ void Clock_Trigger(uint32_t now_us)
         g_clk.last_beat_anchor = now_us;
         g_clk.phase            = 0;
     }
+    g_clk.last_edge_us = now_us;
 }
 
 void Clock_Poll(uint32_t now_us)
 {
     uint32_t dt_pulse = now_us - g_clk.last_edge_us;
-    if (dt_pulse == 0)
+    if (dt_pulse == 0 || g_clk.last_ipi_us == 0)
         return;
     float pulse_fraction = (float) dt_pulse / (float) g_clk.last_ipi_us;
     g_clk.phase          = fmodf((g_clk.pp_counter + pulse_fraction) / (float) g_clk.PPB, 1.0f);

@@ -107,7 +107,7 @@ typedef struct
 
     int16_t input_state[N_INPUTS];
 
-    int16_t channel_level[N_CHANNELS];
+    // int16_t channel_level[N_CHANNELS];
 
     uint8_t scene_l;
     uint8_t scene_r;

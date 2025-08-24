@@ -9,6 +9,16 @@
 #include "ws2811.h"
 #include <stdint.h>
 
+float fmod_pos(float a, float n)
+{
+    float r = fmod(a, n);
+    if (r < 0)
+        r += n;
+    return r;
+}
+
+float phase_error(float a, float b, float X) { return fmod_pos((a - b) + X / 2.0, X) - X / 2.0; }
+
 int8_t param_index(uint16_t flags)
 {
     if (flags & CTRL_AMP)
@@ -113,6 +123,7 @@ void update_channel(Channel* ch, State* state)
 
 void compute_channel(Channel* ch, State* state, Scene* scenes)
 {
+    float dt_s            = state->dt / 1e3f;
     int16_t avg[N_PARAMS] = {0};
     for (uint8_t s = 0; s < N_SCENES; s++)
     {
@@ -129,31 +140,30 @@ void compute_channel(Channel* ch, State* state, Scene* scenes)
 
     // freq variable below is a frequency mulitplier/divider...
     // this is converted to float from int16, negative values being dividers, positive multipliers.
-    float freq = (float) avg[PARAM_FRQ] / (float) N_FREQ_SCALE;
-    if (freq < 0)
+    float freq_multiplier = (float) avg[PARAM_FRQ] / (float) N_FREQ_SCALE;
+    if (freq_multiplier < 0)
     {
-        freq = -1 / freq;
+        freq_multiplier = -1 / freq_multiplier;
     }
 
     float offset   = (float) avg[PARAM_OFS];
     float amp      = (float) avg[PARAM_AMP] / 2.0f;
     float shape    = (float) avg[PARAM_SHP] / INT16_MAX;
     float phs      = (float) avg[PARAM_PHS] / INT16_MAX;
-    float eff_freq = g_clk.beat_freq * freq;
-    // TODO: should wrap around to preserve float precision
-    ch->shared_phase += (state->dt / 1000.0f) * eff_freq;
+    float eff_freq = g_clk.beat_freq * freq_multiplier;
+    ch->shared_phase += dt_s * (eff_freq + ch->phase_correction);
 
-    /*
-    float target_phase = fmodf(g_clk.synced_beats * freq, 1.0f);
+    // align both phase slopes and when they wrap around
+    ch->normalized_phase = fmodf(ch->shared_phase, freq_multiplier);
+    ch->target_phase     = fmodf(g_clk.phase * freq_multiplier, freq_multiplier);
 
     float k_sync = 0.01f;
-    float diff   = target_phase - ch->shared_phase;
-    diff -= floorf(diff + 0.5f); // [-0.5,0.5]
 
-    // scale correction by current LFO speed (or make minimum)
-    float correction = diff * k_sync * fmaxf(1.0f, eff_freq);
-    ch->shared_phase += correction;
-    */
+    ch->diff             = phase_error(ch->target_phase, ch->normalized_phase, freq_multiplier);
+    ch->phase_correction = (ch->phase_correction + ch->diff * k_sync) * 0.99f;
+
+    // ch->shared_phase = fmodf(ch->shared_phase + ch->diff, 1.0f);
+    ch->shared_phase = fmodf(ch->shared_phase, 1.0f);
 
     float phase = fmodf(ch->shared_phase + phs, 1.0f);
     float raw   = wavetable_lookup(phase, shape) / (float) INT16_MAX;
@@ -167,10 +177,10 @@ void compute_channel(Channel* ch, State* state, Scene* scenes)
     switch (ch->quantize_mode)
     {
     case QUANTIZE_CONTINUOUS:
-        state->channel_level[ch->dac_channel] = quantize_value((int16_t) value, state->quantize_mask);
+        ch->output_level = quantize_value((int16_t) value, state->quantize_mask);
         break;
     default:
-        state->channel_level[ch->dac_channel] = (int16_t) value;
+        ch->output_level = (int16_t) value;
     }
 }
 
@@ -187,8 +197,8 @@ void write_channel(Channel* ch, State* state)
     }
     else
     {
-        ws2811_setled_dac(ch->led, state->channel_level[ch->dac_channel]);
+        ws2811_setled_dac(ch->led, ch->output_level);
     }
 
-    dacadc_write(ch->dac_channel, state->channel_level[ch->dac_channel]);
+    dacadc_write(ch->dac_channel, ch->output_level);
 }

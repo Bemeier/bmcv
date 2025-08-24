@@ -112,7 +112,7 @@ void bmcv_init(uint16_t _mpc_interrupt_pin, ADC_TypeDef* _slider_adc)
     prev_state->scene_latch_position = 4032;
     prev_state->scene_l              = 0;
     prev_state->scene_r              = 6;
-    prev_state->scene_latch          = 3;
+    prev_state->scene_latch          = -1;
 }
 
 void bmcv_handle_adc_conversion_complete(ADC_HandleTypeDef* hadc)
