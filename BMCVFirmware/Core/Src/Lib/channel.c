@@ -1,4 +1,5 @@
 #include "channel.h"
+#include "clock_sync.h"
 #include "dac_adc.h"
 #include "helpers.h"
 #include "math.h"
@@ -126,17 +127,34 @@ void compute_channel(Channel* ch, State* state, Scene* scenes)
         }
     }
 
+    // freq variable below is a frequency mulitplier/divider...
+    // this is converted to float from int16, negative values being dividers, positive multipliers.
     float freq = (float) avg[PARAM_FRQ] / (float) N_FREQ_SCALE;
     if (freq < 0)
     {
         freq = -1 / freq;
     }
 
-    float offset = (float) avg[PARAM_OFS];
-    float amp    = (float) avg[PARAM_AMP] / 2.0f;
-    float shape  = (float) avg[PARAM_SHP] / INT16_MAX;
-    float phs    = (float) avg[PARAM_PHS] / INT16_MAX;
-    ch->shared_phase += (state->dt / 1000.0f) * (state->base_freq * freq);
+    float offset   = (float) avg[PARAM_OFS];
+    float amp      = (float) avg[PARAM_AMP] / 2.0f;
+    float shape    = (float) avg[PARAM_SHP] / INT16_MAX;
+    float phs      = (float) avg[PARAM_PHS] / INT16_MAX;
+    float eff_freq = g_clk.beat_freq * freq;
+    // TODO: should wrap around to preserve float precision
+    ch->shared_phase += (state->dt / 1000.0f) * eff_freq;
+
+    /*
+    float target_phase = fmodf(g_clk.synced_beats * freq, 1.0f);
+
+    float k_sync = 0.01f;
+    float diff   = target_phase - ch->shared_phase;
+    diff -= floorf(diff + 0.5f); // [-0.5,0.5]
+
+    // scale correction by current LFO speed (or make minimum)
+    float correction = diff * k_sync * fmaxf(1.0f, eff_freq);
+    ch->shared_phase += correction;
+    */
+
     float phase = fmodf(ch->shared_phase + phs, 1.0f);
     float raw   = wavetable_lookup(phase, shape) / (float) INT16_MAX;
     float value = offset + amp * raw;

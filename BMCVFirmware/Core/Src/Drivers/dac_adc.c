@@ -143,6 +143,16 @@ uint8_t dacadc_dma_complete(SPI_HandleTypeDef* hspi)
     return 1;
 }
 
+uint8_t adc_read_trig_state(uint8_t channel)
+{
+    if (dacadc.trig_flag[channel])
+    {
+        dacadc.trig_flag[channel] = 0;
+        return 1;
+    }
+    return 0;
+}
+
 void dac_init()
 {
     dacadc.DAC_BUF[0]  = (0b00000000); // DAC1 CHA

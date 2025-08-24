@@ -9,9 +9,6 @@
 #include "ws2811.h"
 #include <stdint.h>
 
-#define GATE_THRESHOLD_UPPER 1024
-#define GATE_THRESHOLD_LOWER 840
-
 #define STATE_RINGBUF_SIZE 2
 
 static uint8_t state_idx;
@@ -68,11 +65,6 @@ static uint8_t ctrl_button_color[N_CTRL_BUTTONS] = {HUE_RED, HUE_YELLOW, HUE_GRE
 
 static uint8_t quantizer_button_led_idx[12] = {20, 8, 19, 9, 18, 17, 11, 16, 12, 15, 13, 14};
 
-static uint8_t clock_divider_values[N_CLOCK_DIVIDERS]    = {1, 2, 3, 4, 5, 6, 8, 16};
-static uint8_t clock_multiplier_values[N_CLOCK_DIVIDERS] = {1, 2, 3, 4, 5, 6, 8, 16};
-
-static int8_t gate_state[N_INPUTS] = {0, 0, 0, 0};
-
 // menu_state |= MENU_STATE_FRQ;  // set bit
 // menu_state &= ~MENU_STATE_FRQ; // unset
 // menu_state ^= MENU_STATE_FRQ; // toggle
@@ -88,16 +80,6 @@ void bmcv_init(uint16_t _mpc_interrupt_pin, ADC_TypeDef* _slider_adc)
     slider_adc        = _slider_adc;
 
     Clock_Init();
-
-    for (uint8_t div = 0; div < N_CLOCK_DIVIDERS; div++)
-    {
-        Clock_AttachDivider(div, clock_divider_values[div]);
-    }
-
-    for (uint8_t mul = 0; mul < N_CLOCK_MULTIPLIERS; mul++)
-    {
-        Clock_AttachMultiplier(mul, clock_multiplier_values[mul]);
-    }
 
     for (uint8_t s = 0; s < N_SCENES; s++)
     {
@@ -131,7 +113,6 @@ void bmcv_init(uint16_t _mpc_interrupt_pin, ADC_TypeDef* _slider_adc)
     prev_state->scene_l              = 0;
     prev_state->scene_r              = 6;
     prev_state->scene_latch          = 3;
-    prev_state->base_freq            = 1.0f;
 }
 
 void bmcv_handle_adc_conversion_complete(ADC_HandleTypeDef* hadc)
@@ -160,43 +141,58 @@ void bmcv_handle_txrx_complete(SPI_HandleTypeDef* hspi)
     }
 }
 
-void bmcv_handle_timer_period_elapsed(TIM_HandleTypeDef* htim)
+void bmcv_poll_tasks()
 {
-    if (htim->Instance == TIM2)
-    { // ~ 100 Hz
-
-        task = task + 1;
-        if (task == 1)
+    task = task + 1;
+    if (task == 1)
+    {
+        mcp_poll = 1;
+        if (dacadc_update())
         {
-            mcp_poll = 1;
-            if (dacadc_update())
-            {
-                next_dac = 1;
-            }
+            next_dac = 1;
         }
-        else if (task == 2)
-        {
-            led_poll = 1;
-        }
-        else if (task == 3)
-        {
-            midi_poll = 1;
-        }
-        else
-        {
-            task = 0;
-        }
+    }
+    else if (task == 2)
+    {
+        led_poll = 1;
+    }
+    else if (task == 3)
+    {
+        midi_poll = 1;
+    }
+    else
+    {
+        task = 0;
     }
 }
 
-void bmcv_main(uint32_t now)
+void bmcv_main(uint32_t now_us, uint32_t now_ms)
 {
-    Clock_PollTimeout(now * 1000);
+    if (next_dac)
+    {
+        next_dac = 0;
+        dacadc_dma_next();
+    }
+
+    for (uint8_t g = 0; g < N_INPUTS; g++)
+    {
+        // TODO: Clock input configuration
+        if (g == 0 && adc_read_trig_state(input_map[g]))
+        {
+            Clock_Trigger(now_us);
+        }
+    }
+
     if (mcp_poll == 1 && mcp_read())
     {
         mcp_poll = 0;
         mcu_read_buttons();
-        bmcv_state_update(now);
+    }
+
+    if (now_ms > curr_state->time + 1)
+    {
+        Clock_Poll(now_us);
+        bmcv_state_update(now_ms);
     }
 
     if (midi_poll && midi_idle())
@@ -213,12 +209,6 @@ void bmcv_main(uint32_t now)
     {
         led_poll = 0;
         ws2811_update();
-    }
-
-    if (next_dac)
-    {
-        next_dac = 0;
-        dacadc_dma_next();
     }
 }
 
@@ -244,6 +234,11 @@ void bmcv_state_update(uint32_t now)
     curr_state->ctrl_flags                = prev_state->ctrl_flags;
     curr_state->blink_fast                = (now % FAST_BLINK_PERIOD) < (FAST_BLINK_PERIOD / 2);
     curr_state->blink_slow                = (now % SLOW_BLINK_PERIOD) < (SLOW_BLINK_PERIOD / 2);
+    /*
+    curr_state->beat_phase                = g_clk.phase;
+    curr_state->beat_time                 = g_clk.beat_dt_us;
+    curr_state->beat_freq                 = g_clk.bpm / 60.0f;
+    */
 
     for (uint8_t g = 0; g < N_INPUTS; g++)
     {
@@ -280,23 +275,6 @@ void bmcv_state_update(uint32_t now)
         if (!curr_state->button_state[b] && prev_state->button_state[b])
         {
             curr_state->button_released_t[b] = prev_state->button_pressed_t[b];
-        }
-    }
-
-    for (uint8_t g = 0; g < N_INPUTS; g++)
-    {
-        if (gate_state[g] == 0 && curr_state->input_state[g] > GATE_THRESHOLD_UPPER)
-        {
-            gate_state[g] = 1;
-            if (g == 0)
-            {
-                Clock_Trigger(now * 1000);
-            }
-            // TRIGGER
-        }
-        else if (gate_state[g] == 1 && curr_state->input_state[g] < GATE_THRESHOLD_LOWER)
-        {
-            gate_state[g] = 0;
         }
     }
 

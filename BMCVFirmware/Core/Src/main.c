@@ -157,7 +157,8 @@ int main(void)
     /* Infinite loop */
     /* USER CODE BEGIN WHILE */
     HAL_ADC_Start_IT(&hadc1);
-    HAL_TIM_Base_Start_IT(&htim2);
+    HAL_TIM_Base_Start(&htim2);
+    HAL_TIM_Base_Start_IT(&htim4);
 
     HAL_Delay(10);
 
@@ -165,7 +166,7 @@ int main(void)
 
     while (1)
     {
-        bmcv_main(HAL_GetTick());
+        bmcv_main(__HAL_TIM_GET_COUNTER(&htim2), HAL_GetTick());
         /* USER CODE END WHILE */
 
         /* USER CODE BEGIN 3 */
@@ -470,9 +471,9 @@ static void MX_TIM2_Init(void)
 
     /* USER CODE END TIM2_Init 1 */
     htim2.Instance               = TIM2;
-    htim2.Init.Prescaler         = 14400;
+    htim2.Init.Prescaler         = (SystemCoreClock / 1000000) - 1; // 14400;
     htim2.Init.CounterMode       = TIM_COUNTERMODE_UP;
-    htim2.Init.Period            = 32;
+    htim2.Init.Period            = 0xFFFFFFFF;
     htim2.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
     htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
     if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -572,9 +573,9 @@ static void MX_TIM4_Init(void)
 
     /* USER CODE END TIM4_Init 1 */
     htim4.Instance               = TIM4;
-    htim4.Init.Prescaler         = 143;
+    htim4.Init.Prescaler         = 14399;
     htim4.Init.CounterMode       = TIM_COUNTERMODE_UP;
-    htim4.Init.Period            = 100;
+    htim4.Init.Period            = 32;
     htim4.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
     htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
     if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
@@ -725,9 +726,17 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim) { bmcv_handle_timer_period_elapsed(htim); }
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) { bmcv_handle_adc_conversion_complete(hadc); }
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
+{
+    if (htim->Instance == TIM4)
+    {
+        bmcv_poll_tasks();
+    }
+}
+
 /* USER CODE END 4 */
 
 /**

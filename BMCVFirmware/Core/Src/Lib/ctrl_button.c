@@ -1,5 +1,9 @@
 #include "ctrl_button.h"
+#include "clock_sync.h"
+#include "state.h"
 #include "ws2811.h"
+#include <math.h>
+#include <stdint.h>
 
 void init_ctrl_button(CtrlButton* btn)
 {
@@ -21,10 +25,19 @@ void update_ctrl_button(CtrlButton* btn, State* state)
 
     uint8_t val = 0;
 
+    uint8_t phase_color = (uint8_t) roundf(g_clk.phase * 255.0f);
+
     if (flag_active)
     {
         val = 20 * (btn_state == 0 ? 1 : state->blink_fast);
     }
 
-    ws2811_setled_hsv(btn->led, btn->color, sat, val);
+    if (btn->ctrl_flags & CTRL_INP)
+    {
+        ws2811_setled_hsv(btn->led, btn->color, 255, phase_color);
+    }
+    else
+    {
+        ws2811_setled_hsv(btn->led, btn->color, sat, val);
+    }
 }

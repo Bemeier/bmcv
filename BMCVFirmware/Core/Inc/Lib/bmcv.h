@@ -23,13 +23,13 @@ static uint16_t quantize_mask = 0b111111111111;
 
 void bmcv_init(uint16_t mpc_interrupt_pin, ADC_TypeDef* slider_adc);
 
-void bmcv_main(uint32_t now);
+void bmcv_main(uint32_t now_us, uint32_t now_ms);
 
 void bmcv_state_update(uint32_t now);
 
 void bmcv_handle_adc_conversion_complete(ADC_HandleTypeDef* hadc);
 
-void bmcv_handle_timer_period_elapsed(TIM_HandleTypeDef* htim);
+void bmcv_poll_tasks();
 
 void bmcv_handle_gpio_exti(uint16_t GPIO_Pin);
 

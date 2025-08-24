@@ -4,52 +4,44 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define N_CLOCK_DIVIDERS 8
-#define N_CLOCK_MULTIPLIERS 8
-
 typedef struct
 {
-    volatile uint32_t last_capture;
-    volatile uint32_t avg_period;
-    volatile uint32_t period_raw;
-    volatile bool have_period;
-    volatile bool running;
+    uint32_t last_edge_us;     // µs timestamp of last pulse
+    uint32_t last_beat_anchor; // µs timestamp of "pulse 0" of the beat
+    uint32_t beat_period_us;   // smoothed duration of one beat
+    uint32_t beat_dt_us;
+    uint32_t last_ipi_us;
+    uint32_t beat_period_raw; // last measured beat duration
+    uint32_t pp_counter;      // counts pulses within current beat (0..PPB-1)
+    uint8_t PPB;              // pulses per beat (config: 1/2/4/8/16/24)
+    uint32_t beat_counter;
+    uint32_t last_poll_us;
 
-    uint32_t guard_us;
-    uint32_t min_period_us;
-    uint32_t max_period_us;
-    float alpha;
+    float beat_freq;
 
-    uint32_t timeout_us;
-    volatile uint32_t last_edge_time;
+    float synced_beats;   // Master beat phase accumulator
+    float pll_integral;   // Integral error for PI control
+    float last_beat_time; // Last beat timestamp (seconds)
 
-    struct
-    {
-        uint8_t N;
-        uint8_t cnt;
-        bool pulse_pending;
-    } divs[N_CLOCK_DIVIDERS];
+    float k_p;           // Proportional gain
+    float k_i;           // Integral gain
+    float integral_max;  // Anti-windup clamp
+    float beat_freq_min; // Min beat freq (Hz, ~6 BPM)
+    float beat_freq_max; // Max beat freq (Hz, ~1200 BPM)
 
-    struct
-    {
-        uint8_t M;
-        uint32_t next_tick;
-        uint8_t k;
-        bool armed;
-    } mults[N_CLOCK_MULTIPLIERS];
-
+    float ema_alpha; // smoothing factor, e.g. 0.1
+    bool have_beat;  // true after first full beat measured
+    float clock_s;
     float phase;
+    float last_phase;
     float bpm;
 } ClockState;
 
 void Clock_Init(void);
-void Clock_AttachDivider(uint8_t ch, uint8_t N);
-void Clock_AttachMultiplier(uint8_t ch, uint8_t M);
 void Clock_Reset(void);
-void Clock_Trigger(uint32_t now);
-void Clock_PollTimeout(uint32_t now);   // call in main loop or 1ms tick
-void Clock_OnOutputCompare(uint8_t ch); // called from TIM2 OC IRQ for mult pulses
+void Clock_Trigger(uint32_t now_us);
+void Clock_Poll(uint32_t now_us);
 
-static ClockState g_clk;
+extern ClockState g_clk;
 
 #endif /* INC_LIB_CLOCK_SYNC_H_ */

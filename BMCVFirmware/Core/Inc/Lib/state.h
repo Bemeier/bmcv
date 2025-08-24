@@ -129,8 +129,6 @@ typedef struct
     int8_t blink_slow;
     int8_t blink_fast;
     uint16_t quantize_mask;
-
-    float base_freq;
 } State;
 
 #endif /* INC_LIB_STATE_H_ */
