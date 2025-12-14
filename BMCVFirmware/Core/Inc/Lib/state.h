@@ -72,6 +72,7 @@ typedef enum
     INPUT_CLOCK,
     INPUT_RESET,
     INPUT_SLIDER,
+    INPUT_MODE_COUNT
 } InputMode;
 
 typedef enum
@@ -106,6 +107,8 @@ typedef struct
     int16_t encoder_delta[N_ENCODERS]; // change of encoder since last state
 
     int16_t input_state[N_INPUTS];
+
+    InputMode input_mode[N_INPUTS];
 
     // int16_t channel_level[N_CHANNELS];
 

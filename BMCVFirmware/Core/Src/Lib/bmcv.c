@@ -17,10 +17,12 @@ static uint16_t slider;
 
 static uint8_t task = 0;
 
-static uint8_t next_dac  = 0;
+static uint8_t dac_poll  = 1;
 static uint8_t mcp_poll  = 0;
 static uint8_t led_poll  = 0;
 static uint8_t midi_poll = 0;
+
+static int8_t monitor = 0;
 
 static uint16_t mpc_interrupt_pin;
 static ADC_TypeDef* slider_adc;
@@ -108,11 +110,17 @@ void bmcv_init(uint16_t _mpc_interrupt_pin, ADC_TypeDef* _slider_adc)
         init_channel(&channel[c]);
     }
 
-    prev_state->ctrl_flags           = CTRL_OFS;
-    prev_state->scene_latch_position = 4032;
-    prev_state->scene_l              = 0;
-    prev_state->scene_r              = 6;
-    prev_state->scene_latch          = -1;
+    // move out of state to settings?
+    prev_state->input_mode[input_map[0]] = INPUT_CLOCK;
+    prev_state->input_mode[input_map[1]] = INPUT_RESET;
+    prev_state->input_mode[input_map[2]] = INPUT_SLIDER;
+    prev_state->input_mode[input_map[3]] = INPUT_DEFAULT;
+
+    prev_state->ctrl_flags               = CTRL_OFS;
+    prev_state->scene_latch_position     = 4032;
+    prev_state->scene_l                  = 0;
+    prev_state->scene_r                  = 6;
+    prev_state->scene_latch              = -1;
 }
 
 void bmcv_handle_adc_conversion_complete(ADC_HandleTypeDef* hadc)
@@ -137,29 +145,28 @@ void bmcv_handle_txrx_complete(SPI_HandleTypeDef* hspi)
 
     if (dacadc_dma_complete(hspi))
     {
-        next_dac = 1;
+        dac_poll = 1;
     }
 }
 
 void bmcv_poll_tasks()
 {
-    task = task + 1;
+    task     = task + 1;
+    led_poll = 1;
+
     if (task == 1)
     {
         mcp_poll = 1;
-        if (dacadc_update())
-        {
-            next_dac = 1;
-        }
     }
     else if (task == 2)
     {
-        led_poll = 1;
-    }
-    else if (task == 3)
-    {
         midi_poll = 1;
     }
+    /*
+    else if (task == 3)
+    {
+    }
+    */
     else
     {
         task = 0;
@@ -168,9 +175,9 @@ void bmcv_poll_tasks()
 
 void bmcv_main(uint32_t now_us, uint32_t now_ms)
 {
-    if (next_dac)
+    if (dac_poll == 1 || dacadc_error())
     {
-        next_dac = 0;
+        dac_poll = 0;
         dacadc_dma_next();
     }
 
@@ -189,7 +196,7 @@ void bmcv_main(uint32_t now_us, uint32_t now_ms)
         mcu_read_buttons();
     }
 
-    if (now_ms > curr_state->time + 1)
+    if (now_ms > curr_state->time)
     {
         Clock_Poll(now_us);
         bmcv_state_update(now_ms);
@@ -208,6 +215,13 @@ void bmcv_main(uint32_t now_us, uint32_t now_ms)
     if (led_poll && ws2811_dma_completed())
     {
         led_poll = 0;
+        if (monitor > 0)
+        {
+            for (uint8_t i = 0; i < N_INPUTS; i++)
+            {
+                ws2811_setled_adcr(scene[i].led, get_adc(input_map[i]));
+            }
+        }
         ws2811_update();
     }
 }
@@ -215,7 +229,7 @@ void bmcv_main(uint32_t now_us, uint32_t now_ms)
 void bmcv_state_update(uint32_t now)
 {
     uint32_t deltaTime = now - curr_state->time;
-    if (deltaTime < 4)
+    if (deltaTime < 8)
     { // 250 Hz
         return;
     }
@@ -234,11 +248,6 @@ void bmcv_state_update(uint32_t now)
     curr_state->ctrl_flags                = prev_state->ctrl_flags;
     curr_state->blink_fast                = (now % FAST_BLINK_PERIOD) < (FAST_BLINK_PERIOD / 2);
     curr_state->blink_slow                = (now % SLOW_BLINK_PERIOD) < (SLOW_BLINK_PERIOD / 2);
-    /*
-    curr_state->beat_phase                = g_clk.phase;
-    curr_state->beat_time                 = g_clk.beat_dt_us;
-    curr_state->beat_freq                 = g_clk.bpm / 60.0f;
-    */
 
     for (uint8_t g = 0; g < N_INPUTS; g++)
     {
@@ -316,6 +325,10 @@ void bmcv_state_update(uint32_t now)
 
     curr_state->quantize_mask = quantize_mask;
 
+    int8_t momentary_scene = -1;
+
+    monitor = 0;
+
     if (curr_state->ctrl_flags & CTRL_QNT)
     {
         for (uint16_t st = 0; st < 12; st++)
@@ -333,10 +346,7 @@ void bmcv_state_update(uint32_t now)
     }
     else if (curr_state->ctrl_flags & CTRL_MON)
     {
-        for (uint8_t i = 0; i < N_INPUTS; i++)
-        {
-            ws2811_setled_adcr(scene[i].led, curr_state->input_state[i]);
-        }
+        monitor = 1;
     }
     else
     {
@@ -381,38 +391,49 @@ void bmcv_state_update(uint32_t now)
 
         for (uint8_t s = 0; s < N_SCENES; s++)
         {
-            update_scene_button(&scene[s], curr_state);
+            if (update_scene_button(&scene[s], curr_state) > 0)
+            {
+                momentary_scene = s;
+            }
             scene[s].contribution = 0;
         }
     }
 
-    uint8_t scene_a         = curr_state->scene_l;
-    uint8_t scene_b         = curr_state->scene_r;
-    uint16_t scene_a_anchor = SLIDER_MAX_VALUE;
-    uint16_t scene_b_anchor = SLIDER_MIN_VALUE;
-
-    if (curr_state->scene_latch > 0 && curr_state->slider_position <= curr_state->scene_latch_position)
+    if (momentary_scene == -1)
     {
-        scene_a        = curr_state->scene_latch;
-        scene_a_anchor = curr_state->scene_latch_position - LATCH_DEADZONE / 2;
-    }
+        uint8_t scene_a         = curr_state->scene_l;
+        uint8_t scene_b         = curr_state->scene_r;
+        uint16_t scene_a_anchor = SLIDER_MAX_VALUE;
+        uint16_t scene_b_anchor = SLIDER_MIN_VALUE;
 
-    if (curr_state->scene_latch > 0 && curr_state->slider_position > curr_state->scene_latch_position)
-    {
-        scene_b        = curr_state->scene_latch;
-        scene_b_anchor = curr_state->scene_latch_position + LATCH_DEADZONE / 2;
-    }
+        if (curr_state->scene_latch > 0 && curr_state->slider_position <= curr_state->scene_latch_position)
+        {
+            scene_a        = curr_state->scene_latch;
+            scene_a_anchor = curr_state->scene_latch_position - LATCH_DEADZONE / 2;
+        }
 
-    if (scene_a == scene_b)
-    {
-        scene[scene_a].contribution = 255;
+        if (curr_state->scene_latch > 0 && curr_state->slider_position > curr_state->scene_latch_position)
+        {
+            scene_b        = curr_state->scene_latch;
+            scene_b_anchor = curr_state->scene_latch_position + LATCH_DEADZONE / 2;
+        }
+
+        if (scene_a == scene_b)
+        {
+            scene[scene_a].contribution = 255;
+        }
+        else
+        {
+            scene[scene_a].contribution = interpolate_clamped(scene_b_anchor, scene_a_anchor, curr_state->slider_position);
+            scene[scene_b].contribution = 255 - scene[scene_a].contribution;
+        }
+        curr_state->active_scene_id = scene[scene_a].contribution > scene[scene_b].contribution ? scene_a : scene_b;
     }
     else
     {
-        scene[scene_a].contribution = interpolate_clamped(scene_b_anchor, scene_a_anchor, curr_state->slider_position);
-        scene[scene_b].contribution = 255 - scene[scene_a].contribution;
+        curr_state->active_scene_id                     = momentary_scene;
+        scene[curr_state->active_scene_id].contribution = 255;
     }
-    curr_state->active_scene_id = scene[scene_a].contribution > scene[scene_b].contribution ? scene_a : scene_b;
 
     for (uint8_t s = 0; s < N_SCENES; s++)
     {

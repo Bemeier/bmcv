@@ -58,9 +58,30 @@ void init_channel(Channel* ch)
         {
             ch->params[p][s] = 0;
         }
-        ch->params[PARAM_AMP][s] = 16000;
-        ch->params[PARAM_FRQ][s] = -510;
+        ch->params[PARAM_AMP][s] = 0;
+        ch->params[PARAM_FRQ][s] = 85;
     }
+}
+
+int16_t find_denominator(float value, int16_t max_mult, float tol)
+{
+    // Remove integer part first
+    float frac = value - floorf(value);
+    if (frac == 0.0f)
+    {
+        return 1; // already integer
+    }
+
+    for (int16_t mult = 1; mult <= max_mult; mult++)
+    {
+        float test    = frac * mult;
+        float nearest = roundf(test);
+        if (fabsf(test - nearest) < tol)
+        {
+            return mult;
+        }
+    }
+    return -1; // not found within max_mult
 }
 
 int16_t freq_neighbour(int16_t freq, int16_t delta)
@@ -138,32 +159,40 @@ void compute_channel(Channel* ch, State* state, Scene* scenes)
         }
     }
 
-    // freq variable below is a frequency mulitplier/divider...
-    // this is converted to float from int16, negative values being dividers, positive multipliers.
-    float freq_multiplier = (float) avg[PARAM_FRQ] / (float) N_FREQ_SCALE;
-    if (freq_multiplier < 0)
+    float freq_param = avg[PARAM_FRQ] / (float) N_FREQ_SCALE;
+    if (freq_param >= 0)
     {
-        freq_multiplier = -1 / freq_multiplier;
+        ch->freq_multiplier = freq_param + 1.0f;
+    }
+    else
+    {
+        ch->freq_multiplier = -1.0f / (freq_param - 1.0f);
     }
 
-    float offset   = (float) avg[PARAM_OFS];
-    float amp      = (float) avg[PARAM_AMP] / 2.0f;
-    float shape    = (float) avg[PARAM_SHP] / INT16_MAX;
-    float phs      = (float) avg[PARAM_PHS] / INT16_MAX;
-    float eff_freq = g_clk.beat_freq * freq_multiplier;
-    ch->shared_phase += dt_s * (eff_freq + ch->phase_correction);
+    ch->gcd = find_denominator(ch->freq_multiplier, 8, 0.01f);
 
-    // align both phase slopes and when they wrap around
-    ch->normalized_phase = fmodf(ch->shared_phase, freq_multiplier);
-    ch->target_phase     = fmodf(g_clk.phase * freq_multiplier, freq_multiplier);
+    float offset       = (float) avg[PARAM_OFS];
+    float amp          = (float) avg[PARAM_AMP] / 2.0f;
+    float shape        = (float) avg[PARAM_SHP] / INT16_MAX;
+    float phs          = (float) avg[PARAM_PHS] / INT16_MAX;
+    float eff_freq     = g_clk.beat_freq_smooth * ch->freq_multiplier;
+    float phase_delta  = dt_s * (eff_freq + ch->phase_correction);
+    float phase_length = ch->gcd > 0 ? ch->gcd * ch->freq_multiplier : 1.0f;
+    ch->shared_phase   = fmodf(ch->shared_phase + phase_delta, phase_length);
 
-    float k_sync = 0.01f;
+    if (ch->gcd > 0 && g_clk.have_beat)
+    {
+        float beat_mode  = floorf(fmodf(g_clk.beat_counter, ch->gcd)) + g_clk.beat_phase;
+        ch->target_phase = fmodf(beat_mode * ch->freq_multiplier, phase_length);
+        ch->diff         = ch->gcd > 0 ? phase_error(ch->target_phase, ch->shared_phase, phase_length) : 0;
+        // TODO: If we momentary activate scene, set ch->phase to target_phase?
+    }
+    else
+    {
+        ch->diff = 0;
+    }
 
-    ch->diff             = phase_error(ch->target_phase, ch->normalized_phase, freq_multiplier);
-    ch->phase_correction = (ch->phase_correction + ch->diff * k_sync) * 0.99f;
-
-    // ch->shared_phase = fmodf(ch->shared_phase + ch->diff, 1.0f);
-    ch->shared_phase = fmodf(ch->shared_phase, 1.0f);
+    ch->phase_correction = (ch->phase_correction * (1.0f - k_sync) + ch->diff * k_sync);
 
     float phase = fmodf(ch->shared_phase + phs, 1.0f);
     float raw   = wavetable_lookup(phase, shape) / (float) INT16_MAX;

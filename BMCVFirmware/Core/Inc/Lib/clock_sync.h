@@ -6,35 +6,22 @@
 
 typedef struct
 {
-    uint32_t last_edge_us;     // µs timestamp of last pulse
-    uint32_t last_beat_anchor; // µs timestamp of "pulse 0" of the beat
-    uint32_t beat_period_us;   // smoothed duration of one beat
-    uint32_t beat_dt_us;
-    uint32_t last_ipi_us;
-    uint32_t beat_period_raw; // last measured beat duration
-    uint32_t pp_counter;      // counts pulses within current beat (0..PPB-1)
-    uint8_t PPB;              // pulses per beat (config: 1/2/4/8/16/24)
+    uint8_t PULSES_PER_BEAT;
+
+    uint32_t last_pulse_us;
+    uint32_t last_beat_start_us;
+    uint32_t last_reset_us;
+    uint32_t last_pulse_delta_us;
+    uint32_t pulse_counter;
     uint32_t beat_counter;
-    uint32_t last_poll_us;
+
+    bool have_beat;
 
     float beat_freq;
-
-    float synced_beats;   // Master beat phase accumulator
-    float pll_integral;   // Integral error for PI control
-    float last_beat_time; // Last beat timestamp (seconds)
-
-    float k_p;           // Proportional gain
-    float k_i;           // Integral gain
-    float integral_max;  // Anti-windup clamp
-    float beat_freq_min; // Min beat freq (Hz, ~6 BPM)
-    float beat_freq_max; // Max beat freq (Hz, ~1200 BPM)
-
-    float ema_alpha; // smoothing factor, e.g. 0.1
-    bool have_beat;  // true after first full beat measured
-    float clock_s;
-    float phase;
-    float last_phase;
+    float beat_freq_smooth;
     float bpm;
+
+    float beat_phase;
 } ClockState;
 
 void Clock_Init(void);

@@ -17,6 +17,6 @@ typedef struct
 
 void update_scene(Scene* scene, State* state);
 
-void update_scene_button(Scene* scn, State* state);
+int8_t update_scene_button(Scene* scn, State* state);
 
 #endif /* INC_LIB_SCENE_H_ */

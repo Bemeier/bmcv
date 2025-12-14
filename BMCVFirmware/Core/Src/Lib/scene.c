@@ -28,31 +28,40 @@ void update_scene(Scene* scene, State* state)
     ws2811_setled_hsv(scene->led, scene->color, scene->contribution, val);
 }
 
-void update_scene_button(Scene* scn, State* state)
+int8_t update_scene_button(Scene* scn, State* state)
 {
-    if (state->button_released_t[scn->button] == 0)
+    if (state->button_released_t[scn->button] > 0)
     {
-        return;
-    }
-
-    if (state->ctrl_flags & CTRL_LAT)
-    {
-        state->scene_latch          = scn->id;
-        state->scene_latch_position = state->slider_position;
-
-        if (state->ctrl_flags & CTRL_STL || state->ctrl_flags & CTRL_STL)
+        if (state->ctrl_flags & CTRL_LAT)
         {
-            state->scene_latch = -1;
+            state->scene_latch          = scn->id;
+            state->scene_latch_position = state->slider_position;
+
+            if (state->ctrl_flags & CTRL_STL || state->ctrl_flags & CTRL_STL)
+            {
+                state->scene_latch = -1;
+            }
+        }
+
+        if (state->ctrl_flags & CTRL_STL)
+        {
+            state->scene_l = scn->id;
+        }
+
+        if (state->ctrl_flags & CTRL_STR)
+        {
+            state->scene_r = scn->id;
         }
     }
-
-    if (state->ctrl_flags & CTRL_STL)
+    else if (state->button_pressed_t[scn->button] > 0)
     {
-        state->scene_l = scn->id;
+        if (state->ctrl_flags & (CTRL_STL | CTRL_LAT | CTRL_QNT | CTRL_SYS | CTRL_MON | CTRL_SEQ | CTRL_STR))
+        {
+            return -1;
+        }
+
+        return 1;
     }
 
-    if (state->ctrl_flags & CTRL_STR)
-    {
-        state->scene_r = scn->id;
-    }
+    return -1;
 }

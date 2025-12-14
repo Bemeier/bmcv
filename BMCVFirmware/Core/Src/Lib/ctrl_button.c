@@ -25,7 +25,9 @@ void update_ctrl_button(CtrlButton* btn, State* state)
 
     uint8_t val = 0;
 
-    uint8_t phase_color = (uint8_t) roundf(g_clk.phase * 255.0f);
+    // uint8_t phase_color = (uint8_t) roundf(g_clk.beat_phase * 255.0f);
+    uint8_t sub         = g_clk.have_beat && fmodf(g_clk.beat_phase, 1.0f / g_clk.PULSES_PER_BEAT) < 0.05f ? 5 : 0;
+    uint8_t phase_color = g_clk.have_beat && g_clk.beat_phase < 0.05 ? 50 : 0 + sub;
 
     if (flag_active)
     {

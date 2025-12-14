@@ -77,7 +77,7 @@ void dacadc_transaction()
 }
 */
 
-int8_t dacadc_update()
+int8_t dacadc_error()
 {
     if (dacadc.CH_IDX > DAC_CHANNELS)
     {

@@ -45,7 +45,7 @@ void dacadc_write(uint8_t idx, int16_t data);
 
 void dac_init();
 
-int8_t dacadc_update();
+int8_t dacadc_error();
 
 uint8_t dacadc_dma_next();
 uint8_t dacadc_dma_complete(SPI_HandleTypeDef* hspi);
