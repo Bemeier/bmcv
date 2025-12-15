@@ -88,10 +88,13 @@ typedef struct
     int8_t dac_channel;
     int8_t assigned_adc;
     int8_t adc_polarized;
+    int8_t src_input;
+    uint8_t id;
     uint8_t morph_amount;
     int16_t params[N_PARAMS][N_SCENES];
     int16_t offset[N_SCENES];
     int16_t amplitude[N_SCENES];
+    int16_t input_amplitude[N_SCENES];
     int16_t frequency[N_SCENES];
     int16_t phase[N_SCENES];
     int16_t shape[N_SCENES];

@@ -1,4 +1,6 @@
 #include "bmcv.h"
+#include "assign.h"
+#include "channel.h"
 #include "clock_sync.h"
 #include "dac_adc.h"
 #include "helpers.h"
@@ -39,7 +41,7 @@ static int8_t channel_encoder_idx[N_ENCODERS] = {3, 2, 4, 5, 1, 0, 7, 6};
 static int8_t channel_dac_idx[N_ENCODERS]     = {7, 3, 5, 1, 6, 2, 4, 0};
 
 static uint16_t ctrl_button_flags[N_CTRL_BUTTONS] = {CTRL_FRQ | CTRL_STL,
-                                                     CTRL_SHP | CTRL_LAT,
+                                                     CTRL_SHP | CTRL_XXX,
                                                      CTRL_PHS | CTRL_SYS,
                                                      CTRL_INP | CTRL_MON,
                                                      CTRL_AMP | CTRL_SEQ,
@@ -62,7 +64,6 @@ static int8_t scene_button_led_idx[N_SCENES]      = {20, 19, 18, 17, 16, 15, 14}
 static int8_t ctrl_button_led_idx[N_CTRL_BUTTONS] = {8, 9, 10, 11, 12, 13, -1, -1, -1};
 static int8_t channel_led_idx[N_ENCODERS]         = {5, 4, 7, 6, 3, 2, 0, 1};
 
-static uint8_t scene_button_color[N_SCENES]      = {HUE_RED, HUE_YELLOW, HUE_GREEN, HUE_CYAN, HUE_BLUE, HUE_MAGENTA, HUE_RED};
 static uint8_t ctrl_button_color[N_CTRL_BUTTONS] = {HUE_RED, HUE_YELLOW, HUE_GREEN, HUE_CYAN, HUE_BLUE, HUE_MAGENTA, 0, 0, 0};
 
 static uint8_t quantizer_button_led_idx[12] = {20, 8, 19, 9, 18, 17, 11, 16, 12, 15, 13, 14};
@@ -89,7 +90,6 @@ void bmcv_init(uint16_t _mpc_interrupt_pin, ADC_TypeDef* _slider_adc)
         scene[s].led            = scene_button_led_idx[s];
         scene[s].button         = scene_button_idx[s];
         scene[s].alt_ctrl_flags = scene_button_alt_ctrl_flags[s];
-        scene[s].color          = scene_button_color[s];
     }
 
     for (uint8_t b = 0; b < N_CTRL_BUTTONS; b++)
@@ -103,6 +103,7 @@ void bmcv_init(uint16_t _mpc_interrupt_pin, ADC_TypeDef* _slider_adc)
 
     for (uint8_t c = 0; c < N_ENCODERS; c++)
     {
+        channel[c].id          = c;
         channel[c].button      = channel_button_idx[c];
         channel[c].led         = channel_led_idx[c];
         channel[c].encoder     = channel_encoder_idx[c];
@@ -111,16 +112,14 @@ void bmcv_init(uint16_t _mpc_interrupt_pin, ADC_TypeDef* _slider_adc)
     }
 
     // move out of state to settings?
-    prev_state->input_mode[input_map[0]] = INPUT_CLOCK;
-    prev_state->input_mode[input_map[1]] = INPUT_RESET;
-    prev_state->input_mode[input_map[2]] = INPUT_SLIDER;
-    prev_state->input_mode[input_map[3]] = INPUT_DEFAULT;
+    system_state.input_mode[0] = INPUT_CLOCK;
+    system_state.input_mode[1] = INPUT_RESET;
+    system_state.input_mode[2] = INPUT_SLIDER;
+    system_state.input_mode[3] = INPUT_DEFAULT;
 
-    prev_state->ctrl_flags               = CTRL_OFS;
-    prev_state->scene_latch_position     = 4032;
-    prev_state->scene_l                  = 0;
-    prev_state->scene_r                  = 6;
-    prev_state->scene_latch              = -1;
+    prev_state->ctrl_flags = CTRL_OFS;
+    prev_state->scene_l    = 0;
+    prev_state->scene_r    = 6;
 }
 
 void bmcv_handle_adc_conversion_complete(ADC_HandleTypeDef* hadc)
@@ -173,6 +172,18 @@ void bmcv_poll_tasks()
     }
 }
 
+void bmcv_assign_input_to_channel(int8_t i, int8_t c)
+{
+    if (channel[c].src_input == i)
+    {
+        channel[c].src_input = -1;
+    }
+    else
+    {
+        channel[c].src_input = i;
+    }
+}
+
 void bmcv_main(uint32_t now_us, uint32_t now_ms)
 {
     if (dac_poll == 1 || dacadc_error())
@@ -184,9 +195,13 @@ void bmcv_main(uint32_t now_us, uint32_t now_ms)
     for (uint8_t g = 0; g < N_INPUTS; g++)
     {
         // TODO: Clock input configuration
-        if (g == 0 && adc_read_trig_state(input_map[g]))
+        if (system_state.input_mode[g] == INPUT_CLOCK && adc_read_trig_state(input_map[g]))
         {
             Clock_Trigger(now_us);
+        }
+        else if (system_state.input_mode[g] == INPUT_RESET && adc_read_trig_state(input_map[g]))
+        {
+            Clock_Reset();
         }
     }
 
@@ -219,7 +234,14 @@ void bmcv_main(uint32_t now_us, uint32_t now_ms)
         {
             for (uint8_t i = 0; i < N_INPUTS; i++)
             {
-                ws2811_setled_adcr(scene[i].led, get_adc(input_map[i]));
+                if (assign_state() == ASSIGN_INPUT && assign_src() == i)
+                {
+                    ws2811_setled_hsv(scene[i].led, 0, 0, curr_state->blink_fast * 12);
+                }
+                else
+                {
+                    ws2811_setled_adcr(scene[i].led, get_adc(input_map[i]));
+                }
             }
         }
         ws2811_update();
@@ -241,17 +263,11 @@ void bmcv_state_update(uint32_t now)
     curr_state->slider_position           = slider;
     curr_state->active_scene_id           = prev_state->active_scene_id;
     curr_state->ctrl_last_channel_touched = prev_state->ctrl_last_channel_touched;
-    curr_state->scene_latch_position      = prev_state->scene_latch_position;
     curr_state->scene_l                   = prev_state->scene_l;
     curr_state->scene_r                   = prev_state->scene_r;
-    curr_state->scene_latch               = prev_state->scene_latch;
     curr_state->ctrl_flags                = prev_state->ctrl_flags;
     curr_state->blink_fast                = (now % FAST_BLINK_PERIOD) < (FAST_BLINK_PERIOD / 2);
     curr_state->blink_slow                = (now % SLOW_BLINK_PERIOD) < (SLOW_BLINK_PERIOD / 2);
-
-    for (uint8_t g = 0; g < N_INPUTS; g++)
-    {
-    }
 
     if (curr_state->ctrl_flags > CTRL_DEFAULT)
     {
@@ -303,19 +319,6 @@ void bmcv_state_update(uint32_t now)
         }
     }
 
-    if (curr_state->ctrl_flags & CTRL_LAT)
-    {
-        if (curr_state->slider_position <= SLIDER_MIN_VALUE)
-        {
-            curr_state->ctrl_flags |= CTRL_STR;
-        }
-
-        if (curr_state->slider_position >= SLIDER_MAX_VALUE)
-        {
-            curr_state->ctrl_flags |= CTRL_STL;
-        }
-    }
-
     if (curr_state->ctrl_flags != prev_state->ctrl_flags)
     {
         curr_state->ctrl_active_t = 0;
@@ -328,6 +331,11 @@ void bmcv_state_update(uint32_t now)
     int8_t momentary_scene = -1;
 
     monitor = 0;
+
+    if (!(curr_state->ctrl_flags & (CTRL_MON | CTRL_CPY | CTRL_CLR)))
+    {
+        assign_reset();
+    }
 
     if (curr_state->ctrl_flags & CTRL_QNT)
     {
@@ -347,6 +355,15 @@ void bmcv_state_update(uint32_t now)
     else if (curr_state->ctrl_flags & CTRL_MON)
     {
         monitor = 1;
+
+        for (uint8_t i = 0; i < N_INPUTS; i++)
+        {
+            if (curr_state->button_released_t[scene[i].button] > 50)
+            {
+                assign_reset();
+                assign_event(ASSIGN_INPUT, i);
+            }
+        }
     }
     else
     {
@@ -374,6 +391,7 @@ void bmcv_state_update(uint32_t now)
                 curr_state->ctrl_last_channel_touched != c)
             {
                 curr_state->ctrl_last_channel_touched = c;
+                /*
                 if (curr_state->ctrl_flags & CTRL_INP)
                 {
                     curr_state->button_pressed_t[channel[c].button]  = 0;
@@ -381,6 +399,7 @@ void bmcv_state_update(uint32_t now)
                     curr_state->encoder_state[channel[c].encoder]    = prev_state->encoder_state[channel[c].encoder];
                     curr_state->encoder_delta[channel[c].encoder]    = 0;
                 }
+                */
             }
         }
 
@@ -391,7 +410,7 @@ void bmcv_state_update(uint32_t now)
 
         for (uint8_t s = 0; s < N_SCENES; s++)
         {
-            if (update_scene_button(&scene[s], curr_state) > 0)
+            if (update_scene_button(&scene[s], curr_state, &system_state) > 0)
             {
                 momentary_scene = s;
             }
@@ -405,18 +424,6 @@ void bmcv_state_update(uint32_t now)
         uint8_t scene_b         = curr_state->scene_r;
         uint16_t scene_a_anchor = SLIDER_MAX_VALUE;
         uint16_t scene_b_anchor = SLIDER_MIN_VALUE;
-
-        if (curr_state->scene_latch > 0 && curr_state->slider_position <= curr_state->scene_latch_position)
-        {
-            scene_a        = curr_state->scene_latch;
-            scene_a_anchor = curr_state->scene_latch_position - LATCH_DEADZONE / 2;
-        }
-
-        if (curr_state->scene_latch > 0 && curr_state->slider_position > curr_state->scene_latch_position)
-        {
-            scene_b        = curr_state->scene_latch;
-            scene_b_anchor = curr_state->scene_latch_position + LATCH_DEADZONE / 2;
-        }
 
         if (scene_a == scene_b)
         {
@@ -438,7 +445,7 @@ void bmcv_state_update(uint32_t now)
     for (uint8_t s = 0; s < N_SCENES; s++)
     {
         // Only LED state for now?
-        update_scene(&scene[s], curr_state);
+        update_scene(&scene[s], curr_state, &system_state);
     }
 
     for (uint8_t c = 0; c < N_CHANNELS; c++)

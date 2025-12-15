@@ -15,6 +15,8 @@ static State state[STATE_RINGBUF_SIZE];
 static State* prev_state = &state[0];
 static State* curr_state = &state[1];
 
+static System system_state;
+
 static Scene scene[N_SCENES];
 static Channel channel[N_ENCODERS];
 static CtrlButton ctrl_buttons[N_CTRL_BUTTONS];
@@ -34,5 +36,7 @@ void bmcv_poll_tasks();
 void bmcv_handle_gpio_exti(uint16_t GPIO_Pin);
 
 void bmcv_handle_txrx_complete(SPI_HandleTypeDef* hspi);
+
+void bmcv_assign_input_to_channel(int8_t i, int8_t c);
 
 #endif /* INC_LIB_BMCV_H_ */

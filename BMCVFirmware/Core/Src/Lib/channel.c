@@ -1,4 +1,5 @@
 #include "channel.h"
+#include "assign.h"
 #include "clock_sync.h"
 #include "dac_adc.h"
 #include "helpers.h"
@@ -51,6 +52,7 @@ int8_t param_index(uint16_t flags)
 
 void init_channel(Channel* ch)
 {
+    ch->src_input    = -1;
     ch->shared_phase = 0;
     for (uint8_t s = 0; s < N_SCENES; s++)
     {
@@ -125,6 +127,13 @@ void update_channel(Channel* ch, State* state)
     {
         ch->quantize_mode = delta_modulo_step(ch->quantize_mode, state->encoder_delta[ch->encoder], QUANTIZE_MODE_COUNT);
     }
+    else if (state->ctrl_flags & CTRL_MON)
+    {
+        if (state->button_released_t[ch->button] > 50)
+        {
+            assign_event(ASSIGN_CHANNEL, ch->id);
+        }
+    }
     else
     {
         ch->params[param][state->active_scene_id] += shift ? delta * 512 : delta * 64;
@@ -198,6 +207,11 @@ void compute_channel(Channel* ch, State* state, Scene* scenes)
     float raw   = wavetable_lookup(phase, shape) / (float) INT16_MAX;
     float value = offset + amp * raw;
 
+    if (ch->src_input >= 0)
+    {
+        value += state->input_state[ch->src_input];
+    }
+
     if (value > INT16_MAX)
         value = INT16_MAX;
     else if (value < INT16_MIN)
@@ -219,6 +233,17 @@ void write_channel(Channel* ch, State* state)
     if (state->ctrl_flags == CTRL_QNT)
     {
         ws2811_setled_hsv(ch->led, quantize_mode_color[ch->quantize_mode], 255, ch->quantize_mode == QUANTIZE_DISABLED ? 0 : 25);
+    }
+    else if (state->ctrl_flags & CTRL_MON)
+    {
+        if (ch->src_input >= 0)
+        {
+            ws2811_setled_hsv(ch->led, 0, 0, 12);
+        }
+        else
+        {
+            ws2811_setled_hsv(ch->led, 0, 0, 0);
+        }
     }
     else if (ch->blink_until > state->time)
     {

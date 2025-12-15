@@ -21,7 +21,6 @@
 
 #define SLIDER_MIN_VALUE 400
 #define SLIDER_MAX_VALUE 7661
-#define LATCH_DEADZONE 400
 
 #define FAST_BLINK_PERIOD 300
 #define SLOW_BLINK_PERIOD 800
@@ -37,7 +36,7 @@
 
 #define CTRL_STL (1 << 7)  // Set Scene on Slider Left
 #define CTRL_STR (1 << 8)  // Set Scene on slider Right
-#define CTRL_LAT (1 << 9)  // Latch/activate scene (on button release!) - will be activated at current slider position
+#define CTRL_XXX (1 << 9)  // ???
 #define CTRL_SEQ (1 << 10) // Sequence Scenes
 #define CTRL_SYS (1 << 11) // System configuration (input config, clock division, slew, play mode)
 #define CTRL_MON (1 << 12) // $%? - auditions cv on buttons and shows currently assigned input for last touched channel
@@ -84,6 +83,11 @@ typedef enum
     QUANTIZE_MODE_COUNT,
 } ChannelQuantizeMode;
 
+typedef struct
+{
+    InputMode input_mode[N_INPUTS];
+} System;
+
 // TODO: Channel Mute?
 
 // TODO: Configure quantization pre/post LFO?
@@ -108,14 +112,10 @@ typedef struct
 
     int16_t input_state[N_INPUTS];
 
-    InputMode input_mode[N_INPUTS];
-
     // int16_t channel_level[N_CHANNELS];
 
     uint8_t scene_l;
     uint8_t scene_r;
-    int8_t scene_latch;
-    uint16_t scene_latch_position;
 
     uint8_t clock_div;
     uint8_t playing_sequence;
