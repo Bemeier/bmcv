@@ -39,4 +39,18 @@ void bmcv_handle_txrx_complete(SPI_HandleTypeDef* hspi);
 
 void bmcv_assign_input_to_channel(int8_t i, int8_t c);
 
+void bmcv_clear_channel(int8_t c, int8_t all_scenes);
+
+void bmcv_clear_scene(int8_t s);
+
+void bmcv_assign_channel_to_channel(int8_t c_src, int8_t c_dst);
+
+void bmcv_assign_channel_to_scene(int8_t c_src, int8_t s_dst);
+
+void bmcv_assign_scene_to_scene(int8_t s_src, int8_t s_dst);
+
+void bmcv_store_setup(int8_t dst);
+
+void bmcv_load_setup(int8_t src);
+
 #endif /* INC_LIB_BMCV_H_ */

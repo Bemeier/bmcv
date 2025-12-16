@@ -104,6 +104,7 @@ typedef struct
     uint8_t clock_div; // unused
     uint8_t scene_l;
     uint8_t scene_r;
+    uint8_t current_preset;
 } ConfigState;
 
 // TODO: Configure quantization pre/post LFO?

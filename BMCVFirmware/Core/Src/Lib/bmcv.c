@@ -180,6 +180,41 @@ void bmcv_assign_input_to_channel(int8_t i, int8_t c)
     }
 }
 
+void bmcv_clear_channel(int8_t c, int8_t all_scenes)
+{
+    // todo
+}
+
+void bmcv_clear_scene(int8_t s)
+{
+    // todo
+}
+
+void bmcv_assign_channel_to_channel(int8_t c_src, int8_t c_dst)
+{
+    // todo
+}
+
+void bmcv_assign_channel_to_scene(int8_t c_src, int8_t s_dst)
+{
+    // todo
+}
+
+void bmcv_assign_scene_to_scene(int8_t s_src, int8_t s_dst)
+{
+    // todo
+}
+
+void bmcv_store_setup(int8_t dst)
+{
+    // todo
+}
+
+void bmcv_load_setup(int8_t src)
+{
+    // todo
+}
+
 void bmcv_main(uint32_t now_us, uint32_t now_ms)
 {
     if (dac_poll == 1 || dacadc_error())
