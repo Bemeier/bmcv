@@ -71,6 +71,7 @@ typedef enum
     INPUT_CLOCK,
     INPUT_RESET,
     INPUT_SLIDER,
+    INPUT_TRIG_QUANTIZE,
     INPUT_MODE_COUNT
 } InputMode;
 
@@ -79,7 +80,6 @@ typedef enum
     QUANTIZE_DISABLED,
     QUANTIZE_CONTINUOUS,
     QUANTIZE_TRIG_INPUT,
-    QUANTIZE_TRACK_INPUT,
     QUANTIZE_MODE_COUNT,
 } ChannelQuantizeMode;
 

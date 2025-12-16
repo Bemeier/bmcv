@@ -50,7 +50,7 @@ static uint16_t ctrl_button_flags[N_CTRL_BUTTONS] = {CTRL_FRQ | CTRL_STL,
                                                      CTRL_CPY,
                                                      CTRL_CLR};
 
-static uint16_t persistent_flags = CTRL_FRQ | CTRL_SHP | CTRL_PHS | CTRL_AMP | CTRL_OFS;
+static uint16_t persistent_flags = CTRL_FRQ | CTRL_SHP | CTRL_PHS | CTRL_AMP | CTRL_OFS | CTRL_INP;
 
 static uint8_t scene_button_alt_ctrl_flags[N_SCENES] = {ALT_CTRL_IN1, ALT_CTRL_IN2, ALT_CTRL_IN3, ALT_CTRL_IN4,
                                                         ALT_CTRL_CLK, CTRL_DEFAULT, ALT_CTRL_PLY};
