@@ -55,18 +55,31 @@ int8_t param_index(uint16_t flags)
     return PARAM_OFS;
 }
 
-void init_channel(Channel* ch, ChannelState* chst)
+void init_channel(Channel* ch, ChannelState* chst, int8_t scene)
 {
-    chst->src_input  = -1;
     ch->shared_phase = 0;
-    for (uint8_t s = 0; s < N_SCENES; s++)
+
+    if (scene < 0)
+    {
+        chst->src_input = -1;
+        for (uint8_t s = 0; s < N_SCENES; s++)
+        {
+            for (uint8_t p = 0; p < N_PARAMS; p++)
+            {
+                chst->params[s][p] = 0;
+            }
+            chst->params[s][PARAM_FRQ]     = 85;
+            chst->params[s][PARAM_INP_AMP] = INT16_MAX;
+        }
+    }
+    else
     {
         for (uint8_t p = 0; p < N_PARAMS; p++)
         {
-            chst->params[p][s] = 0;
+            chst->params[scene][p] = 0;
         }
-        chst->params[PARAM_FRQ][s]     = 85;
-        chst->params[PARAM_INP_AMP][s] = INT16_MAX;
+        chst->params[scene][PARAM_FRQ]     = 85;
+        chst->params[scene][PARAM_INP_AMP] = INT16_MAX;
     }
 }
 
@@ -120,10 +133,10 @@ void update_channel(Channel* ch, SystemState* state, ChannelState* chst)
 
     if (state->ctrl_flags & CTRL_FRQ)
     {
-        int16_t idx = freq_neighbour(chst->params[param][state->active_scene_id], delta);
+        int16_t idx = freq_neighbour(chst->params[state->active_scene_id][param], delta);
         if (idx >= 0)
         {
-            chst->params[param][state->active_scene_id] = quantized_multipliers[idx];
+            chst->params[state->active_scene_id][param] = quantized_multipliers[idx];
             ch->blink_hue                               = quantized_multipliers_colors[idx];
             ch->blink_until                             = state->time + 1500;
         }
@@ -141,7 +154,7 @@ void update_channel(Channel* ch, SystemState* state, ChannelState* chst)
     }
     else
     {
-        chst->params[param][state->active_scene_id] += shift ? delta * 512 : delta * 64;
+        chst->params[state->active_scene_id][param] += shift ? delta * 512 : delta * 64;
 
         /*
         if (state->button_released_t[ch->button] > 1000)
@@ -150,7 +163,7 @@ void update_channel(Channel* ch, SystemState* state, ChannelState* chst)
         }
         else if (state->button_released_t[ch->button] > 50)
         {
-            ch->params[param][state->active_scene_id] = 0;
+            ch->params[state->active_scene_id][param] = 0;
         }
         */
     }
@@ -169,7 +182,7 @@ void compute_channel(Channel* ch, SystemState* state, Scene* scenes, ChannelStat
 
         for (uint8_t p = 0; p < N_PARAMS; p++)
         {
-            avg[p] += (int16_t) (((int32_t) chst->params[p][s] * scenes[s].contribution) / 255);
+            avg[p] += (int16_t) (((int32_t) chst->params[s][p] * scenes[s].contribution) / 255);
         }
     }
 
@@ -251,6 +264,10 @@ void write_channel(Channel* ch, SystemState* state, ChannelState* chst)
         {
             ws2811_setled_hsv(ch->led, 0, 0, 0);
         }
+    }
+    else if (state->ctrl_flags & CTRL_INP)
+    {
+        ws2811_setled_dac(ch->led, chst->params[state->active_scene_id][PARAM_INP_AMP]);
     }
     else if (ch->blink_until > state->time)
     {

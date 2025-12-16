@@ -16,6 +16,7 @@ static SystemState* prev_state = &state[0];
 static SystemState* curr_state = &state[1];
 
 static ConfigState system_state;
+static ConfigState system_state_read;
 
 static Scene scene[N_SCENES];
 static Channel channel[N_ENCODERS];
@@ -49,8 +50,8 @@ void bmcv_assign_channel_to_scene(int8_t c_src, int8_t s_dst);
 
 void bmcv_assign_scene_to_scene(int8_t s_src, int8_t s_dst);
 
-void bmcv_store_setup(int8_t dst);
+int8_t bmcv_store_setup(int8_t dst);
 
-void bmcv_load_setup(int8_t src);
+int8_t bmcv_load_setup(int8_t src);
 
 #endif /* INC_LIB_BMCV_H_ */

@@ -27,5 +27,18 @@ void assign_event(AssignType targetType, int8_t targetId)
         {
             bmcv_assign_input_to_channel(_source_id, targetId);
         }
+        else if (_assign_state == ASSIGN_CHANNEL && targetType == ASSIGN_CHANNEL)
+        {
+            bmcv_assign_channel_to_channel(_source_id, targetId);
+        }
+        else if (_assign_state == ASSIGN_CHANNEL && targetType == ASSIGN_SCENE)
+        {
+
+            bmcv_assign_channel_to_scene(_source_id, targetId);
+        }
+        else if (_assign_state == ASSIGN_SCENE && targetType == ASSIGN_SCENE)
+        {
+            bmcv_assign_scene_to_scene(_source_id, targetId);
+        }
     }
 }

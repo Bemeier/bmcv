@@ -1,6 +1,7 @@
 #ifndef INC_HELPERS_H_
 #define INC_HELPERS_H_
 
+#include <stddef.h>
 #include <stdint.h>
 
 #define ADC_MIN (-8192)
@@ -149,6 +150,22 @@ static inline int16_t quantize_value(int16_t input, uint16_t scale_mask)
     int32_t quantized_dac = (best_note * SEMITONE_DAC_FP + FP_SCALE / 2) / FP_SCALE;
 
     return (int16_t) iclamp(quantized_dac, INT16_MIN, INT16_MAX);
+}
+
+static inline uint32_t crc32(const void* data, size_t len)
+{
+    const uint8_t* p = data;
+    uint32_t crc     = 0xFFFFFFFF;
+
+    while (len--)
+    {
+        crc ^= *p++;
+        for (uint8_t i = 0; i < 8; i++)
+        {
+            crc = (crc >> 1) ^ (0xEDB88320 & -(crc & 1));
+        }
+    }
+    return ~crc;
 }
 
 #endif /* INC_HELPERS_H_ */

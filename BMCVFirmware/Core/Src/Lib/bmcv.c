@@ -3,6 +3,7 @@
 #include "channel.h"
 #include "clock_sync.h"
 #include "dac_adc.h"
+#include "fram.h"
 #include "helpers.h"
 #include "mcp.h"
 #include "midi.h"
@@ -41,7 +42,7 @@ static int8_t channel_encoder_idx[N_ENCODERS] = {3, 2, 4, 5, 1, 0, 7, 6};
 static int8_t channel_dac_idx[N_ENCODERS]     = {7, 3, 5, 1, 6, 2, 4, 0};
 
 static uint16_t ctrl_button_flags[N_CTRL_BUTTONS] = {CTRL_FRQ | CTRL_STL,
-                                                     CTRL_SHP | CTRL_XXX,
+                                                     CTRL_SHP | CTRL_SAV,
                                                      CTRL_PHS | CTRL_SYS,
                                                      CTRL_INP | CTRL_MON,
                                                      CTRL_AMP | CTRL_SEQ,
@@ -50,7 +51,7 @@ static uint16_t ctrl_button_flags[N_CTRL_BUTTONS] = {CTRL_FRQ | CTRL_STL,
                                                      CTRL_CPY,
                                                      CTRL_CLR};
 
-static uint16_t persistent_flags = CTRL_FRQ | CTRL_SHP | CTRL_PHS | CTRL_AMP | CTRL_OFS | CTRL_INP;
+static uint16_t persistent_flags = CTRL_FRQ | CTRL_SHP | CTRL_PHS | CTRL_INP | CTRL_AMP | CTRL_OFS;
 
 static uint8_t quantizer_button_idx[12] = {11, 10, 9, 8, 13, 14, 15, 18, 16, 19, 17, 20};
 
@@ -64,6 +65,11 @@ static int8_t channel_led_idx[N_ENCODERS]         = {5, 4, 7, 6, 3, 2, 0, 1};
 static uint8_t ctrl_button_color[N_CTRL_BUTTONS] = {HUE_RED, HUE_YELLOW, HUE_GREEN, HUE_CYAN, HUE_BLUE, HUE_MAGENTA, 0, 0, 0};
 
 static uint8_t quantizer_button_led_idx[12] = {20, 8, 19, 9, 18, 17, 11, 16, 12, 15, 13, 14};
+
+static uint32_t last_write = 0; // timestamp of last write
+static int last_crc        = 0;
+
+static uint32_t write_indicator_until = 0;
 
 // menu_state |= MENU_STATE_FRQ;  // set bit
 // menu_state &= ~MENU_STATE_FRQ; // unset
@@ -104,7 +110,7 @@ void bmcv_init(uint16_t _mpc_interrupt_pin, ADC_TypeDef* _slider_adc)
         channel[c].led         = channel_led_idx[c];
         channel[c].encoder     = channel_encoder_idx[c];
         channel[c].dac_channel = channel_dac_idx[c];
-        init_channel(&channel[c], &system_state.channel_state[c]);
+        init_channel(&channel[c], &system_state.channel_state[c], -1);
     }
 
     // move out of state to settings?
@@ -116,6 +122,8 @@ void bmcv_init(uint16_t _mpc_interrupt_pin, ADC_TypeDef* _slider_adc)
     system_state.scene_r       = 6;
 
     prev_state->ctrl_flags = CTRL_OFS;
+    bmcv_load_setup(8);
+    last_crc = crc32(&system_state, sizeof(ConfigState));
 }
 
 void bmcv_handle_adc_conversion_complete(ADC_HandleTypeDef* hadc)
@@ -182,41 +190,88 @@ void bmcv_assign_input_to_channel(int8_t i, int8_t c)
 
 void bmcv_clear_channel(int8_t c, int8_t all_scenes)
 {
-    // todo
+    init_channel(&channel[c], &system_state.channel_state[c], all_scenes ? -1 : curr_state->active_scene_id);
 }
 
 void bmcv_clear_scene(int8_t s)
 {
-    // todo
+    for (int8_t c = 0; c < N_CHANNELS; c++)
+    {
+        init_channel(&channel[c], &system_state.channel_state[c], s);
+    }
+}
+
+void copy_scene_channel(int8_t c_src, int8_t s_src, int8_t c_dst, int8_t s_dst)
+{
+    if (c_dst >= N_ENCODERS || c_src >= N_ENCODERS || s_src >= N_SCENES || s_dst >= N_SCENES)
+        return;
+    memcpy(system_state.channel_state[c_dst].params[s_dst], system_state.channel_state[c_src].params[s_src],
+           sizeof system_state.channel_state[c_dst].params[s_dst]);
 }
 
 void bmcv_assign_channel_to_channel(int8_t c_src, int8_t c_dst)
 {
-    // todo
+    copy_scene_channel(c_src, curr_state->active_scene_id, c_dst, curr_state->active_scene_id);
 }
 
-void bmcv_assign_channel_to_scene(int8_t c_src, int8_t s_dst)
-{
-    // todo
-}
+void bmcv_assign_channel_to_scene(int8_t c_src, int8_t s_dst) { copy_scene_channel(c_src, curr_state->active_scene_id, c_src, s_dst); }
 
 void bmcv_assign_scene_to_scene(int8_t s_src, int8_t s_dst)
 {
-    // todo
+    for (uint8_t c = 0; c < N_CHANNELS; c++)
+    {
+        copy_scene_channel(c, s_src, c, s_dst);
+    }
 }
 
-void bmcv_store_setup(int8_t dst)
+int8_t bmcv_store_setup(int8_t dst)
 {
-    // todo
+    if (dst >= FRAM_CONFIG_SLOTS)
+        return false;
+
+    ConfigStateRecord rec = {.hdr =
+                                 {
+                                     .magic   = FRAM_MAGIC,
+                                     .version = CONFIG_STATE_VERSION,
+                                     .length  = sizeof(ConfigState),
+                                     .crc     = crc32(&system_state, sizeof(ConfigState)),
+                                 },
+                             .data = system_state};
+    uint16_t addr         = FRAM_CONFIG_BASE_ADDR + dst * FRAM_CONFIG_SLOT_SIZE;
+    fram_Write(addr, (uint8_t*) &rec, sizeof(rec));
+    return true;
 }
 
-void bmcv_load_setup(int8_t src)
+int8_t bmcv_load_setup(int8_t src)
 {
-    // todo
+    if (src >= FRAM_CONFIG_SLOTS)
+        return false;
+
+    ConfigStateRecord rec;
+    uint16_t addr = FRAM_CONFIG_BASE_ADDR + src * FRAM_CONFIG_SLOT_SIZE;
+
+    fram_Read(addr, (uint8_t*) &rec, sizeof(rec));
+
+    /* Validate header */
+    if (rec.hdr.magic != FRAM_MAGIC)
+        return false;
+
+    if (rec.hdr.version != CONFIG_STATE_VERSION)
+        return false; // Or trigger migration
+
+    if (rec.hdr.length != sizeof(ConfigState))
+        return false;
+
+    if (rec.hdr.crc != crc32(&rec.data, sizeof(ConfigState)))
+        return false;
+
+    system_state = rec.data;
+    return true;
 }
 
-void bmcv_main(uint32_t now_us, uint32_t now_ms)
+void bmcv_main(uint32_t now_us, uint32_t _now_ms)
 {
+    uint32_t now_ms = now_us / 1000;
     if (dac_poll == 1 || dacadc_error())
     {
         dac_poll = 0;
@@ -298,6 +353,18 @@ void bmcv_state_update(uint32_t now)
     curr_state->blink_fast                = (now % FAST_BLINK_PERIOD) < (FAST_BLINK_PERIOD / 2);
     curr_state->blink_slow                = (now % SLOW_BLINK_PERIOD) < (SLOW_BLINK_PERIOD / 2);
 
+    if (now - last_write > 2000)
+    {
+        last_write  = now;
+        int crc_now = crc32(&system_state, sizeof(ConfigState));
+        if (last_crc != crc_now)
+        {
+            bmcv_store_setup(8);
+            last_crc              = crc_now;
+            write_indicator_until = now + 100;
+        }
+    }
+
     if (curr_state->ctrl_flags > CTRL_DEFAULT)
     {
         last_active_ctrl = curr_state->ctrl_flags;
@@ -361,6 +428,8 @@ void bmcv_state_update(uint32_t now)
 
     monitor = 0;
 
+    int8_t override_scene_buttons = 0;
+
     if (!(curr_state->ctrl_flags & (CTRL_MON | CTRL_CPY | CTRL_CLR)))
     {
         assign_reset();
@@ -381,6 +450,46 @@ void bmcv_state_update(uint32_t now)
             ws2811_setled_hsv(quantizer_button_led_idx[st], 0, sat, val);
         }
     }
+    else if (curr_state->ctrl_flags & CTRL_CLR)
+    {
+        for (uint8_t c = 0; c < N_CHANNELS; c++)
+        {
+            if (curr_state->button_released_t[channel[c].button] > 1000)
+            {
+                bmcv_clear_channel(c, 1);
+            }
+            else if (curr_state->button_released_t[channel[c].button] > 50)
+            {
+                bmcv_clear_channel(c, 0);
+            }
+        }
+
+        for (uint8_t s = 0; s < N_SCENES; s++)
+        {
+            if (curr_state->button_released_t[scene[s].button] > 50)
+            {
+                bmcv_clear_scene(s);
+            }
+        }
+    }
+    else if (curr_state->ctrl_flags & CTRL_CPY)
+    {
+        for (uint8_t c = 0; c < N_CHANNELS; c++)
+        {
+            if (curr_state->button_released_t[channel[c].button] > 50)
+            {
+                assign_event(ASSIGN_CHANNEL, c);
+            }
+        }
+
+        for (uint8_t s = 0; s < N_SCENES; s++)
+        {
+            if (curr_state->button_released_t[scene[s].button] > 50)
+            {
+                assign_event(ASSIGN_SCENE, s);
+            }
+        }
+    }
     else if (curr_state->ctrl_flags & CTRL_MON)
     {
         monitor = 1;
@@ -392,6 +501,46 @@ void bmcv_state_update(uint32_t now)
                 assign_reset();
                 assign_event(ASSIGN_INPUT, i);
             }
+        }
+
+        for (uint8_t b = 0; b < N_CTRL_BUTTONS; b++)
+        {
+            update_ctrl_button(&ctrl_buttons[b], curr_state);
+        }
+    }
+    else if (curr_state->ctrl_flags & CTRL_SAV)
+    {
+
+        override_scene_buttons = 1;
+        for (uint8_t s = 0; s < N_SCENES; s++)
+        {
+
+            uint8_t mode_col  = HUE_GREEN;
+            uint8_t state_sat = 0;
+            if (curr_state->button_pressed_t[scene[s].button] > 50)
+            {
+                state_sat = 255;
+            }
+
+            if (curr_state->button_pressed_t[scene[s].button] > 1000)
+            {
+                mode_col = HUE_RED;
+            }
+
+            ws2811_setled_hsv(scene[s].led, mode_col, state_sat, 10);
+
+            if (curr_state->button_released_t[scene[s].button] > 1000)
+            {
+                bmcv_store_setup(s);
+            }
+            else if (curr_state->button_released_t[scene[s].button] > 50)
+            {
+                bmcv_load_setup(s);
+            }
+        }
+
+        for (uint8_t s = 0; s < N_SCENES; s++)
+        {
         }
     }
     else
@@ -471,10 +620,13 @@ void bmcv_state_update(uint32_t now)
         scene[curr_state->active_scene_id].contribution = 255;
     }
 
-    for (uint8_t s = 0; s < N_SCENES; s++)
+    if (override_scene_buttons == 0)
     {
-        // Only LED state for now?
-        update_scene(&scene[s], curr_state, &system_state);
+        for (uint8_t s = 0; s < N_SCENES; s++)
+        {
+            // Only LED state for now?
+            update_scene(&scene[s], curr_state, &system_state);
+        }
     }
 
     for (uint8_t c = 0; c < N_CHANNELS; c++)
@@ -493,6 +645,11 @@ void bmcv_state_update(uint32_t now)
     {
         // Write channel state to DACs & LEDs
         write_channel(&channel[c], curr_state, &system_state.channel_state[c]);
+    }
+
+    if (write_indicator_until >= now)
+    {
+        ws2811_setled_hsv(ctrl_button_led_idx[1], HUE_RED, 255, 25);
     }
 
     curr_state->ctrl_flags &= persistent_flags;

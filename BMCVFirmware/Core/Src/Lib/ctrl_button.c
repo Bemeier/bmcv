@@ -34,7 +34,7 @@ void update_ctrl_button(CtrlButton* btn, SystemState* state)
         val = 20 * (btn_state == 0 ? 1 : state->blink_fast);
     }
 
-    if (btn->ctrl_flags & CTRL_INP)
+    if (flag_active && state->ctrl_flags & CTRL_MON)
     {
         ws2811_setled_hsv(btn->led, btn->color, 255, phase_color);
     }

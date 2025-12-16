@@ -99,7 +99,7 @@ typedef struct
     float diff;
 } Channel;
 
-void init_channel(Channel* ch, ChannelState* chst);
+void init_channel(Channel* ch, ChannelState* chst, int8_t scene);
 
 void update_channel(Channel* ch, SystemState* state, ChannelState* chst);
 

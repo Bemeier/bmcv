@@ -26,35 +26,25 @@
 #define FAST_BLINK_PERIOD 300
 #define SLOW_BLINK_PERIOD 800
 
-#define CTRL_SHP (1 << 0) // LFO Shape
-#define CTRL_PHS (1 << 1) // LFO Phase
-#define CTRL_AMP (1 << 2) // LFO Amplitude
-#define CTRL_OFS (1 << 3) // LFO Amplitude
-#define CTRL_FRQ (1 << 4) // LFO Frequency
-
-#define CTRL_MRP (1 << 5) // Channel Morph
-#define CTRL_INP (1 << 6) // Channel Input assign (press encoder cycles through input, left/right is amplification)
+#define CTRL_FRQ (1 << 0) // LFO Frequency
+#define CTRL_SHP (1 << 1) // LFO Shape
+#define CTRL_PHS (1 << 2) // LFO Phase
+#define CTRL_INP (1 << 3) // Channel Input assign (press encoder cycles through input, left/right is amplification)
+#define CTRL_AMP (1 << 4) // LFO Amplitude
+#define CTRL_OFS (1 << 5) // LFO Amplitude
 
 #define CTRL_STL (1 << 7)  // Set Scene on Slider Left
-#define CTRL_STR (1 << 8)  // Set Scene on slider Right
-#define CTRL_XXX (1 << 9)  // ???
-#define CTRL_SEQ (1 << 10) // Sequence Scenes
-#define CTRL_SYS (1 << 11) // System configuration (input config, clock division, slew, play mode)
-#define CTRL_MON (1 << 12) // $%? - auditions cv on buttons and shows currently assigned input for last touched channel
+#define CTRL_SAV (1 << 8)  // ???
+#define CTRL_SYS (1 << 9)  // System configuration (input config, clock division, slew, play mode)
+#define CTRL_MON (1 << 10) // $%? - auditions cv on buttons and shows currently assigned input for last touched channel
+#define CTRL_SEQ (1 << 11) // Sequence Scenes
+#define CTRL_STR (1 << 12) // Set Scene on slider Right
 
 #define CTRL_QNT (1 << 13) // Quantizer control state
 #define CTRL_CPY (1 << 14) // Copy
 #define CTRL_CLR (1 << 15) // Clear
 
-#define ALT_CTRL_IN1 (1 << 0) // Input 1
-#define ALT_CTRL_IN2 (1 << 1) // Input 2
-#define ALT_CTRL_IN3 (1 << 2) // Input 3
-#define ALT_CTRL_IN4 (1 << 3) // Input 4
-
-#define ALT_CTRL_CLK (1 << 4) // Clock control
-#define ALT_CTRL_PLY (1 << 5) // Play/stop
-
-#define HUE_RED 245
+#define HUE_RED 252
 #define HUE_ORANGE 30
 #define HUE_YELLOW 65
 #define HUE_GREEN 80
@@ -84,28 +74,44 @@ typedef enum
     QUANTIZE_MODE_COUNT,
 } ChannelQuantizeMode;
 
-typedef struct
+#define FRAM_MAGIC 0x424D4356
+#define FRAM_CONFIG_SLOT_SIZE 896
+#define FRAM_CONFIG_SLOTS 9
+#define FRAM_CONFIG_BASE_ADDR 0x0000
+#define CONFIG_STATE_VERSION 1
+
+typedef struct __attribute__((packed))
+{
+    uint32_t magic;
+    uint16_t version;
+    uint16_t length;
+    uint32_t crc;
+} FramRecordHeader;
+
+typedef struct __attribute__((packed))
 {
     int8_t src_input;
     ChannelQuantizeMode quantize_mode;
-    int16_t params[N_PARAMS][N_SCENES];
-    int16_t offset[N_SCENES];
-    int16_t amplitude[N_SCENES];
-    int16_t input_amplitude[N_SCENES];
-    int16_t frequency[N_SCENES];
-    int16_t phase[N_SCENES];
-    int16_t shape[N_SCENES];
+    int16_t params[N_SCENES][N_PARAMS];
 } ChannelState;
 
-typedef struct
+typedef struct __attribute__((packed))
 {
-    InputMode input_mode[N_INPUTS];
-    ChannelState channel_state[N_ENCODERS];
-    uint8_t clock_div; // unused
+    uint8_t clock_div;
     uint8_t scene_l;
     uint8_t scene_r;
     uint8_t current_preset;
+    InputMode input_mode[N_INPUTS];
+    ChannelState channel_state[N_ENCODERS];
 } ConfigState;
+
+typedef struct __attribute__((packed))
+{
+    FramRecordHeader hdr;
+    ConfigState data;
+} ConfigStateRecord;
+
+_Static_assert(sizeof(ConfigStateRecord) <= FRAM_CONFIG_SLOT_SIZE, "ConfigState too large for FRAM slot");
 
 // TODO: Configure quantization pre/post LFO?
 //   - When we add offset from cv, pre LFO could be nice for vibrato
