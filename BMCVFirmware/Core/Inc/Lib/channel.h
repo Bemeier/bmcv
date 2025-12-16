@@ -82,22 +82,11 @@ static uint8_t quantize_mode_color[QUANTIZE_MODE_COUNT] = {HUE_RED, HUE_MAGENTA,
 
 typedef struct
 {
+    uint8_t id;
     int8_t button;
     int8_t led;
     int8_t encoder;
     int8_t dac_channel;
-    int8_t assigned_adc;
-    int8_t adc_polarized;
-    int8_t src_input;
-    uint8_t id;
-    uint8_t morph_amount;
-    int16_t params[N_PARAMS][N_SCENES];
-    int16_t offset[N_SCENES];
-    int16_t amplitude[N_SCENES];
-    int16_t input_amplitude[N_SCENES];
-    int16_t frequency[N_SCENES];
-    int16_t phase[N_SCENES];
-    int16_t shape[N_SCENES];
     uint32_t blink_until;
     uint32_t blink_hue;
     int16_t output_level;
@@ -108,16 +97,15 @@ typedef struct
     float shared_phase;
     float phase_correction;
     float diff;
-    ChannelQuantizeMode quantize_mode;
 } Channel;
 
-void init_channel(Channel* ch);
+void init_channel(Channel* ch, ChannelState* chst);
 
-void update_channel(Channel* ch, State* state);
+void update_channel(Channel* ch, SystemState* state, ChannelState* chst);
 
-void compute_channel(Channel* ch, State* state, Scene* scenes);
+void compute_channel(Channel* ch, SystemState* state, Scene* scenes, ChannelState* chst);
 
-void write_channel(Channel* ch, State* state);
+void write_channel(Channel* ch, SystemState* state, ChannelState* chst);
 
 static float k_sync = 0.01f;
 

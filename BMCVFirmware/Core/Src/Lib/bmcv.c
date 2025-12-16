@@ -52,9 +52,6 @@ static uint16_t ctrl_button_flags[N_CTRL_BUTTONS] = {CTRL_FRQ | CTRL_STL,
 
 static uint16_t persistent_flags = CTRL_FRQ | CTRL_SHP | CTRL_PHS | CTRL_AMP | CTRL_OFS | CTRL_INP;
 
-static uint8_t scene_button_alt_ctrl_flags[N_SCENES] = {ALT_CTRL_IN1, ALT_CTRL_IN2, ALT_CTRL_IN3, ALT_CTRL_IN4,
-                                                        ALT_CTRL_CLK, CTRL_DEFAULT, ALT_CTRL_PLY};
-
 static uint8_t quantizer_button_idx[12] = {11, 10, 9, 8, 13, 14, 15, 18, 16, 19, 17, 20};
 
 static uint8_t input_map[N_INPUTS] = {2, 3, 0, 1};
@@ -86,10 +83,9 @@ void bmcv_init(uint16_t _mpc_interrupt_pin, ADC_TypeDef* _slider_adc)
 
     for (uint8_t s = 0; s < N_SCENES; s++)
     {
-        scene[s].id             = s;
-        scene[s].led            = scene_button_led_idx[s];
-        scene[s].button         = scene_button_idx[s];
-        scene[s].alt_ctrl_flags = scene_button_alt_ctrl_flags[s];
+        scene[s].id     = s;
+        scene[s].led    = scene_button_led_idx[s];
+        scene[s].button = scene_button_idx[s];
     }
 
     for (uint8_t b = 0; b < N_CTRL_BUTTONS; b++)
@@ -108,7 +104,7 @@ void bmcv_init(uint16_t _mpc_interrupt_pin, ADC_TypeDef* _slider_adc)
         channel[c].led         = channel_led_idx[c];
         channel[c].encoder     = channel_encoder_idx[c];
         channel[c].dac_channel = channel_dac_idx[c];
-        init_channel(&channel[c]);
+        init_channel(&channel[c], &system_state.channel_state[c]);
     }
 
     // move out of state to settings?
@@ -116,10 +112,10 @@ void bmcv_init(uint16_t _mpc_interrupt_pin, ADC_TypeDef* _slider_adc)
     system_state.input_mode[1] = INPUT_RESET;
     system_state.input_mode[2] = INPUT_SLIDER;
     system_state.input_mode[3] = INPUT_DEFAULT;
+    system_state.scene_l       = 0;
+    system_state.scene_r       = 6;
 
     prev_state->ctrl_flags = CTRL_OFS;
-    prev_state->scene_l    = 0;
-    prev_state->scene_r    = 6;
 }
 
 void bmcv_handle_adc_conversion_complete(ADC_HandleTypeDef* hadc)
@@ -174,13 +170,13 @@ void bmcv_poll_tasks()
 
 void bmcv_assign_input_to_channel(int8_t i, int8_t c)
 {
-    if (channel[c].src_input == i)
+    if (system_state.channel_state[c].src_input == i)
     {
-        channel[c].src_input = -1;
+        system_state.channel_state[c].src_input = -1;
     }
     else
     {
-        channel[c].src_input = i;
+        system_state.channel_state[c].src_input = i;
     }
 }
 
@@ -263,8 +259,6 @@ void bmcv_state_update(uint32_t now)
     curr_state->slider_position           = slider;
     curr_state->active_scene_id           = prev_state->active_scene_id;
     curr_state->ctrl_last_channel_touched = prev_state->ctrl_last_channel_touched;
-    curr_state->scene_l                   = prev_state->scene_l;
-    curr_state->scene_r                   = prev_state->scene_r;
     curr_state->ctrl_flags                = prev_state->ctrl_flags;
     curr_state->blink_fast                = (now % FAST_BLINK_PERIOD) < (FAST_BLINK_PERIOD / 2);
     curr_state->blink_slow                = (now % SLOW_BLINK_PERIOD) < (SLOW_BLINK_PERIOD / 2);
@@ -420,8 +414,8 @@ void bmcv_state_update(uint32_t now)
 
     if (momentary_scene == -1)
     {
-        uint8_t scene_a         = curr_state->scene_l;
-        uint8_t scene_b         = curr_state->scene_r;
+        uint8_t scene_a         = system_state.scene_l;
+        uint8_t scene_b         = system_state.scene_r;
         uint16_t scene_a_anchor = SLIDER_MAX_VALUE;
         uint16_t scene_b_anchor = SLIDER_MIN_VALUE;
 
@@ -451,19 +445,19 @@ void bmcv_state_update(uint32_t now)
     for (uint8_t c = 0; c < N_CHANNELS; c++)
     {
         // Channel state/settings
-        update_channel(&channel[c], curr_state);
+        update_channel(&channel[c], curr_state, &system_state.channel_state[c]);
     }
 
     for (uint8_t c = 0; c < N_CHANNELS; c++)
     {
         // Channel state/settings
-        compute_channel(&channel[c], curr_state, &scene[0]);
+        compute_channel(&channel[c], curr_state, &scene[0], &system_state.channel_state[c]);
     }
 
     for (uint8_t c = 0; c < N_CHANNELS; c++)
     {
         // Write channel state to DACs & LEDs
-        write_channel(&channel[c], curr_state);
+        write_channel(&channel[c], curr_state, &system_state.channel_state[c]);
     }
 
     curr_state->ctrl_flags &= persistent_flags;

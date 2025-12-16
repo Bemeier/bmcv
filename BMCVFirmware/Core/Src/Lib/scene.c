@@ -9,7 +9,7 @@ static uint8_t input_mode_color[INPUT_MODE_COUNT] = {HUE_RED, HUE_MAGENTA, HUE_C
 
 static uint8_t min_value = 12;
 
-void update_scene(Scene* scene, State* state, System* system)
+void update_scene(Scene* scene, SystemState* state, ConfigState* system)
 {
     if (state->ctrl_flags & CTRL_SYS)
     {
@@ -26,11 +26,11 @@ void update_scene(Scene* scene, State* state, System* system)
 
     uint8_t val = scene->contribution / 8 + (state->active_scene_id == scene->id ? min_value : 0);
 
-    if (state->scene_l == scene->id && state->ctrl_flags & CTRL_STL)
+    if (system->scene_l == scene->id && state->ctrl_flags & CTRL_STL)
     {
         val = MAX(val, min_value) * state->blink_fast;
     }
-    else if (state->scene_r == scene->id && state->ctrl_flags & CTRL_STR)
+    else if (system->scene_r == scene->id && state->ctrl_flags & CTRL_STR)
     {
         val = MAX(val, min_value) * state->blink_fast;
     }
@@ -38,18 +38,18 @@ void update_scene(Scene* scene, State* state, System* system)
     ws2811_setled_hsv(scene->led, 0, 0, val);
 }
 
-int8_t update_scene_button(Scene* scn, State* state, System* system)
+int8_t update_scene_button(Scene* scn, SystemState* state, ConfigState* system)
 {
     if (state->button_released_t[scn->button] > 0)
     {
         if (state->ctrl_flags & CTRL_STL)
         {
-            state->scene_l = scn->id;
+            system->scene_l = scn->id;
         }
 
         if (state->ctrl_flags & CTRL_STR)
         {
-            state->scene_r = scn->id;
+            system->scene_r = scn->id;
         }
 
         if (state->ctrl_flags & CTRL_SYS)

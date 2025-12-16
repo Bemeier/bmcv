@@ -11,11 +11,11 @@
 #define STATE_RINGBUF_SIZE 2
 #include "state.h"
 
-static State state[STATE_RINGBUF_SIZE];
-static State* prev_state = &state[0];
-static State* curr_state = &state[1];
+static SystemState state[STATE_RINGBUF_SIZE];
+static SystemState* prev_state = &state[0];
+static SystemState* curr_state = &state[1];
 
-static System system_state;
+static ConfigState system_state;
 
 static Scene scene[N_SCENES];
 static Channel channel[N_ENCODERS];

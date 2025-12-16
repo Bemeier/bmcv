@@ -10,7 +10,7 @@ void init_ctrl_button(CtrlButton* btn)
     // ...
 }
 
-void update_ctrl_button(CtrlButton* btn, State* state)
+void update_ctrl_button(CtrlButton* btn, SystemState* state)
 {
     if (btn->led < 0)
     {

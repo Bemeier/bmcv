@@ -7,7 +7,7 @@
 #define N_ENCODERS 8
 #define N_CHANNELS 8
 #define N_BUTTONS 24
-#define N_PARAMS 5
+#define N_PARAMS 6
 #define N_SCENES 7
 #define N_CTRL_BUTTONS 9
 
@@ -16,6 +16,7 @@
 #define PARAM_FRQ 2
 #define PARAM_SHP 3
 #define PARAM_PHS 4
+#define PARAM_INP_AMP 5
 
 #define CTRL_DEFAULT 0
 
@@ -85,10 +86,25 @@ typedef enum
 
 typedef struct
 {
-    InputMode input_mode[N_INPUTS];
-} System;
+    int8_t src_input;
+    ChannelQuantizeMode quantize_mode;
+    int16_t params[N_PARAMS][N_SCENES];
+    int16_t offset[N_SCENES];
+    int16_t amplitude[N_SCENES];
+    int16_t input_amplitude[N_SCENES];
+    int16_t frequency[N_SCENES];
+    int16_t phase[N_SCENES];
+    int16_t shape[N_SCENES];
+} ChannelState;
 
-// TODO: Channel Mute?
+typedef struct
+{
+    InputMode input_mode[N_INPUTS];
+    ChannelState channel_state[N_ENCODERS];
+    uint8_t clock_div; // unused
+    uint8_t scene_l;
+    uint8_t scene_r;
+} ConfigState;
 
 // TODO: Configure quantization pre/post LFO?
 //   - When we add offset from cv, pre LFO could be nice for vibrato
@@ -97,8 +113,7 @@ typedef struct
 
 typedef struct
 {
-    uint8_t active_scene_id; // TODO: will be multiple, position based?
-    uint8_t active_channel_id;
+    uint8_t active_scene_id;
 
     uint32_t time; // timestamp of state
     uint16_t dt;   // time since last state
@@ -112,15 +127,6 @@ typedef struct
 
     int16_t input_state[N_INPUTS];
 
-    // int16_t channel_level[N_CHANNELS];
-
-    uint8_t scene_l;
-    uint8_t scene_r;
-
-    uint8_t clock_div;
-    uint8_t playing_sequence;
-    uint8_t slew_amount;
-
     uint16_t slider_position;
 
     uint16_t ctrl_active_t;
@@ -132,6 +138,6 @@ typedef struct
     int8_t blink_slow;
     int8_t blink_fast;
     uint16_t quantize_mask;
-} State;
+} SystemState;
 
 #endif /* INC_LIB_STATE_H_ */

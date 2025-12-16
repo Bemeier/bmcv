@@ -15,6 +15,6 @@ typedef struct
 void init_ctrl_button(CtrlButton* btn);
 
 // Updating => calculating output value
-void update_ctrl_button(CtrlButton* btn, State* state);
+void update_ctrl_button(CtrlButton* btn, SystemState* state);
 
 #endif /* INC_LIB_CTRL_BUTTON_H_ */

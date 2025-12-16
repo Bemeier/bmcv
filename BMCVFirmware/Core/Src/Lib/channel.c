@@ -47,21 +47,26 @@ int8_t param_index(uint16_t flags)
         return PARAM_OFS;
     }
 
+    if (flags & CTRL_INP)
+    {
+        return PARAM_INP_AMP;
+    }
+
     return PARAM_OFS;
 }
 
-void init_channel(Channel* ch)
+void init_channel(Channel* ch, ChannelState* chst)
 {
-    ch->src_input    = -1;
+    chst->src_input  = -1;
     ch->shared_phase = 0;
     for (uint8_t s = 0; s < N_SCENES; s++)
     {
         for (uint8_t p = 0; p < N_PARAMS; p++)
         {
-            ch->params[p][s] = 0;
+            chst->params[p][s] = 0;
         }
-        ch->params[PARAM_AMP][s] = 0;
-        ch->params[PARAM_FRQ][s] = 85;
+        chst->params[PARAM_FRQ][s]     = 85;
+        chst->params[PARAM_INP_AMP][s] = INT16_MAX;
     }
 }
 
@@ -107,7 +112,7 @@ int16_t freq_neighbour(int16_t freq, int16_t delta)
     return (int16_t) delta > 0 ? 0 : N_FREQ_MULTIPLIERS - 1;
 }
 
-void update_channel(Channel* ch, State* state)
+void update_channel(Channel* ch, SystemState* state, ChannelState* chst)
 {
     int8_t param  = param_index(state->ctrl_flags);
     int16_t delta = state->encoder_delta[ch->encoder];
@@ -115,17 +120,17 @@ void update_channel(Channel* ch, State* state)
 
     if (state->ctrl_flags & CTRL_FRQ)
     {
-        int16_t idx = freq_neighbour(ch->params[param][state->active_scene_id], delta);
+        int16_t idx = freq_neighbour(chst->params[param][state->active_scene_id], delta);
         if (idx >= 0)
         {
-            ch->params[param][state->active_scene_id] = quantized_multipliers[idx];
-            ch->blink_hue                             = quantized_multipliers_colors[idx];
-            ch->blink_until                           = state->time + 1500;
+            chst->params[param][state->active_scene_id] = quantized_multipliers[idx];
+            ch->blink_hue                               = quantized_multipliers_colors[idx];
+            ch->blink_until                             = state->time + 1500;
         }
     }
     else if (state->ctrl_flags & CTRL_QNT)
     {
-        ch->quantize_mode = delta_modulo_step(ch->quantize_mode, state->encoder_delta[ch->encoder], QUANTIZE_MODE_COUNT);
+        chst->quantize_mode = delta_modulo_step(chst->quantize_mode, state->encoder_delta[ch->encoder], QUANTIZE_MODE_COUNT);
     }
     else if (state->ctrl_flags & CTRL_MON)
     {
@@ -136,7 +141,7 @@ void update_channel(Channel* ch, State* state)
     }
     else
     {
-        ch->params[param][state->active_scene_id] += shift ? delta * 512 : delta * 64;
+        chst->params[param][state->active_scene_id] += shift ? delta * 512 : delta * 64;
 
         /*
         if (state->button_released_t[ch->button] > 1000)
@@ -151,7 +156,7 @@ void update_channel(Channel* ch, State* state)
     }
 }
 
-void compute_channel(Channel* ch, State* state, Scene* scenes)
+void compute_channel(Channel* ch, SystemState* state, Scene* scenes, ChannelState* chst)
 {
     float dt_s            = state->dt / 1e3f;
     int16_t avg[N_PARAMS] = {0};
@@ -164,7 +169,7 @@ void compute_channel(Channel* ch, State* state, Scene* scenes)
 
         for (uint8_t p = 0; p < N_PARAMS; p++)
         {
-            avg[p] += (int16_t) (((int32_t) ch->params[p][s] * scenes[s].contribution) / 255);
+            avg[p] += (int16_t) (((int32_t) chst->params[p][s] * scenes[s].contribution) / 255);
         }
     }
 
@@ -207,9 +212,11 @@ void compute_channel(Channel* ch, State* state, Scene* scenes)
     float raw   = wavetable_lookup(phase, shape) / (float) INT16_MAX;
     float value = offset + amp * raw;
 
-    if (ch->src_input >= 0)
+    float input_amp = (float) avg[PARAM_INP_AMP] / INT16_MAX;
+
+    if (chst->src_input >= 0)
     {
-        value += state->input_state[ch->src_input];
+        value += state->input_state[chst->src_input] * input_amp;
     }
 
     if (value > INT16_MAX)
@@ -217,7 +224,7 @@ void compute_channel(Channel* ch, State* state, Scene* scenes)
     else if (value < INT16_MIN)
         value = INT16_MIN;
 
-    switch (ch->quantize_mode)
+    switch (chst->quantize_mode)
     {
     case QUANTIZE_CONTINUOUS:
         ch->output_level = quantize_value((int16_t) value, state->quantize_mask);
@@ -227,16 +234,16 @@ void compute_channel(Channel* ch, State* state, Scene* scenes)
     }
 }
 
-void write_channel(Channel* ch, State* state)
+void write_channel(Channel* ch, SystemState* state, ChannelState* chst)
 {
     // ws2811_setled_hsv(ch->led, 255, 255, 255);
     if (state->ctrl_flags == CTRL_QNT)
     {
-        ws2811_setled_hsv(ch->led, quantize_mode_color[ch->quantize_mode], 255, ch->quantize_mode == QUANTIZE_DISABLED ? 0 : 25);
+        ws2811_setled_hsv(ch->led, quantize_mode_color[chst->quantize_mode], 255, chst->quantize_mode == QUANTIZE_DISABLED ? 0 : 25);
     }
     else if (state->ctrl_flags & CTRL_MON)
     {
-        if (ch->src_input >= 0)
+        if (chst->src_input >= 0)
         {
             ws2811_setled_hsv(ch->led, 0, 0, 12);
         }
