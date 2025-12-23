@@ -101,11 +101,11 @@ typedef struct
 
 void init_channel(Channel* ch, ChannelState* chst, int8_t scene);
 
-void update_channel(Channel* ch, SystemState* state, ChannelState* chst);
+void update_channel(Channel* ch, BaseState* state, ChannelState* chst);
 
-void compute_channel(Channel* ch, SystemState* state, Scene* scenes, ChannelState* chst);
+void compute_channel(Channel* ch, BaseState* state, Scene* scenes, ChannelState* chst);
 
-void write_channel(Channel* ch, SystemState* state, ChannelState* chst);
+void write_channel(Channel* ch, BaseState* state, ChannelState* chst);
 
 static float k_sync = 0.01f;
 

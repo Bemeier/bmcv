@@ -6,15 +6,15 @@
 
 typedef struct
 {
+    uint8_t id;
     int8_t button;
     int8_t led;
     uint8_t color;
-    uint16_t ctrl_flags;
 } CtrlButton;
 
 void init_ctrl_button(CtrlButton* btn);
 
 // Updating => calculating output value
-void update_ctrl_button(CtrlButton* btn, SystemState* state);
+void update_ctrl_button(CtrlButton* btn, BaseState* state);
 
 #endif /* INC_LIB_CTRL_BUTTON_H_ */

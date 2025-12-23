@@ -23,8 +23,6 @@ static Scene scene[N_SCENES];
 static Channel channel[N_ENCODERS];
 static CtrlButton ctrl_buttons[N_CTRL_BUTTONS];
 
-static uint16_t quantize_mask = 0b111111111111;
-
 void bmcv_init(uint16_t mpc_interrupt_pin, ADC_TypeDef* slider_adc);
 
 void bmcv_main(uint32_t now_us, uint32_t now_ms);

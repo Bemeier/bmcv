@@ -12,8 +12,8 @@ typedef struct
     uint8_t contribution; // pre morph evaluation (which is per channel)
 } Scene;
 
-void update_scene(Scene* scene, SystemState* state, ConfigState* system);
+void update_scene(Scene* scene, BaseState* state, ConfigState* system);
 
-int8_t update_scene_button(Scene* scn, SystemState* state, ConfigState* system);
+int8_t update_scene_button(Scene* scn, BaseState* state, ConfigState* system);
 
 #endif /* INC_LIB_SCENE_H_ */

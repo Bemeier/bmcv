@@ -132,10 +132,6 @@ typedef struct
 
     int16_t input_state[N_INPUTS];
 
-    uint16_t slider_position;
-
-    uint16_t quantize_mask;
-
     // Remove these?
     uint16_t ctrl_active_t;
     int8_t ctrl_scene_hold;
@@ -147,8 +143,11 @@ typedef struct
     int8_t active_scene;
     uint8_t selected_param;
     uint8_t shift_state;
+
     uint8_t blink_slow;
     uint8_t blink_fast;
+    uint16_t slider;
+    uint16_t quantize_mask;
 
     SystemState* system;
 } BaseState;

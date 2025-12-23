@@ -19,8 +19,6 @@
 
 static uint8_t state_idx;
 
-static uint16_t slider;
-
 static uint8_t task = 0;
 
 static uint8_t dac_poll  = 1;
@@ -32,8 +30,6 @@ static int8_t monitor = 0;
 
 static uint16_t mpc_interrupt_pin;
 static ADC_TypeDef* slider_adc;
-
-static uint16_t last_active_ctrl;
 
 // NOLINTBEGIN(readability-magic-numbers, cppcoreguidelines-avoid-magic-numbers)
 
@@ -86,6 +82,7 @@ void bmcv_init(uint16_t _mpc_interrupt_pin, ADC_TypeDef* _slider_adc)
 
     for (uint8_t b = 0; b < N_CTRL_BUTTONS; b++)
     {
+        ctrl_buttons[b].id     = b;
         ctrl_buttons[b].button = ctrl_button_idx[b];
         ctrl_buttons[b].led    = ctrl_button_led_idx[b];
         ctrl_buttons[b].color  = ctrl_button_color[b];
@@ -111,6 +108,7 @@ void bmcv_init(uint16_t _mpc_interrupt_pin, ADC_TypeDef* _slider_adc)
     system_state.scene_r       = 6;
 
     base_state.selected_param = CH_PARAM_OFS;
+    base_state.quantize_mask  = 0b111111111111;
 
     bmcv_load_setup(8);
     last_crc = crc32(&system_state, sizeof(ConfigState));
@@ -120,7 +118,7 @@ void bmcv_handle_adc_conversion_complete(ADC_HandleTypeDef* hadc)
 {
     if (hadc->Instance == slider_adc)
     {
-        slider = HAL_ADC_GetValue(hadc);
+        base_state.slider = HAL_ADC_GetValue(hadc);
     }
 }
 
@@ -180,7 +178,7 @@ void bmcv_assign_input_to_channel(int8_t i, int8_t c)
 
 void bmcv_clear_channel(int8_t c, int8_t all_scenes)
 {
-    init_channel(&channel[c], &system_state.channel_state[c], all_scenes ? -1 : curr_state->active_scene_id);
+    init_channel(&channel[c], &system_state.channel_state[c], all_scenes ? -1 : base_state.active_scene);
 }
 
 void bmcv_clear_scene(int8_t s)
@@ -201,10 +199,10 @@ void copy_scene_channel(int8_t c_src, int8_t s_src, int8_t c_dst, int8_t s_dst)
 
 void bmcv_assign_channel_to_channel(int8_t c_src, int8_t c_dst)
 {
-    copy_scene_channel(c_src, curr_state->active_scene_id, c_dst, curr_state->active_scene_id);
+    copy_scene_channel(c_src, base_state.active_scene, c_dst, base_state.active_scene);
 }
 
-void bmcv_assign_channel_to_scene(int8_t c_src, int8_t s_dst) { copy_scene_channel(c_src, curr_state->active_scene_id, c_src, s_dst); }
+void bmcv_assign_channel_to_scene(int8_t c_src, int8_t s_dst) { copy_scene_channel(c_src, base_state.active_scene, c_src, s_dst); }
 
 void bmcv_assign_scene_to_scene(int8_t s_src, int8_t s_dst)
 {
@@ -261,6 +259,7 @@ int8_t bmcv_load_setup(int8_t src)
 
 void bmcv_main(uint32_t now_us, uint32_t _now_ms)
 {
+
     uint32_t now_ms = now_us / 1000;
     if (dac_poll == 1 || dacadc_error())
     {
@@ -290,6 +289,9 @@ void bmcv_main(uint32_t now_us, uint32_t _now_ms)
     if (now_ms > curr_state->time)
     {
         Clock_Poll(now_us);
+        base_state.blink_fast = (now_ms % FAST_BLINK_PERIOD) < (FAST_BLINK_PERIOD / 2);
+        base_state.blink_slow = (now_ms % SLOW_BLINK_PERIOD) < (SLOW_BLINK_PERIOD / 2);
+
         bmcv_state_update(now_ms);
     }
 
@@ -312,7 +314,7 @@ void bmcv_main(uint32_t now_us, uint32_t _now_ms)
             {
                 if (assign_state() == ASSIGN_INPUT && assign_src() == i)
                 {
-                    ws2811_setled_hsv(scene[i].led, 0, 0, curr_state->blink_fast * 12);
+                    ws2811_setled_hsv(scene[i].led, 0, 0, base_state.blink_fast * 12);
                 }
                 else
                 {
@@ -331,15 +333,11 @@ void bmcv_state_update(uint32_t now)
     { // 250 Hz
         return;
     }
-    prev_state                  = &state[state_idx];
-    state_idx                   = (state_idx + 1) % STATE_RINGBUF_SIZE;
-    curr_state                  = &state[state_idx];
-    curr_state->dt              = deltaTime;
-    curr_state->time            = now;
-    curr_state->slider_position = slider;
-
-    curr_state->blink_fast = (now % FAST_BLINK_PERIOD) < (FAST_BLINK_PERIOD / 2);
-    curr_state->blink_slow = (now % SLOW_BLINK_PERIOD) < (SLOW_BLINK_PERIOD / 2);
+    prev_state       = &state[state_idx];
+    state_idx        = (state_idx + 1) % STATE_RINGBUF_SIZE;
+    curr_state       = &state[state_idx];
+    curr_state->dt   = deltaTime;
+    curr_state->time = now;
 
     if (now - last_write > 2000)
     {
@@ -454,7 +452,7 @@ void bmcv_update_active_scene(BaseState* state)
     }
     else
     {
-        scene[scene_a].contribution = interpolate_clamped(scene_b_anchor, scene_a_anchor, state->system->slider_position);
+        scene[scene_a].contribution = interpolate_clamped(scene_b_anchor, scene_a_anchor, state->slider);
         scene[scene_b].contribution = 255 - scene[scene_a].contribution;
     }
     state->active_scene = scene[scene_a].contribution > scene[scene_b].contribution ? scene_a : scene_b;
@@ -466,16 +464,15 @@ void bmcv_update_quantizer(BaseState* state)
     {
         if (curr_state->button_released_t[quantizer_button_idx[st]] > 0)
         {
-            quantize_mask ^= (1u << st);
+            state->quantize_mask ^= (1u << st);
         }
 
         // TODO: MOVE THIS TO VIEW CONTROLLER LOGIC
         // uint8_t sat = 255 * curr_state->button_pressed_t[quantizer_button_idx[st]] > 0;
         uint8_t sat = 0;
-        uint8_t val = (quantize_mask & (1u << st)) ? 25 : 0;
+        uint8_t val = (state->quantize_mask & (1u << st)) ? 25 : 0;
         ws2811_setled_hsv(quantizer_button_led_idx[st], 0, sat, val);
     }
-    state->system->quantize_mask = quantize_mask;
 }
 
 // TODO: clear state / clear param, etc

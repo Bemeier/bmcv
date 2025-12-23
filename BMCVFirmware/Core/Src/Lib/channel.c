@@ -6,6 +6,7 @@
 #include "math.h"
 #include "scene.h"
 #include "state.h"
+#include "uxstate.h"
 #include "wavetables.h"
 #include "ws2811.h"
 #include <stdint.h>
@@ -20,6 +21,7 @@ float fmod_pos(float a, float n)
 
 float phase_error(float a, float b, float X) { return fmod_pos((a - b) + X / 2.0, X) - X / 2.0; }
 
+/*
 int8_t param_index(uint16_t flags)
 {
     if (flags & CTRL_AMP)
@@ -54,6 +56,7 @@ int8_t param_index(uint16_t flags)
 
     return PARAM_OFS;
 }
+*/
 
 void init_channel(Channel* ch, ChannelState* chst, int8_t scene)
 {
@@ -125,53 +128,45 @@ int16_t freq_neighbour(int16_t freq, int16_t delta)
     return (int16_t) delta > 0 ? 0 : N_FREQ_MULTIPLIERS - 1;
 }
 
-void update_channel(Channel* ch, SystemState* state, ChannelState* chst)
+void update_channel(Channel* ch, BaseState* state, ChannelState* chst)
 {
-    int8_t param  = param_index(state->ctrl_flags);
-    int16_t delta = state->encoder_delta[ch->encoder];
-    int8_t shift  = state->button_pressed_t[ch->button] > 0;
+    int8_t param  = ch->id;
+    int16_t delta = state->system->encoder_delta[ch->encoder];
+    int8_t shift  = state->system->button_pressed_t[ch->button] > 0;
 
-    if (state->ctrl_flags & CTRL_FRQ)
+    if (state->shift_state == SHIFT_STATE_QNT)
     {
-        int16_t idx = freq_neighbour(chst->params[state->active_scene_id][param], delta);
-        if (idx >= 0)
-        {
-            chst->params[state->active_scene_id][param] = quantized_multipliers[idx];
-            ch->blink_hue                               = quantized_multipliers_colors[idx];
-            ch->blink_until                             = state->time + 1500;
-        }
+        chst->quantize_mode = delta_modulo_step(chst->quantize_mode, state->system->encoder_delta[ch->encoder], QUANTIZE_MODE_COUNT);
     }
-    else if (state->ctrl_flags & CTRL_QNT)
+    else if (state->shift_state == SHIFT_STATE_MON)
     {
-        chst->quantize_mode = delta_modulo_step(chst->quantize_mode, state->encoder_delta[ch->encoder], QUANTIZE_MODE_COUNT);
-    }
-    else if (state->ctrl_flags & CTRL_MON)
-    {
-        if (state->button_released_t[ch->button] > 50)
+        if (state->system->button_released_t[ch->button] > 50)
         {
             assign_event(ASSIGN_CHANNEL, ch->id);
         }
     }
-    else
+    else if (state->shift_state == SHIFT_STATE_NONE)
     {
-        chst->params[state->active_scene_id][param] += shift ? delta * 512 : delta * 64;
-
-        /*
-        if (state->button_released_t[ch->button] > 1000)
+        if (state->selected_param == CH_PARAM_FRQ)
         {
-            init_channel(ch);
+            int16_t idx = freq_neighbour(chst->params[state->active_scene][param], delta);
+            if (idx >= 0)
+            {
+                chst->params[state->active_scene][param] = quantized_multipliers[idx];
+                ch->blink_hue                            = quantized_multipliers_colors[idx];
+                ch->blink_until                          = state->system->time + 1500;
+            }
         }
-        else if (state->button_released_t[ch->button] > 50)
+        else
         {
-            ch->params[state->active_scene_id][param] = 0;
+            chst->params[state->active_scene][param] += shift ? delta * 512 : delta * 64;
         }
-        */
     }
 }
 
-void compute_channel(Channel* ch, SystemState* state, Scene* scenes, ChannelState* chst)
+void compute_channel(Channel* ch, BaseState* state, Scene* scenes, ChannelState* chst)
 {
-    float dt_s            = state->dt / 1e3f;
+    float dt_s            = state->system->dt / 1e3f;
     int16_t avg[N_PARAMS] = {0};
     for (uint8_t s = 0; s < N_SCENES; s++)
     {
@@ -229,7 +224,7 @@ void compute_channel(Channel* ch, SystemState* state, Scene* scenes, ChannelStat
 
     if (chst->src_input >= 0)
     {
-        value += state->input_state[chst->src_input] * input_amp;
+        value += state->system->input_state[chst->src_input] * input_amp;
     }
 
     if (value > INT16_MAX)
@@ -247,14 +242,14 @@ void compute_channel(Channel* ch, SystemState* state, Scene* scenes, ChannelStat
     }
 }
 
-void write_channel(Channel* ch, SystemState* state, ChannelState* chst)
+void write_channel(Channel* ch, BaseState* state, ChannelState* chst)
 {
     // ws2811_setled_hsv(ch->led, 255, 255, 255);
-    if (state->ctrl_flags == CTRL_QNT)
+    if (state->shift_state == SHIFT_STATE_QNT)
     {
         ws2811_setled_hsv(ch->led, quantize_mode_color[chst->quantize_mode], 255, chst->quantize_mode == QUANTIZE_DISABLED ? 0 : 25);
     }
-    else if (state->ctrl_flags & CTRL_MON)
+    else if (state->shift_state == SHIFT_STATE_MON)
     {
         if (chst->src_input >= 0)
         {
@@ -265,11 +260,11 @@ void write_channel(Channel* ch, SystemState* state, ChannelState* chst)
             ws2811_setled_hsv(ch->led, 0, 0, 0);
         }
     }
-    else if (state->ctrl_flags & CTRL_INP)
+    else if (state->selected_param == CH_PARAM_INP)
     {
-        ws2811_setled_dac(ch->led, chst->params[state->active_scene_id][PARAM_INP_AMP]);
+        ws2811_setled_dac(ch->led, chst->params[state->active_scene][PARAM_INP_AMP]);
     }
-    else if (ch->blink_until > state->time)
+    else if (ch->blink_until > state->system->time)
     {
         ws2811_setled_hsv(ch->led, ch->blink_hue, 255, state->blink_fast ? 25 : 0);
     }

@@ -1,6 +1,7 @@
 #include "scene.h"
 #include "state.h"
 #include "usbd_def.h"
+#include "uxstate.h"
 #include "ws2811.h"
 #include <stdint.h>
 
@@ -8,9 +9,9 @@ static uint8_t input_mode_color[INPUT_MODE_COUNT] = {HUE_RED, HUE_MAGENTA, HUE_C
 
 static uint8_t min_value = 12;
 
-void update_scene(Scene* scene, SystemState* state, ConfigState* system)
+void update_scene(Scene* scene, BaseState* state, ConfigState* system)
 {
-    if (state->ctrl_flags & CTRL_SYS)
+    if (state->shift_state == SHIFT_STATE_SYS)
     {
         if (scene->id < N_INPUTS)
         {
@@ -18,18 +19,18 @@ void update_scene(Scene* scene, SystemState* state, ConfigState* system)
             return;
         }
     }
-    else if (state->ctrl_flags & (CTRL_QNT | CTRL_MON | CTRL_SEQ))
+    else if (state->shift_state != SHIFT_STATE_NONE && state->shift_state != SHIFT_STATE_STL && state->shift_state != SHIFT_STATE_STR)
     {
         return;
     }
 
-    uint8_t val = scene->contribution / 8 + (state->active_scene_id == scene->id ? min_value : 0);
+    uint8_t val = scene->contribution / 8 + (state->active_scene == scene->id ? min_value : 0);
 
-    if (system->scene_l == scene->id && state->ctrl_flags & CTRL_STL)
+    if (system->scene_l == scene->id && state->shift_state == SHIFT_STATE_STL)
     {
         val = MAX(val, min_value) * state->blink_fast;
     }
-    else if (system->scene_r == scene->id && state->ctrl_flags & CTRL_STR)
+    else if (system->scene_r == scene->id && state->shift_state == SHIFT_STATE_STR)
     {
         val = MAX(val, min_value) * state->blink_fast;
     }
@@ -37,21 +38,21 @@ void update_scene(Scene* scene, SystemState* state, ConfigState* system)
     ws2811_setled_hsv(scene->led, 0, 0, val);
 }
 
-int8_t update_scene_button(Scene* scn, SystemState* state, ConfigState* system)
+int8_t update_scene_button(Scene* scn, BaseState* state, ConfigState* system)
 {
-    if (state->button_released_t[scn->button] > 0)
+    if (state->system->button_released_t[scn->button] > 0)
     {
-        if (state->ctrl_flags & CTRL_STL)
+        if (state->shift_state == SHIFT_STATE_STL)
         {
             system->scene_l = scn->id;
         }
 
-        if (state->ctrl_flags & CTRL_STR)
+        if (state->shift_state == SHIFT_STATE_STR)
         {
             system->scene_r = scn->id;
         }
 
-        if (state->ctrl_flags & CTRL_SYS)
+        if (state->shift_state == SHIFT_STATE_SYS)
         {
             if (scn->id < N_INPUTS)
             {
@@ -59,9 +60,9 @@ int8_t update_scene_button(Scene* scn, SystemState* state, ConfigState* system)
             }
         }
     }
-    else if (state->button_pressed_t[scn->button] > 0)
+    else if (state->system->button_pressed_t[scn->button] > 0)
     {
-        if (state->ctrl_flags & (CTRL_STL | CTRL_QNT | CTRL_SYS | CTRL_MON | CTRL_SEQ | CTRL_STR))
+        if (state->shift_state != SHIFT_STATE_NONE)
         {
             return -1;
         }
