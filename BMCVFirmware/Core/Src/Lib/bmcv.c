@@ -9,10 +9,13 @@
 #include "midi.h"
 #include "state.h"
 #include "stm32g474xx.h"
+#include "uxstate.h"
 #include "ws2811.h"
 #include <stdint.h>
 
 #define STATE_RINGBUF_SIZE 2
+
+#define N_SEMITONES 12
 
 static uint8_t state_idx;
 
@@ -34,37 +37,24 @@ static uint16_t last_active_ctrl;
 
 // NOLINTBEGIN(readability-magic-numbers, cppcoreguidelines-avoid-magic-numbers)
 
-// Control
-static int8_t scene_button_idx[N_SCENES]      = {11, 9, 13, 14, 18, 19, 20};
-static int8_t channel_button_idx[N_ENCODERS]  = {1, 2, 4, 0, 3, 5, 7, 6};
-static int8_t ctrl_button_idx[N_CTRL_BUTTONS] = {10, 8, 12, 15, 16, 17, 23, 22, 21};
-static int8_t channel_encoder_idx[N_ENCODERS] = {3, 2, 4, 5, 1, 0, 7, 6};
-static int8_t channel_dac_idx[N_ENCODERS]     = {7, 3, 5, 1, 6, 2, 4, 0};
+// ADC/DAC
+static uint8_t input_adc_idx[N_INPUTS]    = {2, 3, 0, 1};
+static int8_t channel_dac_idx[N_ENCODERS] = {7, 3, 5, 1, 6, 2, 4, 0};
 
-static uint16_t ctrl_button_flags[N_CTRL_BUTTONS] = {CTRL_FRQ | CTRL_STL,
-                                                     CTRL_SHP | CTRL_SAV,
-                                                     CTRL_PHS | CTRL_SYS,
-                                                     CTRL_INP | CTRL_MON,
-                                                     CTRL_AMP | CTRL_SEQ,
-                                                     CTRL_OFS | CTRL_STR,
-                                                     CTRL_QNT,
-                                                     CTRL_CPY,
-                                                     CTRL_CLR};
+// Buttons & Encoders
+static int8_t channel_encoder_idx[N_ENCODERS]    = {3, 2, 4, 5, 1, 0, 7, 6};
+static int8_t channel_button_idx[N_ENCODERS]     = {1, 2, 4, 0, 3, 5, 7, 6};
+static uint8_t quantizer_button_idx[N_SEMITONES] = {11, 10, 9, 8, 13, 14, 15, 18, 16, 19, 17, 20};
+static int8_t ctrl_button_idx[N_CTRL_BUTTONS]    = {10, 8, 12, 15, 16, 17, 23, 22, 21};
+static int8_t scene_button_idx[N_SCENES]         = {11, 9, 13, 14, 18, 19, 20};
 
-static uint16_t persistent_flags = CTRL_FRQ | CTRL_SHP | CTRL_PHS | CTRL_INP | CTRL_AMP | CTRL_OFS;
-
-static uint8_t quantizer_button_idx[12] = {11, 10, 9, 8, 13, 14, 15, 18, 16, 19, 17, 20};
-
-static uint8_t input_map[N_INPUTS] = {2, 3, 0, 1};
-
-// View
-static int8_t scene_button_led_idx[N_SCENES]      = {20, 19, 18, 17, 16, 15, 14};
-static int8_t ctrl_button_led_idx[N_CTRL_BUTTONS] = {8, 9, 10, 11, 12, 13, -1, -1, -1};
-static int8_t channel_led_idx[N_ENCODERS]         = {5, 4, 7, 6, 3, 2, 0, 1};
+// LEDs
+static int8_t channel_led_idx[N_ENCODERS]            = {5, 4, 7, 6, 3, 2, 0, 1};
+static uint8_t quantizer_button_led_idx[N_SEMITONES] = {20, 8, 19, 9, 18, 17, 11, 16, 12, 15, 13, 14};
+static int8_t ctrl_button_led_idx[N_CTRL_BUTTONS]    = {8, 9, 10, 11, 12, 13, -1, -1, -1};
+static int8_t scene_button_led_idx[N_SCENES]         = {20, 19, 18, 17, 16, 15, 14};
 
 static uint8_t ctrl_button_color[N_CTRL_BUTTONS] = {HUE_RED, HUE_YELLOW, HUE_GREEN, HUE_CYAN, HUE_BLUE, HUE_MAGENTA, 0, 0, 0};
-
-static uint8_t quantizer_button_led_idx[12] = {20, 8, 19, 9, 18, 17, 11, 16, 12, 15, 13, 14};
 
 static uint32_t last_write = 0; // timestamp of last write
 static int last_crc        = 0;
@@ -96,10 +86,9 @@ void bmcv_init(uint16_t _mpc_interrupt_pin, ADC_TypeDef* _slider_adc)
 
     for (uint8_t b = 0; b < N_CTRL_BUTTONS; b++)
     {
-        ctrl_buttons[b].button     = ctrl_button_idx[b];
-        ctrl_buttons[b].led        = ctrl_button_led_idx[b];
-        ctrl_buttons[b].color      = ctrl_button_color[b];
-        ctrl_buttons[b].ctrl_flags = ctrl_button_flags[b];
+        ctrl_buttons[b].button = ctrl_button_idx[b];
+        ctrl_buttons[b].led    = ctrl_button_led_idx[b];
+        ctrl_buttons[b].color  = ctrl_button_color[b];
         init_ctrl_button(&ctrl_buttons[b]);
     }
 
@@ -121,7 +110,8 @@ void bmcv_init(uint16_t _mpc_interrupt_pin, ADC_TypeDef* _slider_adc)
     system_state.scene_l       = 0;
     system_state.scene_r       = 6;
 
-    prev_state->ctrl_flags = CTRL_OFS;
+    base_state.selected_param = CH_PARAM_OFS;
+
     bmcv_load_setup(8);
     last_crc = crc32(&system_state, sizeof(ConfigState));
 }
@@ -281,11 +271,11 @@ void bmcv_main(uint32_t now_us, uint32_t _now_ms)
     for (uint8_t g = 0; g < N_INPUTS; g++)
     {
         // TODO: Clock input configuration
-        if (system_state.input_mode[g] == INPUT_CLOCK && adc_read_trig_state(input_map[g]))
+        if (system_state.input_mode[g] == INPUT_CLOCK && adc_read_trig_state(input_adc_idx[g]))
         {
             Clock_Trigger(now_us);
         }
-        else if (system_state.input_mode[g] == INPUT_RESET && adc_read_trig_state(input_map[g]))
+        else if (system_state.input_mode[g] == INPUT_RESET && adc_read_trig_state(input_adc_idx[g]))
         {
             Clock_Reset();
         }
@@ -326,7 +316,7 @@ void bmcv_main(uint32_t now_us, uint32_t _now_ms)
                 }
                 else
                 {
-                    ws2811_setled_adcr(scene[i].led, get_adc(input_map[i]));
+                    ws2811_setled_adcr(scene[i].led, get_adc(input_adc_idx[i]));
                 }
             }
         }
@@ -341,17 +331,15 @@ void bmcv_state_update(uint32_t now)
     { // 250 Hz
         return;
     }
-    prev_state                            = &state[state_idx];
-    state_idx                             = (state_idx + 1) % STATE_RINGBUF_SIZE;
-    curr_state                            = &state[state_idx];
-    curr_state->dt                        = deltaTime;
-    curr_state->time                      = now;
-    curr_state->slider_position           = slider;
-    curr_state->active_scene_id           = prev_state->active_scene_id;
-    curr_state->ctrl_last_channel_touched = prev_state->ctrl_last_channel_touched;
-    curr_state->ctrl_flags                = prev_state->ctrl_flags;
-    curr_state->blink_fast                = (now % FAST_BLINK_PERIOD) < (FAST_BLINK_PERIOD / 2);
-    curr_state->blink_slow                = (now % SLOW_BLINK_PERIOD) < (SLOW_BLINK_PERIOD / 2);
+    prev_state                  = &state[state_idx];
+    state_idx                   = (state_idx + 1) % STATE_RINGBUF_SIZE;
+    curr_state                  = &state[state_idx];
+    curr_state->dt              = deltaTime;
+    curr_state->time            = now;
+    curr_state->slider_position = slider;
+
+    curr_state->blink_fast = (now % FAST_BLINK_PERIOD) < (FAST_BLINK_PERIOD / 2);
+    curr_state->blink_slow = (now % SLOW_BLINK_PERIOD) < (SLOW_BLINK_PERIOD / 2);
 
     if (now - last_write > 2000)
     {
@@ -365,18 +353,9 @@ void bmcv_state_update(uint32_t now)
         }
     }
 
-    if (curr_state->ctrl_flags > CTRL_DEFAULT)
-    {
-        last_active_ctrl = curr_state->ctrl_flags;
-    }
-    else
-    {
-        last_active_ctrl = CTRL_OFS;
-    }
-
     for (uint8_t i = 0; i < N_INPUTS; i++)
     {
-        curr_state->input_state[i] = get_adc(input_map[i]);
+        curr_state->input_state[i] = get_adc(input_adc_idx[i]);
     }
 
     for (uint8_t b = 0; b < N_BUTTONS; b++)
@@ -404,6 +383,120 @@ void bmcv_state_update(uint32_t now)
         curr_state->encoder_state[e] = get_enc_state(e);
         curr_state->encoder_delta[e] = (int16_t) (curr_state->encoder_state[e] - prev_state->encoder_state[e]);
     }
+}
+
+void bmcv_update_ux_state(BaseState* state)
+{
+    state->shift_state = SHIFT_STATE_NONE;
+    // TODO: ensure buttons are initialized and ordered by shift state
+    for (uint8_t s = 0; s < SHIFT_STATE_COUNT - 1; s++)
+    {
+        // TODO: move to ctrl_buttons[s].shiftActive() ?
+        // TODO: magic number
+        if (state->system->button_pressed_t[ctrl_buttons[s].button] > 200)
+        {
+            state->shift_state = (ShiftStates) s;
+            break;
+        }
+    }
+
+    if (state->shift_state == SHIFT_STATE_NONE)
+    {
+        for (uint8_t p = 0; p < CH_PARAM_COUNT; p++)
+        {
+            // TODO: move to ctrl_buttons[s].switchedParam()
+            // TOOD: magic numbers
+            if (state->system->button_released_t[ctrl_buttons[p].button] > 0 &&
+                state->system->button_released_t[ctrl_buttons[p].button] < 400)
+            {
+                state->selected_param = (ChannelParameters) p;
+            }
+        }
+    }
+}
+
+void bmcv_update_active_scene(BaseState* state)
+{
+    // TODO: could allow mixing momentary scenes
+    // TODO: of if max 1, could check oldest/newest momentary?
+    int8_t momentary_scene = -1;
+    state->active_scene    = -1;
+    if (state->shift_state == SHIFT_STATE_NONE)
+    {
+        for (uint8_t s = 0; s < N_SCENES; s++)
+        {
+            if (momentary_scene < 0 && state->system->button_pressed_t[scene_button_idx[s]] > 0)
+            {
+                scene[s].contribution = 255;
+                momentary_scene       = s;
+                state->active_scene   = s;
+            }
+            else
+            {
+                scene[s].contribution = 0;
+            }
+        }
+    }
+
+    if (momentary_scene >= 0)
+    {
+        return;
+    }
+
+    uint8_t scene_a         = system_state.scene_l;
+    uint8_t scene_b         = system_state.scene_r;
+    uint16_t scene_a_anchor = SLIDER_MAX_VALUE;
+    uint16_t scene_b_anchor = SLIDER_MIN_VALUE;
+
+    if (scene_a == scene_b)
+    {
+        scene[scene_a].contribution = 255;
+    }
+    else
+    {
+        scene[scene_a].contribution = interpolate_clamped(scene_b_anchor, scene_a_anchor, state->system->slider_position);
+        scene[scene_b].contribution = 255 - scene[scene_a].contribution;
+    }
+    state->active_scene = scene[scene_a].contribution > scene[scene_b].contribution ? scene_a : scene_b;
+}
+
+void bmcv_update_quantizer(BaseState* state)
+{
+    for (uint16_t st = 0; st < N_SEMITONES; st++)
+    {
+        if (curr_state->button_released_t[quantizer_button_idx[st]] > 0)
+        {
+            quantize_mask ^= (1u << st);
+        }
+
+        // TODO: MOVE THIS TO VIEW CONTROLLER LOGIC
+        // uint8_t sat = 255 * curr_state->button_pressed_t[quantizer_button_idx[st]] > 0;
+        uint8_t sat = 0;
+        uint8_t val = (quantize_mask & (1u << st)) ? 25 : 0;
+        ws2811_setled_hsv(quantizer_button_led_idx[st], 0, sat, val);
+    }
+    state->system->quantize_mask = quantize_mask;
+}
+
+// TODO: clear state / clear param, etc
+
+// TODO: copy state / assign param
+
+// TODO: quantizer mode
+
+// TODO: Edit params (default no shift)
+
+/*
+    // >>>>>
+
+    if (curr_state->ctrl_flags > CTRL_DEFAULT)
+    {
+        last_active_ctrl = curr_state->ctrl_flags;
+    }
+    else
+    {
+        last_active_ctrl = CTRL_OFS;
+    }
 
     uint16_t oldest_ctrl_button = 0;
 
@@ -412,7 +505,7 @@ void bmcv_state_update(uint32_t now)
         if (curr_state->button_pressed_t[ctrl_buttons[b].button] > oldest_ctrl_button)
         {
             curr_state->ctrl_flags = ctrl_buttons[b].ctrl_flags;
-        }
+            S
     }
 
     if (curr_state->ctrl_flags != prev_state->ctrl_flags)
@@ -562,25 +655,6 @@ void bmcv_state_update(uint32_t now)
             }
         }
 
-        for (uint8_t c = 0; c < N_CHANNELS; c++)
-        {
-            if ((curr_state->button_pressed_t[channel[c].button] > 0 || curr_state->button_released_t[channel[c].button] > 0 ||
-                 curr_state->encoder_delta[channel[c].encoder] != 0) &&
-                curr_state->ctrl_last_channel_touched != c)
-            {
-                curr_state->ctrl_last_channel_touched = c;
-                /*
-                if (curr_state->ctrl_flags & CTRL_INP)
-                {
-                    curr_state->button_pressed_t[channel[c].button]  = 0;
-                    curr_state->button_released_t[channel[c].button] = 0;
-                    curr_state->encoder_state[channel[c].encoder]    = prev_state->encoder_state[channel[c].encoder];
-                    curr_state->encoder_delta[channel[c].encoder]    = 0;
-                }
-                */
-            }
-        }
-
         for (uint8_t b = 0; b < N_CTRL_BUTTONS; b++)
         {
             update_ctrl_button(&ctrl_buttons[b], curr_state);
@@ -658,3 +732,4 @@ void bmcv_state_update(uint32_t now)
         curr_state->ctrl_flags = last_active_ctrl;
     }
 }
+*/

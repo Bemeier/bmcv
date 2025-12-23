@@ -9,6 +9,7 @@ typedef enum
     ASSIGN_CHANNEL,
     ASSIGN_SCENE,
     ASSIGN_INPUT,
+    ASSIGN_PARAM
 } AssignType;
 
 /*

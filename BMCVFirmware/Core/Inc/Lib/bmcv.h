@@ -14,6 +14,7 @@
 static SystemState state[STATE_RINGBUF_SIZE];
 static SystemState* prev_state = &state[0];
 static SystemState* curr_state = &state[1];
+static BaseState base_state;
 
 static ConfigState system_state;
 static ConfigState system_state_read;

@@ -120,8 +120,6 @@ _Static_assert(sizeof(ConfigStateRecord) <= FRAM_CONFIG_SLOT_SIZE, "ConfigState 
 
 typedef struct
 {
-    uint8_t active_scene_id;
-
     uint32_t time; // timestamp of state
     uint16_t dt;   // time since last state
 
@@ -136,15 +134,23 @@ typedef struct
 
     uint16_t slider_position;
 
+    uint16_t quantize_mask;
+
+    // Remove these?
     uint16_t ctrl_active_t;
-    uint16_t ctrl_flags;
     int8_t ctrl_scene_hold;
     int8_t ctrl_scene_released;
-    int8_t ctrl_last_channel_touched;
-
-    int8_t blink_slow;
-    int8_t blink_fast;
-    uint16_t quantize_mask;
 } SystemState;
+
+typedef struct
+{
+    int8_t active_scene;
+    uint8_t selected_param;
+    uint8_t shift_state;
+    uint8_t blink_slow;
+    uint8_t blink_fast;
+
+    SystemState* system;
+} BaseState;
 
 #endif /* INC_LIB_STATE_H_ */
