@@ -66,6 +66,14 @@
       "group": "build",
       "problemMatcher": [],
       "detail": "CMake template clean rebuild task"
+    },
+    {
+      "type": "cmake",
+      "label": "CMake: configure",
+      "command": "configure",
+      "preset": "Debug",
+      "problemMatcher": [],
+      "detail": "CMake template configure task"
     }
   ]
 }

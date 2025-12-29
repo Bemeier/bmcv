@@ -6,9 +6,11 @@ ClockState g_clk = {};
 
 void Clock_Init(void)
 {
-    g_clk.PULSES_PER_BEAT = 4;
-    g_clk.have_beat       = false;
-    Clock_Reset();
+    g_clk.PULSES_PER_BEAT  = 4;
+    g_clk.have_beat        = false;
+    g_clk.beat_freq        = 1.0f;
+    g_clk.beat_freq_smooth = 1.0f;
+    Clock_Reset(0);
 }
 
 float smooth_freq(float new_sample)
@@ -25,19 +27,17 @@ void Clock_Trigger(uint32_t now_us)
 {
     if (!g_clk.have_beat)
     {
-        Clock_Reset();
-    }
-
-    if (g_clk.pulse_counter == 0 && g_clk.beat_counter == 0)
-    {
-        g_clk.last_reset_us = now_us;
+        Clock_Reset(now_us);
     }
 
     g_clk.have_beat = true;
-    g_clk.pulse_counter++;
-    g_clk.last_pulse_delta_us = now_us - g_clk.last_pulse_us;
+    if (now_us - g_clk.last_reset_us > 2000)
+    {
+        g_clk.pulse_counter++;
+        g_clk.last_pulse_delta_us = now_us - g_clk.last_pulse_us;
+    }
 
-    if (g_clk.last_pulse_us > 0) // && g_clk.last_ipi_us > 5000000)
+    if (g_clk.last_pulse_us > 0)
     {
         g_clk.beat_freq        = 1000000.0f / (float) (g_clk.last_pulse_delta_us * g_clk.PULSES_PER_BEAT);
         g_clk.beat_freq_smooth = smooth_freq(g_clk.beat_freq);
@@ -64,25 +64,26 @@ void Clock_Poll(uint32_t now_us)
     if (g_clk.have_beat)
     {
         uint32_t dt_pulse = now_us - g_clk.last_pulse_us;
-        if (dt_pulse == 0 || g_clk.last_pulse_delta_us == 0)
+        if (g_clk.last_pulse_delta_us == 0)
+        {
+            g_clk.beat_phase = 0.0f;
             return;
+        }
         float pulse_fraction = (float) dt_pulse / (float) g_clk.last_pulse_delta_us;
         float next_phase     = (g_clk.pulse_counter + pulse_fraction) / (float) g_clk.PULSES_PER_BEAT;
         g_clk.beat_phase     = fmodf(next_phase, 1.0f);
     }
     else
     {
-        g_clk.beat_phase = fmodf((now_us / 1000000.0f) * g_clk.beat_freq, 1.0f);
+        g_clk.beat_phase = fmodf(((now_us - g_clk.last_reset_us) / 1000000.0f) * g_clk.beat_freq, 1.0f);
     }
 }
 
-void Clock_Reset(void)
+void Clock_Reset(uint32_t now_us)
 {
-    g_clk.pulse_counter       = 0;
-    g_clk.beat_counter        = 0;
-    g_clk.last_reset_us       = 0;
-    g_clk.last_pulse_delta_us = 0;
-    g_clk.beat_phase          = 0.0f;
-    g_clk.beat_freq           = 1.0f;
-    g_clk.beat_freq_smooth    = 1.0f;
+    g_clk.pulse_counter      = 0;
+    g_clk.beat_counter       = 0;
+    g_clk.last_reset_us      = now_us;
+    g_clk.last_beat_start_us = now_us;
+    g_clk.beat_phase         = 0.0f;
 }

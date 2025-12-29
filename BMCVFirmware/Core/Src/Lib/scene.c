@@ -1,6 +1,12 @@
 #include "scene.h"
+#include "assign.h"
+#include "color_presets.h"
+#include "helpers.h"
+#include "hw_setup.h"
+#include "presets.h"
 #include "state.h"
 #include "usbd_def.h"
+#include "ux_state.h"
 #include "ws2811.h"
 #include <stdint.h>
 
@@ -8,66 +14,169 @@ static uint8_t input_mode_color[INPUT_MODE_COUNT] = {HUE_RED, HUE_MAGENTA, HUE_C
 
 static uint8_t min_value = 12;
 
-void update_scene(Scene* scene, SystemState* state, ConfigState* system)
+void write_scene_button_led(const SceneSetup* scene, UxState* state)
 {
-    if (state->ctrl_flags & CTRL_SYS)
+    // Scene contribution
+    uint8_t val =
+        state->engine_state->scenes_contribution[scene->id] / 8 + (state->engine_state->active_scene == scene->id ? min_value : VAL_OFF);
+
+    switch (state->engine_state->shift_state)
     {
+    case SHIFT_STATE_STL:
+    case SHIFT_STATE_STR:
+        if (state->engine_config->scene_l == scene->id || state->engine_config->scene_r == scene->id)
+        {
+            val = MAX(val, VAL_LOW) * state->engine_state->blink_fast;
+        }
+        ws2811_setled_hsv(scene->led, 0, SAT_OFF, val);
+        break;
+    case SHIFT_STATE_NONE:
+        ws2811_setled_hsv(scene->led, 0, SAT_OFF, val);
+        break;
+    case SHIFT_STATE_MON:
+        if (assign_state() == ASSIGN_INPUT)
+        {
+            ws2811_setled_hsv(scene->led, HUE_GREEN, SAT_HIG, assign_src() == scene->id ? VAL_LOW : VAL_OFF);
+        }
+        // Monitoring inputs handleded on hardware level for better update rate
+        // scene->id >= N_INPUTS can be handled here still (no function currently)
+        break;
+    case SHIFT_STATE_SYS:
         if (scene->id < N_INPUTS)
+            ws2811_setled_hsv(scene->led, input_mode_color[state->engine_config->input_mode[scene->id]], SAT_HIG, VAL_LOW);
+        else
+            ws2811_setled_hsv(scene->led, 0, SAT_OFF, VAL_OFF);
+        break;
+    case SHIFT_STATE_SAV:
+        int8_t load = state->hw_state->button_pressed_t[scene->button] > 0;
+        int8_t save = state->hw_state->button_pressed_t[scene->button] > 1000;
+        ws2811_setled_hsv(scene->led, save ? HUE_RED : HUE_GREEN, load ? SAT_HIG : SAT_OFF,
+                          (state->engine_state->blink_fast || load) * VAL_LOW);
+        break;
+    case SHIFT_STATE_CLR:
+        int8_t held = state->hw_state->button_pressed_t[scene->button] > 10;
+        ws2811_setled_hsv(scene->led, HUE_RED, SAT_HIG, (state->engine_state->blink_fast || held) * VAL_LOW);
+        break;
+    case SHIFT_STATE_CPY:
+        if (assign_state() == ASSIGN_NONE)
         {
-            ws2811_setled_hsv(scene->led, input_mode_color[system->input_mode[scene->id]], 255, 12);
-            return;
+            ws2811_setled_hsv(scene->led, 0, SAT_OFF, state->engine_state->blink_fast * VAL_LOW);
         }
-    }
-    else if (state->ctrl_flags & (CTRL_QNT | CTRL_MON | CTRL_SEQ))
-    {
-        return;
-    }
-
-    uint8_t val = scene->contribution / 8 + (state->active_scene_id == scene->id ? min_value : 0);
-
-    if (system->scene_l == scene->id && state->ctrl_flags & CTRL_STL)
-    {
-        val = MAX(val, min_value) * state->blink_fast;
-    }
-    else if (system->scene_r == scene->id && state->ctrl_flags & CTRL_STR)
-    {
-        val = MAX(val, min_value) * state->blink_fast;
-    }
-
-    ws2811_setled_hsv(scene->led, 0, 0, val);
-}
-
-int8_t update_scene_button(Scene* scn, SystemState* state, ConfigState* system)
-{
-    if (state->button_released_t[scn->button] > 0)
-    {
-        if (state->ctrl_flags & CTRL_STL)
+        else if (assign_state() == ASSIGN_SCENE || assign_state() == ASSIGN_CHANNEL)
         {
-            system->scene_l = scn->id;
-        }
-
-        if (state->ctrl_flags & CTRL_STR)
-        {
-            system->scene_r = scn->id;
-        }
-
-        if (state->ctrl_flags & CTRL_SYS)
-        {
-            if (scn->id < N_INPUTS)
+            if (assign_src() == scene->id && assign_state() == ASSIGN_SCENE)
             {
-                system->input_mode[scn->id] = (system->input_mode[scn->id] + 1) % INPUT_MODE_COUNT;
+                ws2811_setled_hsv(scene->led, HUE_GREEN, SAT_HIG, VAL_LOW);
+            }
+            else
+            {
+                ws2811_setled_hsv(scene->led, 0, SAT_OFF, state->engine_state->blink_fast * VAL_LOW);
             }
         }
-    }
-    else if (state->button_pressed_t[scn->button] > 0)
-    {
-        if (state->ctrl_flags & (CTRL_STL | CTRL_QNT | CTRL_SYS | CTRL_MON | CTRL_SEQ | CTRL_STR))
+        else
         {
-            return -1;
+            ws2811_setled_hsv(scene->led, 0, SAT_OFF, VAL_OFF);
         }
+        break;
+    case SHIFT_STATE_QNT:
+    default:
+        ws2811_setled_hsv(scene->led, 0, SAT_OFF, VAL_OFF);
+        break;
+    }
+}
 
-        return 1;
+void compute_scenes_contribution(UxState* state)
+{
+    for (uint8_t s = 0; s < N_SCENES; s++)
+    {
+        state->engine_state->scenes_contribution[s] = 0;
     }
 
-    return -1;
+    if (state->engine_state->momentary_scene >= 0)
+    {
+        state->engine_state->scenes_contribution[state->engine_state->momentary_scene] = 255;
+        state->engine_state->active_scene                                              = state->engine_state->momentary_scene;
+    }
+    else
+    {
+        uint8_t scene_a         = state->engine_config->scene_l;
+        uint8_t scene_b         = state->engine_config->scene_r;
+        uint16_t scene_a_anchor = SLIDER_MAX_VALUE;
+        uint16_t scene_b_anchor = SLIDER_MIN_VALUE;
+
+        if (scene_a == scene_b)
+        {
+            state->engine_state->scenes_contribution[scene_a] = 255;
+        }
+        else
+        {
+            state->engine_state->scenes_contribution[scene_a] =
+                interpolate_clamped(scene_b_anchor, scene_a_anchor, state->hw_state->slider_state);
+            state->engine_state->scenes_contribution[scene_b] = 255 - state->engine_state->scenes_contribution[scene_a];
+        }
+        state->engine_state->active_scene =
+            state->engine_state->scenes_contribution[scene_a] > state->engine_state->scenes_contribution[scene_b] ? scene_a : scene_b;
+    }
+}
+
+void update_scene_button(const SceneSetup* scene, UxState* state)
+{
+    int8_t released     = state->hw_state->button_released_t[scene->button] > 10;
+    int8_t released_alt = state->hw_state->button_released_t[scene->button] > 1000;
+    int16_t hold_time   = state->hw_state->button_pressed_t[scene->button];
+    int8_t momentary    = hold_time >= 10;
+    // Momentarty activation
+    switch (state->engine_state->shift_state)
+    {
+    case SHIFT_STATE_NONE: // Normal mode, momentary scene activation
+        if (momentary && (hold_time < state->engine_state->momentary_active_for || state->engine_state->momentary_scene < 0))
+        {
+            state->engine_state->momentary_active_for = hold_time;
+            state->engine_state->momentary_scene      = scene->id;
+        }
+        break;
+    case SHIFT_STATE_STL:
+        if (released)
+            state->engine_config->scene_l = scene->id;
+        break;
+    case SHIFT_STATE_STR:
+        if (released)
+            state->engine_config->scene_r = scene->id;
+        break;
+    case SHIFT_STATE_SYS:
+        if (released && scene->id < N_INPUTS)
+            state->engine_config->input_mode[scene->id] = (state->engine_config->input_mode[scene->id] + 1) % INPUT_MODE_COUNT;
+        break;
+    case SHIFT_STATE_MON:
+        if (released && scene->id < N_INPUTS)
+        {
+            assign_reset();
+            assign_event(ASSIGN_INPUT, scene->id, state);
+        }
+        break;
+    case SHIFT_STATE_SAV:
+        if (released)
+        {
+            if (released_alt)
+            {
+                preset_store(state->engine_config, scene->id);
+            }
+            else
+            {
+                preset_load(state->engine_config, scene->id);
+            }
+        }
+        break;
+    case SHIFT_STATE_CPY:
+        if (released)
+            assign_event(ASSIGN_SCENE, scene->id, state);
+        break;
+    case SHIFT_STATE_CLR:
+        if (released)
+            clear_scene(scene->id, state);
+        break;
+    case SHIFT_STATE_QNT:
+    default:
+        break;
+    }
 }

@@ -166,7 +166,7 @@ int main(void)
 
     while (1)
     {
-        bmcv_main(__HAL_TIM_GET_COUNTER(&htim2), HAL_GetTick());
+        bmcv_main(__HAL_TIM_GET_COUNTER(&htim2));
         /* USER CODE END WHILE */
 
         /* USER CODE BEGIN 3 */

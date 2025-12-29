@@ -1,22 +1,10 @@
 #ifndef INC_LIB_STATE_H_
 #define INC_LIB_STATE_H_
 
+#include "hw_setup.h"
 #include <stdint.h>
 
-#define N_INPUTS 4
-#define N_ENCODERS 8
-#define N_CHANNELS 8
-#define N_BUTTONS 24
-#define N_PARAMS 6
-#define N_SCENES 7
-#define N_CTRL_BUTTONS 9
-
-#define PARAM_OFS 0
-#define PARAM_AMP 1
-#define PARAM_FRQ 2
-#define PARAM_SHP 3
-#define PARAM_PHS 4
-#define PARAM_INP_AMP 5
+#define STATE_RINGBUF_SIZE 2
 
 #define CTRL_DEFAULT 0
 
@@ -25,36 +13,6 @@
 
 #define FAST_BLINK_PERIOD 300
 #define SLOW_BLINK_PERIOD 800
-
-#define CTRL_FRQ (1 << 0) // LFO Frequency
-#define CTRL_SHP (1 << 1) // LFO Shape
-#define CTRL_PHS (1 << 2) // LFO Phase
-#define CTRL_INP (1 << 3) // Channel Input assign (press encoder cycles through input, left/right is amplification)
-#define CTRL_AMP (1 << 4) // LFO Amplitude
-#define CTRL_OFS (1 << 5) // LFO Amplitude
-
-#define CTRL_STL (1 << 7)  // Set Scene on Slider Left
-#define CTRL_SAV (1 << 8)  // ???
-#define CTRL_SYS (1 << 9)  // System configuration (input config, clock division, slew, play mode)
-#define CTRL_MON (1 << 10) // $%? - auditions cv on buttons and shows currently assigned input for last touched channel
-#define CTRL_SEQ (1 << 11) // Sequence Scenes
-#define CTRL_STR (1 << 12) // Set Scene on slider Right
-
-#define CTRL_QNT (1 << 13) // Quantizer control state
-#define CTRL_CPY (1 << 14) // Copy
-#define CTRL_CLR (1 << 15) // Clear
-
-#define HUE_RED 252
-#define HUE_ORANGE 30
-#define HUE_YELLOW 65
-#define HUE_GREEN 80
-#define HUE_CYAN 120
-#define HUE_BLUE 160
-#define HUE_MAGENTA 200
-
-// Consider:
-//  - Slew time, ...
-//  - MUTE
 
 typedef enum
 {
@@ -74,11 +32,31 @@ typedef enum
     QUANTIZE_MODE_COUNT,
 } ChannelQuantizeMode;
 
-#define FRAM_MAGIC 0x424D4356
-#define FRAM_CONFIG_SLOT_SIZE 896
-#define FRAM_CONFIG_SLOTS 9
-#define FRAM_CONFIG_BASE_ADDR 0x0000
-#define CONFIG_STATE_VERSION 1
+typedef enum
+{
+    CH_PARAM_FRQ,
+    CH_PARAM_SHP,
+    CH_PARAM_PHS,
+    CH_PARAM_INP,
+    CH_PARAM_AMP,
+    CH_PARAM_OFS,
+    CH_PARAM_COUNT
+} ChannelParameters;
+
+typedef enum
+{
+    SHIFT_STATE_STL,
+    SHIFT_STATE_SAV,
+    SHIFT_STATE_SYS,
+    SHIFT_STATE_MON,
+    SHIFT_STATE_SEQ,
+    SHIFT_STATE_STR,
+    SHIFT_STATE_QNT,
+    SHIFT_STATE_CPY,
+    SHIFT_STATE_CLR,
+    SHIFT_STATE_NONE,
+    SHIFT_STATE_COUNT
+} ShiftStates;
 
 typedef struct __attribute__((packed))
 {
@@ -92,8 +70,8 @@ typedef struct __attribute__((packed))
 {
     int8_t src_input;
     ChannelQuantizeMode quantize_mode;
-    int16_t params[N_SCENES][N_PARAMS];
-} ChannelState;
+    int16_t params[N_SCENES][CH_PARAM_COUNT];
+} ChannelConfig;
 
 typedef struct __attribute__((packed))
 {
@@ -101,17 +79,10 @@ typedef struct __attribute__((packed))
     uint8_t scene_l;
     uint8_t scene_r;
     uint8_t current_preset;
+    uint16_t quantize_mask;
     InputMode input_mode[N_INPUTS];
-    ChannelState channel_state[N_ENCODERS];
-} ConfigState;
-
-typedef struct __attribute__((packed))
-{
-    FramRecordHeader hdr;
-    ConfigState data;
-} ConfigStateRecord;
-
-_Static_assert(sizeof(ConfigStateRecord) <= FRAM_CONFIG_SLOT_SIZE, "ConfigState too large for FRAM slot");
+    ChannelConfig channel_state[N_ENCODERS];
+} EngineConfig;
 
 // TODO: Configure quantization pre/post LFO?
 //   - When we add offset from cv, pre LFO could be nice for vibrato
@@ -120,10 +91,10 @@ _Static_assert(sizeof(ConfigStateRecord) <= FRAM_CONFIG_SLOT_SIZE, "ConfigState 
 
 typedef struct
 {
-    uint8_t active_scene_id;
-
     uint32_t time; // timestamp of state
     uint16_t dt;   // time since last state
+
+    uint16_t slider_state;
 
     uint8_t button_state[N_BUTTONS];       // if > 0, button is currently pressed
     uint16_t button_pressed_t[N_BUTTONS];  // how long button is pressed so far
@@ -133,18 +104,37 @@ typedef struct
     int16_t encoder_delta[N_ENCODERS]; // change of encoder since last state
 
     int16_t input_state[N_INPUTS];
+} HwState;
 
-    uint16_t slider_position;
+typedef struct
+{
+    // Scene
+    uint8_t scenes_contribution[N_SCENES];
 
-    uint16_t ctrl_active_t;
-    uint16_t ctrl_flags;
-    int8_t ctrl_scene_hold;
-    int8_t ctrl_scene_released;
-    int8_t ctrl_last_channel_touched;
+    // Channel
+    uint32_t channels_mark_until[N_CHANNELS];
+    uint32_t channels_mark_hue[N_CHANNELS];
+    int16_t channels_output_level[N_CHANNELS];
+    float channels_shared_phase[N_CHANNELS];
+    float channels_phase_correction[N_CHANNELS];
 
-    int8_t blink_slow;
-    int8_t blink_fast;
-    uint16_t quantize_mask;
-} SystemState;
+    int16_t cgcd[N_CHANNELS];
+    float cphs[N_CHANNELS];
+    float cphsc[N_CHANNELS];
+    float cfrm[N_CHANNELS];
+
+    // UX State
+    int8_t active_scene;
+    int8_t momentary_scene;
+    uint16_t momentary_active_for;
+    uint8_t selected_param;
+    uint8_t shift_state;
+    uint16_t shift_active_for;
+
+    // Render State
+    uint8_t blink_slow;
+    uint8_t blink_fast;
+
+} EngineState;
 
 #endif /* INC_LIB_STATE_H_ */

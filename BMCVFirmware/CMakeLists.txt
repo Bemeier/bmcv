@@ -22,6 +22,8 @@ set(CMAKE_PROJECT_NAME BMCVFirmware)
 # Toolchain
 include("cmake/gcc-arm-none-eabi.cmake")
 
+set(CMAKE_OBJCOPY arm-none-eabi-objcopy)
+
 # Enable compile_commands.json for clangd
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 set(COMPILE_COMMANDS_SRC "${CMAKE_BINARY_DIR}/compile_commands.json")
@@ -75,6 +77,15 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
 # Optional: Add your own linked libraries
 target_link_libraries(${CMAKE_PROJECT_NAME}
     stm32cubemx
+)
+
+add_custom_command(
+    TARGET ${CMAKE_PROJECT_NAME}
+    POST_BUILD
+    COMMAND ${CMAKE_OBJCOPY} -O binary
+            $<TARGET_FILE:${CMAKE_PROJECT_NAME}>
+            $<TARGET_FILE_DIR:${CMAKE_PROJECT_NAME}>/${CMAKE_PROJECT_NAME}.bin
+    COMMENT "Generating ${CMAKE_PROJECT_NAME}.bin"
 )
 
 add_custom_target(copy_compile_commands ALL

@@ -25,7 +25,7 @@ typedef struct
 } ClockState;
 
 void Clock_Init(void);
-void Clock_Reset(void);
+void Clock_Reset(uint32_t now_us);
 void Clock_Trigger(uint32_t now_us);
 void Clock_Poll(uint32_t now_us);
 

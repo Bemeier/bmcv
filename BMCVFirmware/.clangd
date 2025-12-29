@@ -1,5 +1,5 @@
 CompileFlags:
-  CompilationDatabase: build/Debug
+  CompilationDatabase: build/Release
 Diagnostics:
   ClangTidy:
     CheckOptions:

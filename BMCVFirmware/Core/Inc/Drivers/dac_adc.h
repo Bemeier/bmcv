@@ -9,6 +9,12 @@
 #define DAC_CHANNELS 4
 #define DAC_CHANNEL_DATA_WIDTH 6
 
+#define ADC_10V 8192
+#define ADC_5V 4096
+
+#define DAC_10V 32768
+#define DAC_5V 16384
+
 typedef struct
 {
     SPI_HandleTypeDef* spiHandle;

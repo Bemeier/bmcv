@@ -1,20 +1,13 @@
 #ifndef INC_LIB_CTRL_BUTTON_H_
 #define INC_LIB_CTRL_BUTTON_H_
 
-#include "state.h"
-#include <stdint.h>
+#include "ux_setup.h"
+#include "ux_state.h"
 
-typedef struct
-{
-    int8_t button;
-    int8_t led;
-    uint8_t color;
-    uint16_t ctrl_flags;
-} CtrlButton;
+void update_shift_mode(const CtrlButtonSetup* btn, UxState* state);
 
-void init_ctrl_button(CtrlButton* btn);
+void update_selected_param(const CtrlButtonSetup* btn, UxState* state);
 
-// Updating => calculating output value
-void update_ctrl_button(CtrlButton* btn, SystemState* state);
+void write_ctrl_button_led(const CtrlButtonSetup* btn, UxState* state);
 
 #endif /* INC_LIB_CTRL_BUTTON_H_ */

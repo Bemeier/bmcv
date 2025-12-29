@@ -1,12 +1,13 @@
 #ifndef INC_HELPERS_H_
 #define INC_HELPERS_H_
 
+#include "dac_adc.h"
+#include "math.h"
 #include <stddef.h>
 #include <stdint.h>
+#include <stdlib.h>
 
-#define ADC_MIN (-8192)
-#define ADC_MAX (8191)
-#define LUT_SIZE (ADC_MAX - ADC_MIN + 1)
+#define LUT_SIZE (ADC_10V + ADC_10V + 1)
 
 #define FP_SCALE 1000
 #define SEMITONE_DAC_FP 273067
@@ -16,7 +17,7 @@
 static int16_t quantLUT[LUT_SIZE];
 static inline void generate_quant_lut(void)
 {
-    for (int i = ADC_MIN; i <= ADC_MAX; ++i)
+    for (int i = -ADC_10V; i <= ADC_10V; ++i)
     {
         int32_t dac_val    = i * 4;
         int64_t dac_val_fp = (int64_t) dac_val * FP_SCALE;
@@ -27,22 +28,22 @@ static inline void generate_quant_lut(void)
 
         quantized_dac -= DAC_OFFSET_CORRECTION;
 
-        if (quantized_dac < -32768)
-            quantized_dac = -32768;
-        if (quantized_dac > 32767)
-            quantized_dac = 32767;
+        if (quantized_dac < -DAC_10V)
+            quantized_dac = -DAC_10V;
+        if (quantized_dac > DAC_10V)
+            quantized_dac = DAC_10V;
 
-        quantLUT[i - ADC_MIN] = (int16_t) quantized_dac;
+        quantLUT[i + ADC_10V] = (int16_t) quantized_dac;
     }
 }
 
 static inline int16_t quantize_adc(int16_t input)
 {
-    if (input < ADC_MIN)
-        input = ADC_MIN;
-    if (input > ADC_MAX)
-        input = ADC_MAX;
-    return quantLUT[input - ADC_MIN];
+    if (input < -ADC_10V)
+        input = -ADC_10V;
+    if (input > ADC_10V)
+        input = ADC_10V;
+    return quantLUT[input + ADC_10V];
 }
 
 // how close is inter it to right value
@@ -166,6 +167,103 @@ static inline uint32_t crc32(const void* data, size_t len)
         }
     }
     return ~crc;
+}
+
+static inline int16_t find_denominator(float value, int16_t max_mult, float tol)
+{
+    // Remove integer part first
+    float frac = value - floorf(value);
+    if (frac == 0.0f)
+    {
+        return 1; // already integer
+    }
+
+    for (int16_t mult = 1; mult <= max_mult; mult++)
+    {
+        float test    = frac * mult;
+        float nearest = roundf(test);
+        if (fabsf(test - nearest) < tol)
+        {
+            return mult;
+        }
+    }
+    return -1; // not found within max_mult
+}
+
+static inline float fmod_pos(float a, float n)
+{
+    float r = fmod(a, n);
+    if (r < 0)
+        r += n;
+    return r;
+}
+
+static inline float phase_error(float a, float b, float X) { return fmod_pos((a - b) + X / 2.0, X) - X / 2.0; }
+
+static inline int16_t val_neighbour(const int16_t val, const int16_t delta, const int16_t* values, const size_t n_values, size_t* idx)
+{
+
+    int16_t cdelta = (int16_t) iclamp(delta, -1, 1);
+    if (cdelta == 0)
+    {
+        int32_t diff = INT32_MAX;
+        for (uint8_t i = 0; i < n_values; i++)
+        {
+            int32_t val_diff = abs(values[i] - val);
+            if (val_diff <= diff)
+            {
+                diff = val_diff;
+                *idx = i;
+            }
+        }
+    }
+    else
+    {
+
+        size_t left  = 0;
+        size_t right = n_values;
+
+        while (left < right)
+        {
+            size_t mid = left + (right - left) / 2;
+            if (values[mid] < val)
+            {
+                left = mid + 1;
+            }
+            else
+            {
+                right = mid;
+            }
+        }
+
+        if (cdelta > 0)
+        {
+            /* Next higher */
+            *idx = left;
+            if (*idx < n_values && values[*idx] == val)
+            {
+                (*idx)++;
+            }
+            if (*idx >= n_values)
+            {
+                *idx = 0; // wrap
+            }
+        }
+        else
+        {
+            /* Next lower */
+            if (left < n_values && values[left] == val)
+            {
+                *idx = (left > 0) ? left - 1 : n_values - 1;
+            }
+            else
+            {
+                *idx = (left > 0) ? left - 1 : n_values - 1;
+            }
+        }
+    }
+
+    return values[*idx];
 }
 
 #endif /* INC_HELPERS_H_ */

@@ -41,11 +41,11 @@ should_log = false
 log_directory = 
 
 [var0]
-name = channel[0].diff
-tracked_name = channel[0].diff
-address = 536909904
-type = 7
-color = 2355053966
+name = *curr_hw.time
+tracked_name = *curr_hw.time
+address = 0
+type = 6
+color = 1369377417
 should_update_from_elf = true
 shift = 0
 mask = 4294967295
@@ -54,11 +54,11 @@ value_to_write = 0.000000
 do_not_interpret_as_enum = false
 
 [var1]
-name = channel[0].freq_multiplier
-tracked_name = channel[0].freq_multiplier
-address = 536909888
-type = 7
-color = 4181690836
+name = dacadc.adc_i[0]
+tracked_name = dacadc.adc_i[0]
+address = 536907626
+type = 4
+color = 1278086749
 should_update_from_elf = true
 shift = 0
 mask = 4294967295
@@ -67,24 +67,24 @@ value_to_write = 0.000000
 do_not_interpret_as_enum = false
 
 [var2]
-name = channel[0].gcd
-tracked_name = channel[0].gcd
-address = 536909882
+name = dacadc.adc_i[1]
+tracked_name = dacadc.adc_i[1]
+address = 536907628
 type = 4
-color = 3286530236
+color = 1946847457
 should_update_from_elf = true
 shift = 0
 mask = 4294967295
 high_level_type = 0
-value_to_write = 2.000000
+value_to_write = 0.000000
 do_not_interpret_as_enum = false
 
 [var3]
-name = channel[0].normalized_phase
-tracked_name = channel[0].normalized_phase
-address = 536909892
-type = 7
-color = 415845132
+name = dacadc.adc_i[2]
+tracked_name = dacadc.adc_i[2]
+address = 536907630
+type = 4
+color = 1604784433
 should_update_from_elf = true
 shift = 0
 mask = 4294967295
@@ -93,11 +93,11 @@ value_to_write = 0.000000
 do_not_interpret_as_enum = false
 
 [var4]
-name = channel[0].output_level
-tracked_name = channel[0].output_level
-address = 536909880
+name = dacadc.adc_i[3]
+tracked_name = dacadc.adc_i[3]
+address = 536907632
 type = 4
-color = 3947417299
+color = 375965075
 should_update_from_elf = true
 shift = 0
 mask = 4294967295
@@ -106,11 +106,11 @@ value_to_write = 0.000000
 do_not_interpret_as_enum = false
 
 [var5]
-name = channel[0].phase_correction
-tracked_name = channel[0].phase_correction
-address = 536909900
-type = 7
-color = 1223345974
+name = dacadc.trig_state[0]
+tracked_name = dacadc.trig_state[0]
+address = 536907642
+type = 2
+color = 3183187446
 should_update_from_elf = true
 shift = 0
 mask = 4294967295
@@ -119,11 +119,11 @@ value_to_write = 0.000000
 do_not_interpret_as_enum = false
 
 [var6]
-name = channel[0].shared_phase
-tracked_name = channel[0].shared_phase
-address = 536909896
-type = 7
-color = 3349137149
+name = dacadc.trig_state[1]
+tracked_name = dacadc.trig_state[1]
+address = 536907643
+type = 2
+color = 1880210468
 should_update_from_elf = true
 shift = 0
 mask = 4294967295
@@ -132,11 +132,11 @@ value_to_write = 0.000000
 do_not_interpret_as_enum = false
 
 [var7]
-name = channel[0].target_phase
-tracked_name = channel[0].target_phase
-address = 536909884
-type = 7
-color = 1433128472
+name = dacadc.trig_state[2]
+tracked_name = dacadc.trig_state[2]
+address = 536907644
+type = 2
+color = 554559203
 should_update_from_elf = true
 shift = 0
 mask = 4294967295
@@ -145,11 +145,11 @@ value_to_write = 0.000000
 do_not_interpret_as_enum = false
 
 [var8]
-name = dac_poll
-tracked_name = dac_poll
-address = 536871098
-type = 1
-color = 2917709576
+name = dacadc.trig_state[3]
+tracked_name = dacadc.trig_state[3]
+address = 536907645
+type = 2
+color = 2521846011
 should_update_from_elf = true
 shift = 0
 mask = 4294967295
@@ -158,11 +158,11 @@ value_to_write = 0.000000
 do_not_interpret_as_enum = false
 
 [var9]
-name = dacadc.adc_i[0]
-tracked_name = dacadc.adc_i[0]
-address = 536907766
-type = 4
-color = 2158028995
+name = engine_state.cfrm[0]
+tracked_name = engine_state.cfrm[0]
+address = 536910416
+type = 7
+color = 2473878955
 should_update_from_elf = true
 shift = 0
 mask = 4294967295
@@ -171,9 +171,74 @@ value_to_write = 0.000000
 do_not_interpret_as_enum = false
 
 [var10]
+name = engine_state.cgcd[0]
+tracked_name = engine_state.cgcd[0]
+address = 536910336
+type = 4
+color = 3242778273
+should_update_from_elf = true
+shift = 0
+mask = 4294967295
+high_level_type = 0
+value_to_write = 0.000000
+do_not_interpret_as_enum = false
+
+[var11]
+name = engine_state.channels_output_level[0]
+tracked_name = engine_state.channels_output_level[0]
+address = 536910256
+type = 4
+color = 2457780893
+should_update_from_elf = true
+shift = 0
+mask = 4294967295
+high_level_type = 0
+value_to_write = 0.000000
+do_not_interpret_as_enum = false
+
+[var12]
+name = engine_state.channels_shared_phase[0]
+tracked_name = engine_state.channels_shared_phase[0]
+address = 536910272
+type = 7
+color = 1048437879
+should_update_from_elf = true
+shift = 0
+mask = 4294967295
+high_level_type = 0
+value_to_write = 0.000000
+do_not_interpret_as_enum = false
+
+[var13]
+name = engine_state.cphs[0]
+tracked_name = engine_state.cphs[0]
+address = 536910352
+type = 7
+color = 3166733553
+should_update_from_elf = true
+shift = 0
+mask = 4294967295
+high_level_type = 0
+value_to_write = 0.000000
+do_not_interpret_as_enum = false
+
+[var14]
+name = engine_state.cphsc[0]
+tracked_name = engine_state.cphsc[0]
+address = 536910384
+type = 7
+color = 3031434499
+should_update_from_elf = true
+shift = 0
+mask = 4294967295
+high_level_type = 0
+value_to_write = 0.000000
+do_not_interpret_as_enum = false
+
+[var15]
 name = g_clk.beat_freq
 tracked_name = g_clk.beat_freq
-address = 536911336
+address = 536910492
 type = 7
 color = 114535792
 should_update_from_elf = true
@@ -183,10 +248,10 @@ high_level_type = 0
 value_to_write = 0.000000
 do_not_interpret_as_enum = false
 
-[var11]
+[var16]
 name = g_clk.beat_freq_smooth
 tracked_name = g_clk.beat_freq_smooth
-address = 536911340
+address = 536910496
 type = 7
 color = 2036142925
 should_update_from_elf = true
@@ -196,10 +261,10 @@ high_level_type = 0
 value_to_write = 0.000000
 do_not_interpret_as_enum = false
 
-[var12]
+[var17]
 name = g_clk.beat_phase
 tracked_name = g_clk.beat_phase
-address = 536911348
+address = 536910504
 type = 7
 color = 1286690656
 should_update_from_elf = true
@@ -209,10 +274,10 @@ high_level_type = 0
 value_to_write = 0.000000
 do_not_interpret_as_enum = false
 
-[var13]
+[var18]
 name = g_clk.bpm
 tracked_name = g_clk.bpm
-address = 536911344
+address = 536910500
 type = 7
 color = 554141026
 should_update_from_elf = true
@@ -222,10 +287,10 @@ high_level_type = 0
 value_to_write = 0.000000
 do_not_interpret_as_enum = false
 
-[var14]
+[var19]
 name = g_clk.have_beat
 tracked_name = g_clk.have_beat
-address = 536911332
+address = 536910488
 type = 1
 color = 2104203927
 should_update_from_elf = true
@@ -235,38 +300,12 @@ high_level_type = 0
 value_to_write = 0.000000
 do_not_interpret_as_enum = false
 
-[var15]
-name = k_sync
-tracked_name = k_sync
-address = 536871252
-type = 7
-color = 763164876
-should_update_from_elf = true
-shift = 0
-mask = 4294967295
-high_level_type = 0
-value_to_write = 0.010000
-do_not_interpret_as_enum = false
-
-[var16]
-name = led_poll
-tracked_name = led_poll
-address = 536911288
-type = 1
-color = 1711276287
-should_update_from_elf = true
-shift = 0
-mask = 4294967295
-high_level_type = 0
-value_to_write = 0.000000
-do_not_interpret_as_enum = false
-
-[var17]
-name = mcp_poll
-tracked_name = mcp_poll
-address = 536911287
-type = 1
-color = 4180934539
+[var20]
+name = g_clk.pulse_counter
+tracked_name = g_clk.pulse_counter
+address = 536910480
+type = 5
+color = 1806823207
 should_update_from_elf = true
 shift = 0
 mask = 4294967295
@@ -283,26 +322,6 @@ name = new plot0
 type = 0
 visibility = true
 
-[group0-plot0-series0]
-name = dac_poll
-visibility = false
-format = DEC
-
-[group0-plot0-series1]
-name = dacadc.adc_i[0]
-visibility = true
-format = DEC
-
-[group0-plot0-series2]
-name = led_poll
-visibility = false
-format = DEC
-
-[group0-plot0-series3]
-name = mcp_poll
-visibility = false
-format = DEC
-
 [group1]
 name = PhaseCorrection
 acquisition_type = 0
@@ -312,35 +331,15 @@ name = 0output
 type = 0
 visibility = true
 
-[group1-plot0-series0]
-name = channel[0].output_level
-visibility = true
-format = DEC
-
 [group1-plot1]
 name = 1freq
 type = 0
 visibility = true
 
-[group1-plot1-series0]
-name = channel[0].freq_multiplier
-visibility = true
-format = DEC
-
 [group1-plot2]
 name = 2error
 type = 0
 visibility = true
-
-[group1-plot2-series0]
-name = channel[0].diff
-visibility = true
-format = DEC
-
-[group1-plot2-series1]
-name = channel[0].phase_correction
-visibility = true
-format = DEC
 
 [group1-plot3]
 name = 3phase
@@ -348,16 +347,6 @@ type = 0
 visibility = true
 
 [group1-plot3-series0]
-name = channel[0].shared_phase
-visibility = true
-format = DEC
-
-[group1-plot3-series1]
-name = channel[0].target_phase
-visibility = true
-format = DEC
-
-[group1-plot3-series2]
 name = g_clk.beat_phase
 visibility = true
 format = DEC
@@ -383,27 +372,146 @@ type = 2
 visibility = true
 
 [group1-plot5-series0]
-name = channel[0].freq_multiplier
-visibility = true
-format = DEC
-
-[group1-plot5-series1]
-name = channel[0].gcd
-visibility = true
-format = DEC
-
-[group1-plot5-series2]
 name = g_clk.bpm
 visibility = true
 format = DEC
 
-[group1-plot5-series3]
+[group1-plot5-series1]
 name = g_clk.have_beat
 visibility = true
 format = DEC
 
-[group1-plot5-series4]
-name = k_sync
+[group2]
+name = clock
+acquisition_type = 0
+
+[group2-plot0]
+name = BPM
+type = 0
+visibility = true
+
+[group2-plot0-series0]
+name = engine_state.channels_output_level[0]
+visibility = true
+format = DEC
+
+[group2-plot1]
+name = BeatFreq
+type = 0
+visibility = true
+
+[group2-plot1-series0]
+name = engine_state.channels_shared_phase[0]
+visibility = true
+format = DEC
+
+[group2-plot1-series1]
+name = g_clk.beat_freq
+visibility = false
+format = DEC
+
+[group2-plot1-series2]
+name = g_clk.beat_freq_smooth
+visibility = false
+format = DEC
+
+[group2-plot1-series3]
+name = g_clk.beat_phase
+visibility = true
+format = DEC
+
+[group2-plot2]
+name = Table
+type = 2
+visibility = true
+
+[group2-plot2-series0]
+name = g_clk.bpm
+visibility = true
+format = DEC
+
+[group2-plot2-series1]
+name = g_clk.have_beat
+visibility = true
+format = DEC
+
+[group2-plot3]
+name = mply
+type = 0
+visibility = true
+
+[group2-plot3-series0]
+name = dacadc.adc_i[0]
+visibility = false
+format = DEC
+
+[group2-plot3-series1]
+name = dacadc.adc_i[1]
+visibility = false
+format = DEC
+
+[group2-plot3-series2]
+name = dacadc.adc_i[2]
+visibility = false
+format = DEC
+
+[group2-plot3-series3]
+name = dacadc.adc_i[3]
+visibility = false
+format = DEC
+
+[group2-plot3-series4]
+name = dacadc.trig_state[0]
+visibility = true
+format = DEC
+
+[group2-plot3-series5]
+name = dacadc.trig_state[1]
+visibility = false
+format = DEC
+
+[group2-plot3-series6]
+name = dacadc.trig_state[2]
+visibility = true
+format = DEC
+
+[group2-plot3-series7]
+name = dacadc.trig_state[3]
+visibility = true
+format = DEC
+
+[group2-plot3-series8]
+name = engine_state.cfrm[0]
+visibility = false
+format = DEC
+
+[group2-plot3-series9]
+name = engine_state.cgcd[0]
+visibility = false
+format = DEC
+
+[group2-plot3-series10]
+name = g_clk.have_beat
+visibility = true
+format = DEC
+
+[group2-plot3-series11]
+name = g_clk.pulse_counter
+visibility = true
+format = DEC
+
+[group2-plot4]
+name = phs
+type = 0
+visibility = false
+
+[group2-plot4-series0]
+name = engine_state.cphs[0]
+visibility = true
+format = DEC
+
+[group2-plot4-series1]
+name = engine_state.cphsc[0]
 visibility = true
 format = DEC
 
