@@ -1,5 +1,7 @@
 #include "assign.h"
 #include "channel.h"
+#include "hw_setup.h"
+#include "state.h"
 #include <stdint.h>
 #include <string.h>
 
@@ -17,26 +19,19 @@ AssignType assign_state() { return _assign_state; }
 
 void assign_input_to_channel(int8_t i, int8_t c, UxState* state)
 {
-    if (state->engine_config->channel_state[c].src_input == i)
-    {
-        state->engine_config->channel_state[c].src_input = -1;
-    }
-    else
-    {
-        state->engine_config->channel_state[c].src_input = i;
-    }
+    state->engine_config->channel_state[c].src_input = i;
 }
 
 void clear_channel(int8_t c, int8_t all_scenes, UxState* state)
 {
-    init_channel(&state->ux_setup->channels[c], state, all_scenes ? -1 : state->engine_state->active_scene);
+    reset_channel(&state->ux_setup->channels[c], state, all_scenes ? -1 : state->engine_state->active_scene);
 }
 
 void clear_scene(int8_t s, UxState* state)
 {
     for (int8_t c = 0; c < N_CHANNELS; c++)
     {
-        init_channel(&state->ux_setup->channels[c], state, s);
+        reset_channel(&state->ux_setup->channels[c], state, s);
     }
 }
 
@@ -66,6 +61,24 @@ void assign_scene_to_scene(int8_t s_src, int8_t s_dst, UxState* state)
     }
 }
 
+void assign_trig_src_use_channel(int8_t c_src, int8_t c_dst, UxState* state)
+{
+    if (c_src != c_dst) {
+        state->engine_config->channel_state[c_src].src_trig = N_INPUTS + c_dst;
+    } else {
+        state->engine_config->channel_state[c_src].src_trig = -1;
+        state->engine_config->channel_state[c_src].quantize_mode = QUANTIZE_DISABLED;
+    }
+
+    assign_reset();
+}
+
+void assign_trig_src_use_input(int8_t c_src, int8_t i_dst, UxState* state)
+{
+    state->engine_config->channel_state[c_src].src_trig = i_dst;
+    assign_reset();
+}
+
 void assign_event(AssignType targetType, int8_t targetId, UxState* state)
 {
     if (_assign_state == ASSIGN_NONE)
@@ -75,9 +88,9 @@ void assign_event(AssignType targetType, int8_t targetId, UxState* state)
     }
     else
     {
-        if (_assign_state == ASSIGN_INPUT && targetType == ASSIGN_CHANNEL)
+        if (_assign_state == ASSIGN_CHANNEL && targetType == ASSIGN_INPUT)
         {
-            assign_input_to_channel(_source_id, targetId, state);
+            assign_input_to_channel(targetId, _source_id, state);
         }
         else if (_assign_state == ASSIGN_CHANNEL && targetType == ASSIGN_CHANNEL)
         {
@@ -85,12 +98,19 @@ void assign_event(AssignType targetType, int8_t targetId, UxState* state)
         }
         else if (_assign_state == ASSIGN_CHANNEL && targetType == ASSIGN_SCENE)
         {
-
             assign_channel_to_scene(_source_id, targetId, state);
         }
         else if (_assign_state == ASSIGN_SCENE && targetType == ASSIGN_SCENE)
         {
             assign_scene_to_scene(_source_id, targetId, state);
+        }
+        else if (_assign_state == ASSIGN_TRIG_SRC && targetType == ASSIGN_CHANNEL)
+        {
+            assign_trig_src_use_channel(_source_id, targetId, state);
+        }
+        else if (_assign_state == ASSIGN_TRIG_SRC && targetType == ASSIGN_INPUT)
+        {
+            assign_trig_src_use_input(_source_id, targetId, state);
         }
     }
 }

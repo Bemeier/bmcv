@@ -5,6 +5,7 @@ CMakeUserPresets.json
 build
 .cache
 toolchain.cmake
+local.cmake
 build.ninja
 CMakeLists.txt.user
 CMakeCache.txt

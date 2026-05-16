@@ -8,6 +8,7 @@ typedef enum
 {
     ASSIGN_NONE,
     ASSIGN_CHANNEL,
+    ASSIGN_TRIG_SRC,
     ASSIGN_SCENE,
     ASSIGN_INPUT,
     ASSIGN_PARAM

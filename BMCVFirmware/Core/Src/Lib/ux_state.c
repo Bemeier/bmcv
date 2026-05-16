@@ -10,8 +10,7 @@
 
 void update_ux_state(UxState* state)
 {
-    state->engine_state->shift_active_for = 0;
-    state->engine_state->shift_state      = SHIFT_STATE_NONE;
+    //state->engine_state->shift_state      = SHIFT_STATE_NONE;
 
     for (uint8_t b = 0; b < N_CTRL_BUTTONS; b++)
     {

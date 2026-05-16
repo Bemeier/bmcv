@@ -4,6 +4,8 @@
 #include "ux_setup.h"
 #include "ux_state.h"
 
+#define CTRL_SHIFT_ACTIVATION 100000
+
 void update_shift_mode(const CtrlButtonSetup* btn, UxState* state);
 
 void update_selected_param(const CtrlButtonSetup* btn, UxState* state);

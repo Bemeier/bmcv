@@ -8,9 +8,10 @@
 #include "usbd_def.h"
 #include "ux_state.h"
 #include "ws2811.h"
+#include "error.h"
 #include <stdint.h>
 
-static uint8_t input_mode_color[INPUT_MODE_COUNT] = {HUE_RED, HUE_MAGENTA, HUE_CYAN, HUE_GREEN};
+static uint8_t input_mode_color[INPUT_MODE_COUNT] = {HUE_GREEN, HUE_RED, HUE_CYAN, HUE_MAGENTA};
 
 static uint8_t min_value = 12;
 
@@ -34,10 +35,17 @@ void write_scene_button_led(const SceneSetup* scene, UxState* state)
         ws2811_setled_hsv(scene->led, 0, SAT_OFF, val);
         break;
     case SHIFT_STATE_MON:
-        if (assign_state() == ASSIGN_INPUT)
+        if (scene->id < N_INPUTS) {
+            int16_t adc_val = get_adc(state->hw_setup->input_adc_idx[scene->id]);
+            ws2811_setled_adcr(scene->led, adc_val);
+        }
+        
+    /*
+        if (assign_state() == ASSIGN_CHANNEL)
         {
             ws2811_setled_hsv(scene->led, HUE_GREEN, SAT_HIG, assign_src() == scene->id ? VAL_LOW : VAL_OFF);
         }
+        */
         // Monitoring inputs handleded on hardware level for better update rate
         // scene->id >= N_INPUTS can be handled here still (no function currently)
         break;
@@ -49,9 +57,8 @@ void write_scene_button_led(const SceneSetup* scene, UxState* state)
         break;
     case SHIFT_STATE_SAV:
         int8_t load = state->hw_state->button_pressed_t[scene->button] > 0;
-        int8_t save = state->hw_state->button_pressed_t[scene->button] > 1000;
-        ws2811_setled_hsv(scene->led, save ? HUE_RED : HUE_GREEN, load ? SAT_HIG : SAT_OFF,
-                          (state->engine_state->blink_fast || load) * VAL_LOW);
+        int8_t save = state->hw_state->button_pressed_t[scene->button] > MS(1000);
+        ws2811_setled_hsv(scene->led, save ? HUE_RED : HUE_GREEN, SAT_MAX, load ? VAL_HIG : VAL_MED);
         break;
     case SHIFT_STATE_CLR:
         int8_t held = state->hw_state->button_pressed_t[scene->button] > 10;
@@ -79,6 +86,14 @@ void write_scene_button_led(const SceneSetup* scene, UxState* state)
         }
         break;
     case SHIFT_STATE_QNT:
+        if (assign_state() == ASSIGN_TRIG_SRC) {
+            if (scene->id < N_INPUTS) {
+                ws2811_setled_hsv(scene->led, 0, SAT_OFF, state->engine_state->blink_fast * VAL_LOW);
+            } else {
+                ws2811_setled_hsv(scene->led, 0, SAT_OFF, VAL_OFF);
+            }
+        }
+        break;
     default:
         ws2811_setled_hsv(scene->led, 0, SAT_OFF, VAL_OFF);
         break;
@@ -121,8 +136,8 @@ void compute_scenes_contribution(UxState* state)
 
 void update_scene_button(const SceneSetup* scene, UxState* state)
 {
-    int8_t released     = state->hw_state->button_released_t[scene->button] > 10;
-    int8_t released_alt = state->hw_state->button_released_t[scene->button] > 1000;
+    int8_t pressed     = state->hw_state->button_released_t[scene->button] > MS(10);
+    int8_t pressed_long = state->hw_state->button_released_t[scene->button] > MS(1000);
     int16_t hold_time   = state->hw_state->button_pressed_t[scene->button];
     int8_t momentary    = hold_time >= 10;
     // Momentarty activation
@@ -136,46 +151,51 @@ void update_scene_button(const SceneSetup* scene, UxState* state)
         }
         break;
     case SHIFT_STATE_STL:
-        if (released)
+        if (pressed)
             state->engine_config->scene_l = scene->id;
         break;
     case SHIFT_STATE_STR:
-        if (released)
+        if (pressed)
             state->engine_config->scene_r = scene->id;
         break;
     case SHIFT_STATE_SYS:
-        if (released && scene->id < N_INPUTS)
+        if (pressed && scene->id < N_INPUTS)
             state->engine_config->input_mode[scene->id] = (state->engine_config->input_mode[scene->id] + 1) % INPUT_MODE_COUNT;
         break;
     case SHIFT_STATE_MON:
-        if (released && scene->id < N_INPUTS)
+        if (pressed && scene->id < N_INPUTS)
         {
-            assign_reset();
             assign_event(ASSIGN_INPUT, scene->id, state);
+            assign_reset();
         }
         break;
     case SHIFT_STATE_SAV:
-        if (released)
+        if (pressed)
         {
-            if (released_alt)
+            if (pressed_long)
             {
                 preset_store(state->engine_config, scene->id);
             }
             else
             {
-                preset_load(state->engine_config, scene->id);
+                if (!preset_load(state->engine_config, scene->id)) {
+                    error_set(5);
+                }
             }
         }
         break;
     case SHIFT_STATE_CPY:
-        if (released)
+        if (pressed)
             assign_event(ASSIGN_SCENE, scene->id, state);
         break;
     case SHIFT_STATE_CLR:
-        if (released)
+        if (pressed)
             clear_scene(scene->id, state);
         break;
     case SHIFT_STATE_QNT:
+        if (scene->id < N_INPUTS && pressed) {
+            assign_event(ASSIGN_INPUT, scene->id, state);
+        }
     default:
         break;
     }

@@ -13,9 +13,10 @@ typedef struct
     uint32_t last_reset_us;
     uint32_t last_pulse_delta_us;
     uint32_t pulse_counter;
-    uint32_t beat_counter;
+    uint64_t beat_counter;
 
     bool have_beat;
+    bool have_pulse;
 
     float beat_freq;
     float beat_freq_smooth;

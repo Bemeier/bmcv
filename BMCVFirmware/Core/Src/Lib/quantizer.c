@@ -1,4 +1,5 @@
 #include "quantizer.h"
+#include "assign.h"
 #include "color_presets.h"
 #include "state.h"
 #include "ws2811.h"
@@ -20,6 +21,8 @@ void update_quantizer_buttons(UxState* state)
 void write_quantizer_button_leds(UxState* state)
 {
     if (state->engine_state->shift_state != SHIFT_STATE_QNT)
+        return;
+    if (assign_state() == ASSIGN_TRIG_SRC)
         return;
     // TODO: The one non-semitone button?
     for (uint16_t st = 0; st < N_SEMITONES; st++)

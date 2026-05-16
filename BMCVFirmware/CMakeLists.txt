@@ -94,4 +94,6 @@ add_custom_target(copy_compile_commands ALL
     VERBATIM
 )
 
+include(${CMAKE_SOURCE_DIR}/local.cmake OPTIONAL)
+
 add_dependencies(copy_compile_commands ${CMAKE_PROJECT_NAME})

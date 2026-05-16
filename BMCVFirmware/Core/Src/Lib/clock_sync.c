@@ -16,7 +16,7 @@ void Clock_Init(void)
 float smooth_freq(float new_sample)
 {
     static float freq_est = 0.0f;
-    const float alpha     = 0.05f; // smoothing factor (0..1), lower = smoother
+    const float alpha     = 0.3f;
     if (freq_est == 0.0f)
         freq_est = new_sample;
     freq_est = alpha * new_sample + (1.0f - alpha) * freq_est;
@@ -37,7 +37,7 @@ void Clock_Trigger(uint32_t now_us)
         g_clk.last_pulse_delta_us = now_us - g_clk.last_pulse_us;
     }
 
-    if (g_clk.last_pulse_us > 0)
+    if (g_clk.have_pulse)
     {
         g_clk.beat_freq        = 1000000.0f / (float) (g_clk.last_pulse_delta_us * g_clk.PULSES_PER_BEAT);
         g_clk.beat_freq_smooth = smooth_freq(g_clk.beat_freq);
@@ -51,12 +51,14 @@ void Clock_Trigger(uint32_t now_us)
         g_clk.last_beat_start_us = now_us;
         g_clk.beat_phase         = 0.0f;
     }
+
+    g_clk.have_pulse = true;
     g_clk.last_pulse_us = now_us;
 }
 
 void Clock_Poll(uint32_t now_us)
 {
-    if (g_clk.last_pulse_delta_us > 0 && now_us - g_clk.last_pulse_us > 4 * g_clk.last_pulse_delta_us)
+    if (g_clk.last_pulse_delta_us > 0 && now_us - g_clk.last_pulse_us > 4u * g_clk.last_pulse_delta_us)
     {
         g_clk.have_beat = false;
     }

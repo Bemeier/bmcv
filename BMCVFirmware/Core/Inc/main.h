@@ -129,8 +129,7 @@ extern "C"
 /* USER CODE BEGIN Private defines */
 #define MIDI_IN_PORTS_NUM 0x01  // Specify input ports number of your device
 #define MIDI_OUT_PORTS_NUM 0x01 // Specify output ports number of your device
-#define LEDS 24
-    /* USER CODE END Private defines */
+/* USER CODE END Private defines */
 
 #ifdef __cplusplus
 }

@@ -14,6 +14,12 @@
 
 #define DAC_OFFSET_CORRECTION 82
 
+static const float US_TO_S = 1e-6f;
+
+#define US(x)   ((uint32_t)(x))
+#define MS(x)   ((uint32_t)((x) * 1000u))
+#define S(x)    ((uint32_t)((x) * 1000000u))
+
 static int16_t quantLUT[LUT_SIZE];
 static inline void generate_quant_lut(void)
 {
@@ -110,6 +116,43 @@ static inline int imin(int a, int b) { return (a < b) ? a : b; }
 
 static inline int imax(int a, int b) { return (a > b) ? a : b; }
 
+static inline uint32_t hash_u32(uint32_t x)
+{
+    x ^= x >> 16;
+    x *= 0x7feb352d;
+    x ^= x >> 15;
+    x *= 0x846ca68b;
+    x ^= x >> 16;
+    return x;
+}
+
+// 0..1 float
+static inline float hash01(uint32_t x)
+{
+    return (hash_u32(x) & 0x00FFFFFF) * (1.0f / 16777216.0f);
+}
+
+// -1..1 float
+static inline float hash11(uint32_t x)
+{
+    return hash01(x) * 2.0f - 1.0f;
+}
+
+static inline float fractf(float x)
+{
+    return x - floorf(x);
+}
+
+static inline float smoothstep(float t)
+{
+    return t * t * (3.0f - 2.0f * t);
+}
+
+static inline float lerp(float a, float b, float t)
+{
+    return a + t * (b - a);
+}
+
 static inline int delta_modulo_step(int val, int delta, int maxVal)
 {
     delta = iclamp(delta, -maxVal, maxVal);
@@ -171,23 +214,27 @@ static inline uint32_t crc32(const void* data, size_t len)
 
 static inline int16_t find_denominator(float value, int16_t max_mult, float tol)
 {
-    // Remove integer part first
     float frac = value - floorf(value);
-    if (frac == 0.0f)
-    {
-        return 1; // already integer
-    }
+
+    if (fabsf(frac) < 1e-6f)
+        return 1;
 
     for (int16_t mult = 1; mult <= max_mult; mult++)
     {
-        float test    = frac * mult;
-        float nearest = roundf(test);
+        float test = frac * mult;
+
+        // IMPORTANT:
+        // only accept near NONZERO integers
+        float nearest = floorf(test + 0.5f);
+
+        if (nearest < 1.0f)
+            continue;
+
         if (fabsf(test - nearest) < tol)
-        {
             return mult;
-        }
     }
-    return -1; // not found within max_mult
+
+    return -1;
 }
 
 static inline float fmod_pos(float a, float n)
