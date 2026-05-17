@@ -29,7 +29,7 @@ void update_shift_mode(const CtrlButtonSetup* btn, UxState* state)
 void update_selected_param(const CtrlButtonSetup* btn, UxState* state)
 {
     uint32_t released_after = state->hw_state->button_released_t[state->ux_setup->ctrl_buttons[btn->id].button];
-    if (state->engine_state->shift_state == SHIFT_STATE_NONE && btn->id < CH_PARAM_COUNT-1 && released_after > 0 && released_after < MS(200))
+    if (state->engine_state->shift_state == SHIFT_STATE_NONE && btn->id < CH_PARAM_COUNT && released_after > 0 && released_after < MS(200))
     {
         state->engine_state->selected_param = (ChannelParameters) btn->id;
         return;

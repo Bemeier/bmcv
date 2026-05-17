@@ -40,13 +40,20 @@ typedef enum
 
 typedef enum
 {
+    INPUT_AMP_DISABLED,
+    INPUT_AMP_ADD,
+    INPUT_AMP_MULT,
+    INPUT_AMP_MODE_COUNT,
+} ChannelInputAmpMode;
+
+typedef enum
+{
     CH_PARAM_FRQ,
     CH_PARAM_SHP,
     CH_PARAM_MOD,
     CH_PARAM_PHS,
     CH_PARAM_AMP,
     CH_PARAM_OFS,
-    CH_PARAM_INP,
     CH_PARAM_COUNT
 } ChannelParameters;
 
@@ -78,6 +85,7 @@ typedef struct __attribute__((packed))
     int8_t src_input;
     int8_t src_trig;
     int8_t shape_mode;
+    ChannelInputAmpMode input_amp_mode;
     ChannelQuantizeMode quantize_mode;
     int16_t params[N_SCENES][CH_PARAM_COUNT];
 } ChannelConfig;

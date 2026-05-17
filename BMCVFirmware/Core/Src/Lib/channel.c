@@ -122,6 +122,7 @@ static int16_t trig_flag[N_CHANNELS];
 static uint32_t last_delta[N_CHANNELS];
 
 static uint8_t quantize_mode_color[QUANTIZE_MODE_COUNT] = {HUE_RED, HUE_MAGENTA, HUE_CYAN};
+static uint8_t input_amp_mode_color[INPUT_AMP_MODE_COUNT] = {HUE_RED, HUE_GREEN, HUE_YELLOW};
 static uint8_t shape_mode_color[SHAPE_MODE_COUNT] = {HUE_GREEN, HUE_MAGENTA};
 
 static float k_sync = 0.075f;
@@ -150,12 +151,6 @@ void update_channel_param(const ChannelSetup* ch, UxState* state)
             val_neighbour(chcfg->params[state->engine_state->active_scene][param], delta, quantized_multipliers, N_FREQ_MULTIPLIERS, &idx);
         state->engine_state->channels_mark_hue[ch->id] = quantized_multipliers_colors[idx];
     }
-    else if (param == CH_PARAM_INP)
-    {
-        size_t idx = 0;
-        chcfg->params[state->engine_state->active_scene][param] =
-            val_neighbour(chcfg->params[state->engine_state->active_scene][param], delta, quantized_amp_levels, N_AMP_LEVELS, &idx);
-    }
     /*
     else if (param == CH_PARAM_SHP)
     {
@@ -181,8 +176,6 @@ void reset_channel_param(const ChannelSetup* ch, UxState* state, int8_t scene, i
     ChannelConfig* chcfg = &state->engine_config->channel_state[ch->id];
     if (param == CH_PARAM_FRQ) {
         chcfg->params[scene][param] = -255;
-    } else if (param == CH_PARAM_INP) {
-        chcfg->params[scene][param] = INT16_MAX;
     } else {
         chcfg->params[scene][param] = 0;
     }
@@ -221,6 +214,7 @@ void update_channel(const ChannelSetup* ch, UxState* state)
 {
     int8_t long_pressed = state->hw_state->button_released_t[ch->button] > MS(500);
     int8_t pressed = state->hw_state->button_released_t[ch->button] > MS(10);
+    int8_t pressing = state->hw_state->button_pressed_t[ch->button] > 0;
     ChannelConfig* chcfg = &state->engine_config->channel_state[ch->id];
     switch (state->engine_state->shift_state)
     {
@@ -252,6 +246,10 @@ void update_channel(const ChannelSetup* ch, UxState* state)
                 assign_reset();
                 chcfg->src_input = -1;
             }
+        }
+        
+        if (!pressing) {
+            chcfg->input_amp_mode = delta_modulo_step(chcfg->input_amp_mode, state->hw_state->encoder_delta[ch->encoder], INPUT_AMP_MODE_COUNT);
         }
         break;
     case SHIFT_STATE_CPY:
@@ -308,21 +306,17 @@ void compute_channel(const ChannelSetup* ch, UxState* state)
         }
     }
 
-    float freq_param      = avg[CH_PARAM_FRQ] / (float) N_FREQ_SCALE;
+    float freq_param = avg[CH_PARAM_FRQ] / (float) N_FREQ_SCALE;
+    float offset     = (float) avg[CH_PARAM_OFS];
+    float amp        = (float) avg[CH_PARAM_AMP] / 2.0f;
+    float shape      = (float) avg[CH_PARAM_SHP] / INT16_MAX;
+    float phs        = (float) avg[CH_PARAM_PHS] / INT16_MAX;
+
     float freq_multiplier = freq_param >= 0 ? freq_param + 1.0f : -1.0f / (freq_param - 1.0f);
-    if (ch->id == 0)
-    {
-        freq_param = freq_param + ch->id;
-    }
+    float freq            = g_clk.beat_freq_smooth * freq_multiplier;
 
     int16_t gcd = find_denominator(freq_multiplier, 8, 0.025f);
-
-    float offset       = (float) avg[CH_PARAM_OFS];
-    float amp          = (float) avg[CH_PARAM_AMP] / 2.0f;
-    float shape        = (float) avg[CH_PARAM_SHP] / INT16_MAX;
-    float phs          = (float) avg[CH_PARAM_PHS] / INT16_MAX;
-    float eff_freq     = g_clk.beat_freq_smooth * freq_multiplier;
-    float phase_delta  = dt_s * (eff_freq + state->engine_state->channels_phase_correction[ch->id]);
+    float phase_delta  = dt_s * (freq + state->engine_state->channels_phase_correction[ch->id]);
     float phase_length = gcd > 0 ? gcd * freq_multiplier : 1.0f;
     float diff         = 0;
     state->engine_state->channels_shared_phase[ch->id] =
@@ -330,7 +324,6 @@ void compute_channel(const ChannelSetup* ch, UxState* state)
 
     if (gcd > 0 && g_clk.have_beat)
     {
-        //float beat_mode    = floorf(fmodf(g_clk.beat_counter, gcd)) + g_clk.beat_phase;
         float beat_mode = (float) (g_clk.beat_counter % gcd) + g_clk.beat_phase;
         float target_phase = fmodf(beat_mode * freq_multiplier, phase_length);
         diff               = gcd > 0 ? phase_error(target_phase, state->engine_state->channels_shared_phase[ch->id], phase_length) : 0;
@@ -344,7 +337,6 @@ void compute_channel(const ChannelSetup* ch, UxState* state)
     if (phase < 0.0f) phase += 1.0f;
     if (phase >= 1.0f) phase -= 1.0f;
 
-    float input_amp = (float) avg[CH_PARAM_INP] / INT16_MAX;
     float mod = (float) avg[CH_PARAM_MOD] / INT16_MAX;
 
     float raw = 0;
@@ -367,9 +359,17 @@ void compute_channel(const ChannelSetup* ch, UxState* state)
     state->engine_state->cshp[ch->id] = shape;
     state->engine_state->cmod[ch->id] = mod;
 
-    if (chcfg->src_input >= 0)
+    if (chcfg->src_input >= 0 && chcfg->input_amp_mode != INPUT_AMP_DISABLED)
     {
-        value += state->hw_state->input_state[chcfg->src_input] * input_amp;
+        int16_t input_val = state->hw_state->input_state[chcfg->src_input];
+        if (chcfg->input_amp_mode == INPUT_AMP_ADD)
+        {
+            value += input_val;
+        }
+        else if (chcfg->input_amp_mode == INPUT_AMP_MULT)
+        {
+            value *= (float) iclamp(input_val, INT16_MIN/4, INT16_MAX/4) / (float) (INT16_MAX/4);
+        }
     }
 
     if (value > INT16_MAX)
@@ -455,6 +455,7 @@ void write_channel_led(const ChannelSetup* ch, UxState* state)
             }
             break;
         } 
+        ws2811_setled_hsv(ch->led, input_amp_mode_color[chcfg->input_amp_mode], SAT_HIG, VAL_LOW);
         /* fall through */
     default:
         if (mark)
@@ -469,9 +470,6 @@ void write_channel_led(const ChannelSetup* ch, UxState* state)
         {
         case CH_PARAM_FRQ:
             ws2811_setled_hsv(ch->led, state->engine_state->channels_mark_hue[ch->id], SAT_MAX, state->engine_state->blink_fast * VAL_MED);
-            break;
-        case CH_PARAM_INP:
-            ws2811_setled_adcr(ch->led, chcfg->params[state->engine_state->active_scene][CH_PARAM_INP]);
             break;
         default:
             ws2811_setled_adcr(ch->led, chcfg->params[state->engine_state->active_scene][state->engine_state->selected_param]);
