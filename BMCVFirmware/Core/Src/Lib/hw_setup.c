@@ -20,7 +20,7 @@ static const HwSetup hw_setup = {
     .ctrl_button_led_idx      = {8, 9, 10, 11, 12, 13, -1, -1, -1},
     .scene_button_led_idx     = {20, 19, 18, 17, 16, 15, 14},
 
-    .ctrl_button_color = {HUE_MAGENTA, HUE_YELLOW, HUE_GREEN, HUE_CYAN, HUE_RED,  HUE_BLUE,  0, 0, 0},
+    .ctrl_button_color = {HUE_MAGENTA, HUE_YELLOW, HUE_CYAN, HUE_RED, HUE_GREEN, HUE_BLUE,  0, 0, 0},
 };
 
 const HwSetup* HwSetup_Get(void) { return &hw_setup; }

@@ -66,7 +66,8 @@ void bmcv_init(uint16_t _mpc_interrupt_pin, ADC_TypeDef* _slider_adc)
     ux_state.ux_setup                     = ux_setup;
     ux_state.engine_config                = &engine_config;
     ux_state.engine_state                 = &engine_state;
-    ux_state.engine_state->selected_param = CH_PARAM_OFS;
+    ux_state.engine_state->selected_param = CH_PARAM_SHP;
+    ux_state.engine_state->shift_state    = SHIFT_STATE_NONE;
     //ux_update_time = 0;
 
     for (uint8_t c = 0; c < N_ENCODERS; c++)
@@ -80,8 +81,8 @@ void bmcv_init(uint16_t _mpc_interrupt_pin, ADC_TypeDef* _slider_adc)
         engine_config.input_mode[1] = INPUT_RESET;
         engine_config.input_mode[2] = INPUT_DEFAULT;
         engine_config.input_mode[3] = INPUT_DEFAULT;
-        engine_config.scene_l       = 0;
-        engine_config.scene_r       = 6;
+        engine_config.scene_a       = 0;
+        engine_config.scene_b       = 6;
         engine_config.quantize_mask = 0b111111111111;
         for (uint8_t c = 0; c < N_ENCODERS; c++)
         {
@@ -144,12 +145,18 @@ void bmcv_poll_tasks()
     }
 }
 
+uint32_t last_dac_poll;
+
 void bmcv_main(uint32_t now_us)
 {
     if (dac_poll == 1 || dacadc_error())
     {
         dac_poll = 0;
         dacadc_dma_next();
+        uint32_t dac_dt = now_us - last_dac_poll;
+        float dac_fps = 1000000.0f / dac_dt;
+        ux_state.engine_state->dac_fps = ux_state.engine_state->dac_fps * 0.95f + 0.05f * dac_fps;
+        last_dac_poll = now_us;
     }
 
 

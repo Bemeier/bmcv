@@ -6,6 +6,8 @@
 
 void init_channel(const ChannelSetup* ch, UxState* state);
 
+void reset_channel_param(const ChannelSetup* ch, UxState* state, int8_t scene, int8_t param);
+
 void reset_channel(const ChannelSetup* ch, UxState* state, int8_t scene);
 
 void update_channel(const ChannelSetup* ch, UxState* state);

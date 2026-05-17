@@ -4,11 +4,12 @@
 #include "color_presets.h"
 #include "dac_adc.h"
 #include "helpers.h"
+#include "hw_setup.h"
 #include "math.h"
 #include "state.h"
 #include "stepped_random.h"
 #include "ux_state.h"
-#include "wavetables.h"
+#include "wave_fn.h"
 #include "ws2811.h"
 #include <stdint.h>
 #include <stdlib.h>
@@ -17,7 +18,7 @@
 #define N_AMP_LEVELS 11
 #define N_FREQ_MULTIPLIERS 31
 #define N_FREQ_SCALE 255
-#define SHAPE_INTERVAL INT16_MAX / M
+//#define SHAPE_INTERVAL INT16_MAX / M
 
 #define TRIG_THRESH 1024
 #define TRIG_THRESH_LOW 800
@@ -36,10 +37,12 @@ static const int16_t quantized_amp_levels[N_AMP_LEVELS] = {
     INT16_MAX       // *1
 };
 
+/*
 static const int16_t quantized_shp_levels[N_SHP_LEVELS] = {
     -SHAPE_INTERVAL * 4, -SHAPE_INTERVAL * 3, -SHAPE_INTERVAL * 2, -SHAPE_INTERVAL * 1,
     -SHAPE_INTERVAL * 0, SHAPE_INTERVAL * 1,  SHAPE_INTERVAL * 2,  SHAPE_INTERVAL * 3,
 };
+*/
 
 static const int16_t quantized_multipliers[N_FREQ_MULTIPLIERS] = {
     -127 * 255, // 1/128
@@ -116,10 +119,12 @@ static int16_t trig_state[N_CHANNELS];
 
 static int16_t trig_flag[N_CHANNELS];
 
+static uint32_t last_delta[N_CHANNELS];
+
 static uint8_t quantize_mode_color[QUANTIZE_MODE_COUNT] = {HUE_RED, HUE_MAGENTA, HUE_CYAN};
 static uint8_t shape_mode_color[SHAPE_MODE_COUNT] = {HUE_GREEN, HUE_MAGENTA};
 
-static float k_sync = 0.05f;
+static float k_sync = 0.075f;
 
 void update_channel_param(const ChannelSetup* ch, UxState* state)
 {
@@ -129,6 +134,8 @@ void update_channel_param(const ChannelSetup* ch, UxState* state)
     int8_t alt           = state->hw_state->button_pressed_t[ch->button] > 0;
     if (delta == 0)
         return;
+
+    last_delta[ch->id] = state->hw_state->time;
 
     state->engine_state->channels_mark_for[ch->id] = MS(400);
 
@@ -149,12 +156,14 @@ void update_channel_param(const ChannelSetup* ch, UxState* state)
         chcfg->params[state->engine_state->active_scene][param] =
             val_neighbour(chcfg->params[state->engine_state->active_scene][param], delta, quantized_amp_levels, N_AMP_LEVELS, &idx);
     }
+    /*
     else if (param == CH_PARAM_SHP)
     {
         size_t idx = 0;
         chcfg->params[state->engine_state->active_scene][param] =
             val_neighbour(chcfg->params[state->engine_state->active_scene][param], delta, quantized_shp_levels, N_SHP_LEVELS, &idx);
     }
+    */
     else
     {
         chcfg->params[state->engine_state->active_scene][param] += delta * 256;
@@ -167,10 +176,21 @@ void init_channel(const ChannelSetup* ch, UxState* state)
     state->engine_state->channels_phase_correction[ch->id] = 0;
 }
 
+void reset_channel_param(const ChannelSetup* ch, UxState* state, int8_t scene, int8_t param)
+{
+    ChannelConfig* chcfg = &state->engine_config->channel_state[ch->id];
+    if (param == CH_PARAM_FRQ) {
+        chcfg->params[scene][param] = -255;
+    } else if (param == CH_PARAM_INP) {
+        chcfg->params[scene][param] = INT16_MAX;
+    } else {
+        chcfg->params[scene][param] = 0;
+    }
+}
+
 void reset_channel(const ChannelSetup* ch, UxState* state, int8_t scene)
 {
     init_channel(ch, state);
-    ChannelConfig* chcfg                                   = &state->engine_config->channel_state[ch->id];
 
     if (scene < 0)
     {
@@ -178,20 +198,16 @@ void reset_channel(const ChannelSetup* ch, UxState* state, int8_t scene)
         {
             for (uint8_t p = 0; p < CH_PARAM_COUNT; p++)
             {
-                chcfg->params[s][p] = 0;
+                reset_channel_param(ch, state, s, p);
             }
-            chcfg->params[s][CH_PARAM_FRQ] = -255;
-            chcfg->params[s][CH_PARAM_INP] = INT16_MAX;
         }
     }
     else
     {
         for (uint8_t p = 0; p < CH_PARAM_COUNT; p++)
         {
-            chcfg->params[scene][p] = 0;
+            reset_channel_param(ch, state, scene, p);
         }
-        chcfg->params[scene][CH_PARAM_FRQ] = -255;
-        chcfg->params[scene][CH_PARAM_INP] = INT16_MAX;
     }
 }
 
@@ -203,7 +219,7 @@ void reset_channel_phase(const ChannelSetup* ch, UxState* state)
 
 void update_channel(const ChannelSetup* ch, UxState* state)
 {
-    int8_t long_pressed = state->hw_state->button_released_t[ch->button] > MS(1000);
+    int8_t long_pressed = state->hw_state->button_released_t[ch->button] > MS(500);
     int8_t pressed = state->hw_state->button_released_t[ch->button] > MS(10);
     ChannelConfig* chcfg = &state->engine_config->channel_state[ch->id];
     switch (state->engine_state->shift_state)
@@ -255,11 +271,21 @@ void update_channel(const ChannelSetup* ch, UxState* state)
         }
         break;
     case SHIFT_STATE_NONE:
-        update_channel_param(ch, state);
+        uint32_t t_no_rotation = state->hw_state->time - last_delta[ch->id];
+        if (long_pressed && state->hw_state->button_released_t[ch->button] < t_no_rotation) {
+            reset_channel_param(ch, state, state->engine_state->active_scene, state->engine_state->selected_param);
+        } else {
+            update_channel_param(ch, state);
+        }
         break;
     default:
         break;
     }
+}
+
+void compute_channel_scene(const ChannelSetup* ch, UxState* state)
+{
+
 }
 
 void compute_channel(const ChannelSetup* ch, UxState* state)
@@ -314,26 +340,32 @@ void compute_channel(const ChannelSetup* ch, UxState* state)
         (state->engine_state->channels_phase_correction[ch->id] * (1.0f - k_sync) + diff * k_sync);
 
     float phase = fmodf(state->engine_state->channels_shared_phase[ch->id] + phs, 1.0f);
-    if (phase < 0.0f)
-    {
-        phase += 1.0f;
-    }
+    
+    if (phase < 0.0f) phase += 1.0f;
+    if (phase >= 1.0f) phase -= 1.0f;
+
+    float input_amp = (float) avg[CH_PARAM_INP] / INT16_MAX;
+    float mod = (float) avg[CH_PARAM_MOD] / INT16_MAX;
 
     float raw = 0;
 
+
     if (chcfg->shape_mode == SHAPE_LFO) {
-        raw = wavetable_lookup(phase, shape) / (float) INT16_MAX;
+        raw = wavetable_lookup(phase_mod(phase, mod), shape) / (float) INT16_MAX;
+        //raw = wave_fn(phase, shape, mod);
     } else if (chcfg->shape_mode == SHAPE_STEPPED_RANDOM) {
-        raw = stepped_random(phase, shape);
+        raw = stepped_random(phase, shape, mod);
     }
 
     float value = offset + amp * raw;
 
-    float input_amp = (float) avg[CH_PARAM_INP] / INT16_MAX;
 
     state->engine_state->cfrm[ch->id]  = freq_multiplier;
     state->engine_state->cgcd[ch->id]  = gcd;
-    state->engine_state->cphsc[ch->id] = phase;
+    state->engine_state->cphsc[ch->id] = state->engine_state->channels_shared_phase[ch->id];
+    state->engine_state->csphs[ch->id] = phase;
+    state->engine_state->cshp[ch->id] = shape;
+    state->engine_state->cmod[ch->id] = mod;
 
     if (chcfg->src_input >= 0)
     {

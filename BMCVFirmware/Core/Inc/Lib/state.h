@@ -42,22 +42,23 @@ typedef enum
 {
     CH_PARAM_FRQ,
     CH_PARAM_SHP,
+    CH_PARAM_MOD,
     CH_PARAM_PHS,
-    CH_PARAM_INP,
     CH_PARAM_AMP,
     CH_PARAM_OFS,
+    CH_PARAM_INP,
     CH_PARAM_COUNT
 } ChannelParameters;
 
 typedef enum
 {
-    SHIFT_STATE_STL,
+    SHIFT_STATE_STA,
     SHIFT_STATE_SYS,
-    SHIFT_STATE_SAV,
-    SHIFT_STATE_MON,
-    SHIFT_STATE_SEQ,
-    SHIFT_STATE_STR,
     SHIFT_STATE_QNT,
+    SHIFT_STATE_MON,
+    SHIFT_STATE_SAV,
+    SHIFT_STATE_STB,
+    SHIFT_STATE_MUT,
     SHIFT_STATE_CPY,
     SHIFT_STATE_CLR,
     SHIFT_STATE_NONE,
@@ -84,8 +85,8 @@ typedef struct __attribute__((packed))
 typedef struct __attribute__((packed))
 {
     uint8_t clock_div;
-    uint8_t scene_l;
-    uint8_t scene_r;
+    uint8_t scene_a;
+    uint8_t scene_b;
     uint8_t current_preset;
     uint16_t quantize_mask;
     InputMode input_mode[N_INPUTS];
@@ -130,7 +131,10 @@ typedef struct
 
     int16_t cgcd[N_CHANNELS];
     float cphsc[N_CHANNELS];
+    float csphs[N_CHANNELS];
     float cfrm[N_CHANNELS];
+    float cshp[N_CHANNELS];
+    float cmod[N_CHANNELS];
 
     // UX State
     int8_t active_scene;
@@ -142,6 +146,9 @@ typedef struct
     // Render State
     uint8_t blink_slow;
     uint8_t blink_fast;
+
+    float engine_fps;
+    float dac_fps;
 
 } EngineState;
 

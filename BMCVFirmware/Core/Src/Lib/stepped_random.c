@@ -1,16 +1,12 @@
 #include "stepped_random.h"
-
-#include <stdint.h>
 #include "helpers.h"
 
-float stepped_random(float phase, float shape)
+float stepped_random(float phase, float shape, float mod)
 {
-    const int STEPS = 32;
+    float m = 0.5f * (mod + 1.0f);
+    float steps = 1.0f + m * 63.0f;
 
-    // map shape to continuous morph coordinate
-    float morph = (shape + 1.0f) * 0.5f;
-
-    // convert morph into floating seed-space
+    float morph = 0.5f * (shape + 1.0f);
     float seedf = morph * 1024.0f;
 
     int seed0 = (int)seedf;
@@ -18,27 +14,23 @@ float stepped_random(float phase, float shape)
 
     float seed_t = smoothstep(fractf(seedf));
 
-    // phase -> step domain
-    float x = phase * (float)STEPS;
+    float x = phase * steps;
+    int i0 = (int)floorf(x);
+    int i1 = i0 + 1;
 
-    int i0 = (int)x;
-    int i1 = (i0 + 1) % STEPS;
-
-    //float t = smoothstep(fractf(x));
+    float t = smoothstep(fractf(x));
     //float t = fractf(x) * 0.2f;
-    float t = smoothstep(fractf(x)) * 0.35f;
+    //float t = smoothstep(fractf(x)) * 0.35f;
 
-    // two neighboring random worlds
+
     float a0 = hash11(i0 ^ (seed0 * 0x9E3779B9));
     float a1 = hash11(i1 ^ (seed0 * 0x9E3779B9));
 
     float b0 = hash11(i0 ^ (seed1 * 0x9E3779B9));
     float b1 = hash11(i1 ^ (seed1 * 0x9E3779B9));
 
-    // interpolate inside each world
     float va = lerp(a0, a1, t);
     float vb = lerp(b0, b1, t);
 
-    // morph between worlds
     return lerp(va, vb, seed_t);
 }

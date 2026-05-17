@@ -10,6 +10,8 @@
 
 void update_ux_state(UxState* state)
 {
+    float engine_fps = 1000000.0f / state->hw_state->dt;
+    state->engine_state->engine_fps = state->engine_state->engine_fps * 0.95f + 0.05f * engine_fps;
     //state->engine_state->shift_state      = SHIFT_STATE_NONE;
 
     for (uint8_t b = 0; b < N_CTRL_BUTTONS; b++)

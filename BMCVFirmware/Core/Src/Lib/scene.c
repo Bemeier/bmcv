@@ -23,9 +23,9 @@ void write_scene_button_led(const SceneSetup* scene, UxState* state)
 
     switch (state->engine_state->shift_state)
     {
-    case SHIFT_STATE_STL:
-    case SHIFT_STATE_STR:
-        if (state->engine_config->scene_l == scene->id || state->engine_config->scene_r == scene->id)
+    case SHIFT_STATE_STA:
+    case SHIFT_STATE_STB:
+        if (state->engine_config->scene_a == scene->id || state->engine_config->scene_b == scene->id)
         {
             val = MAX(val, VAL_LOW) * state->engine_state->blink_fast;
         }
@@ -114,8 +114,8 @@ void compute_scenes_contribution(UxState* state)
     }
     else
     {
-        uint8_t scene_a         = state->engine_config->scene_l;
-        uint8_t scene_b         = state->engine_config->scene_r;
+        uint8_t scene_a         = state->engine_config->scene_a;
+        uint8_t scene_b         = state->engine_config->scene_b;
         uint16_t scene_a_anchor = SLIDER_MAX_VALUE;
         uint16_t scene_b_anchor = SLIDER_MIN_VALUE;
 
@@ -138,7 +138,7 @@ void update_scene_button(const SceneSetup* scene, UxState* state)
 {
     int8_t pressed     = state->hw_state->button_released_t[scene->button] > MS(10);
     int8_t pressed_long = state->hw_state->button_released_t[scene->button] > MS(1000);
-    int16_t hold_time   = state->hw_state->button_pressed_t[scene->button];
+    int32_t hold_time   = state->hw_state->button_pressed_t[scene->button];
     int8_t momentary    = hold_time >= 10;
     // Momentarty activation
     switch (state->engine_state->shift_state)
@@ -150,13 +150,13 @@ void update_scene_button(const SceneSetup* scene, UxState* state)
             state->engine_state->momentary_scene      = scene->id;
         }
         break;
-    case SHIFT_STATE_STL:
+    case SHIFT_STATE_STA:
         if (pressed)
-            state->engine_config->scene_l = scene->id;
+            state->engine_config->scene_a = scene->id;
         break;
-    case SHIFT_STATE_STR:
+    case SHIFT_STATE_STB:
         if (pressed)
-            state->engine_config->scene_r = scene->id;
+            state->engine_config->scene_b = scene->id;
         break;
     case SHIFT_STATE_SYS:
         if (pressed && scene->id < N_INPUTS)

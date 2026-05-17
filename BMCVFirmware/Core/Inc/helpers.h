@@ -103,6 +103,11 @@ static inline int16_t sclamp(int16_t x, int16_t min_val, int16_t max_val)
     return x;
 }
 
+static inline float fclamp(float x, float lo, float hi)
+{
+    return (x < lo) ? lo : (x > hi) ? hi : x;
+}
+
 static inline int iclamp(int val, int min, int max)
 {
     if (val < min)
@@ -115,6 +120,41 @@ static inline int iclamp(int val, int min, int max)
 static inline int imin(int a, int b) { return (a < b) ? a : b; }
 
 static inline int imax(int a, int b) { return (a > b) ? a : b; }
+
+static inline float warp(float x, float k)
+{
+    return copysignf(powf(fabsf(x), k), x);
+}
+
+static inline float warp_distance(float d, float mod)
+{
+    float k = 1.0f + 4.0f * fabsf(mod);
+
+    if (mod > 0.0f)
+    {
+        // compress positive side, stretch negative side
+        return (d >= 0.0f)
+            ? powf(d, k)
+            : -powf(-d, 1.0f / k);
+    }
+    else
+    {
+        // inverse asymmetry
+        return (d >= 0.0f)
+            ? powf(d, 1.0f / k)
+            : -powf(-d, k);
+    }
+}
+
+static inline float warp_phase(float p, float mod)
+{
+    float k = 1.0f + 4.0f * fabsf(mod);
+
+    if (mod > 0.0f)
+        return powf(p, k);
+    else
+        return 1.0f - powf(1.0f - p, k);
+}
 
 static inline uint32_t hash_u32(uint32_t x)
 {
@@ -143,14 +183,48 @@ static inline float fractf(float x)
     return x - floorf(x);
 }
 
+static inline float lerp(float a, float b, float t)
+{
+    return a + t * (b - a);
+}
+
 static inline float smoothstep(float t)
 {
     return t * t * (3.0f - 2.0f * t);
 }
 
-static inline float lerp(float a, float b, float t)
+static inline float phase_mod(float phase, float mod)
 {
-    return a + t * (b - a);
+    mod = fclamp(mod, -1.0f, 1.0f);
+
+    if (mod == 0.0f) {
+        return phase;                    // ← guaranteed clean original
+    }
+
+    float warp = 0.5f + mod * 0.45f;     // safe range
+
+    float p;
+    if (phase < warp) {
+        p = phase / (2.0f * warp);
+    } else {
+        p = 0.5f + (phase - warp) / (2.0f * (1.0f - warp));
+    }
+
+    // Optional curvature — scaled by |mod| so it disappears at mod=0
+    float curve_amount = fabsf(mod) * 0.8f;           // 0.0 → 0.8 (adjust to taste)
+    float curved = p * p * (3.0f - 2.0f * p);        // smoothstep
+    
+    // Blend between linear warped phase and curved version
+    return lerp(p, curved, curve_amount);
+}
+
+static inline float smoothstep_edge(float edge0, float edge1, float x)
+{
+    // Clamp x to [edge0, edge1]
+    x = fclamp((x - edge0) / (edge1 - edge0), 0.0f, 1.0f);
+    
+    // Smooth hermite interpolation
+    return x * x * (3.0f - 2.0f * x);
 }
 
 static inline int delta_modulo_step(int val, int delta, int maxVal)
