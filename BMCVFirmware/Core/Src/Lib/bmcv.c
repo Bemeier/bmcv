@@ -170,9 +170,31 @@ void bmcv_main(uint32_t now_us)
     ux_state.engine_state->blink_fast = (now_us % FAST_BLINK_PERIOD) < (FAST_BLINK_PERIOD / 2);
     ux_state.engine_state->blink_slow = (now_us % SLOW_BLINK_PERIOD) < (SLOW_BLINK_PERIOD / 2);
 
-    if (bmcv_state_update(now_us))
+    int8_t dirty = bmcv_state_update(now_us);
+    ux_state.hw_state = curr_hw;
+
+    float engine_fps = 1000000.0f / ux_state.hw_state->dt;
+    ux_state.engine_state->engine_fps = ux_state.engine_state->engine_fps * 0.95f + 0.05f * engine_fps;
+    //state->engine_state->shift_state      = SHIFT_STATE_NONE;
+
+    /*******************************************************************/
+    compute_scenes_contribution(&ux_state);
+
+    for (uint8_t c = 0; c < N_CHANNELS; c++)
     {
-        ux_state.hw_state = curr_hw;
+        compute_channel(&ux_setup->channels[c], &ux_state);
+    }
+
+    for (uint8_t c = 0; c < N_CHANNELS; c++)
+    {
+        write_channel_dac(&ux_setup->channels[c], &ux_state);
+    }
+    /*******************************************************************/
+
+    ux_state.dt = now_us - ux_state.last_ux_update;
+    if (dirty || ux_state.dt > MS(8))
+    {
+        ux_state.last_ux_update = now_us;
         update_ux_state(&ux_state);
     }
 
@@ -194,35 +216,13 @@ void bmcv_main(uint32_t now_us)
     if (led_poll && ws2811_dma_completed())
     {
         led_poll = 0;
-        /*
-        if (ux_state.engine_state->shift_state == SHIFT_STATE_MON && assign_state() != ASSIGN_INPUT)
-        {
-            for (uint8_t i = 0; i < N_INPUTS; i++)
-            {
-                int16_t adc_val = get_adc(hw_setup->input_adc_idx[i]);
-                ws2811_setled_adcr(ux_setup->scenes[i].led, adc_val);
-
-                for (uint8_t c = 0; c < N_CHANNELS; c++)
-                {
-                    if (ux_state.engine_config->channel_state[c].src_input == i)
-                    {
-                        ws2811_setled_adcr(ux_setup->channels[c].led, adc_val);
-                    }
-                    else
-                    {
-                        ws2811_setled_adcr(ux_setup->channels[c].led, 0);
-                    }
-                }
-            }
-        }
-        */
         ws2811_update();
     }
 }
 
 uint8_t bmcv_state_update(uint32_t now_us)
 {
-    uint16_t dirty = 0;
+    uint8_t dirty = 0;
     int32_t slider_cv = 0;
     uint32_t deltaTime = now_us - curr_hw->time;
     prev_hw               = &state[state_idx];
@@ -321,6 +321,7 @@ uint8_t bmcv_state_update(uint32_t now_us)
     {
         curr_hw->encoder_state[e] = get_enc_state(e);
         curr_hw->encoder_delta[e] = (int16_t) (curr_hw->encoder_state[e] - prev_hw->encoder_state[e]);
+        dirty += curr_hw->encoder_delta[e] != 0;
     }
 
     if (error_any()) {
@@ -341,5 +342,5 @@ uint8_t bmcv_state_update(uint32_t now_us)
         return 0;
     }
 
-    return 1;
+    return dirty;
 }

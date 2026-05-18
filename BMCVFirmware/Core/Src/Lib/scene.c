@@ -138,16 +138,19 @@ void update_scene_button(const SceneSetup* scene, UxState* state)
 {
     int8_t pressed     = state->hw_state->button_released_t[scene->button] > MS(10);
     int8_t pressed_long = state->hw_state->button_released_t[scene->button] > MS(1000);
-    int32_t hold_time   = state->hw_state->button_pressed_t[scene->button];
-    int8_t momentary    = hold_time >= 10;
+    uint32_t hold_time   = state->hw_state->button_pressed_t[scene->button];
+    int8_t momentary    = hold_time >= MS(10);
     // Momentarty activation
     switch (state->engine_state->shift_state)
     {
     case SHIFT_STATE_NONE: // Normal mode, momentary scene activation
-        if (momentary && (hold_time < state->engine_state->momentary_active_for || state->engine_state->momentary_scene < 0))
+        if (momentary && state->engine_state->momentary_scene < 0)
         {
-            state->engine_state->momentary_active_for = hold_time;
             state->engine_state->momentary_scene      = scene->id;
+        }
+
+        if (!momentary && state->engine_state->momentary_scene == scene->id) {
+            state->engine_state->momentary_scene      = -1;
         }
         break;
     case SHIFT_STATE_STA:

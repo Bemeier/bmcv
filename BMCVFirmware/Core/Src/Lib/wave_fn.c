@@ -31,8 +31,9 @@ float wavetable_lookup(float phase, float shape)
 
 float wave_fn(float phase, float shape, float mod)
 {
+    // TODO: optimize code
     // Clamp inputs
-    phase = fmod(phase, 1.0f); // or phase -= floor(phase);
+    phase = fmodf(phase, 1.0f); // or phase -= floor(phase);
     if (phase < 0) phase += 1.0f;
     shape = fclamp(shape, -1.0f, 1.0f);
     mod   = fclamp(mod, -1.0f, 1.0f);

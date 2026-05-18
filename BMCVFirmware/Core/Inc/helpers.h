@@ -288,38 +288,42 @@ static inline uint32_t crc32(const void* data, size_t len)
 
 static inline int16_t find_denominator(float value, int16_t max_mult, float tol)
 {
-    float frac = value - floorf(value);
+    float ip;
+    float frac = modff(value, &ip);
 
-    if (fabsf(frac) < 1e-6f)
+    if (frac < tol || (1.0f - frac) < tol)
         return 1;
+
+    const float threshold = tol;
 
     for (int16_t mult = 1; mult <= max_mult; mult++)
     {
-        float test = frac * mult;
+        float test = frac * (float)mult;
 
-        // IMPORTANT:
-        // only accept near NONZERO integers
-        float nearest = floorf(test + 0.5f);
+        float nearest = test + 0.5f;
+        int32_t k = (int32_t)nearest;
 
-        if (nearest < 1.0f)
+        if (k < 1)
             continue;
 
-        if (fabsf(test - nearest) < tol)
+        if (fabsf(test - (float)k) < threshold)
             return mult;
     }
 
     return -1;
 }
 
-static inline float fmod_pos(float a, float n)
+static inline float phase_error(float a, float b, float X)
 {
-    float r = fmod(a, n);
-    if (r < 0)
-        r += n;
-    return r;
-}
+    float d = a - b;
 
-static inline float phase_error(float a, float b, float X) { return fmod_pos((a - b) + X / 2.0, X) - X / 2.0; }
+    if (d >  X * 0.5f)
+        d -= X;
+    else if (d < -X * 0.5f)
+        d += X;
+
+    return d;
+}
 
 static inline int16_t val_neighbour(const int16_t val, const int16_t delta, const int16_t* values, const size_t n_values, size_t* idx)
 {

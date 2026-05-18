@@ -147,7 +147,6 @@ typedef struct
     // UX State
     int8_t active_scene;
     int8_t momentary_scene;
-    uint16_t momentary_active_for;
     uint8_t selected_param;
     uint8_t shift_state;
 

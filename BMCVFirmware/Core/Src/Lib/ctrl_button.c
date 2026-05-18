@@ -43,19 +43,7 @@ void write_ctrl_button_led(const CtrlButtonSetup* btn, UxState* state)
 
     if (state->engine_state->shift_state == btn->id)
     {
-        switch (btn->id)
-        {
-            /*
-        case SHIFT_STATE_MON:
-            uint8_t sub         = g_clk.have_beat && fmodf(g_clk.beat_phase, 1.0f / g_clk.PULSES_PER_BEAT) < 0.05f ? 5 : 0;
-            uint8_t phase_color = g_clk.have_beat && g_clk.beat_phase < 0.05 ? VAL_MED : 0 + sub;
-            ws2811_setled_hsv(btn->led, btn->color, SAT_MAX, phase_color);
-            break;
-            */
-        default:
-            ws2811_setled_hsv(btn->led, btn->color, SAT_MAX, state->engine_state->blink_slow ? VAL_MED : 0);
-            break;
-        }
+        ws2811_setled_hsv(btn->led, btn->color, SAT_MAX, state->engine_state->blink_slow ? VAL_MED : 0);
     }
     else if (state->engine_state->selected_param == btn->id && state->engine_state->shift_state == SHIFT_STATE_NONE)
     {

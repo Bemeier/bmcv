@@ -73,11 +73,15 @@ void Clock_Poll(uint32_t now_us)
         }
         float pulse_fraction = (float) dt_pulse / (float) g_clk.last_pulse_delta_us;
         float next_phase     = (g_clk.pulse_counter + pulse_fraction) / (float) g_clk.PULSES_PER_BEAT;
-        g_clk.beat_phase     = fmodf(next_phase, 1.0f);
+        if (next_phase >= 1.0f)
+            next_phase -= 1.0f;
+        g_clk.beat_phase = next_phase;
     }
     else
     {
-        g_clk.beat_phase = fmodf(((now_us - g_clk.last_reset_us) / 1000000.0f) * g_clk.beat_freq, 1.0f);
+        float phase = ((now_us - g_clk.last_reset_us) * 0.000001f) * g_clk.beat_freq;
+        phase -= (float)((uint32_t)phase);
+        g_clk.beat_phase = phase;
     }
 }
 

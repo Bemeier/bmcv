@@ -10,10 +10,6 @@
 
 void update_ux_state(UxState* state)
 {
-    float engine_fps = 1000000.0f / state->hw_state->dt;
-    state->engine_state->engine_fps = state->engine_state->engine_fps * 0.95f + 0.05f * engine_fps;
-    //state->engine_state->shift_state      = SHIFT_STATE_NONE;
-
     for (uint8_t b = 0; b < N_CTRL_BUTTONS; b++)
     {
         // Check if any shift mode is active
@@ -34,29 +30,14 @@ void update_ux_state(UxState* state)
 
     update_quantizer_buttons(state);
 
-    state->engine_state->momentary_active_for = 0;
-    state->engine_state->momentary_scene      = -1;
-
     for (uint8_t s = 0; s < N_SCENES; s++)
     {
         update_scene_button(&state->ux_setup->scenes[s], state);
     }
 
-    compute_scenes_contribution(state);
-
     for (uint8_t c = 0; c < N_CHANNELS; c++)
     {
         update_channel(&state->ux_setup->channels[c], state);
-    }
-
-    for (uint8_t c = 0; c < N_CHANNELS; c++)
-    {
-        compute_channel(&state->ux_setup->channels[c], state);
-    }
-
-    for (uint8_t c = 0; c < N_CHANNELS; c++)
-    {
-        write_channel_dac(&state->ux_setup->channels[c], state);
     }
 
     for (uint8_t c = 0; c < N_CHANNELS; c++)

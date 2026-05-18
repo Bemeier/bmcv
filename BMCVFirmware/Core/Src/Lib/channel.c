@@ -138,7 +138,7 @@ void update_channel_param(const ChannelSetup* ch, UxState* state)
 
     last_delta[ch->id] = state->hw_state->time;
 
-    state->engine_state->channels_mark_for[ch->id] = MS(400);
+    state->engine_state->channels_mark_for[ch->id] = MS(1000);
 
     if (alt)
     {
@@ -308,7 +308,7 @@ void compute_channel(const ChannelSetup* ch, UxState* state)
 
     float freq_param = avg[CH_PARAM_FRQ] / (float) N_FREQ_SCALE;
     float offset     = (float) avg[CH_PARAM_OFS];
-    float amp        = (float) avg[CH_PARAM_AMP] / 2.0f;
+    float amp        = (float) avg[CH_PARAM_AMP] * 0.5f;
     float shape      = (float) avg[CH_PARAM_SHP] / INT16_MAX;
     float phs        = (float) avg[CH_PARAM_PHS] / INT16_MAX;
 
@@ -319,13 +319,21 @@ void compute_channel(const ChannelSetup* ch, UxState* state)
     float phase_delta  = dt_s * (freq + state->engine_state->channels_phase_correction[ch->id]);
     float phase_length = gcd > 0 ? gcd * freq_multiplier : 1.0f;
     float diff         = 0;
-    state->engine_state->channels_shared_phase[ch->id] =
-        fmodf(state->engine_state->channels_shared_phase[ch->id] + phase_delta, phase_length);
 
+    float phase_next = state->engine_state->channels_shared_phase[ch->id] + phase_delta;
+
+    if (phase_next >= phase_length)
+        phase_next -= phase_length;
+    else if (phase_next < 0.0f)
+        phase_next += phase_length;
+
+    state->engine_state->channels_shared_phase[ch->id] = phase_next;
     if (gcd > 0 && g_clk.have_beat)
     {
         float beat_mode = (float) (g_clk.beat_counter % gcd) + g_clk.beat_phase;
-        float target_phase = fmodf(beat_mode * freq_multiplier, phase_length);
+        float target_phase = beat_mode * freq_multiplier;
+        if (target_phase >= phase_length)
+            target_phase -= phase_length;
         diff               = gcd > 0 ? phase_error(target_phase, state->engine_state->channels_shared_phase[ch->id], phase_length) : 0;
     }
 
@@ -333,9 +341,10 @@ void compute_channel(const ChannelSetup* ch, UxState* state)
         (state->engine_state->channels_phase_correction[ch->id] * (1.0f - k_sync) + diff * k_sync);
 
     float phase = fmodf(state->engine_state->channels_shared_phase[ch->id] + phs, 1.0f);
-    
     if (phase < 0.0f) phase += 1.0f;
-    if (phase >= 1.0f) phase -= 1.0f;
+    while (phase >= 1.0f) {
+        phase -= 1.0f;
+    }
 
     float mod = (float) avg[CH_PARAM_MOD] / INT16_MAX;
 
@@ -395,8 +404,8 @@ void compute_channel(const ChannelSetup* ch, UxState* state)
 void write_channel_led(const ChannelSetup* ch, UxState* state)
 {
     ChannelConfig* chcfg = &state->engine_config->channel_state[ch->id];
-    if (state->hw_state->dt < state->engine_state->channels_mark_for[ch->id]) {
-        state->engine_state->channels_mark_for[ch->id] -= state->hw_state->dt;
+    if (state->dt < state->engine_state->channels_mark_for[ch->id]) {
+        state->engine_state->channels_mark_for[ch->id] -= state->dt;
     } else {
         state->engine_state->channels_mark_for[ch->id] = 0;
     }
