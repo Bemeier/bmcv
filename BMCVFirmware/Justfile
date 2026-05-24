@@ -1,0 +1,10 @@
+configure:
+  rm -Rf build && cmake -B build -G Ninja
+
+build:
+	cmake --build build
+
+flash:
+	./scripts/flash.sh
+
+build-flash: build flash

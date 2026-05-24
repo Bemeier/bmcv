@@ -1,82 +1,67 @@
 cmake_minimum_required(VERSION 3.22)
 
-# Compiler settings
 set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS ON)
 
-#set(CMAKE_CXX_CLANG_TIDY "clang-tidy;-checks=bugprone-*,performance-*,portability-*")
+set(CMAKE_PROJECT_NAME BMCVFirmware)
+project(${CMAKE_PROJECT_NAME} C ASM)
+
 
 if(EXISTS "${CMAKE_SOURCE_DIR}/toolchain.cmake")
   message(STATUS "Including user toolchain.cmake")
   include("${CMAKE_SOURCE_DIR}/toolchain.cmake")
 endif()
 
-# Build type
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE "Debug")
-endif()
-
-set(CMAKE_PROJECT_NAME BMCVFirmware)
-
-# Toolchain
 include("cmake/gcc-arm-none-eabi.cmake")
 
-set(CMAKE_OBJCOPY arm-none-eabi-objcopy)
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Debug CACHE STRING "" FORCE)
+endif()
 
-# Enable compile_commands.json for clangd
-set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
-set(COMPILE_COMMANDS_SRC "${CMAKE_BINARY_DIR}/compile_commands.json")
-set(COMPILE_COMMANDS_DST "${CMAKE_SOURCE_DIR}/compile_commands.json")
 
-project(${CMAKE_PROJECT_NAME})
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 message("Build type: " ${CMAKE_BUILD_TYPE})
-
-enable_language(C ASM)
 
 # Executable target
 add_executable(${CMAKE_PROJECT_NAME})
 
-# Include STM32CubeMX subproject — adds drivers, libs, includes, defines
 add_subdirectory(cmake/stm32cubemx)
 
-# Optional: Your custom sources
-file(GLOB MY_DRIVER_SOURCES
-    Core/Src/Drivers/*.c
-    Core/Src/Lib/*.c
-)
-
-# Derive toolchain root
-#get_filename_component(COMPILER_DIR "${CMAKE_C_COMPILER}" DIRECTORY)
-#get_filename_component(TOOLCHAIN_ROOT "${COMPILER_DIR}" DIRECTORY)
-
-#message("Toolchain include path: ${TOOLCHAIN_ROOT}/arm-none-eabi/include")
-#include_directories(SYSTEM "${TOOLCHAIN_ROOT}/arm-none-eabi/include")
-
-file(GLOB USB_MIDI_SOURCES
-    Middlewares/ST/STM32_USB_Device_Library/Class/MIDI/Src/*.c
-)
-
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
-    ${MY_DRIVER_SOURCES}
-    ${USB_MIDI_SOURCES}
+  Middlewares/ST/STM32_USB_Device_Library/Class/MIDI/Src/usbd_midi.c
+  Core/Src/Lib/assign.c
+  Core/Src/Lib/bmcv.c
+  Core/Src/Lib/channel.c
+  Core/Src/Lib/clock_sync.c
+  Core/Src/Lib/ctrl_button.c
+  Core/Src/Lib/dac_adc.c
+  Core/Src/Lib/envelope.c
+  Core/Src/Lib/error.c
+  Core/Src/Lib/fram.c
+  Core/Src/Lib/hw_setup.c
+  Core/Src/Lib/mcp.c
+  Core/Src/Lib/midi.c
+  Core/Src/Lib/presets.c
+  Core/Src/Lib/quantizer.c
+  Core/Src/Lib/scene.c
+  Core/Src/Lib/stepped_random.c
+  Core/Src/Lib/ux_setup.c
+  Core/Src/Lib/ux_state.c
+  Core/Src/Lib/wave_fn.c
+  Core/Src/Lib/ws2811.c
 )
 
-# Optional: Your custom includes
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
-    Middlewares/ST/STM32_USB_Device_Library/Class/MIDI/Inc
-    Core/Inc/Drivers
-    Core/Inc/Lib
+  Middlewares/ST/STM32_USB_Device_Library/Class/MIDI/Inc
+  Core/Inc/Lib
 )
 
-# Optional: Add your own defines
-target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
-    # Add user-defined macros here
-)
-
-# Optional: Add your own linked libraries
-target_link_libraries(${CMAKE_PROJECT_NAME}
+target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
     stm32cubemx
+    STM32_Drivers
+    USB_Device_Library
 )
 
 add_custom_command(
@@ -88,12 +73,5 @@ add_custom_command(
     COMMENT "Generating ${CMAKE_PROJECT_NAME}.bin"
 )
 
-add_custom_target(copy_compile_commands ALL
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${COMPILE_COMMANDS_SRC}" "${COMPILE_COMMANDS_DST}"
-    COMMENT "Copy compile_commands.json to project root for clangd"
-    VERBATIM
-)
-
 include(${CMAKE_SOURCE_DIR}/local.cmake OPTIONAL)
 
-add_dependencies(copy_compile_commands ${CMAKE_PROJECT_NAME})

@@ -1,45 +1,64 @@
-set(CMAKE_SYSTEM_NAME               Generic)
-set(CMAKE_SYSTEM_PROCESSOR          arm)
+set(CMAKE_SYSTEM_NAME Generic)
+set(CMAKE_SYSTEM_PROCESSOR arm)
 
-set(CMAKE_C_COMPILER_ID GNU)
-set(CMAKE_CXX_COMPILER_ID GNU)
+set(TOOLCHAIN_PREFIX arm-none-eabi)
 
-# Some default GCC settings
-# arm-none-eabi- must be part of path environment
-set(TOOLCHAIN_PREFIX                arm-none-eabi-)
+set(CMAKE_C_COMPILER   ${TOOLCHAIN_PREFIX}-gcc)
+set(CMAKE_CXX_COMPILER ${TOOLCHAIN_PREFIX}-g++)
+set(CMAKE_ASM_COMPILER ${TOOLCHAIN_PREFIX}-gcc)
 
-set(CMAKE_C_COMPILER                ${TOOLCHAIN_PREFIX}gcc)
-set(CMAKE_ASM_COMPILER              ${CMAKE_C_COMPILER})
-set(CMAKE_CXX_COMPILER              ${TOOLCHAIN_PREFIX}g++)
-set(CMAKE_LINKER                    ${TOOLCHAIN_PREFIX}g++)
-set(CMAKE_OBJCOPY                   ${TOOLCHAIN_PREFIX}objcopy)
-set(CMAKE_SIZE                      ${TOOLCHAIN_PREFIX}size)
+set(CMAKE_OBJCOPY ${TOOLCHAIN_PREFIX}-objcopy)
+set(CMAKE_SIZE    ${TOOLCHAIN_PREFIX}-size)
+
+set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+
+set(MCU_FLAGS
+    -mcpu=cortex-m4
+    -mthumb
+    -mfpu=fpv4-sp-d16
+    -mfloat-abi=hard
+)
+
+add_compile_options(
+    ${MCU_FLAGS}
+    -Wall
+    -Wextra
+    -Wpedantic
+    -ffunction-sections
+    -fdata-sections
+    -O2
+)
+
+add_compile_options(
+    $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>
+    $<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>
+)
+
+add_compile_options(
+    $<$<CONFIG:DEBUG>:-O0>
+    $<$<CONFIG:DEBUG>:-g3>
+    $<$<CONFIG:RELEASE>:-Os>
+    $<$<CONFIG:RELEASE>:-g0>
+)
+
+add_link_options(
+    ${MCU_FLAGS}
+    -T${CMAKE_SOURCE_DIR}/STM32G474XX_FLASH.ld
+    --specs=nano.specs
+    -Wl,--gc-sections
+    -Wl,-Map=${CMAKE_PROJECT_NAME}.map
+    -Wl,--print-memory-usage
+)
+
+set(CPU_FLAGS "-mcpu=cortex-m4 -mthumb")
+set(FPU_FLAGS "-mfpu=fpv4-sp-d16 -mfloat-abi=hard")
+
+set(CMAKE_C_COMPILER ${ARM_TOOLCHAIN_DIR}/bin/arm-none-eabi-gcc)
+set(CMAKE_ASM_COMPILER ${CMAKE_C_COMPILER})
+set(CMAKE_SYSROOT ${ARM_TOOLCHAIN_DIR}/arm-none-eabi)
+set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 
 set(CMAKE_EXECUTABLE_SUFFIX_ASM     ".elf")
 set(CMAKE_EXECUTABLE_SUFFIX_C       ".elf")
 set(CMAKE_EXECUTABLE_SUFFIX_CXX     ".elf")
 
-set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
-
-# MCU specific flags
-set(TARGET_FLAGS "-mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=hard ")
-
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${TARGET_FLAGS}")
-set(CMAKE_ASM_FLAGS "${CMAKE_C_FLAGS} -x assembler-with-cpp -MMD -MP")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wpedantic -fdata-sections -ffunction-sections")
-
-set(CMAKE_C_FLAGS_DEBUG "-O0 -g3")
-set(CMAKE_C_FLAGS_RELEASE "-Os -g0")
-set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g3")
-set(CMAKE_CXX_FLAGS_RELEASE "-Os -g0")
-
-set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -fno-rtti -fno-exceptions -fno-threadsafe-statics")
-
-set(CMAKE_C_LINK_FLAGS "${TARGET_FLAGS}")
-set(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -T \"${CMAKE_SOURCE_DIR}/STM32G474XX_FLASH.ld\"")
-set(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} --specs=nano.specs")
-set(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,-Map=${CMAKE_PROJECT_NAME}.map -Wl,--gc-sections")
-set(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,--start-group -lc -lm -Wl,--end-group")
-set(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,--print-memory-usage")
-
-set(CMAKE_CXX_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,--start-group -lstdc++ -lsupc++ -Wl,--end-group")

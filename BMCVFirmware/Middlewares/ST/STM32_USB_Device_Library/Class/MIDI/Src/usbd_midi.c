@@ -634,6 +634,7 @@ __ALIGN_BEGIN static uint8_t USBD_MIDI_DeviceQualifierDesc[USB_LEN_DEV_QUALIFIER
 static uint8_t  USBD_MIDI_Init (USBD_HandleTypeDef *pdev, 
                                uint8_t cfgidx)
 {
+  (void)cfgidx;
   uint8_t ret = 0;
   
   USBD_LL_OpenEP(pdev,
@@ -674,6 +675,8 @@ static uint8_t  USBD_MIDI_Init (USBD_HandleTypeDef *pdev,
 static uint8_t  USBD_MIDI_DeInit (USBD_HandleTypeDef *pdev, 
                                  uint8_t cfgidx)
 {
+  (void)cfgidx;
+
   /* Close MIDI EPs */
   USBD_LL_CloseEP(pdev, MIDI_EPIN_SIZE);
   
@@ -842,6 +845,7 @@ uint8_t  *USBD_MIDI_DeviceQualifierDescriptor (uint16_t *length)
 static uint8_t  USBD_MIDI_DataIn (USBD_HandleTypeDef *pdev, 
                               uint8_t epnum)
 {
+  (void)epnum;
   
   /* Ensure that the FIFO is empty before a new transfer, this condition could 
   be caused by  a new transfer before the end of the previous transfer */
@@ -876,6 +880,8 @@ static uint8_t  USBD_MIDI_DataOut (USBD_HandleTypeDef *pdev, uint8_t epnum)
   */
 __weak extern void USBD_MIDI_DataInHandler(uint8_t * usb_rx_buffer, uint8_t usb_rx_buffer_length)
 {
+  (void) usb_rx_buffer;
+  (void) usb_rx_buffer_length;
   // For user implementation.
 }
 

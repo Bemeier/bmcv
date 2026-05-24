@@ -23,6 +23,7 @@
 #define TRIG_THRESH 1024
 #define TRIG_THRESH_LOW 800
 
+/*
 static const int16_t quantized_amp_levels[N_AMP_LEVELS] = {
     -INT16_MAX,     // *-1
     -INT16_MAX / 2, // *-1/2
@@ -37,7 +38,6 @@ static const int16_t quantized_amp_levels[N_AMP_LEVELS] = {
     INT16_MAX       // *1
 };
 
-/*
 static const int16_t quantized_shp_levels[N_SHP_LEVELS] = {
     -SHAPE_INTERVAL * 4, -SHAPE_INTERVAL * 3, -SHAPE_INTERVAL * 2, -SHAPE_INTERVAL * 1,
     -SHAPE_INTERVAL * 0, SHAPE_INTERVAL * 1,  SHAPE_INTERVAL * 2,  SHAPE_INTERVAL * 3,
@@ -283,7 +283,8 @@ void update_channel(const ChannelSetup* ch, UxState* state)
 
 void compute_channel_scene(const ChannelSetup* ch, UxState* state)
 {
-
+  (void)ch;
+  (void)state;
 }
 
 void compute_channel(const ChannelSetup* ch, UxState* state)

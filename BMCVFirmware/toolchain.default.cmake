@@ -1,2 +1,3 @@
-# Update path and copy to toolchain.cmake
-set(STM32CUBE_FW_PATH PATH/TO/STM32Cube_FW_G4_V1.6.1 CACHE PATH "Path to STM32Cube FW")
+set(STM32CUBE_FW_PATH PATH_TO/STM32Cube_FW_G4_V1.6.1 CACHE PATH "Path to STM32Cube FW")
+set(ARM_TOOLCHAIN_DIR PATH_TO/stm32cubeclt_1.18.0/GNU-tools-for-STM32 CACHE PATH "Path to ARM Toolchain")
+

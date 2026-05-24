@@ -128,16 +128,16 @@ uint8_t * USBD_HID_InterfaceStrDescriptor(USBD_SpeedTypeDef speed, uint16_t *len
   * @brief Private variables.
   * @{
   */
-
 USBD_DescriptorsTypeDef HID_Desc =
 {
-  USBD_HID_DeviceDescriptor,
-  USBD_HID_LangIDStrDescriptor,
-  USBD_HID_ManufacturerStrDescriptor,
-  USBD_HID_ProductStrDescriptor,
-  USBD_HID_SerialStrDescriptor,
-  USBD_HID_ConfigStrDescriptor,
-  USBD_HID_InterfaceStrDescriptor
+  .GetDeviceDescriptor = USBD_HID_DeviceDescriptor,
+  .GetLangIDStrDescriptor = USBD_HID_LangIDStrDescriptor,
+  .GetManufacturerStrDescriptor = USBD_HID_ManufacturerStrDescriptor,
+  .GetProductStrDescriptor = USBD_HID_ProductStrDescriptor,
+  .GetSerialStrDescriptor = USBD_HID_SerialStrDescriptor,
+  .GetConfigurationStrDescriptor = USBD_HID_ConfigStrDescriptor,
+  .GetInterfaceStrDescriptor = USBD_HID_InterfaceStrDescriptor,
+  .GetBOSDescriptor = NULL
 };
 
 #if defined ( __ICCARM__ ) /* IAR Compiler */
