@@ -15,14 +15,14 @@
 
 typedef union
 {
-    struct
-    {
-        uint8_t b;
-        uint8_t g;
-        uint8_t r;
-    } color;
+  struct
+  {
+    uint8_t b;
+    uint8_t g;
+    uint8_t r;
+  } color;
 
-    uint32_t data;
+  uint32_t data;
 } WS2811_LED_DATA;
 
 void ws2811_init(TIM_HandleTypeDef* htim, uint32_t channel);

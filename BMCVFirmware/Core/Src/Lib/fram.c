@@ -14,59 +14,59 @@ static uint16_t fram_cs_pin;
 
 void fram_init(SPI_HandleTypeDef* spi, GPIO_TypeDef* port, uint16_t pin)
 {
-    fram_spi     = spi;
-    fram_cs_port = port;
-    fram_cs_pin  = pin;
+  fram_spi     = spi;
+  fram_cs_port = port;
+  fram_cs_pin  = pin;
 }
 
 void fram_WriteEnable()
 {
-    uint8_t tx[1] = {FRAM_WREN};
+  uint8_t tx[1] = {FRAM_WREN};
 
-    HAL_GPIO_WritePin(fram_cs_port, fram_cs_pin, GPIO_PIN_RESET);
-    HAL_SPI_Transmit(fram_spi, tx, 1, HAL_MAX_DELAY);
-    HAL_GPIO_WritePin(fram_cs_port, fram_cs_pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(fram_cs_port, fram_cs_pin, GPIO_PIN_RESET);
+  HAL_SPI_Transmit(fram_spi, tx, 1, HAL_MAX_DELAY);
+  HAL_GPIO_WritePin(fram_cs_port, fram_cs_pin, GPIO_PIN_SET);
 }
 
 void fram_WriteByte(uint16_t addr, uint8_t data)
 {
-    uint8_t tx[4] = {FRAM_WRITE, (addr >> 8) & 0xFF, addr & 0xFF, data};
+  uint8_t tx[4] = {FRAM_WRITE, (addr >> 8) & 0xFF, addr & 0xFF, data};
 
-    HAL_GPIO_WritePin(fram_cs_port, fram_cs_pin, GPIO_PIN_RESET);
-    HAL_SPI_Transmit(fram_spi, tx, 4, HAL_MAX_DELAY);
-    HAL_GPIO_WritePin(fram_cs_port, fram_cs_pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(fram_cs_port, fram_cs_pin, GPIO_PIN_RESET);
+  HAL_SPI_Transmit(fram_spi, tx, 4, HAL_MAX_DELAY);
+  HAL_GPIO_WritePin(fram_cs_port, fram_cs_pin, GPIO_PIN_SET);
 }
 
 uint8_t fram_ReadByte(uint16_t addr)
 {
-    uint8_t tx[4] = {FRAM_READ, (addr >> 8) & 0xFF, addr & 0xFF, 0};
-    uint8_t rx[4] = {0};
+  uint8_t tx[4] = {FRAM_READ, (addr >> 8) & 0xFF, addr & 0xFF, 0};
+  uint8_t rx[4] = {0};
 
-    HAL_GPIO_WritePin(fram_cs_port, fram_cs_pin, GPIO_PIN_RESET);
-    HAL_SPI_TransmitReceive(fram_spi, tx, rx, 4, HAL_MAX_DELAY);
-    HAL_GPIO_WritePin(fram_cs_port, fram_cs_pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(fram_cs_port, fram_cs_pin, GPIO_PIN_RESET);
+  HAL_SPI_TransmitReceive(fram_spi, tx, rx, 4, HAL_MAX_DELAY);
+  HAL_GPIO_WritePin(fram_cs_port, fram_cs_pin, GPIO_PIN_SET);
 
-    return rx[3];
+  return rx[3];
 }
 
 void fram_Write(uint16_t addr, const uint8_t* data, uint16_t len)
 {
-    uint8_t header[3] = {FRAM_WRITE, (addr >> 8) & 0xFF, addr & 0xFF};
+  uint8_t header[3] = {FRAM_WRITE, (addr >> 8) & 0xFF, addr & 0xFF};
 
-    fram_WriteEnable();
+  fram_WriteEnable();
 
-    HAL_GPIO_WritePin(fram_cs_port, fram_cs_pin, GPIO_PIN_RESET);
-    HAL_SPI_Transmit(fram_spi, header, 3, HAL_MAX_DELAY);
-    HAL_SPI_Transmit(fram_spi, (uint8_t*) data, len, HAL_MAX_DELAY);
-    HAL_GPIO_WritePin(fram_cs_port, fram_cs_pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(fram_cs_port, fram_cs_pin, GPIO_PIN_RESET);
+  HAL_SPI_Transmit(fram_spi, header, 3, HAL_MAX_DELAY);
+  HAL_SPI_Transmit(fram_spi, (uint8_t*) data, len, HAL_MAX_DELAY);
+  HAL_GPIO_WritePin(fram_cs_port, fram_cs_pin, GPIO_PIN_SET);
 }
 
 void fram_Read(uint16_t addr, uint8_t* data, uint16_t len)
 {
-    uint8_t header[3] = {FRAM_READ, (addr >> 8) & 0xFF, addr & 0xFF};
+  uint8_t header[3] = {FRAM_READ, (addr >> 8) & 0xFF, addr & 0xFF};
 
-    HAL_GPIO_WritePin(fram_cs_port, fram_cs_pin, GPIO_PIN_RESET);
-    HAL_SPI_Transmit(fram_spi, header, 3, HAL_MAX_DELAY);
-    HAL_SPI_Receive(fram_spi, data, len, HAL_MAX_DELAY);
-    HAL_GPIO_WritePin(fram_cs_port, fram_cs_pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(fram_cs_port, fram_cs_pin, GPIO_PIN_RESET);
+  HAL_SPI_Transmit(fram_spi, header, 3, HAL_MAX_DELAY);
+  HAL_SPI_Receive(fram_spi, data, len, HAL_MAX_DELAY);
+  HAL_GPIO_WritePin(fram_cs_port, fram_cs_pin, GPIO_PIN_SET);
 }

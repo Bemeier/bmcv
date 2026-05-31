@@ -12,8 +12,8 @@
 
 typedef struct __attribute__((packed))
 {
-    FramRecordHeader hdr;
-    EngineConfig data;
+  FramRecordHeader hdr;
+  EngineConfig data;
 } EngineConfigRecord;
 
 int8_t preset_store(EngineConfig* cfg, int8_t dst);

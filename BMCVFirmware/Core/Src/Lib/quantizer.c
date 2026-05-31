@@ -6,29 +6,29 @@
 
 void update_quantizer_buttons(UxState* state)
 {
-    if (state->engine_state->shift_state != SHIFT_STATE_QNT)
-        return;
-    // TODO: The one non-semitone button?
-    for (uint16_t st = 0; st < N_SEMITONES; st++)
+  if (state->engine_state->shift_state != SHIFT_STATE_QNT)
+    return;
+  // TODO: The one non-semitone button?
+  for (uint16_t st = 0; st < N_SEMITONES; st++)
+  {
+    if (state->hw_state->button_released_t[state->ux_setup->quantizer_semitones[st].button] > 0)
     {
-        if (state->hw_state->button_released_t[state->ux_setup->quantizer_semitones[st].button] > 0)
-        {
-            state->engine_config->quantize_mask ^= (1u << st);
-        }
+      state->engine_config->quantize_mask ^= (1u << st);
     }
+  }
 }
 
 void write_quantizer_button_leds(UxState* state)
 {
-    if (state->engine_state->shift_state != SHIFT_STATE_QNT)
-        return;
-    if (assign_state() == ASSIGN_TRIG_SRC)
-        return;
-    // TODO: The one non-semitone button?
-    for (uint16_t st = 0; st < N_SEMITONES; st++)
-    {
-        uint8_t sat = SAT_OFF;
-        uint8_t val = (state->engine_config->quantize_mask & (1u << st)) ? VAL_LOW : VAL_OFF;
-        ws2811_setled_hsv(state->ux_setup->quantizer_semitones[st].led, 0, sat, val);
-    }
+  if (state->engine_state->shift_state != SHIFT_STATE_QNT)
+    return;
+  if (assign_state() == ASSIGN_TRIG_SRC)
+    return;
+  // TODO: The one non-semitone button?
+  for (uint16_t st = 0; st < N_SEMITONES; st++)
+  {
+    uint8_t sat = SAT_OFF;
+    uint8_t val = (state->engine_config->quantize_mask & (1u << st)) ? VAL_LOW : VAL_OFF;
+    ws2811_setled_hsv(state->ux_setup->quantizer_semitones[st].led, 0, sat, val);
+  }
 }

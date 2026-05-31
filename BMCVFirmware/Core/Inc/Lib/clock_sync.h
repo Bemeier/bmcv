@@ -6,23 +6,23 @@
 
 typedef struct
 {
-    uint8_t PULSES_PER_BEAT;
+  uint8_t PULSES_PER_BEAT;
 
-    uint32_t last_pulse_us;
-    uint32_t last_beat_start_us;
-    uint32_t last_reset_us;
-    uint32_t last_pulse_delta_us;
-    uint32_t pulse_counter;
-    uint64_t beat_counter;
+  uint32_t last_pulse_us;
+  uint32_t last_beat_start_us;
+  uint32_t last_reset_us;
+  uint32_t last_pulse_delta_us;
+  uint32_t pulse_counter;
+  uint64_t beat_counter;
 
-    bool have_beat;
-    bool have_pulse;
+  bool have_beat;
+  bool have_pulse;
 
-    float beat_freq;
-    float beat_freq_smooth;
-    float bpm;
+  float beat_freq;
+  float beat_freq_smooth;
+  float bpm;
 
-    float beat_phase;
+  float beat_phase;
 } ClockState;
 
 void Clock_Init(void);
