@@ -7,7 +7,6 @@ set(MX_Defines_Syms
 
 message(STATUS "STM32CUBE_FW_PATH = '${STM32CUBE_FW_PATH}'")
 
-# STM32CubeMX generated include paths
 set(MX_Include_Dirs
     ${CMAKE_SOURCE_DIR}/USB_Device/App
     ${CMAKE_SOURCE_DIR}/USB_Device/Target
@@ -20,7 +19,6 @@ set(MX_Include_Dirs
     ${STM32CUBE_FW_PATH}/Drivers/CMSIS/Include
 )
 
-# STM32CubeMX generated application sources
 set(MX_Application_Src
     ${CMAKE_SOURCE_DIR}/USB_Device/App/usb_device.c
     ${CMAKE_SOURCE_DIR}/USB_Device/App/usbd_desc.c
@@ -33,7 +31,6 @@ set(MX_Application_Src
     ${CMAKE_SOURCE_DIR}/startup_stm32g474xx.s
 )
 
-# STM32 HAL/LL Drivers
 set(STM32_Drivers_Src
     ${CMAKE_SOURCE_DIR}/Core/Src/system_stm32g4xx.c
     ${STM32CUBE_FW_PATH}/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_pcd.c
@@ -61,9 +58,6 @@ set(STM32_Drivers_Src
     ${STM32CUBE_FW_PATH}/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_tim_ex.c
 )
 
-# Drivers Midllewares
-
-
 set(USB_Device_Library_Src
     ${STM32CUBE_FW_PATH}/Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_core.c
     ${STM32CUBE_FW_PATH}/Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ctlreq.c
@@ -72,7 +66,6 @@ set(USB_Device_Library_Src
 )
 
 
-# Interface library for includes and symbols
 add_library(stm32cubemx INTERFACE)
 target_include_directories(stm32cubemx SYSTEM INTERFACE ${MX_Include_Dirs})
 target_compile_definitions(stm32cubemx INTERFACE ${MX_Defines_Syms})
