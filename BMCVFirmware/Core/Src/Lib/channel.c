@@ -12,7 +12,6 @@
 #include "wave_fn.h"
 #include "ws2811.h"
 #include <stdint.h>
-#include <stdlib.h>
 
 #define N_SHP_LEVELS 8
 #define N_AMP_LEVELS 11
