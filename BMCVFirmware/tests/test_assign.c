@@ -70,9 +70,9 @@ TEST_CASE(two_step_assign_copies_scene_to_scene_for_every_channel)
 
 int main(void)
 {
-RUN_TEST(two_step_assign_copies_channel_to_channel);
-RUN_TEST(clear_channel_active_scene_only_leaves_other_scenes_intact);
-RUN_TEST(clear_channel_all_scenes_resets_everything);
-RUN_TEST(two_step_assign_copies_scene_to_scene_for_every_channel);
+  RUN_TEST(two_step_assign_copies_channel_to_channel);
+  RUN_TEST(clear_channel_active_scene_only_leaves_other_scenes_intact);
+  RUN_TEST(clear_channel_all_scenes_resets_everything);
+  RUN_TEST(two_step_assign_copies_scene_to_scene_for_every_channel);
   return TESTKIT_SUMMARY();
 }

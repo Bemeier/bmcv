@@ -28,10 +28,10 @@ typedef enum
 // append - inserting or reordering would silently remap saved channels.
 typedef enum
 {
-  SHAPE_LFO,             // wavetable
-  SHAPE_STEPPED_SMOOTH,  // random steps, fully eased between values
-  SHAPE_STEPPED_SEMI,    // random steps, half held then eased
-  SHAPE_STEPPED_HARD,    // random steps, mostly held with a quick eased edge
+  SHAPE_LFO,            // wavetable
+  SHAPE_STEPPED_SMOOTH, // random steps, fully eased between values
+  SHAPE_STEPPED_SEMI,   // random steps, half held then eased
+  SHAPE_STEPPED_HARD,   // random steps, mostly held with a quick eased edge
   SHAPE_MODE_COUNT,
 } ChannelShapeMode;
 
@@ -135,9 +135,10 @@ typedef struct
 
   uint8_t trigger_src[N_INPUTS + N_CHANNELS];
 
-  uint8_t button_state[N_BUTTONS];       // if > 0, button is currently pressed
-  uint32_t button_pressed_t[N_BUTTONS];  // how long button is pressed so far
-  uint32_t button_released_t[N_BUTTONS]; // how long button was pressed once released
+  // Raw level only. Press durations and gestures are derived once, in
+  // ui_input.c - HwState deliberately no longer carries them, so there is no
+  // second source of truth for "how long has this been held".
+  uint8_t button_state[N_BUTTONS];
 
   int16_t encoder_state[N_ENCODERS];
   int16_t encoder_delta[N_ENCODERS]; // change of encoder since last state
@@ -150,14 +151,15 @@ typedef struct
   uint8_t r, g, b;
 } LedRgb;
 
+// Signal path only. Interaction and view state live in UiState (ui_state.h);
+// the two used to be one struct, which is how DSP code came to read
+// shift_state and render code came to mutate timers.
 typedef struct
 {
   // Scene
   uint8_t scenes_contribution[N_SCENES];
 
   // Channel
-  uint32_t channels_mark_for[N_CHANNELS];
-  uint8_t channels_mark_hue[N_CHANNELS];
   int16_t channels_output_level[N_CHANNELS];
   float channels_shared_phase[N_CHANNELS];
   float channels_phase_correction[N_CHANNELS];
@@ -172,11 +174,16 @@ typedef struct
   int16_t channels_prev_out[N_CHANNELS];
   uint8_t channels_trig_state[N_CHANNELS];
   uint8_t channels_trig_flag[N_CHANNELS];
-  uint32_t channels_last_delta[N_CHANNELS]; // timestamp of last encoder movement
 
-  // Assign (copy/paste/routing) mini-FSM
-  AssignType assign_type;
-  int8_t assign_src_id;
+  // Timestamp of the last encoder movement on this channel. Written only by
+  // ui_channel_note_edit() - compute_channel reads it to decide whether a
+  // stepped-pattern length change applies immediately or waits for the cycle
+  // wrap, which is the one place the DSP needs to know the user is fiddling.
+  uint32_t channels_last_delta[N_CHANNELS];
+
+  // Ramped output gate, 0..1, slewed toward UiState.muted[] at DAC rate so
+  // muting does not click.
+  float channels_mute_gain[N_CHANNELS];
 
   int16_t cgcd[N_CHANNELS];
   float cphsc[N_CHANNELS];
@@ -185,15 +192,10 @@ typedef struct
   float cshp[N_CHANNELS];
   float cmod[N_CHANNELS];
 
-  // UX State
+  // Which scene currently dominates the crossfade. Derived from the slider
+  // (and the momentary scene the UI passes in), so it is an engine output the
+  // UI reads, not UI state.
   int8_t active_scene;
-  int8_t momentary_scene;
-  uint8_t selected_param;
-  uint8_t shift_state;
-
-  // Render State
-  uint8_t blink_slow;
-  uint8_t blink_fast;
 
   // LED framebuffer. The UX layer renders into this; a flush step pushes it
   // to the driver. Keeps LED behaviour assertable without any hardware.

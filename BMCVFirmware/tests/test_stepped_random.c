@@ -172,10 +172,7 @@ static int direction_changes(int length_idx)
   return turns;
 }
 
-TEST_CASE(longer_patterns_contain_more_events)
-{
-  CHECK(direction_changes(SR_LENGTH_COUNT - 1) > direction_changes(0) * 4);
-}
+TEST_CASE(longer_patterns_contain_more_events) { CHECK(direction_changes(SR_LENGTH_COUNT - 1) > direction_changes(0) * 4); }
 
 TEST_CASE(hold_setting_controls_how_step_like_the_curve_is)
 {

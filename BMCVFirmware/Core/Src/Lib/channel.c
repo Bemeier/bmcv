@@ -5,6 +5,7 @@
 #include "dac_adc.h"
 #include "helpers.h"
 #include "hw_setup.h"
+#include "led_fb.h"
 #include "math.h"
 #include "state.h"
 #include "stepped_random.h"
@@ -12,7 +13,6 @@
 #include "ui_input.h"
 #include "ux_state.h"
 #include "wave_fn.h"
-#include "led_fb.h"
 #include <stdint.h>
 
 #define N_SHP_LEVELS 8
@@ -136,15 +136,15 @@ static const float k_sync = 0.075f;
 void update_channel_param(const ChannelSetup* ch, UxState* state)
 {
   ChannelConfig* chcfg = &state->engine_config->channel_state[ch->id];
-  int8_t param         = state->engine_state->selected_param;
-  int16_t delta        = enc_delta(&state->in, ch->encoder);
-  int8_t alt           = btn_down(&state->in, ch->button);
+  int8_t param         = state->ui->selected_param;
+  int16_t delta        = enc_delta(&state->ui->in, ch->encoder);
+  int8_t alt           = btn_down(&state->ui->in, ch->button);
   if (delta == 0)
     return;
 
-  state->engine_state->channels_last_delta[ch->id] = state->hw_state->time;
+  ui_channel_note_edit(state, ch->id);
 
-  state->engine_state->channels_mark_for[ch->id] = MS(1000);
+  state->ui->channels_edit_hold[ch->id] = UI_EDIT_DISPLAY;
 
   if (alt)
   {
@@ -155,7 +155,7 @@ void update_channel_param(const ChannelSetup* ch, UxState* state)
     size_t idx = 0;
     chcfg->params[state->engine_state->active_scene][param] =
         val_neighbour(chcfg->params[state->engine_state->active_scene][param], delta, quantized_multipliers, N_FREQ_MULTIPLIERS, &idx);
-    state->engine_state->channels_mark_hue[ch->id] = quantized_multipliers_colors[idx];
+    state->ui->channels_edit_hue[ch->id] = quantized_multipliers_colors[idx];
   }
   else if (param == CH_PARAM_MOD && shape_mode_is_stepped(chcfg->shape_mode))
   {
@@ -232,14 +232,14 @@ void reset_channel_phase(const ChannelSetup* ch, UxState* state)
 
 void update_channel(const ChannelSetup* ch, UxState* state)
 {
-  int8_t long_pressed  = btn_released_after(&state->in, ch->button, UI_T_LONG);
-  int8_t pressed       = btn_ev(&state->in, ch->button, BTN_EV_UP);
-  int8_t pressing      = btn_down(&state->in, ch->button);
+  int8_t long_pressed  = btn_released_after(&state->ui->in, ch->button, UI_T_LONG);
+  int8_t pressed       = btn_ev(&state->ui->in, ch->button, BTN_EV_UP);
+  int8_t pressing      = btn_down(&state->ui->in, ch->button);
   ChannelConfig* chcfg = &state->engine_config->channel_state[ch->id];
-  switch (state->engine_state->shift_state)
+  switch (state->ui->shift_state)
   {
   case SHIFT_STATE_SYS:
-    chcfg->shape_mode = delta_modulo_step(chcfg->shape_mode, enc_delta(&state->in, ch->encoder), SHAPE_MODE_COUNT);
+    chcfg->shape_mode = delta_modulo_step(chcfg->shape_mode, enc_delta(&state->ui->in, ch->encoder), SHAPE_MODE_COUNT);
     break;
   case SHIFT_STATE_QNT:
     if (pressed && assign_state(state) == ASSIGN_NONE)
@@ -253,7 +253,7 @@ void update_channel(const ChannelSetup* ch, UxState* state)
     }
     else if (assign_state(state) == ASSIGN_NONE)
     {
-      chcfg->quantize_mode = delta_modulo_step(chcfg->quantize_mode, enc_delta(&state->in, ch->encoder), QUANTIZE_MODE_COUNT);
+      chcfg->quantize_mode = delta_modulo_step(chcfg->quantize_mode, enc_delta(&state->ui->in, ch->encoder), QUANTIZE_MODE_COUNT);
     }
     break;
   case SHIFT_STATE_MON:
@@ -273,7 +273,7 @@ void update_channel(const ChannelSetup* ch, UxState* state)
 
     if (!pressing)
     {
-      chcfg->input_amp_mode = delta_modulo_step(chcfg->input_amp_mode, enc_delta(&state->in, ch->encoder), INPUT_AMP_MODE_COUNT);
+      chcfg->input_amp_mode = delta_modulo_step(chcfg->input_amp_mode, enc_delta(&state->ui->in, ch->encoder), INPUT_AMP_MODE_COUNT);
     }
     break;
   case SHIFT_STATE_CPY:
@@ -297,9 +297,9 @@ void update_channel(const ChannelSetup* ch, UxState* state)
     // otherwise holding the button as an encoder modifier would wipe the
     // value the user was just adjusting.
     uint32_t t_no_rotation = state->hw_state->time - state->engine_state->channels_last_delta[ch->id];
-    if (long_pressed && btn_held(&state->in, ch->button) < t_no_rotation)
+    if (long_pressed && btn_held(&state->ui->in, ch->button) < t_no_rotation)
     {
-      reset_channel_param(ch, state, state->engine_state->active_scene, state->engine_state->selected_param);
+      reset_channel_param(ch, state, state->engine_state->active_scene, state->ui->selected_param);
     }
     else
     {
@@ -465,18 +465,18 @@ void compute_channel(const ChannelSetup* ch, UxState* state)
 void write_channel_led(const ChannelSetup* ch, UxState* state)
 {
   ChannelConfig* chcfg = &state->engine_config->channel_state[ch->id];
-  if (state->dt < state->engine_state->channels_mark_for[ch->id])
+  if (state->dt < state->ui->channels_edit_hold[ch->id])
   {
-    state->engine_state->channels_mark_for[ch->id] -= state->dt;
+    state->ui->channels_edit_hold[ch->id] -= state->dt;
   }
   else
   {
-    state->engine_state->channels_mark_for[ch->id] = 0;
+    state->ui->channels_edit_hold[ch->id] = 0;
   }
 
-  uint8_t mark = state->engine_state->channels_mark_for[ch->id] > 0;
+  uint8_t mark = state->ui->channels_edit_hold[ch->id] > 0;
 
-  switch (state->engine_state->shift_state)
+  switch (state->ui->shift_state)
   {
   case SHIFT_STATE_SYS:
     led_set_hsv(state, ch->led, shape_mode_color[chcfg->shape_mode], SAT_HIG, VAL_LOW);
@@ -490,7 +490,7 @@ void write_channel_led(const ChannelSetup* ch, UxState* state)
       }
       else
       {
-        led_set_hsv(state, ch->led, HUE_CYAN, SAT_OFF, state->engine_state->blink_fast * VAL_LOW);
+        led_set_hsv(state, ch->led, HUE_CYAN, SAT_OFF, state->ui->blink_fast * VAL_LOW);
       }
     }
     else
@@ -500,13 +500,13 @@ void write_channel_led(const ChannelSetup* ch, UxState* state)
     break;
     //
   case SHIFT_STATE_CLR:
-    int8_t alt = btn_holding(&state->in, ch->button, UI_T_VLONG);
-    led_set_hsv(state, ch->led, HUE_RED, SAT_HIG, (state->engine_state->blink_fast || alt) * VAL_LOW);
+    int8_t alt = btn_holding(&state->ui->in, ch->button, UI_T_VLONG);
+    led_set_hsv(state, ch->led, HUE_RED, SAT_HIG, (state->ui->blink_fast || alt) * VAL_LOW);
     break;
   case SHIFT_STATE_CPY:
     if (assign_state(state) == ASSIGN_NONE)
     {
-      led_set_hsv(state, ch->led, 0, SAT_OFF, state->engine_state->blink_fast * VAL_LOW);
+      led_set_hsv(state, ch->led, 0, SAT_OFF, state->ui->blink_fast * VAL_LOW);
     }
     else if (assign_state(state) == ASSIGN_CHANNEL)
     {
@@ -516,7 +516,7 @@ void write_channel_led(const ChannelSetup* ch, UxState* state)
       }
       else
       {
-        led_set_hsv(state, ch->led, 0, SAT_OFF, state->engine_state->blink_fast * VAL_LOW);
+        led_set_hsv(state, ch->led, 0, SAT_OFF, state->ui->blink_fast * VAL_LOW);
       }
     }
     else
@@ -529,7 +529,7 @@ void write_channel_led(const ChannelSetup* ch, UxState* state)
     {
       if (assign_src(state) == ch->id)
       {
-        led_set_hsv(state, ch->led, HUE_RED, SAT_MED, state->engine_state->blink_fast * VAL_LOW);
+        led_set_hsv(state, ch->led, HUE_RED, SAT_MED, state->ui->blink_fast * VAL_LOW);
       }
       else
       {
@@ -548,13 +548,13 @@ void write_channel_led(const ChannelSetup* ch, UxState* state)
 
   if (mark)
   {
-    switch (state->engine_state->selected_param)
+    switch (state->ui->selected_param)
     {
     case CH_PARAM_FRQ:
-      led_set_hsv(state, ch->led, state->engine_state->channels_mark_hue[ch->id], SAT_MAX, state->engine_state->blink_fast * VAL_MED);
+      led_set_hsv(state, ch->led, state->ui->channels_edit_hue[ch->id], SAT_MAX, state->ui->blink_fast * VAL_MED);
       break;
     default:
-      led_set_adcr(state, ch->led, chcfg->params[state->engine_state->active_scene][state->engine_state->selected_param]);
+      led_set_adcr(state, ch->led, chcfg->params[state->engine_state->active_scene][state->ui->selected_param]);
       break;
     }
   }

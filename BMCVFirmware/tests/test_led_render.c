@@ -57,8 +57,8 @@ TEST_CASE(selected_param_button_lights_up_and_others_do_not)
 {
   Fixture f;
   fixture_init(&f);
-  f.engine_state.shift_state    = SHIFT_STATE_NONE;
-  f.engine_state.selected_param = CH_PARAM_AMP;
+  f.ui_state.shift_state    = SHIFT_STATE_NONE;
+  f.ui_state.selected_param = CH_PARAM_AMP;
 
   for (uint8_t b = 0; b < N_CTRL_BUTTONS; b++)
   {
@@ -76,14 +76,14 @@ TEST_CASE(active_shift_mode_button_blinks_with_the_slow_blink_signal)
 {
   Fixture f;
   fixture_init(&f);
-  f.engine_state.shift_state = SHIFT_STATE_SYS;
+  f.ui_state.shift_state = SHIFT_STATE_SYS;
 
-  f.engine_state.blink_slow = 1;
+  f.ui_state.blink_slow = 1;
   write_ctrl_button_led(&f.ux_setup->ctrl_buttons[SHIFT_STATE_SYS], &f.ux);
   LedRgb lit = led_of_ctrl_button(&f, SHIFT_STATE_SYS);
   CHECK(lit.r > 0 || lit.g > 0 || lit.b > 0);
 
-  f.engine_state.blink_slow = 0;
+  f.ui_state.blink_slow = 0;
   write_ctrl_button_led(&f.ux_setup->ctrl_buttons[SHIFT_STATE_SYS], &f.ux);
   LedRgb dark = led_of_ctrl_button(&f, SHIFT_STATE_SYS);
   CHECK(dark.r == 0 && dark.g == 0 && dark.b == 0);
@@ -91,10 +91,10 @@ TEST_CASE(active_shift_mode_button_blinks_with_the_slow_blink_signal)
 
 int main(void)
 {
-RUN_TEST(hsv_maps_onto_expected_rgb);
-RUN_TEST(bipolar_cv_shows_green_when_positive_and_red_when_negative);
-RUN_TEST(out_of_range_led_index_is_ignored_rather_than_corrupting_memory);
-RUN_TEST(selected_param_button_lights_up_and_others_do_not);
-RUN_TEST(active_shift_mode_button_blinks_with_the_slow_blink_signal);
+  RUN_TEST(hsv_maps_onto_expected_rgb);
+  RUN_TEST(bipolar_cv_shows_green_when_positive_and_red_when_negative);
+  RUN_TEST(out_of_range_led_index_is_ignored_rather_than_corrupting_memory);
+  RUN_TEST(selected_param_button_lights_up_and_others_do_not);
+  RUN_TEST(active_shift_mode_button_blinks_with_the_slow_blink_signal);
   return TESTKIT_SUMMARY();
 }

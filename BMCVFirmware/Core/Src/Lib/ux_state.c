@@ -8,6 +8,13 @@
 #include "state.h"
 #include <stdint.h>
 
+void ui_channel_note_edit(UxState* state, uint8_t channel)
+{
+  if (channel >= N_CHANNELS)
+    return;
+  state->engine_state->channels_last_delta[channel] = state->hw_state->time;
+}
+
 void update_ux_state(UxState* state)
 {
   for (uint8_t b = 0; b < N_CTRL_BUTTONS; b++)
@@ -17,7 +24,7 @@ void update_ux_state(UxState* state)
   }
 
   // could be more specific, assign only happens in MON CPY or CLR
-  if (state->engine_state->shift_state == SHIFT_STATE_NONE)
+  if (state->ui->shift_state == SHIFT_STATE_NONE)
   {
     assign_reset(state);
   }

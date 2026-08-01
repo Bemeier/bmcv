@@ -7,12 +7,12 @@
 
 void assign_reset(UxState* state)
 {
-  state->engine_state->assign_type   = ASSIGN_NONE;
-  state->engine_state->assign_src_id = -1;
+  state->ui->assign_type   = ASSIGN_NONE;
+  state->ui->assign_src_id = -1;
 }
 
-int8_t assign_src(const UxState* state) { return state->engine_state->assign_src_id; }
-AssignType assign_state(const UxState* state) { return state->engine_state->assign_type; }
+int8_t assign_src(const UxState* state) { return state->ui->assign_src_id; }
+AssignType assign_state(const UxState* state) { return state->ui->assign_type; }
 
 void assign_input_to_channel(int8_t i, int8_t c, UxState* state) { state->engine_config->channel_state[c].src_input = i; }
 
@@ -78,13 +78,13 @@ void assign_trig_src_use_input(int8_t c_src, int8_t i_dst, UxState* state)
 
 void assign_event(AssignType targetType, int8_t targetId, UxState* state)
 {
-  AssignType pending = state->engine_state->assign_type;
-  int8_t source_id   = state->engine_state->assign_src_id;
+  AssignType pending = state->ui->assign_type;
+  int8_t source_id   = state->ui->assign_src_id;
 
   if (pending == ASSIGN_NONE)
   {
-    state->engine_state->assign_type   = targetType;
-    state->engine_state->assign_src_id = targetId;
+    state->ui->assign_type   = targetType;
+    state->ui->assign_src_id = targetId;
   }
   else
   {

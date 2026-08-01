@@ -5,11 +5,11 @@
 #include "error.h"
 #include "helpers.h"
 #include "hw_setup.h"
+#include "led_fb.h"
 #include "presets.h"
 #include "state.h"
 #include "ui_input.h"
 #include "ux_state.h"
-#include "led_fb.h"
 #include <stdint.h>
 
 static uint8_t input_mode_color[INPUT_MODE_COUNT] = {HUE_GREEN, HUE_RED, HUE_CYAN, HUE_MAGENTA};
@@ -22,13 +22,13 @@ void write_scene_button_led(const SceneSetup* scene, UxState* state)
   uint8_t val =
       state->engine_state->scenes_contribution[scene->id] / 8 + (state->engine_state->active_scene == scene->id ? min_value : VAL_OFF);
 
-  switch (state->engine_state->shift_state)
+  switch (state->ui->shift_state)
   {
   case SHIFT_STATE_STA:
   case SHIFT_STATE_STB:
     if (state->engine_config->scene_a == scene->id || state->engine_config->scene_b == scene->id)
     {
-      val = imax(val, VAL_LOW) * state->engine_state->blink_fast;
+      val = imax(val, VAL_LOW) * state->ui->blink_fast;
     }
     led_set_hsv(state, scene->led, 0, SAT_OFF, val);
     break;
@@ -59,18 +59,18 @@ void write_scene_button_led(const SceneSetup* scene, UxState* state)
   case SHIFT_STATE_SAV:
     // Same predicates the action path uses, so the LED cannot disagree with
     // what the release will actually do.
-    int8_t load = btn_down(&state->in, scene->button);
-    int8_t save = btn_holding(&state->in, scene->button, UI_T_VLONG);
+    int8_t load = btn_down(&state->ui->in, scene->button);
+    int8_t save = btn_holding(&state->ui->in, scene->button, UI_T_VLONG);
     led_set_hsv(state, scene->led, save ? HUE_RED : HUE_GREEN, SAT_MAX, load ? VAL_HIG : VAL_MED);
     break;
   case SHIFT_STATE_CLR:
-    int8_t held = btn_down(&state->in, scene->button);
-    led_set_hsv(state, scene->led, HUE_RED, SAT_HIG, (state->engine_state->blink_fast || held) * VAL_LOW);
+    int8_t held = btn_down(&state->ui->in, scene->button);
+    led_set_hsv(state, scene->led, HUE_RED, SAT_HIG, (state->ui->blink_fast || held) * VAL_LOW);
     break;
   case SHIFT_STATE_CPY:
     if (assign_state(state) == ASSIGN_NONE)
     {
-      led_set_hsv(state, scene->led, 0, SAT_OFF, state->engine_state->blink_fast * VAL_LOW);
+      led_set_hsv(state, scene->led, 0, SAT_OFF, state->ui->blink_fast * VAL_LOW);
     }
     else if (assign_state(state) == ASSIGN_SCENE || assign_state(state) == ASSIGN_CHANNEL)
     {
@@ -80,7 +80,7 @@ void write_scene_button_led(const SceneSetup* scene, UxState* state)
       }
       else
       {
-        led_set_hsv(state, scene->led, 0, SAT_OFF, state->engine_state->blink_fast * VAL_LOW);
+        led_set_hsv(state, scene->led, 0, SAT_OFF, state->ui->blink_fast * VAL_LOW);
       }
     }
     else
@@ -93,7 +93,7 @@ void write_scene_button_led(const SceneSetup* scene, UxState* state)
     {
       if (scene->id < N_INPUTS)
       {
-        led_set_hsv(state, scene->led, 0, SAT_OFF, state->engine_state->blink_fast * VAL_LOW);
+        led_set_hsv(state, scene->led, 0, SAT_OFF, state->ui->blink_fast * VAL_LOW);
       }
       else
       {
@@ -107,56 +107,58 @@ void write_scene_button_led(const SceneSetup* scene, UxState* state)
   }
 }
 
-void compute_scenes_contribution(UxState* state)
+// Pure: the crossfade depends only on the slider, the configured A/B pair and
+// whichever scene the user is holding. Taking momentary_scene as an argument
+// rather than reading UiState keeps the one UI->DSP dependency explicit and
+// lets this be exercised without an interaction layer at all.
+void compute_scenes_contribution(EngineState* es, const EngineConfig* cfg, uint16_t slider, int8_t momentary_scene)
 {
   for (uint8_t s = 0; s < N_SCENES; s++)
   {
-    state->engine_state->scenes_contribution[s] = 0;
+    es->scenes_contribution[s] = 0;
   }
 
-  if (state->engine_state->momentary_scene >= 0)
+  if (momentary_scene >= 0)
   {
-    state->engine_state->scenes_contribution[state->engine_state->momentary_scene] = 255;
-    state->engine_state->active_scene                                              = state->engine_state->momentary_scene;
+    es->scenes_contribution[momentary_scene] = 255;
+    es->active_scene                         = momentary_scene;
   }
   else
   {
-    uint8_t scene_a         = state->engine_config->scene_a;
-    uint8_t scene_b         = state->engine_config->scene_b;
+    uint8_t scene_a         = cfg->scene_a;
+    uint8_t scene_b         = cfg->scene_b;
     uint16_t scene_a_anchor = SLIDER_MAX_VALUE;
     uint16_t scene_b_anchor = SLIDER_MIN_VALUE;
 
     if (scene_a == scene_b)
     {
-      state->engine_state->scenes_contribution[scene_a] = 255;
+      es->scenes_contribution[scene_a] = 255;
     }
     else
     {
-      state->engine_state->scenes_contribution[scene_a] =
-          interpolate_clamped(scene_b_anchor, scene_a_anchor, state->hw_state->slider_state);
-      state->engine_state->scenes_contribution[scene_b] = 255 - state->engine_state->scenes_contribution[scene_a];
+      es->scenes_contribution[scene_a] = interpolate_clamped(scene_b_anchor, scene_a_anchor, slider);
+      es->scenes_contribution[scene_b] = 255 - es->scenes_contribution[scene_a];
     }
-    state->engine_state->active_scene =
-        state->engine_state->scenes_contribution[scene_a] > state->engine_state->scenes_contribution[scene_b] ? scene_a : scene_b;
+    es->active_scene = es->scenes_contribution[scene_a] > es->scenes_contribution[scene_b] ? scene_a : scene_b;
   }
 }
 
 void update_scene_button(const SceneSetup* scene, UxState* state)
 {
-  int8_t pressed   = btn_ev(&state->in, scene->button, BTN_EV_UP);
-  int8_t momentary = btn_holding(&state->in, scene->button, UI_T_DEBOUNCE);
+  int8_t pressed   = btn_ev(&state->ui->in, scene->button, BTN_EV_UP);
+  int8_t momentary = btn_holding(&state->ui->in, scene->button, UI_T_DEBOUNCE);
   // Momentarty activation
-  switch (state->engine_state->shift_state)
+  switch (state->ui->shift_state)
   {
   case SHIFT_STATE_NONE: // Normal mode, momentary scene activation
-    if (momentary && state->engine_state->momentary_scene < 0)
+    if (momentary && state->ui->momentary_scene < 0)
     {
-      state->engine_state->momentary_scene = scene->id;
+      state->ui->momentary_scene = scene->id;
     }
 
-    if (!momentary && state->engine_state->momentary_scene == scene->id)
+    if (!momentary && state->ui->momentary_scene == scene->id)
     {
-      state->engine_state->momentary_scene = -1;
+      state->ui->momentary_scene = -1;
     }
     break;
   case SHIFT_STATE_STA:
@@ -181,11 +183,11 @@ void update_scene_button(const SceneSetup* scene, UxState* state)
   case SHIFT_STATE_SAV:
     // Store fires the moment the hold crosses UI_T_VLONG, so the red LED and
     // the write happen together; the matching release must then not also load.
-    if (btn_ev(&state->in, scene->button, BTN_EV_VLONG))
+    if (btn_ev(&state->ui->in, scene->button, BTN_EV_VLONG))
     {
       preset_store(state->engine_config, scene->id);
     }
-    else if (pressed && btn_held(&state->in, scene->button) < UI_T_VLONG)
+    else if (pressed && btn_held(&state->ui->in, scene->button) < UI_T_VLONG)
     {
       if (!preset_load(state->engine_config, scene->id))
       {

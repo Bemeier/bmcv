@@ -6,10 +6,7 @@
 // consumers in channel.c already guard on >= 0. So anything out of range
 // becomes unassigned rather than being clamped onto a real source, which
 // would silently route a channel somewhere the user never chose.
-static inline int8_t valid_source_or_unassigned(int8_t value, int8_t count)
-{
-  return (value >= 0 && value < count) ? value : -1;
-}
+static inline int8_t valid_source_or_unassigned(int8_t value, int8_t count) { return (value >= 0 && value < count) ? value : -1; }
 
 void config_validate(EngineConfig* cfg)
 {

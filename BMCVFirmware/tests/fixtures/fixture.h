@@ -14,6 +14,7 @@ typedef struct
   HwState hw_state;
   EngineConfig engine_config;
   EngineState engine_state;
+  UiState ui_state;
   UxState ux;
 
   // So fixture_tick can derive input_dirty the same way bmcv_state_update

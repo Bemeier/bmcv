@@ -1,7 +1,7 @@
 #include "clock_sync.h"
 #include "fixture.h"
-#include "stepped_random_table.h"
 #include "helpers.h"
+#include "stepped_random_table.h"
 #include "testkit.h"
 
 TEST_CASE(zero_amplitude_channel_outputs_the_offset)
@@ -39,7 +39,7 @@ TEST_CASE(input_add_mode_adds_the_raw_input_value)
   fixture_init(&f);
   fixture_set_param(&f, 0, 0, CH_PARAM_OFS, 1000);
   fixture_set_param(&f, 0, 0, CH_PARAM_AMP, 0);
-  f.engine_config.channel_state[0].src_input     = 0;
+  f.engine_config.channel_state[0].src_input      = 0;
   f.engine_config.channel_state[0].input_amp_mode = INPUT_AMP_ADD;
   f.hw_state.input_state[0]                       = 500;
 
@@ -54,7 +54,7 @@ TEST_CASE(input_mult_mode_zero_input_zeroes_the_output)
   fixture_init(&f);
   fixture_set_param(&f, 0, 0, CH_PARAM_OFS, 1000);
   fixture_set_param(&f, 0, 0, CH_PARAM_AMP, 0);
-  f.engine_config.channel_state[0].src_input     = 0;
+  f.engine_config.channel_state[0].src_input      = 0;
   f.engine_config.channel_state[0].input_amp_mode = INPUT_AMP_MULT;
   f.hw_state.input_state[0]                       = 0;
 
@@ -90,7 +90,6 @@ TEST_CASE(phase_advances_by_frequency_times_dt_without_pll_lock)
   CHECK_NEAR(f.engine_state.channels_shared_phase[0], 0.5, 1e-4);
 }
 
-
 // ---- pattern-length latching (stepped modes) -------------------------------
 //
 // Switching pattern length mid-cycle moves the step grid under the playhead
@@ -100,7 +99,7 @@ TEST_CASE(phase_advances_by_frequency_times_dt_without_pll_lock)
 static void set_stepped_channel(Fixture* f, int16_t mod_param)
 {
   f->engine_config.channel_state[0].shape_mode = SHAPE_STEPPED_HARD;
-  fixture_set_param(f, 0, 0, CH_PARAM_FRQ, 0);   // 1x the beat
+  fixture_set_param(f, 0, 0, CH_PARAM_FRQ, 0); // 1x the beat
   fixture_set_param(f, 0, 0, CH_PARAM_AMP, 20000);
   fixture_set_param(f, 0, 0, CH_PARAM_MOD, mod_param);
 }
@@ -167,12 +166,12 @@ TEST_CASE(pattern_length_applies_immediately_while_the_encoder_is_turning)
 
 int main(void)
 {
-RUN_TEST(zero_amplitude_channel_outputs_the_offset);
-RUN_TEST(amplitude_bounds_the_output_around_the_offset);
-RUN_TEST(input_add_mode_adds_the_raw_input_value);
-RUN_TEST(input_mult_mode_zero_input_zeroes_the_output);
-RUN_TEST(continuous_quantize_matches_quantize_value);
-RUN_TEST(phase_advances_by_frequency_times_dt_without_pll_lock);
+  RUN_TEST(zero_amplitude_channel_outputs_the_offset);
+  RUN_TEST(amplitude_bounds_the_output_around_the_offset);
+  RUN_TEST(input_add_mode_adds_the_raw_input_value);
+  RUN_TEST(input_mult_mode_zero_input_zeroes_the_output);
+  RUN_TEST(continuous_quantize_matches_quantize_value);
+  RUN_TEST(phase_advances_by_frequency_times_dt_without_pll_lock);
   RUN_TEST(pattern_length_is_latched_until_the_cycle_wraps);
   RUN_TEST(pattern_length_updates_once_the_cycle_wraps);
   RUN_TEST(pattern_length_applies_immediately_while_the_encoder_is_turning);

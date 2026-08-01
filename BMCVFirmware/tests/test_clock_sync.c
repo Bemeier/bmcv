@@ -34,7 +34,7 @@ TEST_CASE(have_beat_drops_after_clock_loss)
 
 int main(void)
 {
-RUN_TEST(beat_freq_smooth_converges_to_the_pulse_rate);
-RUN_TEST(have_beat_drops_after_clock_loss);
+  RUN_TEST(beat_freq_smooth_converges_to_the_pulse_rate);
+  RUN_TEST(have_beat_drops_after_clock_loss);
   return TESTKIT_SUMMARY();
 }

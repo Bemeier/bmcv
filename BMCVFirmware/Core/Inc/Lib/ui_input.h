@@ -87,10 +87,7 @@ static inline uint32_t btn_held(const UiInput* in, int8_t btn)
 
 // Live level: "is being held, and has been for at least t". For indicators
 // that should light up while the user keeps holding.
-static inline uint8_t btn_holding(const UiInput* in, int8_t btn, uint32_t t)
-{
-  return btn_down(in, btn) && btn_held(in, btn) >= t;
-}
+static inline uint8_t btn_holding(const UiInput* in, int8_t btn, uint32_t t) { return btn_down(in, btn) && btn_held(in, btn) >= t; }
 
 // Edge: "was just released, after being held at least t".
 static inline uint8_t btn_released_after(const UiInput* in, int8_t btn, uint32_t t)

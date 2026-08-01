@@ -53,6 +53,7 @@ static HwState* curr_hw = &state[1];
 static UxState ux_state;
 static EngineConfig engine_config;
 static EngineState engine_state;
+static UiState ui_state;
 // uint32_t ux_update_time; // last ux update
 
 void bmcv_init(uint16_t _mpc_interrupt_pin, ADC_TypeDef* _slider_adc)
@@ -65,13 +66,15 @@ void bmcv_init(uint16_t _mpc_interrupt_pin, ADC_TypeDef* _slider_adc)
 
   Clock_Init();
 
-  ux_state.hw_setup                     = hw_setup;
-  ux_state.ux_setup                     = ux_setup;
-  ux_state.engine_config                = &engine_config;
-  ux_state.engine_state                 = &engine_state;
-  ux_state.engine_state->selected_param = CH_PARAM_SHP;
-  ux_state.engine_state->shift_state    = SHIFT_STATE_NONE;
-  assign_reset(&ux_state); // assign_src_id must start at -1, not 0
+  ux_state.hw_setup            = hw_setup;
+  ux_state.ux_setup            = ux_setup;
+  ux_state.engine_config       = &engine_config;
+  ux_state.engine_state        = &engine_state;
+  ux_state.ui                  = &ui_state;
+  ux_state.ui->selected_param  = CH_PARAM_SHP;
+  ux_state.ui->shift_state     = SHIFT_STATE_NONE;
+  ux_state.ui->momentary_scene = -1; // 0 would read as "scene 0 held"
+  assign_reset(&ux_state);           // assign_src_id must start at -1, not 0
   // ux_update_time = 0;
 
   for (uint8_t c = 0; c < N_ENCODERS; c++)
@@ -302,23 +305,10 @@ uint8_t bmcv_state_update(uint32_t now_us)
 
   for (uint8_t b = 0; b < N_BUTTONS; b++)
   {
-    curr_hw->button_state[b]      = get_btn_state(b);
-    curr_hw->button_released_t[b] = 0;
+    curr_hw->button_state[b] = get_btn_state(b);
 
-    if (curr_hw->button_state[b] && prev_hw->button_state[b])
-    {
-      curr_hw->button_pressed_t[b] += deltaTime;
-    }
-    else
-    {
-      curr_hw->button_pressed_t[b] = 0;
-    }
-
-    if (!curr_hw->button_state[b] && prev_hw->button_state[b])
-    {
-      curr_hw->button_released_t[b] = prev_hw->button_pressed_t[b];
-    }
-
+    // Level changes force a UX pass; durations and gestures are ui_input's
+    // job, derived from this level every engine tick.
     dirty += curr_hw->button_state[b] != prev_hw->button_state[b];
   }
 

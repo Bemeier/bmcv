@@ -1,18 +1,18 @@
 #include "quantizer.h"
 #include "assign.h"
 #include "color_presets.h"
+#include "led_fb.h"
 #include "state.h"
 #include "ui_input.h"
-#include "led_fb.h"
 
 void update_quantizer_buttons(UxState* state)
 {
-  if (state->engine_state->shift_state != SHIFT_STATE_QNT)
+  if (state->ui->shift_state != SHIFT_STATE_QNT)
     return;
   // TODO: The one non-semitone button?
   for (uint16_t st = 0; st < N_SEMITONES; st++)
   {
-    if (btn_ev(&state->in, state->ux_setup->quantizer_semitones[st].button, BTN_EV_UP))
+    if (btn_ev(&state->ui->in, state->ux_setup->quantizer_semitones[st].button, BTN_EV_UP))
     {
       state->engine_config->quantize_mask ^= (1u << st);
     }
@@ -21,7 +21,7 @@ void update_quantizer_buttons(UxState* state)
 
 void write_quantizer_button_leds(UxState* state)
 {
-  if (state->engine_state->shift_state != SHIFT_STATE_QNT)
+  if (state->ui->shift_state != SHIFT_STATE_QNT)
     return;
   if (assign_state(state) == ASSIGN_TRIG_SRC)
     return;
