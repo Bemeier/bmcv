@@ -21,6 +21,8 @@ set(BMCV_CORE_SOURCES
     scene.c
     stepped_random.c
     ui_input.c
+    ui_mode.c
+    ui_select.c
     ux_setup.c
     ux_state.c
     wave_fn.c

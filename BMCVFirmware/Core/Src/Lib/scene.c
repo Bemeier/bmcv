@@ -41,12 +41,6 @@ void write_scene_button_led(const SceneSetup* scene, UxState* state)
       int16_t adc_val = get_adc(state->hw_setup->input_adc_idx[scene->id]);
       led_set_adcr(state, scene->led, adc_val);
     }
-    /*
-        if (assign_state(state) == ASSIGN_CHANNEL)
-        {
-            led_set_hsv(state, scene->led, HUE_GREEN, SAT_HIG, assign_src(state) == scene->id ? VAL_LOW : VAL_OFF);
-        }
-        */
     // Monitoring inputs handleded on hardware level for better update rate
     // scene->id >= N_INPUTS can be handled here still (no function currently)
     break;
@@ -68,38 +62,20 @@ void write_scene_button_led(const SceneSetup* scene, UxState* state)
     led_set_hsv(state, scene->led, HUE_RED, SAT_HIG, (state->ui->blink_fast || held) * VAL_LOW);
     break;
   case SHIFT_STATE_CPY:
-    if (assign_state(state) == ASSIGN_NONE)
-    {
+    if (ui_sel_is_src(state->ui, TGT_SCENE, scene->id))
+      led_set_hsv(state, scene->led, HUE_GREEN, SAT_HIG, VAL_LOW);
+    else if (ui_sel_is_candidate(state, TGT_SCENE, scene->id))
       led_set_hsv(state, scene->led, 0, SAT_OFF, state->ui->blink_fast * VAL_LOW);
-    }
-    else if (assign_state(state) == ASSIGN_SCENE || assign_state(state) == ASSIGN_CHANNEL)
-    {
-      if (assign_src(state) == scene->id && assign_state(state) == ASSIGN_SCENE)
-      {
-        led_set_hsv(state, scene->led, HUE_GREEN, SAT_HIG, VAL_LOW);
-      }
-      else
-      {
-        led_set_hsv(state, scene->led, 0, SAT_OFF, state->ui->blink_fast * VAL_LOW);
-      }
-    }
     else
-    {
       led_set_hsv(state, scene->led, 0, SAT_OFF, VAL_OFF);
-    }
     break;
   case SHIFT_STATE_QNT:
-    if (assign_state(state) == ASSIGN_TRIG_SRC)
-    {
-      if (scene->id < N_INPUTS)
-      {
-        led_set_hsv(state, scene->led, 0, SAT_OFF, state->ui->blink_fast * VAL_LOW);
-      }
-      else
-      {
-        led_set_hsv(state, scene->led, 0, SAT_OFF, VAL_OFF);
-      }
-    }
+    // Always writes now: the old version only touched the LED while a trig
+    // source was pending, so otherwise the framebuffer kept the last frame.
+    if (ui_sel_is_candidate(state, TGT_INPUT, scene->id))
+      led_set_hsv(state, scene->led, 0, SAT_OFF, state->ui->blink_fast * VAL_LOW);
+    else
+      led_set_hsv(state, scene->led, 0, SAT_OFF, VAL_OFF);
     break;
   default:
     led_set_hsv(state, scene->led, 0, SAT_OFF, VAL_OFF);
@@ -175,10 +151,7 @@ void update_scene_button(const SceneSetup* scene, UxState* state)
     break;
   case SHIFT_STATE_MON:
     if (pressed && scene->id < N_INPUTS)
-    {
-      assign_event(ASSIGN_INPUT, scene->id, state);
-      assign_reset(state);
-    }
+      ui_sel_press(state, TGT_INPUT, scene->id, 0);
     break;
   case SHIFT_STATE_SAV:
     // Store fires the moment the hold crosses UI_T_VLONG, so the red LED and
@@ -197,17 +170,16 @@ void update_scene_button(const SceneSetup* scene, UxState* state)
     break;
   case SHIFT_STATE_CPY:
     if (pressed)
-      assign_event(ASSIGN_SCENE, scene->id, state);
+      ui_sel_press(state, TGT_SCENE, scene->id, 0);
     break;
   case SHIFT_STATE_CLR:
     if (pressed)
-      clear_scene(scene->id, state);
+      ui_sel_press(state, TGT_SCENE, scene->id, 0);
     break;
   case SHIFT_STATE_QNT:
-    if (scene->id < N_INPUTS && pressed)
-    {
-      assign_event(ASSIGN_INPUT, scene->id, state);
-    }
+    if (pressed && scene->id < N_INPUTS)
+      ui_sel_press(state, TGT_INPUT, scene->id, 0);
+    break;
   default:
     break;
   }

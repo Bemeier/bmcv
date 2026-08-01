@@ -10,7 +10,7 @@
 // Composition root: the wiring that lets any layer reach the pieces it needs.
 // The layers themselves are separate - hardware (HwState), persisted config
 // (EngineConfig), signal path (EngineState) and interaction (UiState).
-typedef struct
+typedef struct UxState
 {
   const UxSetup* ux_setup;
   const HwSetup* hw_setup;

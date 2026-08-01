@@ -74,7 +74,7 @@ void bmcv_init(uint16_t _mpc_interrupt_pin, ADC_TypeDef* _slider_adc)
   ux_state.ui->selected_param  = CH_PARAM_SHP;
   ux_state.ui->shift_state     = SHIFT_STATE_NONE;
   ux_state.ui->momentary_scene = -1; // 0 would read as "scene 0 held"
-  assign_reset(&ux_state);           // assign_src_id must start at -1, not 0
+  ui_sel_reset(&ui_state);
   // ux_update_time = 0;
 
   for (uint8_t c = 0; c < N_ENCODERS; c++)

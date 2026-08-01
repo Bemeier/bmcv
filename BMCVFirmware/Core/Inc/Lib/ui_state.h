@@ -4,6 +4,7 @@
 #include "hw_setup.h"
 #include "state.h"
 #include "ui_input.h"
+#include "ui_select.h"
 #include <stdint.h>
 
 // Everything the interaction layer owns: what mode the user is in, what they
@@ -17,15 +18,14 @@
 //
 // None of this is persisted: EngineConfig is the FRAM record and is untouched
 // by the UI layer except through the explicit mutation functions.
-typedef struct
+typedef struct UiState
 {
   uint8_t shift_state;    // ShiftStates
   uint8_t selected_param; // ChannelParameters
   int8_t momentary_scene; // -1 when no scene button is held
 
-  // Assign (copy/paste/routing) mini-FSM. Generalised in ui_select.h.
-  AssignType assign_type;
-  int8_t assign_src_id;
+  // Pending two-step action (copy, routing). See ui_select.h.
+  Selection sel;
 
   // Output mute, per channel. Not in EngineConfig on purpose: adding a field
   // to ChannelConfig would move the FRAM record layout and invalidate saved

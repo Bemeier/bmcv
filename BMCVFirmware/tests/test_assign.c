@@ -1,6 +1,7 @@
 #include "assign.h"
 #include "fixture.h"
 #include "testkit.h"
+#include "ui_select.h"
 
 TEST_CASE(two_step_assign_copies_channel_to_channel)
 {
@@ -11,8 +12,9 @@ TEST_CASE(two_step_assign_copies_channel_to_channel)
   fixture_set_param(&f, 0, 0, CH_PARAM_SHP, 222);
   fixture_set_param(&f, 0, 0, CH_PARAM_AMP, 333);
 
-  assign_event(ASSIGN_CHANNEL, 0, &f.ux); // press channel 0: pick as source
-  assign_event(ASSIGN_CHANNEL, 1, &f.ux); // press channel 1: copy 0 -> 1
+  f.ui_state.shift_state = SHIFT_STATE_CPY;
+  ui_sel_press(&f.ux, TGT_CHANNEL, 0, 0); // press channel 0: pick as source
+  ui_sel_press(&f.ux, TGT_CHANNEL, 1, 0); // press channel 1: copy 0 -> 1
 
   CHECK(f.engine_config.channel_state[1].params[0][CH_PARAM_FRQ] == 111);
   CHECK(f.engine_config.channel_state[1].params[0][CH_PARAM_SHP] == 222);
@@ -59,8 +61,9 @@ TEST_CASE(two_step_assign_copies_scene_to_scene_for_every_channel)
     fixture_set_param(&f, c, 0, CH_PARAM_OFS, 100 + c);
   }
 
-  assign_event(ASSIGN_SCENE, 0, &f.ux); // pick scene 0 as source
-  assign_event(ASSIGN_SCENE, 1, &f.ux); // copy scene 0 -> scene 1
+  f.ui_state.shift_state = SHIFT_STATE_CPY;
+  ui_sel_press(&f.ux, TGT_SCENE, 0, 0); // pick scene 0 as source
+  ui_sel_press(&f.ux, TGT_SCENE, 1, 0); // copy scene 0 -> scene 1
 
   for (uint8_t c = 0; c < N_CHANNELS; c++)
   {

@@ -69,16 +69,6 @@ typedef enum
 
 typedef enum
 {
-  ASSIGN_NONE,
-  ASSIGN_CHANNEL,
-  ASSIGN_TRIG_SRC,
-  ASSIGN_SCENE,
-  ASSIGN_INPUT,
-  ASSIGN_PARAM
-} AssignType;
-
-typedef enum
-{
   SHIFT_STATE_STA,
   SHIFT_STATE_SYS,
   SHIFT_STATE_QNT,

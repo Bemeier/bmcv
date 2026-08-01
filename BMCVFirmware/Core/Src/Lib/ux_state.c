@@ -26,7 +26,7 @@ void update_ux_state(UxState* state)
   // could be more specific, assign only happens in MON CPY or CLR
   if (state->ui->shift_state == SHIFT_STATE_NONE)
   {
-    assign_reset(state);
+    ui_sel_reset(state->ui);
   }
 
   for (uint8_t b = 0; b < N_CTRL_BUTTONS; b++)

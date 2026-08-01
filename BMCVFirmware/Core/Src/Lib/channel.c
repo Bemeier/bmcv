@@ -242,16 +242,11 @@ void update_channel(const ChannelSetup* ch, UxState* state)
     chcfg->shape_mode = delta_modulo_step(chcfg->shape_mode, enc_delta(&state->ui->in, ch->encoder), SHAPE_MODE_COUNT);
     break;
   case SHIFT_STATE_QNT:
-    if (pressed && assign_state(state) == ASSIGN_NONE)
+    if (pressed)
     {
-      chcfg->quantize_mode = QUANTIZE_TRIG_SRC;
-      assign_event(ASSIGN_TRIG_SRC, ch->id, state);
+      ui_sel_press(state, TGT_CHANNEL, ch->id, 0);
     }
-    else if (pressed && assign_state(state) == ASSIGN_TRIG_SRC)
-    {
-      assign_event(ASSIGN_CHANNEL, ch->id, state);
-    }
-    else if (assign_state(state) == ASSIGN_NONE)
+    else if (!ui_sel_pending(state->ui))
     {
       chcfg->quantize_mode = delta_modulo_step(chcfg->quantize_mode, enc_delta(&state->ui->in, ch->encoder), QUANTIZE_MODE_COUNT);
     }
@@ -259,16 +254,7 @@ void update_channel(const ChannelSetup* ch, UxState* state)
   case SHIFT_STATE_MON:
     if (pressed)
     {
-      if (assign_state(state) == ASSIGN_NONE)
-      {
-        assign_reset(state);
-        assign_event(ASSIGN_CHANNEL, ch->id, state);
-      }
-      else if (assign_state(state) == ASSIGN_CHANNEL && assign_src(state) == ch->id)
-      {
-        assign_reset(state);
-        chcfg->src_input = -1;
-      }
+      ui_sel_press(state, TGT_CHANNEL, ch->id, 0);
     }
 
     if (!pressing)
@@ -279,17 +265,13 @@ void update_channel(const ChannelSetup* ch, UxState* state)
   case SHIFT_STATE_CPY:
     if (pressed)
     {
-      assign_event(ASSIGN_CHANNEL, ch->id, state);
+      ui_sel_press(state, TGT_CHANNEL, ch->id, 0);
     }
     break;
   case SHIFT_STATE_CLR:
-    if (long_pressed)
+    if (pressed)
     {
-      clear_channel(ch->id, 1, state);
-    }
-    else if (pressed)
-    {
-      clear_channel(ch->id, 0, state);
+      ui_sel_press(state, TGT_CHANNEL, ch->id, long_pressed);
     }
     break;
   case SHIFT_STATE_NONE:
@@ -482,16 +464,14 @@ void write_channel_led(const ChannelSetup* ch, UxState* state)
     led_set_hsv(state, ch->led, shape_mode_color[chcfg->shape_mode], SAT_HIG, VAL_LOW);
     break;
   case SHIFT_STATE_QNT:
-    if (assign_state(state) == ASSIGN_TRIG_SRC)
+    if (ui_sel_pending(state->ui))
     {
-      if (assign_src(state) == ch->id)
-      {
+      if (ui_sel_is_src(state->ui, TGT_CHANNEL, ch->id))
         led_set_hsv(state, ch->led, HUE_CYAN, SAT_HIG, VAL_LOW);
-      }
-      else
-      {
+      else if (ui_sel_is_candidate(state, TGT_CHANNEL, ch->id))
         led_set_hsv(state, ch->led, HUE_CYAN, SAT_OFF, state->ui->blink_fast * VAL_LOW);
-      }
+      else
+        led_set_hsv(state, ch->led, 0, SAT_OFF, VAL_OFF);
     }
     else
     {
@@ -504,37 +484,20 @@ void write_channel_led(const ChannelSetup* ch, UxState* state)
     led_set_hsv(state, ch->led, HUE_RED, SAT_HIG, (state->ui->blink_fast || alt) * VAL_LOW);
     break;
   case SHIFT_STATE_CPY:
-    if (assign_state(state) == ASSIGN_NONE)
-    {
+    if (ui_sel_is_src(state->ui, TGT_CHANNEL, ch->id))
+      led_set_hsv(state, ch->led, HUE_GREEN, SAT_HIG, VAL_LOW);
+    else if (ui_sel_is_candidate(state, TGT_CHANNEL, ch->id))
       led_set_hsv(state, ch->led, 0, SAT_OFF, state->ui->blink_fast * VAL_LOW);
-    }
-    else if (assign_state(state) == ASSIGN_CHANNEL)
-    {
-      if (assign_src(state) == ch->id)
-      {
-        led_set_hsv(state, ch->led, HUE_GREEN, SAT_HIG, VAL_LOW);
-      }
-      else
-      {
-        led_set_hsv(state, ch->led, 0, SAT_OFF, state->ui->blink_fast * VAL_LOW);
-      }
-    }
     else
-    {
       led_set_hsv(state, ch->led, 0, SAT_OFF, VAL_OFF);
-    }
     break;
   case SHIFT_STATE_MON:
-    if (assign_state(state) == ASSIGN_CHANNEL)
+    if (ui_sel_pending(state->ui))
     {
-      if (assign_src(state) == ch->id)
-      {
+      if (ui_sel_is_src(state->ui, TGT_CHANNEL, ch->id))
         led_set_hsv(state, ch->led, HUE_RED, SAT_MED, state->ui->blink_fast * VAL_LOW);
-      }
       else
-      {
         led_set_hsv(state, ch->led, 0, SAT_OFF, VAL_OFF);
-      }
       break;
     }
     led_set_hsv(state, ch->led, input_amp_mode_color[chcfg->input_amp_mode], SAT_HIG, VAL_LOW);

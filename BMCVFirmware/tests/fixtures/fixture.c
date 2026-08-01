@@ -32,8 +32,8 @@ void fixture_init(Fixture* f)
 
   f->hw_state.slider_state = SLIDER_MIN_VALUE;
 
-  assign_reset(&f->ux); // assign_src_id must start at -1, not 0
-  Clock_Init();         // clears the global clock, including its smoothing estimate
+  ui_sel_reset(&f->ui_state);
+  Clock_Init(); // clears the global clock, including its smoothing estimate
 
   for (uint8_t c = 0; c < N_ENCODERS; c++)
   {

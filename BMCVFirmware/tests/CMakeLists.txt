@@ -55,6 +55,7 @@ bmcv_add_test(test_led_render)
 bmcv_add_test(test_config_validate)
 bmcv_add_test(test_ui_input)
 bmcv_add_test(test_ui_gestures)
+bmcv_add_test(test_ui_select)
 
 
 add_executable(render_channel ${BMCV_ROOT}/tools/render_channel.c)

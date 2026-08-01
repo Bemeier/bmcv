@@ -5,15 +5,6 @@
 #include <stdint.h>
 #include <string.h>
 
-void assign_reset(UxState* state)
-{
-  state->ui->assign_type   = ASSIGN_NONE;
-  state->ui->assign_src_id = -1;
-}
-
-int8_t assign_src(const UxState* state) { return state->ui->assign_src_id; }
-AssignType assign_state(const UxState* state) { return state->ui->assign_type; }
-
 void assign_input_to_channel(int8_t i, int8_t c, UxState* state) { state->engine_config->channel_state[c].src_input = i; }
 
 void clear_channel(int8_t c, int8_t all_scenes, UxState* state)
@@ -55,6 +46,9 @@ void assign_scene_to_scene(int8_t s_src, int8_t s_dst, UxState* state)
   }
 }
 
+// Pointing a channel at itself means "stop triggering", which also switches
+// quantizing off - otherwise the channel would sit in trig mode with no
+// source and never update.
 void assign_trig_src_use_channel(int8_t c_src, int8_t c_dst, UxState* state)
 {
   if (c_src != c_dst)
@@ -66,51 +60,6 @@ void assign_trig_src_use_channel(int8_t c_src, int8_t c_dst, UxState* state)
     state->engine_config->channel_state[c_src].src_trig      = -1;
     state->engine_config->channel_state[c_src].quantize_mode = QUANTIZE_DISABLED;
   }
-
-  assign_reset(state);
 }
 
-void assign_trig_src_use_input(int8_t c_src, int8_t i_dst, UxState* state)
-{
-  state->engine_config->channel_state[c_src].src_trig = i_dst;
-  assign_reset(state);
-}
-
-void assign_event(AssignType targetType, int8_t targetId, UxState* state)
-{
-  AssignType pending = state->ui->assign_type;
-  int8_t source_id   = state->ui->assign_src_id;
-
-  if (pending == ASSIGN_NONE)
-  {
-    state->ui->assign_type   = targetType;
-    state->ui->assign_src_id = targetId;
-  }
-  else
-  {
-    if (pending == ASSIGN_CHANNEL && targetType == ASSIGN_INPUT)
-    {
-      assign_input_to_channel(targetId, source_id, state);
-    }
-    else if (pending == ASSIGN_CHANNEL && targetType == ASSIGN_CHANNEL)
-    {
-      assign_channel_to_channel(source_id, targetId, state);
-    }
-    else if (pending == ASSIGN_CHANNEL && targetType == ASSIGN_SCENE)
-    {
-      assign_channel_to_scene(source_id, targetId, state);
-    }
-    else if (pending == ASSIGN_SCENE && targetType == ASSIGN_SCENE)
-    {
-      assign_scene_to_scene(source_id, targetId, state);
-    }
-    else if (pending == ASSIGN_TRIG_SRC && targetType == ASSIGN_CHANNEL)
-    {
-      assign_trig_src_use_channel(source_id, targetId, state);
-    }
-    else if (pending == ASSIGN_TRIG_SRC && targetType == ASSIGN_INPUT)
-    {
-      assign_trig_src_use_input(source_id, targetId, state);
-    }
-  }
-}
+void assign_trig_src_use_input(int8_t c_src, int8_t i_dst, UxState* state) { state->engine_config->channel_state[c_src].src_trig = i_dst; }
