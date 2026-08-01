@@ -20,8 +20,10 @@ set(BMCV_CORE_SOURCES
     quantizer.c
     scene.c
     stepped_random.c
+    ui_feedback.c
     ui_input.c
     ui_mode.c
+    ui_render.c
     ui_select.c
     ux_setup.c
     ux_state.c

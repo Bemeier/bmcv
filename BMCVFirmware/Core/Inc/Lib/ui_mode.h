@@ -9,6 +9,18 @@
 // every handler and every renderer. The dispatcher and the renderer read the
 // same descriptor, which is what stops "what blinks" and "what responds" from
 // drifting apart - they had already drifted in CPY, QNT and MON.
+// What a channel encoder drives in a given mode. Also names the value the
+// transient display shows when that channel is touched, so one renderer
+// serves every mode instead of each mode drawing its own.
+typedef enum
+{
+  ENC_NONE = 0,
+  ENC_PARAM,   // the selected scene parameter
+  ENC_SHAPE,   // waveshape mode
+  ENC_QUANT,   // quantize mode
+  ENC_AMPMODE, // input cross-modulation mode
+} EncoderTarget;
+
 typedef struct
 {
   const char* name;
@@ -32,6 +44,8 @@ typedef struct
   // Which TargetKind a press on each button group addresses in this mode.
   uint8_t channel_btn_kind;
   uint8_t scene_btn_kind;
+
+  uint8_t channel_enc_target; // EncoderTarget
 } UiModeDesc;
 
 const UiModeDesc* ui_mode(uint8_t shift_state);

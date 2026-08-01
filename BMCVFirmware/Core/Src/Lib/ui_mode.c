@@ -7,7 +7,7 @@
 // keep their direct config writes in the handlers.
 static const UiModeDesc modes[SHIFT_STATE_COUNT] = {
     [SHIFT_STATE_STA] = {.name = "STA", .exits_on_other_ctrl = 1, .action = ACT_NONE},
-    [SHIFT_STATE_SYS] = {.name = "SYS", .exits_on_other_ctrl = 1, .action = ACT_NONE},
+    [SHIFT_STATE_SYS] = {.name = "SYS", .exits_on_other_ctrl = 1, .action = ACT_NONE, .channel_enc_target = ENC_SHAPE},
 
     [SHIFT_STATE_QNT] = {.name                = "QNT",
                          .exits_on_other_ctrl = 0, // the keyboard overlay owns the other buttons
@@ -15,7 +15,8 @@ static const UiModeDesc modes[SHIFT_STATE_COUNT] = {
                          .src_kinds           = TGT_BIT(TGT_CHANNEL),
                          .dst_kinds           = TGT_BIT(TGT_CHANNEL) | TGT_BIT(TGT_INPUT),
                          .channel_btn_kind    = TGT_CHANNEL,
-                         .scene_btn_kind      = TGT_INPUT},
+                         .scene_btn_kind      = TGT_INPUT,
+                         .channel_enc_target  = ENC_QUANT},
 
     [SHIFT_STATE_MON] = {.name                = "MON",
                          .exits_on_other_ctrl = 1,
@@ -24,7 +25,8 @@ static const UiModeDesc modes[SHIFT_STATE_COUNT] = {
                          .dst_kinds           = TGT_BIT(TGT_INPUT),
                          .allow_deselect      = 1,
                          .channel_btn_kind    = TGT_CHANNEL,
-                         .scene_btn_kind      = TGT_INPUT},
+                         .scene_btn_kind      = TGT_INPUT,
+                         .channel_enc_target  = ENC_AMPMODE},
 
     [SHIFT_STATE_SAV] = {.name = "SAV", .exits_on_other_ctrl = 1, .action = ACT_NONE},
     [SHIFT_STATE_STB] = {.name = "STB", .exits_on_other_ctrl = 1, .action = ACT_NONE},
@@ -46,7 +48,7 @@ static const UiModeDesc modes[SHIFT_STATE_COUNT] = {
                          .channel_btn_kind    = TGT_CHANNEL,
                          .scene_btn_kind      = TGT_SCENE},
 
-    [SHIFT_STATE_NONE] = {.name = "---", .exits_on_other_ctrl = 1, .action = ACT_NONE},
+    [SHIFT_STATE_NONE] = {.name = "---", .exits_on_other_ctrl = 1, .action = ACT_NONE, .channel_enc_target = ENC_PARAM},
 };
 
 const UiModeDesc* ui_mode(uint8_t shift_state)

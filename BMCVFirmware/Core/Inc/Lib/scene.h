@@ -7,6 +7,4 @@ void update_scene_button(const SceneSetup* scn, UxState* state);
 
 void compute_scenes_contribution(EngineState* es, const EngineConfig* cfg, uint16_t slider, int8_t momentary_scene);
 
-void write_scene_button_led(const SceneSetup* scene, UxState* state);
-
 #endif /* INC_LIB_SCENE_H_ */

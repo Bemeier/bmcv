@@ -35,9 +35,8 @@ static uint8_t led_poll  = 0;
 static uint8_t midi_poll = 0;
 
 // Presets  Read/Write
-static uint32_t last_write          = 0; // timestamp of last write
-static int last_crc                 = 0;
-static uint32_t write_indicator_for = 0;
+static uint32_t last_write = 0; // timestamp of last write
+static int last_crc        = 0;
 
 // System Config
 static const HwSetup* hw_setup;
@@ -192,11 +191,6 @@ void bmcv_main(uint32_t now_us)
     write_channel_dac(&ux_setup->channels[c], &ux_state);
   }
 
-  if (write_indicator_for > 0)
-  {
-    led_set_hsv(&ux_state, ux_setup->ctrl_buttons[1].led, HUE_RED, SAT_MAX, VAL_MED);
-  }
-
   if (midi_poll && midi_idle())
   {
     midi_poll = 0;
@@ -284,18 +278,11 @@ uint8_t bmcv_state_update(uint32_t now_us)
     if (last_crc != crc_now)
     {
       preset_store(&engine_config, FRAM_CONFIG_SLOTS - 1);
-      last_crc            = crc_now;
-      write_indicator_for = MS(100);
+      last_crc = crc_now;
+      // Same mechanism as every other confirmation, rather than a private
+      // timer painted outside the render pass.
+      ui_feedback_emit(&ui_state, FB_WRITE, TGT_SCENE, -1);
     }
-  }
-
-  if (deltaTime < write_indicator_for)
-  {
-    write_indicator_for -= deltaTime;
-  }
-  else
-  {
-    write_indicator_for = 0;
   }
 
   for (uint8_t i = 0; i < N_INPUTS; i++)
@@ -319,23 +306,11 @@ uint8_t bmcv_state_update(uint32_t now_us)
     dirty += curr_hw->encoder_delta[e] != 0;
   }
 
-  if (error_any())
+  // Any interaction dismisses a displayed error. Drawing it is ui_render's
+  // job; this no longer returns early, so the UX layer keeps running.
+  if (error_any() && dirty)
   {
-    // draw error code
-    led_clear_all(&ux_state);
-
-    for (int s = 0; s < 7; s++)
-    {
-      uint8_t val = error_get(s) * 64;
-      led_set_hsv(&ux_state, ux_setup->scenes[s].led, 0, SAT_OFF, val);
-    }
-
-    if (dirty)
-    { // any interaction cleans error
-      error_clear();
-    }
-
-    return 0;
+    error_clear();
   }
 
   return dirty;

@@ -3,6 +3,7 @@
 
 #include "hw_setup.h"
 #include "state.h"
+#include "ui_feedback.h"
 #include "ui_input.h"
 #include "ui_select.h"
 #include <stdint.h>
@@ -20,12 +21,16 @@
 // by the UI layer except through the explicit mutation functions.
 typedef struct UiState
 {
-  uint8_t shift_state;    // ShiftStates
-  uint8_t selected_param; // ChannelParameters
-  int8_t momentary_scene; // -1 when no scene button is held
+  uint8_t shift_state;      // ShiftStates
+  uint8_t prev_shift_state; // to spot mode entry
+  uint8_t selected_param;   // ChannelParameters
+  int8_t momentary_scene;   // -1 when no scene button is held
 
   // Pending two-step action (copy, routing). See ui_select.h.
   Selection sel;
+
+  // Confirmation flashes for committed actions. See ui_feedback.h.
+  Feedback fb;
 
   // Output mute, per channel. Not in EngineConfig on purpose: adding a field
   // to ChannelConfig would move the FRAM record layout and invalidate saved

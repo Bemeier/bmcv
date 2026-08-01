@@ -127,10 +127,6 @@ static const uint8_t quantized_multipliers_colors[N_FREQ_MULTIPLIERS] = {
 // lives in EngineState so it resets with the rest of the engine and does not
 // leak between tests or engine instances.
 
-static const uint8_t quantize_mode_color[QUANTIZE_MODE_COUNT]   = {HUE_RED, HUE_MAGENTA, HUE_CYAN};
-static const uint8_t input_amp_mode_color[INPUT_AMP_MODE_COUNT] = {HUE_RED, HUE_GREEN, HUE_YELLOW};
-static const uint8_t shape_mode_color[SHAPE_MODE_COUNT]         = {HUE_GREEN, HUE_MAGENTA, HUE_BLUE, HUE_CYAN};
-
 static const float k_sync = 0.075f;
 
 void update_channel_param(const ChannelSetup* ch, UxState* state)
@@ -441,85 +437,6 @@ void compute_channel(const ChannelSetup* ch, UxState* state)
     break;
   default:
     state->engine_state->channels_output_level[ch->id] = (int16_t) value;
-  }
-}
-
-void write_channel_led(const ChannelSetup* ch, UxState* state)
-{
-  ChannelConfig* chcfg = &state->engine_config->channel_state[ch->id];
-  if (state->dt < state->ui->channels_edit_hold[ch->id])
-  {
-    state->ui->channels_edit_hold[ch->id] -= state->dt;
-  }
-  else
-  {
-    state->ui->channels_edit_hold[ch->id] = 0;
-  }
-
-  uint8_t mark = state->ui->channels_edit_hold[ch->id] > 0;
-
-  switch (state->ui->shift_state)
-  {
-  case SHIFT_STATE_SYS:
-    led_set_hsv(state, ch->led, shape_mode_color[chcfg->shape_mode], SAT_HIG, VAL_LOW);
-    break;
-  case SHIFT_STATE_QNT:
-    if (ui_sel_pending(state->ui))
-    {
-      if (ui_sel_is_src(state->ui, TGT_CHANNEL, ch->id))
-        led_set_hsv(state, ch->led, HUE_CYAN, SAT_HIG, VAL_LOW);
-      else if (ui_sel_is_candidate(state, TGT_CHANNEL, ch->id))
-        led_set_hsv(state, ch->led, HUE_CYAN, SAT_OFF, state->ui->blink_fast * VAL_LOW);
-      else
-        led_set_hsv(state, ch->led, 0, SAT_OFF, VAL_OFF);
-    }
-    else
-    {
-      led_set_hsv(state, ch->led, quantize_mode_color[chcfg->quantize_mode], SAT_HIG, VAL_LOW);
-    }
-    break;
-    //
-  case SHIFT_STATE_CLR:
-    int8_t alt = btn_holding(&state->ui->in, ch->button, UI_T_VLONG);
-    led_set_hsv(state, ch->led, HUE_RED, SAT_HIG, (state->ui->blink_fast || alt) * VAL_LOW);
-    break;
-  case SHIFT_STATE_CPY:
-    if (ui_sel_is_src(state->ui, TGT_CHANNEL, ch->id))
-      led_set_hsv(state, ch->led, HUE_GREEN, SAT_HIG, VAL_LOW);
-    else if (ui_sel_is_candidate(state, TGT_CHANNEL, ch->id))
-      led_set_hsv(state, ch->led, 0, SAT_OFF, state->ui->blink_fast * VAL_LOW);
-    else
-      led_set_hsv(state, ch->led, 0, SAT_OFF, VAL_OFF);
-    break;
-  case SHIFT_STATE_MON:
-    if (ui_sel_pending(state->ui))
-    {
-      if (ui_sel_is_src(state->ui, TGT_CHANNEL, ch->id))
-        led_set_hsv(state, ch->led, HUE_RED, SAT_MED, state->ui->blink_fast * VAL_LOW);
-      else
-        led_set_hsv(state, ch->led, 0, SAT_OFF, VAL_OFF);
-      break;
-    }
-    led_set_hsv(state, ch->led, input_amp_mode_color[chcfg->input_amp_mode], SAT_HIG, VAL_LOW);
-    /* fall through */
-  default:
-    if (mark)
-      break;
-    led_set_dac(state, ch->led, state->engine_state->channels_output_level[ch->id]);
-    break;
-  }
-
-  if (mark)
-  {
-    switch (state->ui->selected_param)
-    {
-    case CH_PARAM_FRQ:
-      led_set_hsv(state, ch->led, state->ui->channels_edit_hue[ch->id], SAT_MAX, state->ui->blink_fast * VAL_MED);
-      break;
-    default:
-      led_set_adcr(state, ch->led, chcfg->params[state->engine_state->active_scene][state->ui->selected_param]);
-      break;
-    }
   }
 }
 

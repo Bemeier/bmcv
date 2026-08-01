@@ -30,22 +30,3 @@ void update_selected_param(const CtrlButtonSetup* btn, UxState* state)
     state->ui->selected_param = (ChannelParameters) btn->id;
   }
 }
-
-void write_ctrl_button_led(const CtrlButtonSetup* btn, UxState* state)
-{
-  if (btn->led < 0)
-    return;
-
-  if (state->ui->shift_state == btn->id)
-  {
-    led_set_hsv(state, btn->led, btn->color, SAT_MAX, state->ui->blink_slow ? VAL_MED : 0);
-  }
-  else if (state->ui->selected_param == btn->id && state->ui->shift_state == SHIFT_STATE_NONE)
-  {
-    led_set_hsv(state, btn->led, btn->color, SAT_MAX, VAL_MED);
-  }
-  else
-  {
-    led_set_hsv(state, btn->led, btn->color, SAT_MAX, VAL_OFF);
-  }
-}

@@ -18,8 +18,6 @@ void compute_channel(const ChannelSetup* ch, UxState* state);
 
 void detect_channel_trigger(const ChannelSetup* ch, UxState* state);
 
-void write_channel_led(const ChannelSetup* ch, UxState* state);
-
 void write_channel_dac(const ChannelSetup* ch, UxState* state);
 
 uint8_t read_channel_trig_state(const ChannelSetup* ch, UxState* state);

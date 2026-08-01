@@ -2,6 +2,7 @@
 #include "assign.h"
 #include "hw_setup.h"
 #include "state.h"
+#include "ui_feedback.h"
 #include "ui_mode.h"
 #include "ui_state.h"
 #include "ux_state.h"
@@ -112,6 +113,7 @@ void ui_sel_press(UxState* state, TargetKind kind, int8_t id, uint8_t is_long)
         clear_channel(id, is_long, state);
       else if (kind == TGT_SCENE)
         clear_scene(id, state);
+      ui_feedback_emit(state->ui, FB_CLEAR, kind, id);
     }
     return;
   }
@@ -139,6 +141,7 @@ void ui_sel_press(UxState* state, TargetKind kind, int8_t id, uint8_t is_long)
   {
     if (sel->action == ACT_ROUTE_INPUT)
       state->engine_config->channel_state[id].src_input = -1;
+    ui_feedback_emit(state->ui, FB_CLEAR, kind, id);
     ui_sel_reset(state->ui);
     return;
   }
@@ -146,6 +149,8 @@ void ui_sel_press(UxState* state, TargetKind kind, int8_t id, uint8_t is_long)
   if (can_commit(sel->action, sel->src_kind, kind))
   {
     commit(state, sel->action, sel->src_kind, sel->src_id, kind, id);
+    // Flash the destination - the thing that changed - not the source.
+    ui_feedback_emit(state->ui, FB_WRITE, kind, id);
     ui_sel_reset(state->ui);
   }
 }
