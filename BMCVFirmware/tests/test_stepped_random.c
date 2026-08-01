@@ -1,4 +1,5 @@
 #include "stepped_random.h"
+#include "stepped_random_table.h" // SR_LENGTH_COUNT
 #include "testkit.h"
 #include <math.h>
 
@@ -6,12 +7,12 @@ static const float HOLDS[] = {SR_HOLD_SMOOTH, SR_HOLD_SEMI, SR_HOLD_HARD};
 #define HOLD_COUNT ((int) (sizeof(HOLDS) / sizeof(HOLDS[0])))
 
 // Peak-to-peak of one full cycle at a given setting.
-static float cycle_span(float shape, float mod, float hold)
+static float cycle_span(float shape, int length_idx, float hold)
 {
   float lo = 1e9f, hi = -1e9f;
   for (int i = 0; i < 2048; i++)
   {
-    float v = stepped_random((float) i / 2048.0f, shape, mod, hold);
+    float v = stepped_random((float) i / 2048.0f, shape, length_idx, hold);
     if (v < lo)
       lo = v;
     if (v > hi)
@@ -26,11 +27,11 @@ TEST_CASE(output_stays_in_bipolar_range)
   {
     for (float shape = -1.0f; shape <= 1.0f; shape += 0.2f)
     {
-      for (float mod = -1.0f; mod <= 1.0f; mod += 0.2f)
+      for (int li = 0; li < SR_LENGTH_COUNT; li++)
       {
         for (float phase = 0.0f; phase < 1.0f; phase += 0.02f)
         {
-          float v = stepped_random(phase, shape, mod, HOLDS[h]);
+          float v = stepped_random(phase, shape, li, HOLDS[h]);
           CHECK(v >= -1.0001f && v <= 1.0001f);
         }
       }
@@ -40,7 +41,7 @@ TEST_CASE(output_stays_in_bipolar_range)
 
 TEST_CASE(is_deterministic_for_same_inputs)
 {
-  CHECK(stepped_random(0.37f, 0.1f, -0.4f, SR_HOLD_SEMI) == stepped_random(0.37f, 0.1f, -0.4f, SR_HOLD_SEMI));
+  CHECK(stepped_random(0.37f, 0.1f, 4, SR_HOLD_SEMI) == stepped_random(0.37f, 0.1f, 4, SR_HOLD_SEMI));
 }
 
 // The point of an integer, circularly-read lattice: the waveform closes on
@@ -51,9 +52,36 @@ TEST_CASE(phase_wraps_seamlessly_across_the_loop_point)
   {
     for (float shape = -1.0f; shape <= 1.0f; shape += 0.25f)
     {
-      for (float mod = -1.0f; mod <= 1.0f; mod += 0.25f)
+      for (int li = 0; li < SR_LENGTH_COUNT; li++)
       {
-        CHECK_NEAR(stepped_random(0.0f, shape, mod, HOLDS[h]), stepped_random(1.0f, shape, mod, HOLDS[h]), 1e-4);
+        CHECK_NEAR(stepped_random(0.0f, shape, li, HOLDS[h]), stepped_random(1.0f, shape, li, HOLDS[h]), 1e-4);
+      }
+    }
+  }
+}
+
+// Every length starts and ends its cycle on slot 0, whose raw value does not
+// depend on the length, and the normalisation is anchored there too. So the
+// engine can switch pattern length on the cycle wrap and the signal barely
+// moves - which is what makes a scene crossfade of MOD glitch-free. Switching
+// mid-cycle instead jumps by up to 1.8 of a 2.0 range.
+//
+// Not exactly equal: the normalisation gain is interpolated between morph bins,
+// leaving a measured worst case of ~0.026 out of 2.0.
+TEST_CASE(changing_length_at_the_cycle_boundary_is_seamless)
+{
+  for (int h = 0; h < HOLD_COUNT; h++)
+  {
+    for (float shape = -1.0f; shape <= 1.0f; shape += 0.05f)
+    {
+      for (int from = 0; from < SR_LENGTH_COUNT; from++)
+      {
+        for (int to = 0; to < SR_LENGTH_COUNT; to++)
+        {
+          float leaving  = stepped_random(1.0f, shape, from, HOLDS[h]);
+          float entering = stepped_random(0.0f, shape, to, HOLDS[h]);
+          CHECK_NEAR(leaving, entering, 0.05);
+        }
       }
     }
   }
@@ -66,13 +94,13 @@ TEST_CASE(curve_is_continuous_at_every_step_boundary)
   const int steps = 20000;
   for (int h = 0; h < HOLD_COUNT; h++)
   {
-    for (float mod = -1.0f; mod <= 1.0f; mod += 0.25f)
+    for (int li = 0; li < SR_LENGTH_COUNT; li++)
     {
-      float prev     = stepped_random(0.0f, 0.3f, mod, HOLDS[h]);
+      float prev     = stepped_random(0.0f, 0.3f, li, HOLDS[h]);
       float max_jump = 0.0f;
       for (int i = 1; i <= steps; i++)
       {
-        float v    = stepped_random((float) i / (float) steps, 0.3f, mod, HOLDS[h]);
+        float v    = stepped_random((float) i / (float) steps, 0.3f, li, HOLDS[h]);
         float jump = fabsf(v - prev);
         if (jump > max_jump)
           max_jump = jump;
@@ -95,7 +123,7 @@ TEST_CASE(morph_changes_gradually_with_the_shape_parameter)
       float worst = 0.0f;
       for (float phase = 0.0f; phase < 1.0f; phase += 0.01f)
       {
-        float d = fabsf(stepped_random(phase, shape, 0.2f, HOLDS[h]) - stepped_random(phase, shape + ds, 0.2f, HOLDS[h]));
+        float d = fabsf(stepped_random(phase, shape, 6, HOLDS[h]) - stepped_random(phase, shape + ds, 6, HOLDS[h]));
         if (d > worst)
           worst = d;
       }
@@ -104,7 +132,7 @@ TEST_CASE(morph_changes_gradually_with_the_shape_parameter)
   }
 }
 
-// "No total flat areas": every combination of shape and mod must still swing.
+// "No total flat areas": every combination of shape and length must still swing.
 TEST_CASE(no_setting_collapses_to_a_flat_output)
 {
   for (int h = 0; h < HOLD_COUNT; h++)
@@ -112,9 +140,9 @@ TEST_CASE(no_setting_collapses_to_a_flat_output)
     float worst = 2.0f;
     for (float shape = -1.0f; shape <= 1.0f; shape += 0.02f)
     {
-      for (float mod = -1.0f; mod <= 1.0f; mod += 0.05f)
+      for (int li = 0; li < SR_LENGTH_COUNT; li++)
       {
-        float span = cycle_span(shape, mod, HOLDS[h]);
+        float span = cycle_span(shape, li, HOLDS[h]);
         if (span < worst)
           worst = span;
       }
@@ -126,14 +154,14 @@ TEST_CASE(no_setting_collapses_to_a_flat_output)
   }
 }
 
-static int direction_changes(float mod)
+static int direction_changes(int length_idx)
 {
-  int turns         = 0;
-  float prev        = stepped_random(0.0f, 0.25f, mod, SR_HOLD_SEMI);
-  float prev_slope  = 0.0f;
+  int turns        = 0;
+  float prev       = stepped_random(0.0f, 0.25f, length_idx, SR_HOLD_SEMI);
+  float prev_slope = 0.0f;
   for (int i = 1; i <= 4096; i++)
   {
-    float v     = stepped_random((float) i / 4096.0f, 0.25f, mod, SR_HOLD_SEMI);
+    float v     = stepped_random((float) i / 4096.0f, 0.25f, length_idx, SR_HOLD_SEMI);
     float slope = v - prev;
     if (slope * prev_slope < 0.0f)
       turns++;
@@ -144,9 +172,9 @@ static int direction_changes(float mod)
   return turns;
 }
 
-TEST_CASE(mod_parameter_controls_pattern_length)
+TEST_CASE(longer_patterns_contain_more_events)
 {
-  CHECK(direction_changes(1.0f) > direction_changes(-1.0f) * 4);
+  CHECK(direction_changes(SR_LENGTH_COUNT - 1) > direction_changes(0) * 4);
 }
 
 TEST_CASE(hold_setting_controls_how_step_like_the_curve_is)
@@ -157,12 +185,35 @@ TEST_CASE(hold_setting_controls_how_step_like_the_curve_is)
   {
     float p  = (float) i / (float) n;
     float pp = (float) (i - 1) / (float) n;
-    if (fabsf(stepped_random(p, 0.4f, 0.0f, SR_HOLD_SMOOTH) - stepped_random(pp, 0.4f, 0.0f, SR_HOLD_SMOOTH)) < 1e-5f)
+    if (fabsf(stepped_random(p, 0.4f, 6, SR_HOLD_SMOOTH) - stepped_random(pp, 0.4f, 6, SR_HOLD_SMOOTH)) < 1e-5f)
       still_smooth++;
-    if (fabsf(stepped_random(p, 0.4f, 0.0f, SR_HOLD_HARD) - stepped_random(pp, 0.4f, 0.0f, SR_HOLD_HARD)) < 1e-5f)
+    if (fabsf(stepped_random(p, 0.4f, 6, SR_HOLD_HARD) - stepped_random(pp, 0.4f, 6, SR_HOLD_HARD)) < 1e-5f)
       still_hard++;
   }
   CHECK(still_hard > still_smooth * 2);
+}
+
+// The MOD knob must reach every division, and each canonical parameter value
+// must map back to exactly its own index - that is what makes one encoder
+// detent equal one division via val_neighbour().
+TEST_CASE(canonical_mod_values_round_trip_to_their_own_index)
+{
+  for (int li = 0; li < SR_LENGTH_COUNT; li++)
+  {
+    float mod = (float) sr_length_param[li] / 32767.0f;
+    CHECK(sr_length_index_from_mod(mod) == li);
+  }
+}
+
+TEST_CASE(mod_extremes_reach_the_shortest_and_longest_pattern)
+{
+  CHECK(sr_length_index_from_mod(-1.0f) == 0);
+  CHECK(sr_length_index_from_mod(1.0f) == SR_LENGTH_COUNT - 1);
+  CHECK(sr_length_for_index(0) == 3);
+  CHECK(sr_length_for_index(SR_LENGTH_COUNT - 1) == 64);
+  // out-of-range indices must not read off the end of the tables
+  CHECK(sr_length_for_index(-5) == 3);
+  CHECK(sr_length_for_index(999) == 64);
 }
 
 int main(void)
@@ -170,10 +221,13 @@ int main(void)
   RUN_TEST(output_stays_in_bipolar_range);
   RUN_TEST(is_deterministic_for_same_inputs);
   RUN_TEST(phase_wraps_seamlessly_across_the_loop_point);
+  RUN_TEST(changing_length_at_the_cycle_boundary_is_seamless);
   RUN_TEST(curve_is_continuous_at_every_step_boundary);
   RUN_TEST(morph_changes_gradually_with_the_shape_parameter);
   RUN_TEST(no_setting_collapses_to_a_flat_output);
-  RUN_TEST(mod_parameter_controls_pattern_length);
+  RUN_TEST(longer_patterns_contain_more_events);
   RUN_TEST(hold_setting_controls_how_step_like_the_curve_is);
+  RUN_TEST(canonical_mod_values_round_trip_to_their_own_index);
+  RUN_TEST(mod_extremes_reach_the_shortest_and_longest_pattern);
   return TESTKIT_SUMMARY();
 }

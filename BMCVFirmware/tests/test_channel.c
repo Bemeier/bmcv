@@ -1,5 +1,6 @@
 #include "clock_sync.h"
 #include "fixture.h"
+#include "stepped_random_table.h"
 #include "helpers.h"
 #include "testkit.h"
 
@@ -89,6 +90,81 @@ TEST_CASE(phase_advances_by_frequency_times_dt_without_pll_lock)
   CHECK_NEAR(f.engine_state.channels_shared_phase[0], 0.5, 1e-4);
 }
 
+
+// ---- pattern-length latching (stepped modes) -------------------------------
+//
+// Switching pattern length mid-cycle moves the step grid under the playhead
+// and jumps the output. So it is held until the cycle wraps - except while the
+// encoder is being turned, where instant feedback matters more.
+
+static void set_stepped_channel(Fixture* f, int16_t mod_param)
+{
+  f->engine_config.channel_state[0].shape_mode = SHAPE_STEPPED_HARD;
+  fixture_set_param(f, 0, 0, CH_PARAM_FRQ, 0);   // 1x the beat
+  fixture_set_param(f, 0, 0, CH_PARAM_AMP, 20000);
+  fixture_set_param(f, 0, 0, CH_PARAM_MOD, mod_param);
+}
+
+TEST_CASE(pattern_length_is_latched_until_the_cycle_wraps)
+{
+  Fixture f;
+  fixture_init(&f);
+  Clock_Init();
+  set_stepped_channel(&f, sr_length_param[0]); // shortest pattern
+  fixture_tick(&f, 1000);
+  int8_t latched = f.engine_state.channels_length_idx[0];
+  CHECK(latched == 0);
+
+  // move well past the edit window so this counts as a scene-style change
+  for (int i = 0; i < 40; i++)
+    fixture_tick(&f, 20000); // 0.8s, but phase only reaches ~0.8 at 1Hz
+
+  fixture_set_param(&f, 0, 0, CH_PARAM_MOD, sr_length_param[SR_LENGTH_COUNT - 1]);
+  fixture_tick(&f, 1000);
+
+  // still mid-cycle, so the length must not have moved yet
+  CHECK(f.engine_state.channels_length_idx[0] == 0);
+  CHECK(f.engine_state.channels_shared_phase[0] < 1.0f);
+}
+
+TEST_CASE(pattern_length_updates_once_the_cycle_wraps)
+{
+  Fixture f;
+  fixture_init(&f);
+  Clock_Init();
+  set_stepped_channel(&f, sr_length_param[0]);
+  fixture_tick(&f, 1000);
+  for (int i = 0; i < 40; i++)
+    fixture_tick(&f, 20000);
+
+  fixture_set_param(&f, 0, 0, CH_PARAM_MOD, sr_length_param[SR_LENGTH_COUNT - 1]);
+  // run past the wrap
+  for (int i = 0; i < 80; i++)
+    fixture_tick(&f, 20000);
+
+  CHECK(f.engine_state.channels_length_idx[0] == SR_LENGTH_COUNT - 1);
+}
+
+TEST_CASE(pattern_length_applies_immediately_while_the_encoder_is_turning)
+{
+  Fixture f;
+  fixture_init(&f);
+  Clock_Init();
+  set_stepped_channel(&f, sr_length_param[0]);
+  fixture_tick(&f, 1000);
+  for (int i = 0; i < 40; i++)
+    fixture_tick(&f, 20000);
+  CHECK(f.engine_state.channels_length_idx[0] == 0);
+
+  // mark the channel as just-edited, the way update_channel_param() does
+  f.engine_state.channels_last_delta[0] = f.hw_state.time;
+  fixture_set_param(&f, 0, 0, CH_PARAM_MOD, sr_length_param[SR_LENGTH_COUNT - 1]);
+  fixture_tick(&f, 1000);
+
+  CHECK(f.engine_state.channels_length_idx[0] == SR_LENGTH_COUNT - 1);
+  CHECK(f.engine_state.channels_shared_phase[0] < 1.0f); // proved it did not wait for a wrap
+}
+
 int main(void)
 {
 RUN_TEST(zero_amplitude_channel_outputs_the_offset);
@@ -97,5 +173,8 @@ RUN_TEST(input_add_mode_adds_the_raw_input_value);
 RUN_TEST(input_mult_mode_zero_input_zeroes_the_output);
 RUN_TEST(continuous_quantize_matches_quantize_value);
 RUN_TEST(phase_advances_by_frequency_times_dt_without_pll_lock);
+  RUN_TEST(pattern_length_is_latched_until_the_cycle_wraps);
+  RUN_TEST(pattern_length_updates_once_the_cycle_wraps);
+  RUN_TEST(pattern_length_applies_immediately_while_the_encoder_is_turning);
   return TESTKIT_SUMMARY();
 }

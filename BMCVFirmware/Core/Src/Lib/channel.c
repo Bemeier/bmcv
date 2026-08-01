@@ -8,6 +8,7 @@
 #include "math.h"
 #include "state.h"
 #include "stepped_random.h"
+#include "stepped_random_table.h"
 #include "ux_state.h"
 #include "wave_fn.h"
 #include "led_fb.h"
@@ -25,6 +26,11 @@
 // and should be tunable separately.
 #define CHANNEL_TRIG_THRESH 1024
 #define CHANNEL_TRIG_THRESH_LOW 800
+
+// How long after the last encoder movement a channel still counts as being
+// actively edited, during which a pattern-length change applies immediately
+// rather than waiting for the cycle wrap.
+#define MOD_EDIT_WINDOW MS(500)
 
 /*
 static const int16_t quantized_amp_levels[N_AMP_LEVELS] = {
@@ -150,6 +156,15 @@ void update_channel_param(const ChannelSetup* ch, UxState* state)
         val_neighbour(chcfg->params[state->engine_state->active_scene][param], delta, quantized_multipliers, N_FREQ_MULTIPLIERS, &idx);
     state->engine_state->channels_mark_hue[ch->id] = quantized_multipliers_colors[idx];
   }
+  else if (param == CH_PARAM_MOD && shape_mode_is_stepped(chcfg->shape_mode))
+  {
+    // In the stepped modes MOD picks a pattern length from a discrete set, so
+    // step straight to the next one. Treating it as a continuous parameter
+    // meant ~22 detents of dead travel between divisions.
+    size_t idx = 0;
+    chcfg->params[state->engine_state->active_scene][param] =
+        val_neighbour(chcfg->params[state->engine_state->active_scene][param], delta, sr_length_param, SR_LENGTH_COUNT, &idx);
+  }
   /*
   else if (param == CH_PARAM_SHP)
   {
@@ -168,6 +183,8 @@ void init_channel(const ChannelSetup* ch, UxState* state)
 {
   state->engine_state->channels_shared_phase[ch->id]     = 0;
   state->engine_state->channels_phase_correction[ch->id] = 0;
+  state->engine_state->channels_prev_phase[ch->id]       = 0;
+  state->engine_state->channels_length_idx[ch->id]       = -1; // latch on the first tick
 }
 
 void reset_channel_param(const ChannelSetup* ch, UxState* state, int8_t scene, int8_t param)
@@ -362,16 +379,34 @@ void compute_channel(const ChannelSetup* ch, UxState* state)
 
   float raw = 0;
 
+  // Pattern length is held steady for the rest of the cycle: switching it
+  // mid-cycle moves the step grid under the playhead and jumps the output by
+  // up to 1.8 of a 2.0 range. Re-latched on the cycle wrap - where it is
+  // seamless, because slot 0 reads the same at every length - and immediately
+  // while the encoder is being turned, so auditioning stays responsive even on
+  // a slow LFO.
+  int8_t* latched_idx = &state->engine_state->channels_length_idx[ch->id];
+  float prev_phase    = state->engine_state->channels_prev_phase[ch->id];
+  uint8_t wrapped     = phase < prev_phase;
+  uint8_t editing     = (state->hw_state->time - state->engine_state->channels_last_delta[ch->id]) < MOD_EDIT_WINDOW;
+
+  state->engine_state->channels_prev_phase[ch->id] = phase;
+
+  if (*latched_idx < 0 || wrapped || editing)
+  {
+    *latched_idx = (int8_t) sr_length_index_from_mod(mod);
+  }
+
   switch (chcfg->shape_mode)
   {
   case SHAPE_STEPPED_SMOOTH:
-    raw = stepped_random(phase, shape, mod, SR_HOLD_SMOOTH);
+    raw = stepped_random(phase, shape, *latched_idx, SR_HOLD_SMOOTH);
     break;
   case SHAPE_STEPPED_SEMI:
-    raw = stepped_random(phase, shape, mod, SR_HOLD_SEMI);
+    raw = stepped_random(phase, shape, *latched_idx, SR_HOLD_SEMI);
     break;
   case SHAPE_STEPPED_HARD:
-    raw = stepped_random(phase, shape, mod, SR_HOLD_HARD);
+    raw = stepped_random(phase, shape, *latched_idx, SR_HOLD_HARD);
     break;
   case SHAPE_LFO:
   default:

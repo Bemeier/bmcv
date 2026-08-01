@@ -35,6 +35,11 @@ typedef enum
   SHAPE_MODE_COUNT,
 } ChannelShapeMode;
 
+// In the stepped modes CH_PARAM_MOD selects a pattern length from a discrete
+// set; in SHAPE_LFO it is a continuous phase warp. The edit behaviour and the
+// latching below both differ accordingly.
+static inline int shape_mode_is_stepped(int8_t mode) { return mode >= SHAPE_STEPPED_SMOOTH && mode <= SHAPE_STEPPED_HARD; }
+
 typedef enum
 {
   QUANTIZE_DISABLED,
@@ -156,6 +161,12 @@ typedef struct
   int16_t channels_output_level[N_CHANNELS];
   float channels_shared_phase[N_CHANNELS];
   float channels_phase_correction[N_CHANNELS];
+
+  // Stepped-random pattern length actually in use, held steady for the rest
+  // of the cycle. Changing it mid-cycle shifts the step grid under the
+  // playhead and jumps the output; -1 means "not yet latched".
+  int8_t channels_length_idx[N_CHANNELS];
+  float channels_prev_phase[N_CHANNELS]; // to spot the cycle wrap
 
   // Channel output trigger detection (edge state carried between ticks)
   int16_t channels_prev_out[N_CHANNELS];

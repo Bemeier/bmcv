@@ -70,12 +70,18 @@ static inline int sr_source_slot(int slot, float hold_probability)
   return slot;
 }
 
-float stepped_random(float phase, float shape, float mod, float hold)
+int sr_length_index_from_mod(float mod)
 {
-  // Pattern length, snapped to the curated set.
   float length_pos = fclamp(0.5f * (mod + 1.0f), 0.0f, 1.0f);
-  int length_idx   = (int) (length_pos * (float) (SR_LENGTH_COUNT - 1) + 0.5f);
-  int length       = sr_lengths[length_idx];
+  return (int) (length_pos * (float) (SR_LENGTH_COUNT - 1) + 0.5f);
+}
+
+int sr_length_for_index(int length_idx) { return sr_lengths[iclamp(length_idx, 0, SR_LENGTH_COUNT - 1)]; }
+
+float stepped_random(float phase, float shape, int length_idx, float hold)
+{
+  length_idx = iclamp(length_idx, 0, SR_LENGTH_COUNT - 1);
+  int length = sr_lengths[length_idx];
 
   // Morph position. One full turn across the knob, matching the way the
   // parameter itself wraps at its extremes.

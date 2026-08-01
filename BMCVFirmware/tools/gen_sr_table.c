@@ -92,6 +92,23 @@ static void gen_normalisation(void)
     printf("%s%d", i ? ", " : "", sr_lengths[i]);
   printf("};\n\n");
 
+  // Canonical CH_PARAM_MOD value for each length, so the encoder can step
+  // straight from one division to the next via val_neighbour() instead of
+  // grinding through ~22 detents of dead travel. Ascending, as val_neighbour
+  // requires. Feeding one of these back through sr_length_index_from_mod()
+  // returns exactly its own index.
+  printf("// Canonical CH_PARAM_MOD value per length, for val_neighbour() stepping.\n");
+  printf("static const int16_t sr_length_param[SR_LENGTH_COUNT] = {");
+  for (int i = 0; i < SR_LENGTH_COUNT; i++)
+  {
+    float pos = (float) i / (float) (SR_LENGTH_COUNT - 1);
+    long p    = lroundf((2.0f * pos - 1.0f) * 32767.0f);
+    if (p < -32768) p = -32768;
+    if (p > 32767) p = 32767;
+    printf("%s%ld", i ? ", " : "", p);
+  }
+  printf("};\n\n");
+
   float gain[SR_LENGTH_COUNT][SR_NORM_BINS], offset[SR_LENGTH_COUNT][SR_NORM_BINS];
 
   for (int li = 0; li < SR_LENGTH_COUNT; li++)
@@ -110,17 +127,36 @@ static void gen_normalisation(void)
         if (v > hi) hi = v;
       }
       float span = hi - lo;
-      float mid  = 0.5f * (lo + hi);
+
+      // Anchor the correction on slot 0 rather than on the pattern's midpoint.
+      // Slot 0's raw value does not depend on the length, so anchoring there
+      // makes the corrected output at the cycle boundary identical at every
+      // length - which is what lets the engine switch pattern length on the
+      // wrap without a step in the signal. Anchoring on the midpoint instead
+      // left a 0.34 jump, because the midpoint moves with the length.
+      float anchor = slot_value(source_slot(0, hold_probability), morph);
 
       float g = (span < 1e-6f) ? SR_NORM_MAX_GAIN : fclampf(SR_NORM_TARGET / span, 1.0f, SR_NORM_MAX_GAIN);
-      float half  = 0.5f * span * g;
-      float limit = 1.0f - half;
-      if (limit < 0.0f)
-        limit = 0.0f;
-      float mid_out = fclampf(mid, -limit, limit);
 
+      // Cap the gain so the anchored result cannot leave [-1,1]. Both limits
+      // are >= 1 whenever lo/hi are within [-1,1], so this never shrinks the
+      // signal, it only declines to expand it as far as we wanted.
+      if (hi > anchor)
+      {
+        float limit = (1.0f - anchor) / (hi - anchor);
+        if (limit < g) g = limit;
+      }
+      if (lo < anchor)
+      {
+        float limit = (1.0f + anchor) / (anchor - lo);
+        if (limit < g) g = limit;
+      }
+      if (g < 1.0f)
+        g = 1.0f;
+
+      // out = anchor + (v - anchor) * g
       gain[li][b]   = g;
-      offset[li][b] = mid_out - mid * g;
+      offset[li][b] = anchor * (1.0f - g);
     }
   }
 
