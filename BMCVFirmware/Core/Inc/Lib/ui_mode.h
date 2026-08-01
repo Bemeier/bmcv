@@ -21,6 +21,27 @@ typedef enum
   ENC_AMPMODE, // input cross-modulation mode
 } EncoderTarget;
 
+// What a channel button does. CHB_SELECT hands the press to the selection
+// model; the others are direct.
+typedef enum
+{
+  CHB_NONE = 0,
+  CHB_SELECT,
+  CHB_RESET_PARAM, // long press resets the selected param
+  CHB_MUTE_TOGGLE,
+} ChannelButtonAction;
+
+typedef enum
+{
+  SCN_NONE = 0,
+  SCN_SELECT,     // hand to the selection model
+  SCN_MOMENTARY,  // hold to make this the active scene
+  SCN_SET_A,      // wire to the crossfader's A end
+  SCN_SET_B,      // ... and B
+  SCN_INPUT_MODE, // cycle this input's role
+  SCN_PRESET,     // tap loads, long hold stores
+} SceneButtonAction;
+
 typedef struct
 {
   const char* name;
@@ -46,6 +67,8 @@ typedef struct
   uint8_t scene_btn_kind;
 
   uint8_t channel_enc_target; // EncoderTarget
+  uint8_t channel_btn_action; // ChannelButtonAction
+  uint8_t scene_btn_action;   // SceneButtonAction
 } UiModeDesc;
 
 const UiModeDesc* ui_mode(uint8_t shift_state);

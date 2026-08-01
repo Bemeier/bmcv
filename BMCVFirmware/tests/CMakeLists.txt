@@ -57,6 +57,7 @@ bmcv_add_test(test_ui_input)
 bmcv_add_test(test_ui_gestures)
 bmcv_add_test(test_ui_select)
 bmcv_add_test(test_ui_feedback)
+bmcv_add_test(test_ui_mode)
 
 
 add_executable(render_channel ${BMCV_ROOT}/tools/render_channel.c)

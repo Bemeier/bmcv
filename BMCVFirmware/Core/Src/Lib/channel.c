@@ -10,7 +10,10 @@
 #include "state.h"
 #include "stepped_random.h"
 #include "stepped_random_table.h"
+#include "ui_feedback.h"
 #include "ui_input.h"
+#include "ui_mode.h"
+#include "ui_select.h"
 #include "ux_state.h"
 #include "wave_fn.h"
 #include <stdint.h>
@@ -32,6 +35,11 @@
 // actively edited, during which a pattern-length change applies immediately
 // rather than waiting for the cycle wrap.
 #define MOD_EDIT_WINDOW MS(500)
+
+// Mute fade, in milliseconds. At the ~3kHz DAC rate this is about 15 steps,
+// and the converter is band-limited well below that, so it is comfortably
+// enough to keep the transition silent.
+#define MUTE_RAMP_MS 5.0f
 
 /*
 static const int16_t quantized_amp_levels[N_AMP_LEVELS] = {
@@ -181,7 +189,8 @@ void init_channel(const ChannelSetup* ch, UxState* state)
   state->engine_state->channels_shared_phase[ch->id]     = 0;
   state->engine_state->channels_phase_correction[ch->id] = 0;
   state->engine_state->channels_prev_phase[ch->id]       = 0;
-  state->engine_state->channels_length_idx[ch->id]       = -1; // latch on the first tick
+  state->engine_state->channels_length_idx[ch->id]       = -1;   // latch on the first tick
+  state->engine_state->channels_mute_gain[ch->id]        = 1.0f; // open, not fading in from silence
 }
 
 void reset_channel_param(const ChannelSetup* ch, UxState* state, int8_t scene, int8_t param)
@@ -228,61 +237,64 @@ void reset_channel_phase(const ChannelSetup* ch, UxState* state)
 
 void update_channel(const ChannelSetup* ch, UxState* state)
 {
+  const UiModeDesc* m  = ui_mode(state->ui->shift_state);
   int8_t long_pressed  = btn_released_after(&state->ui->in, ch->button, UI_T_LONG);
   int8_t pressed       = btn_ev(&state->ui->in, ch->button, BTN_EV_UP);
   int8_t pressing      = btn_down(&state->ui->in, ch->button);
+  int16_t delta        = enc_delta(&state->ui->in, ch->encoder);
   ChannelConfig* chcfg = &state->engine_config->channel_state[ch->id];
-  switch (state->ui->shift_state)
-  {
-  case SHIFT_STATE_SYS:
-    chcfg->shape_mode = delta_modulo_step(chcfg->shape_mode, enc_delta(&state->ui->in, ch->encoder), SHAPE_MODE_COUNT);
-    break;
-  case SHIFT_STATE_QNT:
-    if (pressed)
-    {
-      ui_sel_press(state, TGT_CHANNEL, ch->id, 0);
-    }
-    else if (!ui_sel_pending(state->ui))
-    {
-      chcfg->quantize_mode = delta_modulo_step(chcfg->quantize_mode, enc_delta(&state->ui->in, ch->encoder), QUANTIZE_MODE_COUNT);
-    }
-    break;
-  case SHIFT_STATE_MON:
-    if (pressed)
-    {
-      ui_sel_press(state, TGT_CHANNEL, ch->id, 0);
-    }
 
-    if (!pressing)
-    {
-      chcfg->input_amp_mode = delta_modulo_step(chcfg->input_amp_mode, enc_delta(&state->ui->in, ch->encoder), INPUT_AMP_MODE_COUNT);
-    }
-    break;
-  case SHIFT_STATE_CPY:
+  switch (m->channel_btn_action)
+  {
+  case CHB_SELECT:
     if (pressed)
-    {
-      ui_sel_press(state, TGT_CHANNEL, ch->id, 0);
-    }
+      ui_sel_press(state, (TargetKind) m->channel_btn_kind, ch->id, long_pressed);
     break;
-  case SHIFT_STATE_CLR:
+  case CHB_MUTE_TOGGLE:
+    // On release rather than press: easier to perform accurately, and it
+    // matches every other momentary action in the UI.
     if (pressed)
-    {
-      ui_sel_press(state, TGT_CHANNEL, ch->id, long_pressed);
-    }
+      state->ui->muted[ch->id] = !state->ui->muted[ch->id];
     break;
-  case SHIFT_STATE_NONE:
+  case CHB_RESET_PARAM:
     // Only a long press that spanned no encoder movement resets the param -
-    // otherwise holding the button as an encoder modifier would wipe the
+    // otherwise holding the button as a fine-adjust modifier would wipe the
     // value the user was just adjusting.
-    uint32_t t_no_rotation = state->hw_state->time - state->engine_state->channels_last_delta[ch->id];
-    if (long_pressed && btn_held(&state->ui->in, ch->button) < t_no_rotation)
+    if (long_pressed && btn_held(&state->ui->in, ch->button) < state->hw_state->time - state->engine_state->channels_last_delta[ch->id])
     {
       reset_channel_param(ch, state, state->engine_state->active_scene, state->ui->selected_param);
+      return;
     }
-    else
-    {
-      update_channel_param(ch, state);
-    }
+    break;
+  default:
+    break;
+  }
+
+  if (delta == 0)
+    return;
+
+  switch (m->channel_enc_target)
+  {
+  case ENC_PARAM:
+    update_channel_param(ch, state);
+    break;
+  case ENC_SHAPE:
+    chcfg->shape_mode                     = delta_modulo_step(chcfg->shape_mode, delta, SHAPE_MODE_COUNT);
+    state->ui->channels_edit_hold[ch->id] = UI_EDIT_DISPLAY;
+    break;
+  case ENC_QUANT:
+    // While a trigger source is being picked the encoder would fight the
+    // assignment for the same value.
+    if (ui_sel_pending(state->ui))
+      break;
+    chcfg->quantize_mode                  = delta_modulo_step(chcfg->quantize_mode, delta, QUANTIZE_MODE_COUNT);
+    state->ui->channels_edit_hold[ch->id] = UI_EDIT_DISPLAY;
+    break;
+  case ENC_AMPMODE:
+    if (pressing)
+      break; // the button is picking a source, not modifying the encoder
+    chcfg->input_amp_mode                 = delta_modulo_step(chcfg->input_amp_mode, delta, INPUT_AMP_MODE_COUNT);
+    state->ui->channels_edit_hold[ch->id] = UI_EDIT_DISPLAY;
     break;
   default:
     break;
@@ -459,9 +471,27 @@ void detect_channel_trigger(const ChannelSetup* ch, UxState* state)
   es->channels_prev_out[ch->id] = curr_out;
 }
 
+// Gating happens here rather than by zeroing channels_output_level, so a muted
+// channel keeps its real value for cross-modulation and for other channels
+// using it as a trigger source. Mute is the output stage only.
+//
+// The gain ramps instead of jumping: a hard step to zero clicks. Runs at DAC
+// rate, which is where the audible edge is - not at UI rate.
 void write_channel_dac(const ChannelSetup* ch, UxState* state)
 {
-  dacadc_write(ch->dac_channel, state->engine_state->channels_output_level[ch->id]);
+  float* gain  = &state->engine_state->channels_mute_gain[ch->id];
+  float target = state->ui->muted[ch->id] ? 0.0f : 1.0f;
+  float step   = (state->hw_state->dt * US_TO_S) / (MUTE_RAMP_MS * 0.001f);
+  float to_go  = target - *gain;
+
+  if (to_go > step)
+    *gain += step;
+  else if (to_go < -step)
+    *gain -= step;
+  else
+    *gain = target;
+
+  dacadc_write(ch->dac_channel, (int16_t) (*gain * (float) state->engine_state->channels_output_level[ch->id]));
 }
 
 uint8_t read_channel_trig_state(const ChannelSetup* ch, UxState* state)

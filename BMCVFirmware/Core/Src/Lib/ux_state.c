@@ -36,6 +36,7 @@ static void age_timers(UxState* state)
 void update_ux_state(UxState* state)
 {
   age_timers(state);
+  state->ui->exit_consumed_tap = 0;
 
   for (uint8_t b = 0; b < N_CTRL_BUTTONS; b++)
   {

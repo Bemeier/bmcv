@@ -8,7 +8,10 @@
 #include "led_fb.h"
 #include "presets.h"
 #include "state.h"
+#include "ui_feedback.h"
 #include "ui_input.h"
+#include "ui_mode.h"
+#include "ui_select.h"
 #include "ux_state.h"
 #include <stdint.h>
 
@@ -50,65 +53,66 @@ void compute_scenes_contribution(EngineState* es, const EngineConfig* cfg, uint1
 
 void update_scene_button(const SceneSetup* scene, UxState* state)
 {
-  int8_t pressed   = btn_ev(&state->ui->in, scene->button, BTN_EV_UP);
-  int8_t momentary = btn_holding(&state->ui->in, scene->button, UI_T_DEBOUNCE);
-  // Momentarty activation
-  switch (state->ui->shift_state)
-  {
-  case SHIFT_STATE_NONE: // Normal mode, momentary scene activation
-    if (momentary && state->ui->momentary_scene < 0)
-    {
-      state->ui->momentary_scene = scene->id;
-    }
+  const UiModeDesc* m = ui_mode(state->ui->shift_state);
+  int8_t pressed      = btn_ev(&state->ui->in, scene->button, BTN_EV_UP);
+  int8_t momentary    = btn_holding(&state->ui->in, scene->button, UI_T_DEBOUNCE);
 
-    if (!momentary && state->ui->momentary_scene == scene->id)
-    {
+  // Modes where the scene buttons address inputs only have four of them.
+  if (m->scene_btn_kind == TGT_INPUT && scene->id >= N_INPUTS)
+    return;
+
+  switch (m->scene_btn_action)
+  {
+  case SCN_MOMENTARY:
+    if (momentary && state->ui->momentary_scene < 0)
+      state->ui->momentary_scene = scene->id;
+    else if (!momentary && state->ui->momentary_scene == scene->id)
       state->ui->momentary_scene = -1;
+    break;
+
+  case SCN_SET_A:
+    if (pressed)
+    {
+      state->engine_config->scene_a = scene->id;
+      ui_feedback_emit(state->ui, FB_WRITE, TGT_SCENE, scene->id);
     }
     break;
-  case SHIFT_STATE_STA:
+
+  case SCN_SET_B:
     if (pressed)
-      state->engine_config->scene_a = scene->id;
-    break;
-  case SHIFT_STATE_STB:
-    if (pressed)
+    {
       state->engine_config->scene_b = scene->id;
+      ui_feedback_emit(state->ui, FB_WRITE, TGT_SCENE, scene->id);
+    }
     break;
-  case SHIFT_STATE_SYS:
-    if (pressed && scene->id < N_INPUTS)
+
+  case SCN_INPUT_MODE:
+    if (pressed)
       state->engine_config->input_mode[scene->id] = (state->engine_config->input_mode[scene->id] + 1) % INPUT_MODE_COUNT;
     break;
-  case SHIFT_STATE_MON:
-    if (pressed && scene->id < N_INPUTS)
-      ui_sel_press(state, TGT_INPUT, scene->id, 0);
-    break;
-  case SHIFT_STATE_SAV:
+
+  case SCN_PRESET:
     // Store fires the moment the hold crosses UI_T_VLONG, so the red LED and
     // the write happen together; the matching release must then not also load.
     if (btn_ev(&state->ui->in, scene->button, BTN_EV_VLONG))
     {
       preset_store(state->engine_config, scene->id);
+      ui_feedback_emit(state->ui, FB_WRITE, TGT_SCENE, scene->id);
     }
     else if (pressed && btn_held(&state->ui->in, scene->button) < UI_T_VLONG)
     {
-      if (!preset_load(state->engine_config, scene->id))
-      {
+      if (preset_load(state->engine_config, scene->id))
+        ui_feedback_emit(state->ui, FB_LOAD, TGT_SCENE, -1);
+      else
         error_set(5);
-      }
     }
     break;
-  case SHIFT_STATE_CPY:
+
+  case SCN_SELECT:
     if (pressed)
-      ui_sel_press(state, TGT_SCENE, scene->id, 0);
+      ui_sel_press(state, (TargetKind) m->scene_btn_kind, scene->id, 0);
     break;
-  case SHIFT_STATE_CLR:
-    if (pressed)
-      ui_sel_press(state, TGT_SCENE, scene->id, 0);
-    break;
-  case SHIFT_STATE_QNT:
-    if (pressed && scene->id < N_INPUTS)
-      ui_sel_press(state, TGT_INPUT, scene->id, 0);
-    break;
+
   default:
     break;
   }
