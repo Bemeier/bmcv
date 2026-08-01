@@ -1,11 +1,16 @@
 #include "bmcv.h"
+#include "assign.h"
 #include "channel.h"
 #include "clock_sync.h"
 #include "color_presets.h"
+#include "config_validate.h"
 #include "dac_adc.h"
+#include "dac_adc_hal.h"
+#include "engine.h"
 #include "error.h"
 #include "helpers.h"
 #include "hw_setup.h"
+#include "led_fb.h"
 #include "mcp.h"
 #include "midi.h"
 #include "presets.h"
@@ -66,6 +71,7 @@ void bmcv_init(uint16_t _mpc_interrupt_pin, ADC_TypeDef* _slider_adc)
   ux_state.engine_state                 = &engine_state;
   ux_state.engine_state->selected_param = CH_PARAM_SHP;
   ux_state.engine_state->shift_state    = SHIFT_STATE_NONE;
+  assign_reset(&ux_state); // assign_src_id must start at -1, not 0
   // ux_update_time = 0;
 
   for (uint8_t c = 0; c < N_ENCODERS; c++)
@@ -94,6 +100,10 @@ void bmcv_init(uint16_t _mpc_interrupt_pin, ADC_TypeDef* _slider_adc)
     }
     error_set(6);
   }
+
+  // Holds for the defaults above as well as a loaded preset, so the rest of
+  // the firmware can index on these fields unconditionally.
+  config_validate(&engine_config);
 
   last_crc = crc32(&engine_config, sizeof(EngineConfig));
 }
@@ -147,6 +157,7 @@ uint32_t last_dac_poll;
 
 void bmcv_main(uint32_t now_us)
 {
+  /* ---- hardware in ------------------------------------------------ */
   if (dac_poll == 1 || dacadc_error())
   {
     dac_poll = 0;
@@ -163,41 +174,24 @@ void bmcv_main(uint32_t now_us)
     mcu_read_buttons();
   }
 
-  // Update
-  ux_state.engine_state->blink_fast = (now_us % FAST_BLINK_PERIOD) < (FAST_BLINK_PERIOD / 2);
-  ux_state.engine_state->blink_slow = (now_us % SLOW_BLINK_PERIOD) < (SLOW_BLINK_PERIOD / 2);
-
   int8_t dirty      = bmcv_state_update(now_us);
   ux_state.hw_state = curr_hw;
 
   float engine_fps                  = 1000000.0f / ux_state.hw_state->dt;
   ux_state.engine_state->engine_fps = ux_state.engine_state->engine_fps * 0.95f + 0.05f * engine_fps;
-  // state->engine_state->shift_state      = SHIFT_STATE_NONE;
 
-  /*******************************************************************/
-  compute_scenes_contribution(&ux_state);
+  /* ---- pure engine ------------------------------------------------ */
+  engine_tick(&ux_state, now_us, dirty);
 
-  for (uint8_t c = 0; c < N_CHANNELS; c++)
-  {
-    compute_channel(&ux_setup->channels[c], &ux_state);
-  }
-
+  /* ---- hardware out ----------------------------------------------- */
   for (uint8_t c = 0; c < N_CHANNELS; c++)
   {
     write_channel_dac(&ux_setup->channels[c], &ux_state);
   }
-  /*******************************************************************/
-
-  ux_state.dt = now_us - ux_state.last_ux_update;
-  if (dirty || ux_state.dt > MS(8))
-  {
-    ux_state.last_ux_update = now_us;
-    update_ux_state(&ux_state);
-  }
 
   if (write_indicator_for > 0)
   {
-    ws2811_setled_hsv(ux_setup->ctrl_buttons[1].led, HUE_RED, SAT_MAX, VAL_MED);
+    led_set_hsv(&ux_state, ux_setup->ctrl_buttons[1].led, HUE_RED, SAT_MAX, VAL_MED);
   }
 
   if (midi_poll && midi_idle())
@@ -213,7 +207,19 @@ void bmcv_main(uint32_t now_us)
   if (led_poll && ws2811_dma_completed())
   {
     led_poll = 0;
+    bmcv_flush_leds();
     ws2811_update();
+  }
+}
+
+// Push the rendered framebuffer to the LED driver. The only place LED colour
+// data crosses from the engine into hardware.
+void bmcv_flush_leds(void)
+{
+  for (int16_t i = 0; i < LED_COUNT; i++)
+  {
+    const LedRgb* led = &engine_state.leds[i];
+    ws2811_setled_rgb(i, led->r, led->g, led->b);
   }
 }
 
@@ -236,7 +242,7 @@ uint8_t bmcv_state_update(uint32_t now_us)
 
   for (uint8_t c = 0; c < N_CHANNELS; c++)
   {
-    curr_hw->trigger_src[N_INPUTS + c] = read_channel_trig_state(&ux_setup->channels[c]);
+    curr_hw->trigger_src[N_INPUTS + c] = read_channel_trig_state(&ux_setup->channels[c], &ux_state);
   }
 
   Clock_Poll(now_us);
@@ -326,15 +332,12 @@ uint8_t bmcv_state_update(uint32_t now_us)
   if (error_any())
   {
     // draw error code
-    for (int l = 0; l < LED_COUNT; l++)
-    {
-      ws2811_setled_hsv(l, 0, SAT_OFF, 0);
-    }
+    led_clear_all(&ux_state);
 
     for (int s = 0; s < 7; s++)
     {
       uint8_t val = error_get(s) * 64;
-      ws2811_setled_hsv(ux_setup->scenes[s].led, 0, SAT_OFF, val);
+      led_set_hsv(&ux_state, ux_setup->scenes[s].led, 0, SAT_OFF, val);
     }
 
     if (dirty)

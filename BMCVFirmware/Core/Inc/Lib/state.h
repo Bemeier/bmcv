@@ -23,10 +23,15 @@ typedef enum
   INPUT_MODE_COUNT
 } InputMode;
 
+// Persisted as a plain int8_t in ChannelConfig, so appending modes here does
+// NOT change the FRAM layout and existing presets keep loading. Only ever
+// append - inserting or reordering would silently remap saved channels.
 typedef enum
 {
-  SHAPE_LFO,
-  SHAPE_STEPPED_RANDOM,
+  SHAPE_LFO,             // wavetable
+  SHAPE_STEPPED_SMOOTH,  // random steps, fully eased between values
+  SHAPE_STEPPED_SEMI,    // random steps, half held then eased
+  SHAPE_STEPPED_HARD,    // random steps, mostly held with a quick eased edge
   SHAPE_MODE_COUNT,
 } ChannelShapeMode;
 
@@ -56,6 +61,16 @@ typedef enum
   CH_PARAM_OFS,
   CH_PARAM_COUNT
 } ChannelParameters;
+
+typedef enum
+{
+  ASSIGN_NONE,
+  ASSIGN_CHANNEL,
+  ASSIGN_TRIG_SRC,
+  ASSIGN_SCENE,
+  ASSIGN_INPUT,
+  ASSIGN_PARAM
+} AssignType;
 
 typedef enum
 {
@@ -127,6 +142,11 @@ typedef struct
 
 typedef struct
 {
+  uint8_t r, g, b;
+} LedRgb;
+
+typedef struct
+{
   // Scene
   uint8_t scenes_contribution[N_SCENES];
 
@@ -136,6 +156,16 @@ typedef struct
   int16_t channels_output_level[N_CHANNELS];
   float channels_shared_phase[N_CHANNELS];
   float channels_phase_correction[N_CHANNELS];
+
+  // Channel output trigger detection (edge state carried between ticks)
+  int16_t channels_prev_out[N_CHANNELS];
+  uint8_t channels_trig_state[N_CHANNELS];
+  uint8_t channels_trig_flag[N_CHANNELS];
+  uint32_t channels_last_delta[N_CHANNELS]; // timestamp of last encoder movement
+
+  // Assign (copy/paste/routing) mini-FSM
+  AssignType assign_type;
+  int8_t assign_src_id;
 
   int16_t cgcd[N_CHANNELS];
   float cphsc[N_CHANNELS];
@@ -153,6 +183,10 @@ typedef struct
   // Render State
   uint8_t blink_slow;
   uint8_t blink_fast;
+
+  // LED framebuffer. The UX layer renders into this; a flush step pushes it
+  // to the driver. Keeps LED behaviour assertable without any hardware.
+  LedRgb leds[LED_COUNT];
 
   float engine_fps;
   float dac_fps;

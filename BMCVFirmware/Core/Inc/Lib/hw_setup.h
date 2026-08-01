@@ -10,6 +10,17 @@
 #define N_SCENES 7
 #define N_CTRL_BUTTONS 9
 #define N_SEMITONES 12
+#define LED_COUNT 21
+
+// CV range of the board, in raw converter units. These describe the analog
+// front/back end, not the SPI driver, so they live here rather than in
+// dac_adc.h - the logic and presentation layers need them without pulling in
+// a driver header.
+#define ADC_10V 8192
+#define ADC_5V 4096
+
+#define DAC_10V 32768
+#define DAC_5V 16384
 
 typedef struct
 {

@@ -1,6 +1,6 @@
 #ifndef INC_ENVELOPE_H_
 #define INC_ENVELOPE_H_
-#include "stm32g4xx_hal.h" // IWYU pragma: keep
+#include <stdint.h>
 
 #define ENV_MAX 16384
 

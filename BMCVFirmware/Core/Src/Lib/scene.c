@@ -1,14 +1,14 @@
 #include "scene.h"
 #include "assign.h"
 #include "color_presets.h"
+#include "dac_adc.h"
 #include "error.h"
 #include "helpers.h"
 #include "hw_setup.h"
 #include "presets.h"
 #include "state.h"
-#include "usbd_def.h"
 #include "ux_state.h"
-#include "ws2811.h"
+#include "led_fb.h"
 #include <stdint.h>
 
 static uint8_t input_mode_color[INPUT_MODE_COUNT] = {HUE_GREEN, HUE_RED, HUE_CYAN, HUE_MAGENTA};
@@ -27,23 +27,23 @@ void write_scene_button_led(const SceneSetup* scene, UxState* state)
   case SHIFT_STATE_STB:
     if (state->engine_config->scene_a == scene->id || state->engine_config->scene_b == scene->id)
     {
-      val = MAX(val, VAL_LOW) * state->engine_state->blink_fast;
+      val = imax(val, VAL_LOW) * state->engine_state->blink_fast;
     }
-    ws2811_setled_hsv(scene->led, 0, SAT_OFF, val);
+    led_set_hsv(state, scene->led, 0, SAT_OFF, val);
     break;
   case SHIFT_STATE_NONE:
-    ws2811_setled_hsv(scene->led, 0, SAT_OFF, val);
+    led_set_hsv(state, scene->led, 0, SAT_OFF, val);
     break;
   case SHIFT_STATE_MON:
     if (scene->id < N_INPUTS)
     {
       int16_t adc_val = get_adc(state->hw_setup->input_adc_idx[scene->id]);
-      ws2811_setled_adcr(scene->led, adc_val);
+      led_set_adcr(state, scene->led, adc_val);
     }
     /*
-        if (assign_state() == ASSIGN_CHANNEL)
+        if (assign_state(state) == ASSIGN_CHANNEL)
         {
-            ws2811_setled_hsv(scene->led, HUE_GREEN, SAT_HIG, assign_src() == scene->id ? VAL_LOW : VAL_OFF);
+            led_set_hsv(state, scene->led, HUE_GREEN, SAT_HIG, assign_src(state) == scene->id ? VAL_LOW : VAL_OFF);
         }
         */
     // Monitoring inputs handleded on hardware level for better update rate
@@ -51,55 +51,55 @@ void write_scene_button_led(const SceneSetup* scene, UxState* state)
     break;
   case SHIFT_STATE_SYS:
     if (scene->id < N_INPUTS)
-      ws2811_setled_hsv(scene->led, input_mode_color[state->engine_config->input_mode[scene->id]], SAT_HIG, VAL_LOW);
+      led_set_hsv(state, scene->led, input_mode_color[state->engine_config->input_mode[scene->id]], SAT_HIG, VAL_LOW);
     else
-      ws2811_setled_hsv(scene->led, 0, SAT_OFF, VAL_OFF);
+      led_set_hsv(state, scene->led, 0, SAT_OFF, VAL_OFF);
     break;
   case SHIFT_STATE_SAV:
     int8_t load = state->hw_state->button_pressed_t[scene->button] > 0;
     int8_t save = state->hw_state->button_pressed_t[scene->button] > MS(1000);
-    ws2811_setled_hsv(scene->led, save ? HUE_RED : HUE_GREEN, SAT_MAX, load ? VAL_HIG : VAL_MED);
+    led_set_hsv(state, scene->led, save ? HUE_RED : HUE_GREEN, SAT_MAX, load ? VAL_HIG : VAL_MED);
     break;
   case SHIFT_STATE_CLR:
     int8_t held = state->hw_state->button_pressed_t[scene->button] > 10;
-    ws2811_setled_hsv(scene->led, HUE_RED, SAT_HIG, (state->engine_state->blink_fast || held) * VAL_LOW);
+    led_set_hsv(state, scene->led, HUE_RED, SAT_HIG, (state->engine_state->blink_fast || held) * VAL_LOW);
     break;
   case SHIFT_STATE_CPY:
-    if (assign_state() == ASSIGN_NONE)
+    if (assign_state(state) == ASSIGN_NONE)
     {
-      ws2811_setled_hsv(scene->led, 0, SAT_OFF, state->engine_state->blink_fast * VAL_LOW);
+      led_set_hsv(state, scene->led, 0, SAT_OFF, state->engine_state->blink_fast * VAL_LOW);
     }
-    else if (assign_state() == ASSIGN_SCENE || assign_state() == ASSIGN_CHANNEL)
+    else if (assign_state(state) == ASSIGN_SCENE || assign_state(state) == ASSIGN_CHANNEL)
     {
-      if (assign_src() == scene->id && assign_state() == ASSIGN_SCENE)
+      if (assign_src(state) == scene->id && assign_state(state) == ASSIGN_SCENE)
       {
-        ws2811_setled_hsv(scene->led, HUE_GREEN, SAT_HIG, VAL_LOW);
+        led_set_hsv(state, scene->led, HUE_GREEN, SAT_HIG, VAL_LOW);
       }
       else
       {
-        ws2811_setled_hsv(scene->led, 0, SAT_OFF, state->engine_state->blink_fast * VAL_LOW);
+        led_set_hsv(state, scene->led, 0, SAT_OFF, state->engine_state->blink_fast * VAL_LOW);
       }
     }
     else
     {
-      ws2811_setled_hsv(scene->led, 0, SAT_OFF, VAL_OFF);
+      led_set_hsv(state, scene->led, 0, SAT_OFF, VAL_OFF);
     }
     break;
   case SHIFT_STATE_QNT:
-    if (assign_state() == ASSIGN_TRIG_SRC)
+    if (assign_state(state) == ASSIGN_TRIG_SRC)
     {
       if (scene->id < N_INPUTS)
       {
-        ws2811_setled_hsv(scene->led, 0, SAT_OFF, state->engine_state->blink_fast * VAL_LOW);
+        led_set_hsv(state, scene->led, 0, SAT_OFF, state->engine_state->blink_fast * VAL_LOW);
       }
       else
       {
-        ws2811_setled_hsv(scene->led, 0, SAT_OFF, VAL_OFF);
+        led_set_hsv(state, scene->led, 0, SAT_OFF, VAL_OFF);
       }
     }
     break;
   default:
-    ws2811_setled_hsv(scene->led, 0, SAT_OFF, VAL_OFF);
+    led_set_hsv(state, scene->led, 0, SAT_OFF, VAL_OFF);
     break;
   }
 }
@@ -174,7 +174,7 @@ void update_scene_button(const SceneSetup* scene, UxState* state)
     if (pressed && scene->id < N_INPUTS)
     {
       assign_event(ASSIGN_INPUT, scene->id, state);
-      assign_reset();
+      assign_reset(state);
     }
     break;
   case SHIFT_STATE_SAV:

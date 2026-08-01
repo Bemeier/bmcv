@@ -2,7 +2,7 @@
 #include "color_presets.h"
 #include "helpers.h"
 #include "state.h"
-#include "ws2811.h"
+#include "led_fb.h"
 #include <stdint.h>
 
 void update_shift_mode(const CtrlButtonSetup* btn, UxState* state)
@@ -38,14 +38,14 @@ void write_ctrl_button_led(const CtrlButtonSetup* btn, UxState* state)
 
   if (state->engine_state->shift_state == btn->id)
   {
-    ws2811_setled_hsv(btn->led, btn->color, SAT_MAX, state->engine_state->blink_slow ? VAL_MED : 0);
+    led_set_hsv(state, btn->led, btn->color, SAT_MAX, state->engine_state->blink_slow ? VAL_MED : 0);
   }
   else if (state->engine_state->selected_param == btn->id && state->engine_state->shift_state == SHIFT_STATE_NONE)
   {
-    ws2811_setled_hsv(btn->led, btn->color, SAT_MAX, VAL_MED);
+    led_set_hsv(state, btn->led, btn->color, SAT_MAX, VAL_MED);
   }
   else
   {
-    ws2811_setled_hsv(btn->led, btn->color, SAT_MAX, VAL_OFF);
+    led_set_hsv(state, btn->led, btn->color, SAT_MAX, VAL_OFF);
   }
 }

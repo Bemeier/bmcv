@@ -1,4 +1,5 @@
 #include "presets.h"
+#include "config_validate.h"
 #include "fram.h"
 #include "helpers.h"
 
@@ -46,5 +47,9 @@ int8_t preset_load(EngineConfig* cfg, int8_t src)
     return 0;
 
   *cfg = rec.data;
+
+  // The header only proves the record is intact, not that its values mean
+  // anything to this build - see config_validate().
+  config_validate(cfg);
   return 1;
 }

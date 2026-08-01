@@ -5,17 +5,14 @@
 #include <stdint.h>
 #include <string.h>
 
-static AssignType _assign_state = ASSIGN_NONE;
-static int8_t _source_id;
-
-void assign_reset()
+void assign_reset(UxState* state)
 {
-  _assign_state = ASSIGN_NONE;
-  _source_id    = -1;
+  state->engine_state->assign_type   = ASSIGN_NONE;
+  state->engine_state->assign_src_id = -1;
 }
 
-int8_t assign_src() { return _source_id; }
-AssignType assign_state() { return _assign_state; }
+int8_t assign_src(const UxState* state) { return state->engine_state->assign_src_id; }
+AssignType assign_state(const UxState* state) { return state->engine_state->assign_type; }
 
 void assign_input_to_channel(int8_t i, int8_t c, UxState* state) { state->engine_config->channel_state[c].src_input = i; }
 
@@ -70,47 +67,50 @@ void assign_trig_src_use_channel(int8_t c_src, int8_t c_dst, UxState* state)
     state->engine_config->channel_state[c_src].quantize_mode = QUANTIZE_DISABLED;
   }
 
-  assign_reset();
+  assign_reset(state);
 }
 
 void assign_trig_src_use_input(int8_t c_src, int8_t i_dst, UxState* state)
 {
   state->engine_config->channel_state[c_src].src_trig = i_dst;
-  assign_reset();
+  assign_reset(state);
 }
 
 void assign_event(AssignType targetType, int8_t targetId, UxState* state)
 {
-  if (_assign_state == ASSIGN_NONE)
+  AssignType pending = state->engine_state->assign_type;
+  int8_t source_id   = state->engine_state->assign_src_id;
+
+  if (pending == ASSIGN_NONE)
   {
-    _assign_state = targetType;
-    _source_id    = targetId;
+    state->engine_state->assign_type   = targetType;
+    state->engine_state->assign_src_id = targetId;
   }
   else
   {
-    if (_assign_state == ASSIGN_CHANNEL && targetType == ASSIGN_INPUT)
+    if (pending == ASSIGN_CHANNEL && targetType == ASSIGN_INPUT)
     {
-      assign_input_to_channel(targetId, _source_id, state);
+      assign_input_to_channel(targetId, source_id, state);
     }
-    else if (_assign_state == ASSIGN_CHANNEL && targetType == ASSIGN_CHANNEL)
+    else if (pending == ASSIGN_CHANNEL && targetType == ASSIGN_CHANNEL)
     {
-      assign_channel_to_channel(_source_id, targetId, state);
+      assign_channel_to_channel(source_id, targetId, state);
     }
-    else if (_assign_state == ASSIGN_CHANNEL && targetType == ASSIGN_SCENE)
+    else if (pending == ASSIGN_CHANNEL && targetType == ASSIGN_SCENE)
     {
-      assign_channel_to_scene(_source_id, targetId, state);
+      assign_channel_to_scene(source_id, targetId, state);
     }
-    else if (_assign_state == ASSIGN_SCENE && targetType == ASSIGN_SCENE)
+    else if (pending == ASSIGN_SCENE && targetType == ASSIGN_SCENE)
     {
-      assign_scene_to_scene(_source_id, targetId, state);
+      assign_scene_to_scene(source_id, targetId, state);
     }
-    else if (_assign_state == ASSIGN_TRIG_SRC && targetType == ASSIGN_CHANNEL)
+    else if (pending == ASSIGN_TRIG_SRC && targetType == ASSIGN_CHANNEL)
     {
-      assign_trig_src_use_channel(_source_id, targetId, state);
+      assign_trig_src_use_channel(source_id, targetId, state);
     }
-    else if (_assign_state == ASSIGN_TRIG_SRC && targetType == ASSIGN_INPUT)
+    else if (pending == ASSIGN_TRIG_SRC && targetType == ASSIGN_INPUT)
     {
-      assign_trig_src_use_input(_source_id, targetId, state);
+      assign_trig_src_use_input(source_id, targetId, state);
     }
   }
 }

@@ -8,19 +8,20 @@ void Clock_Init(void)
 {
   g_clk.PULSES_PER_BEAT  = 4;
   g_clk.have_beat        = false;
+  g_clk.have_pulse       = false;
   g_clk.beat_freq        = 1.0f;
   g_clk.beat_freq_smooth = 1.0f;
+  g_clk.freq_est         = 0.0f;
   Clock_Reset(0);
 }
 
 float smooth_freq(float new_sample)
 {
-  static float freq_est = 0.0f;
-  const float alpha     = 0.3f;
-  if (freq_est == 0.0f)
-    freq_est = new_sample;
-  freq_est = alpha * new_sample + (1.0f - alpha) * freq_est;
-  return freq_est;
+  const float alpha = 0.3f;
+  if (g_clk.freq_est == 0.0f)
+    g_clk.freq_est = new_sample;
+  g_clk.freq_est = alpha * new_sample + (1.0f - alpha) * g_clk.freq_est;
+  return g_clk.freq_est;
 }
 
 void Clock_Trigger(uint32_t now_us)

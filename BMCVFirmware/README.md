@@ -7,7 +7,9 @@
   - [ ] Consistent events (add delta until cleared? Button handling until cleared?)
 - [ ] PLL error term & sensitivity tuning
 - [ ] Verify output levels & ranges (also precision)
-- [ ] Add stepped random modes (smooth, semismooth & stepped variants?)
+- [x] Add stepped random modes (smooth, semismooth & stepped variants?)
+  - SHP morphs the pattern, MOD sets pattern length (3..64 steps, curated set)
+  - Loops seamlessly, so it stays locked under the PLL
 - [ ] Full Input & Channel Cross modulation support
 - [ ] UX: Fix long press control button in quantizer mode
 - [ ] UX: Consistent colors

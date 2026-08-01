@@ -23,6 +23,8 @@ typedef struct
   float bpm;
 
   float beat_phase;
+
+  float freq_est; // running estimate behind beat_freq_smooth; must reset with the rest of the state
 } ClockState;
 
 void Clock_Init(void);

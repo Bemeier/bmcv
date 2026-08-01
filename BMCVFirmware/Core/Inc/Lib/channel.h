@@ -16,10 +16,12 @@ void reset_channel_phase(const ChannelSetup* ch, UxState* state);
 
 void compute_channel(const ChannelSetup* ch, UxState* state);
 
+void detect_channel_trigger(const ChannelSetup* ch, UxState* state);
+
 void write_channel_led(const ChannelSetup* ch, UxState* state);
 
 void write_channel_dac(const ChannelSetup* ch, UxState* state);
 
-uint8_t read_channel_trig_state(const ChannelSetup* ch);
+uint8_t read_channel_trig_state(const ChannelSetup* ch, UxState* state);
 
 #endif /* INC_LIB_CHANNEL_H_ */

@@ -10,7 +10,7 @@
 #include "stepped_random.h"
 #include "ux_state.h"
 #include "wave_fn.h"
-#include "ws2811.h"
+#include "led_fb.h"
 #include <stdint.h>
 
 #define N_SHP_LEVELS 8
@@ -19,8 +19,12 @@
 #define N_FREQ_SCALE 255
 // #define SHAPE_INTERVAL INT16_MAX / M
 
-#define TRIG_THRESH 1024
-#define TRIG_THRESH_LOW 800
+// Output-side (DAC-domain) trigger detection thresholds for this channel's own
+// signal. Deliberately distinct from dac_adc.h's identically-valued
+// TRIG_THRESH*, which are input-side (ADC-domain) - the two are independent
+// and should be tunable separately.
+#define CHANNEL_TRIG_THRESH 1024
+#define CHANNEL_TRIG_THRESH_LOW 800
 
 /*
 static const int16_t quantized_amp_levels[N_AMP_LEVELS] = {
@@ -112,19 +116,15 @@ static const uint8_t quantized_multipliers_colors[N_FREQ_MULTIPLIERS] = {
     HUE_CYAN    // 64
 };
 
-static int16_t prev_out[N_CHANNELS];
+// Per-channel mutable state (prev_out / trig_state / trig_flag / last_delta)
+// lives in EngineState so it resets with the rest of the engine and does not
+// leak between tests or engine instances.
 
-static int16_t trig_state[N_CHANNELS];
+static const uint8_t quantize_mode_color[QUANTIZE_MODE_COUNT]   = {HUE_RED, HUE_MAGENTA, HUE_CYAN};
+static const uint8_t input_amp_mode_color[INPUT_AMP_MODE_COUNT] = {HUE_RED, HUE_GREEN, HUE_YELLOW};
+static const uint8_t shape_mode_color[SHAPE_MODE_COUNT]         = {HUE_GREEN, HUE_MAGENTA, HUE_BLUE, HUE_CYAN};
 
-static int16_t trig_flag[N_CHANNELS];
-
-static uint32_t last_delta[N_CHANNELS];
-
-static uint8_t quantize_mode_color[QUANTIZE_MODE_COUNT]   = {HUE_RED, HUE_MAGENTA, HUE_CYAN};
-static uint8_t input_amp_mode_color[INPUT_AMP_MODE_COUNT] = {HUE_RED, HUE_GREEN, HUE_YELLOW};
-static uint8_t shape_mode_color[SHAPE_MODE_COUNT]         = {HUE_GREEN, HUE_MAGENTA};
-
-static float k_sync = 0.075f;
+static const float k_sync = 0.075f;
 
 void update_channel_param(const ChannelSetup* ch, UxState* state)
 {
@@ -135,7 +135,7 @@ void update_channel_param(const ChannelSetup* ch, UxState* state)
   if (delta == 0)
     return;
 
-  last_delta[ch->id] = state->hw_state->time;
+  state->engine_state->channels_last_delta[ch->id] = state->hw_state->time;
 
   state->engine_state->channels_mark_for[ch->id] = MS(1000);
 
@@ -224,16 +224,16 @@ void update_channel(const ChannelSetup* ch, UxState* state)
     chcfg->shape_mode = delta_modulo_step(chcfg->shape_mode, state->hw_state->encoder_delta[ch->encoder], SHAPE_MODE_COUNT);
     break;
   case SHIFT_STATE_QNT:
-    if (pressed && assign_state() == ASSIGN_NONE)
+    if (pressed && assign_state(state) == ASSIGN_NONE)
     {
       chcfg->quantize_mode = QUANTIZE_TRIG_SRC;
       assign_event(ASSIGN_TRIG_SRC, ch->id, state);
     }
-    else if (pressed && assign_state() == ASSIGN_TRIG_SRC)
+    else if (pressed && assign_state(state) == ASSIGN_TRIG_SRC)
     {
       assign_event(ASSIGN_CHANNEL, ch->id, state);
     }
-    else if (assign_state() == ASSIGN_NONE)
+    else if (assign_state(state) == ASSIGN_NONE)
     {
       chcfg->quantize_mode = delta_modulo_step(chcfg->quantize_mode, state->hw_state->encoder_delta[ch->encoder], QUANTIZE_MODE_COUNT);
     }
@@ -241,14 +241,14 @@ void update_channel(const ChannelSetup* ch, UxState* state)
   case SHIFT_STATE_MON:
     if (pressed)
     {
-      if (assign_state() == ASSIGN_NONE)
+      if (assign_state(state) == ASSIGN_NONE)
       {
-        assign_reset();
+        assign_reset(state);
         assign_event(ASSIGN_CHANNEL, ch->id, state);
       }
-      else if (assign_state() == ASSIGN_CHANNEL && assign_src() == ch->id)
+      else if (assign_state(state) == ASSIGN_CHANNEL && assign_src(state) == ch->id)
       {
-        assign_reset();
+        assign_reset(state);
         chcfg->src_input = -1;
       }
     }
@@ -275,7 +275,7 @@ void update_channel(const ChannelSetup* ch, UxState* state)
     }
     break;
   case SHIFT_STATE_NONE:
-    uint32_t t_no_rotation = state->hw_state->time - last_delta[ch->id];
+    uint32_t t_no_rotation = state->hw_state->time - state->engine_state->channels_last_delta[ch->id];
     if (long_pressed && state->hw_state->button_released_t[ch->button] < t_no_rotation)
     {
       reset_channel_param(ch, state, state->engine_state->active_scene, state->engine_state->selected_param);
@@ -362,14 +362,22 @@ void compute_channel(const ChannelSetup* ch, UxState* state)
 
   float raw = 0;
 
-  if (chcfg->shape_mode == SHAPE_LFO)
+  switch (chcfg->shape_mode)
   {
+  case SHAPE_STEPPED_SMOOTH:
+    raw = stepped_random(phase, shape, mod, SR_HOLD_SMOOTH);
+    break;
+  case SHAPE_STEPPED_SEMI:
+    raw = stepped_random(phase, shape, mod, SR_HOLD_SEMI);
+    break;
+  case SHAPE_STEPPED_HARD:
+    raw = stepped_random(phase, shape, mod, SR_HOLD_HARD);
+    break;
+  case SHAPE_LFO:
+  default:
     raw = wavetable_lookup(phase_mod(phase, mod), shape) / (float) INT16_MAX;
     // raw = wave_fn(phase, shape, mod);
-  }
-  else if (chcfg->shape_mode == SHAPE_STEPPED_RANDOM)
-  {
-    raw = stepped_random(phase, shape, mod);
+    break;
   }
 
   float value = offset + amp * raw;
@@ -432,70 +440,70 @@ void write_channel_led(const ChannelSetup* ch, UxState* state)
   switch (state->engine_state->shift_state)
   {
   case SHIFT_STATE_SYS:
-    ws2811_setled_hsv(ch->led, shape_mode_color[chcfg->shape_mode], SAT_HIG, VAL_LOW);
+    led_set_hsv(state, ch->led, shape_mode_color[chcfg->shape_mode], SAT_HIG, VAL_LOW);
     break;
   case SHIFT_STATE_QNT:
-    if (assign_state() == ASSIGN_TRIG_SRC)
+    if (assign_state(state) == ASSIGN_TRIG_SRC)
     {
-      if (assign_src() == ch->id)
+      if (assign_src(state) == ch->id)
       {
-        ws2811_setled_hsv(ch->led, HUE_CYAN, SAT_HIG, VAL_LOW);
+        led_set_hsv(state, ch->led, HUE_CYAN, SAT_HIG, VAL_LOW);
       }
       else
       {
-        ws2811_setled_hsv(ch->led, HUE_CYAN, SAT_OFF, state->engine_state->blink_fast * VAL_LOW);
+        led_set_hsv(state, ch->led, HUE_CYAN, SAT_OFF, state->engine_state->blink_fast * VAL_LOW);
       }
     }
     else
     {
-      ws2811_setled_hsv(ch->led, quantize_mode_color[chcfg->quantize_mode], SAT_HIG, VAL_LOW);
+      led_set_hsv(state, ch->led, quantize_mode_color[chcfg->quantize_mode], SAT_HIG, VAL_LOW);
     }
     break;
     //
   case SHIFT_STATE_CLR:
     int8_t alt = state->hw_state->button_pressed_t[ch->button] > MS(1000);
-    ws2811_setled_hsv(ch->led, HUE_RED, SAT_HIG, (state->engine_state->blink_fast || alt) * VAL_LOW);
+    led_set_hsv(state, ch->led, HUE_RED, SAT_HIG, (state->engine_state->blink_fast || alt) * VAL_LOW);
     break;
   case SHIFT_STATE_CPY:
-    if (assign_state() == ASSIGN_NONE)
+    if (assign_state(state) == ASSIGN_NONE)
     {
-      ws2811_setled_hsv(ch->led, 0, SAT_OFF, state->engine_state->blink_fast * VAL_LOW);
+      led_set_hsv(state, ch->led, 0, SAT_OFF, state->engine_state->blink_fast * VAL_LOW);
     }
-    else if (assign_state() == ASSIGN_CHANNEL)
+    else if (assign_state(state) == ASSIGN_CHANNEL)
     {
-      if (assign_src() == ch->id)
+      if (assign_src(state) == ch->id)
       {
-        ws2811_setled_hsv(ch->led, HUE_GREEN, SAT_HIG, VAL_LOW);
+        led_set_hsv(state, ch->led, HUE_GREEN, SAT_HIG, VAL_LOW);
       }
       else
       {
-        ws2811_setled_hsv(ch->led, 0, SAT_OFF, state->engine_state->blink_fast * VAL_LOW);
+        led_set_hsv(state, ch->led, 0, SAT_OFF, state->engine_state->blink_fast * VAL_LOW);
       }
     }
     else
     {
-      ws2811_setled_hsv(ch->led, 0, SAT_OFF, VAL_OFF);
+      led_set_hsv(state, ch->led, 0, SAT_OFF, VAL_OFF);
     }
     break;
   case SHIFT_STATE_MON:
-    if (assign_state() == ASSIGN_CHANNEL)
+    if (assign_state(state) == ASSIGN_CHANNEL)
     {
-      if (assign_src() == ch->id)
+      if (assign_src(state) == ch->id)
       {
-        ws2811_setled_hsv(ch->led, HUE_RED, SAT_MED, state->engine_state->blink_fast * VAL_LOW);
+        led_set_hsv(state, ch->led, HUE_RED, SAT_MED, state->engine_state->blink_fast * VAL_LOW);
       }
       else
       {
-        ws2811_setled_hsv(ch->led, 0, SAT_OFF, VAL_OFF);
+        led_set_hsv(state, ch->led, 0, SAT_OFF, VAL_OFF);
       }
       break;
     }
-    ws2811_setled_hsv(ch->led, input_amp_mode_color[chcfg->input_amp_mode], SAT_HIG, VAL_LOW);
+    led_set_hsv(state, ch->led, input_amp_mode_color[chcfg->input_amp_mode], SAT_HIG, VAL_LOW);
     /* fall through */
   default:
     if (mark)
       break;
-    ws2811_setled_dac(ch->led, state->engine_state->channels_output_level[ch->id]);
+    led_set_dac(state, ch->led, state->engine_state->channels_output_level[ch->id]);
     break;
   }
 
@@ -504,36 +512,44 @@ void write_channel_led(const ChannelSetup* ch, UxState* state)
     switch (state->engine_state->selected_param)
     {
     case CH_PARAM_FRQ:
-      ws2811_setled_hsv(ch->led, state->engine_state->channels_mark_hue[ch->id], SAT_MAX, state->engine_state->blink_fast * VAL_MED);
+      led_set_hsv(state, ch->led, state->engine_state->channels_mark_hue[ch->id], SAT_MAX, state->engine_state->blink_fast * VAL_MED);
       break;
     default:
-      ws2811_setled_adcr(ch->led, chcfg->params[state->engine_state->active_scene][state->engine_state->selected_param]);
+      led_set_adcr(state, ch->led, chcfg->params[state->engine_state->active_scene][state->engine_state->selected_param]);
       break;
     }
   }
 }
 
-void write_channel_dac(const ChannelSetup* ch, UxState* state)
+// Pure: updates this channel's output trigger edge state. Split out of
+// write_channel_dac so the trigger logic is testable without a DAC.
+void detect_channel_trigger(const ChannelSetup* ch, UxState* state)
 {
-  int16_t curr_out = state->engine_state->channels_output_level[ch->id];
-  if (trig_state[ch->id] < 1 && prev_out[ch->id] < TRIG_THRESH && curr_out >= TRIG_THRESH)
+  EngineState* es  = state->engine_state;
+  int16_t curr_out = es->channels_output_level[ch->id];
+
+  if (es->channels_trig_state[ch->id] < 1 && es->channels_prev_out[ch->id] < CHANNEL_TRIG_THRESH && curr_out >= CHANNEL_TRIG_THRESH)
   {
-    trig_state[ch->id] = 1;
-    trig_flag[ch->id]  = 1;
+    es->channels_trig_state[ch->id] = 1;
+    es->channels_trig_flag[ch->id]  = 1;
   }
-  else if (curr_out < TRIG_THRESH_LOW)
+  else if (curr_out < CHANNEL_TRIG_THRESH_LOW)
   {
-    trig_state[ch->id] = 0;
+    es->channels_trig_state[ch->id] = 0;
   }
-  prev_out[ch->id] = curr_out;
-  dacadc_write(ch->dac_channel, curr_out);
+  es->channels_prev_out[ch->id] = curr_out;
 }
 
-uint8_t read_channel_trig_state(const ChannelSetup* ch)
+void write_channel_dac(const ChannelSetup* ch, UxState* state)
 {
-  if (trig_flag[ch->id])
+  dacadc_write(ch->dac_channel, state->engine_state->channels_output_level[ch->id]);
+}
+
+uint8_t read_channel_trig_state(const ChannelSetup* ch, UxState* state)
+{
+  if (state->engine_state->channels_trig_flag[ch->id])
   {
-    trig_flag[ch->id] = 0;
+    state->engine_state->channels_trig_flag[ch->id] = 0;
     return 1;
   }
   return 0;

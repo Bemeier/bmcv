@@ -11,6 +11,8 @@ void bmcv_main(uint32_t now_us);
 
 uint8_t bmcv_state_update(uint32_t now);
 
+void bmcv_flush_leds(void);
+
 void bmcv_handle_adc_conversion_complete(ADC_HandleTypeDef* hadc);
 
 void bmcv_poll_tasks();

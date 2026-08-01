@@ -23,11 +23,11 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "bmcv.h"
-#include "dac_adc.h"
+#include "dac_adc_hal.h"
 #include "fram.h"
 #include "helpers.h"
 #include "mcp.h"
-#include "ws2811.h"
+#include "ws2811_hal.h"
 #include <stdint.h>
 
 /* USER CODE END Includes */
@@ -137,7 +137,6 @@ int main(void)
 
   /* USER CODE BEGIN 2 */
   init_cycle_counter();
-  generate_quant_lut();
 
   HAL_GPIO_WritePin(LEVEL_SHIFTER_EN_GPIO_Port, LEVEL_SHIFTER_EN_Pin, GPIO_PIN_SET);
   HAL_Delay(20);

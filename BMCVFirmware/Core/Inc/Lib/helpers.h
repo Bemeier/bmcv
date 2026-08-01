@@ -1,17 +1,19 @@
 #ifndef INC_HELPERS_H_
 #define INC_HELPERS_H_
 
-#include "dac_adc.h"
 #include "math.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 
-#define LUT_SIZE (ADC_10V + ADC_10V + 1)
-
 #define FP_SCALE 1000
 #define SEMITONE_DAC_FP 273067
 
+// Hardware calibration: DAC units subtracted from a quantized pitch so the
+// analog output lands on the true note (~25mV at the 10V/32768 scale, about
+// 0.3 of a semitone). Set to 0 to disable, and re-check against a tuner if
+// the output stage changes. Must stay below half a semitone (137) or
+// quantization stops being idempotent.
 #define DAC_OFFSET_CORRECTION 82
 
 static const float US_TO_S = 1e-6f;
@@ -19,38 +21,6 @@ static const float US_TO_S = 1e-6f;
 #define US(x) ((uint32_t) (x))
 #define MS(x) ((uint32_t) ((x) * 1000u))
 #define S(x) ((uint32_t) ((x) * 1000000u))
-
-static int16_t quantLUT[LUT_SIZE];
-static inline void generate_quant_lut(void)
-{
-  for (int i = -ADC_10V; i <= ADC_10V; ++i)
-  {
-    int32_t dac_val    = i * 4;
-    int64_t dac_val_fp = (int64_t) dac_val * FP_SCALE;
-
-    // Quantize to nearest semitone
-    int32_t semitone_index = (dac_val_fp + SEMITONE_DAC_FP / 2) / SEMITONE_DAC_FP;
-    int32_t quantized_dac  = (semitone_index * SEMITONE_DAC_FP + FP_SCALE / 2) / FP_SCALE;
-
-    quantized_dac -= DAC_OFFSET_CORRECTION;
-
-    if (quantized_dac < -DAC_10V)
-      quantized_dac = -DAC_10V;
-    if (quantized_dac > DAC_10V)
-      quantized_dac = DAC_10V;
-
-    quantLUT[i + ADC_10V] = (int16_t) quantized_dac;
-  }
-}
-
-static inline int16_t quantize_adc(int16_t input)
-{
-  if (input < -ADC_10V)
-    input = -ADC_10V;
-  if (input > ADC_10V)
-    input = ADC_10V;
-  return quantLUT[input + ADC_10V];
-}
 
 // how close is inter it to right value
 static inline uint8_t interpolate_clamped(uint16_t left, uint16_t right, uint16_t inter)
@@ -212,41 +182,55 @@ static inline int delta_modulo_step(int val, int delta, int maxVal)
   return (val + delta + maxVal) % maxVal;
 }
 
+// Round-to-nearest integer division, symmetric about zero. C's built-in
+// division truncates toward zero, which biases every result toward 0V.
+// den must be > 0.
+static inline int32_t div_round_nearest(int32_t num, int32_t den)
+{
+  return (num >= 0) ? (num + den / 2) / den : -(((-num) + den / 2) / den);
+}
+
+// Snap a CV value to the nearest enabled semitone of the shared scale.
+//
+// The search runs in fixed-point DAC units (DAC * FP_SCALE) rather than whole
+// semitones, so the input's position *within* a semitone survives and
+// "nearest" really is nearest. Doing it in integer semitone space instead
+// silently floors toward 0V and can pick a note almost a full semitone away.
+//
+// For each enabled scale degree we jump straight to its nearest octave
+// transposition, so 12 candidates suffice and there is no octave window to
+// get wrong at negative voltages.
 static inline int16_t quantize_value(int16_t input, uint16_t scale_mask)
 {
-  // Convert DAC units → semitone index
-  int32_t semitone = ((int32_t) input * FP_SCALE) / SEMITONE_DAC_FP;
+  if (scale_mask == 0)
+    return input; // no notes enabled: pass through unquantized
 
-  int32_t best_note = 0;
+  const int32_t x_fp      = (int32_t) input * FP_SCALE;
+  const int32_t octave_fp = 12 * SEMITONE_DAC_FP;
+
+  int32_t best_fp   = 0;
   int32_t best_dist = INT32_MAX;
-
-  int32_t octave = semitone / 12;
 
   for (int n = 0; n < 12; n++)
   {
-    if (scale_mask & (1u << n))
-    {
-      int32_t candidates[3] = {(octave - 1) * 12 + n, octave * 12 + n, (octave + 1) * 12 + n};
+    if (!(scale_mask & (1u << n)))
+      continue;
 
-      for (int c = 0; c < 3; c++)
-      {
-        int32_t note = candidates[c];
-        int32_t dist = semitone - note;
-        if (dist < 0)
-          dist = -dist;
-        if (dist < best_dist)
-        {
-          best_dist = dist;
-          best_note = note;
-        }
-      }
+    int32_t note_fp = (int32_t) n * SEMITONE_DAC_FP;
+    note_fp += div_round_nearest(x_fp - note_fp, octave_fp) * octave_fp;
+
+    int32_t dist = x_fp - note_fp;
+    if (dist < 0)
+      dist = -dist;
+
+    if (dist < best_dist)
+    {
+      best_dist = dist;
+      best_fp   = note_fp;
     }
   }
 
-  // Convert quantized semitone back to DAC units
-  int32_t quantized_dac = (best_note * SEMITONE_DAC_FP + FP_SCALE / 2) / FP_SCALE;
-
-  return (int16_t) iclamp(quantized_dac, INT16_MIN, INT16_MAX);
+  return (int16_t) iclamp(div_round_nearest(best_fp, FP_SCALE) - DAC_OFFSET_CORRECTION, INT16_MIN, INT16_MAX);
 }
 
 static inline uint32_t crc32(const void* data, size_t len)

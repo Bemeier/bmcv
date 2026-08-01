@@ -29,28 +29,16 @@ add_executable(${CMAKE_PROJECT_NAME})
 
 add_subdirectory(cmake/stm32cubemx)
 
+# Source lists are shared with the native test build so a new Lib file only
+# has to be declared once - see cmake/core_sources.cmake
+include(cmake/core_sources.cmake)
+list(TRANSFORM BMCV_CORE_SOURCES PREPEND Core/Src/Lib/)
+list(TRANSFORM BMCV_DRIVER_SOURCES PREPEND Core/Src/Lib/)
+
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
   Middlewares/ST/STM32_USB_Device_Library/Class/MIDI/Src/usbd_midi.c
-  Core/Src/Lib/assign.c
-  Core/Src/Lib/bmcv.c
-  Core/Src/Lib/channel.c
-  Core/Src/Lib/clock_sync.c
-  Core/Src/Lib/ctrl_button.c
-  Core/Src/Lib/dac_adc.c
-  Core/Src/Lib/envelope.c
-  Core/Src/Lib/error.c
-  Core/Src/Lib/fram.c
-  Core/Src/Lib/hw_setup.c
-  Core/Src/Lib/mcp.c
-  Core/Src/Lib/midi.c
-  Core/Src/Lib/presets.c
-  Core/Src/Lib/quantizer.c
-  Core/Src/Lib/scene.c
-  Core/Src/Lib/stepped_random.c
-  Core/Src/Lib/ux_setup.c
-  Core/Src/Lib/ux_state.c
-  Core/Src/Lib/wave_fn.c
-  Core/Src/Lib/ws2811.c
+  ${BMCV_CORE_SOURCES}
+  ${BMCV_DRIVER_SOURCES}
 )
 
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE

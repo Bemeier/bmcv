@@ -4,15 +4,7 @@
 #include "ux_state.h"
 #include <stdint.h>
 
-typedef enum
-{
-  ASSIGN_NONE,
-  ASSIGN_CHANNEL,
-  ASSIGN_TRIG_SRC,
-  ASSIGN_SCENE,
-  ASSIGN_INPUT,
-  ASSIGN_PARAM
-} AssignType;
+// AssignType lives in state.h - it is part of EngineState.
 
 /*
 
@@ -30,13 +22,13 @@ typedef enum
   - ...
 */
 
-int8_t assign_src();
+int8_t assign_src(const UxState* state);
 
-AssignType assign_state();
+AssignType assign_state(const UxState* state);
 
 void assign_event(AssignType sourceType, int8_t sourceId, UxState* state);
 
-void assign_reset();
+void assign_reset(UxState* state);
 
 void assign_input_to_channel(int8_t i, int8_t c, UxState* state);
 

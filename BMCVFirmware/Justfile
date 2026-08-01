@@ -8,3 +8,17 @@ flash:
 	./scripts/flash.sh
 
 build-flash: build flash
+
+# Native host-compiled test/tool build. Kept in its own directory so `build/`
+# stays exactly what the ARM recipes, scripts/flash.sh and clangd expect.
+# Re-run after editing tests/CMakeLists.txt or adding a test file.
+configure-native:
+	rm -Rf build-native && cmake -S tests -B build-native -G Ninja
+
+test:
+	cmake --build build-native
+	ctest --test-dir build-native --output-on-failure
+
+render *ARGS:
+	cmake --build build-native --target render_channel
+	./build-native/render_channel {{ARGS}}
