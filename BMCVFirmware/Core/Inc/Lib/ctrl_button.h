@@ -4,7 +4,8 @@
 #include "ux_setup.h"
 #include "ux_state.h"
 
-#define CTRL_SHIFT_ACTIVATION 100000
+// Shift activation now comes from UI_T_HOLD in ui_input.h - the one place
+// press durations are defined.
 
 void update_shift_mode(const CtrlButtonSetup* btn, UxState* state);
 

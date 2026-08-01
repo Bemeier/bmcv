@@ -9,6 +9,7 @@
 #include "state.h"
 #include "stepped_random.h"
 #include "stepped_random_table.h"
+#include "ui_input.h"
 #include "ux_state.h"
 #include "wave_fn.h"
 #include "led_fb.h"
@@ -136,8 +137,8 @@ void update_channel_param(const ChannelSetup* ch, UxState* state)
 {
   ChannelConfig* chcfg = &state->engine_config->channel_state[ch->id];
   int8_t param         = state->engine_state->selected_param;
-  int16_t delta        = state->hw_state->encoder_delta[ch->encoder];
-  int8_t alt           = state->hw_state->button_pressed_t[ch->button] > 0;
+  int16_t delta        = enc_delta(&state->in, ch->encoder);
+  int8_t alt           = btn_down(&state->in, ch->button);
   if (delta == 0)
     return;
 
@@ -231,14 +232,14 @@ void reset_channel_phase(const ChannelSetup* ch, UxState* state)
 
 void update_channel(const ChannelSetup* ch, UxState* state)
 {
-  int8_t long_pressed  = state->hw_state->button_released_t[ch->button] > MS(500);
-  int8_t pressed       = state->hw_state->button_released_t[ch->button] > MS(10);
-  int8_t pressing      = state->hw_state->button_pressed_t[ch->button] > 0;
+  int8_t long_pressed  = btn_released_after(&state->in, ch->button, UI_T_LONG);
+  int8_t pressed       = btn_ev(&state->in, ch->button, BTN_EV_UP);
+  int8_t pressing      = btn_down(&state->in, ch->button);
   ChannelConfig* chcfg = &state->engine_config->channel_state[ch->id];
   switch (state->engine_state->shift_state)
   {
   case SHIFT_STATE_SYS:
-    chcfg->shape_mode = delta_modulo_step(chcfg->shape_mode, state->hw_state->encoder_delta[ch->encoder], SHAPE_MODE_COUNT);
+    chcfg->shape_mode = delta_modulo_step(chcfg->shape_mode, enc_delta(&state->in, ch->encoder), SHAPE_MODE_COUNT);
     break;
   case SHIFT_STATE_QNT:
     if (pressed && assign_state(state) == ASSIGN_NONE)
@@ -252,7 +253,7 @@ void update_channel(const ChannelSetup* ch, UxState* state)
     }
     else if (assign_state(state) == ASSIGN_NONE)
     {
-      chcfg->quantize_mode = delta_modulo_step(chcfg->quantize_mode, state->hw_state->encoder_delta[ch->encoder], QUANTIZE_MODE_COUNT);
+      chcfg->quantize_mode = delta_modulo_step(chcfg->quantize_mode, enc_delta(&state->in, ch->encoder), QUANTIZE_MODE_COUNT);
     }
     break;
   case SHIFT_STATE_MON:
@@ -272,7 +273,7 @@ void update_channel(const ChannelSetup* ch, UxState* state)
 
     if (!pressing)
     {
-      chcfg->input_amp_mode = delta_modulo_step(chcfg->input_amp_mode, state->hw_state->encoder_delta[ch->encoder], INPUT_AMP_MODE_COUNT);
+      chcfg->input_amp_mode = delta_modulo_step(chcfg->input_amp_mode, enc_delta(&state->in, ch->encoder), INPUT_AMP_MODE_COUNT);
     }
     break;
   case SHIFT_STATE_CPY:
@@ -292,8 +293,11 @@ void update_channel(const ChannelSetup* ch, UxState* state)
     }
     break;
   case SHIFT_STATE_NONE:
+    // Only a long press that spanned no encoder movement resets the param -
+    // otherwise holding the button as an encoder modifier would wipe the
+    // value the user was just adjusting.
     uint32_t t_no_rotation = state->hw_state->time - state->engine_state->channels_last_delta[ch->id];
-    if (long_pressed && state->hw_state->button_released_t[ch->button] < t_no_rotation)
+    if (long_pressed && btn_held(&state->in, ch->button) < t_no_rotation)
     {
       reset_channel_param(ch, state, state->engine_state->active_scene, state->engine_state->selected_param);
     }
@@ -496,7 +500,7 @@ void write_channel_led(const ChannelSetup* ch, UxState* state)
     break;
     //
   case SHIFT_STATE_CLR:
-    int8_t alt = state->hw_state->button_pressed_t[ch->button] > MS(1000);
+    int8_t alt = btn_holding(&state->in, ch->button, UI_T_VLONG);
     led_set_hsv(state, ch->led, HUE_RED, SAT_HIG, (state->engine_state->blink_fast || alt) * VAL_LOW);
     break;
   case SHIFT_STATE_CPY:

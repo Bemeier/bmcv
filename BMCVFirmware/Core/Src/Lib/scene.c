@@ -7,6 +7,7 @@
 #include "hw_setup.h"
 #include "presets.h"
 #include "state.h"
+#include "ui_input.h"
 #include "ux_state.h"
 #include "led_fb.h"
 #include <stdint.h>
@@ -56,12 +57,14 @@ void write_scene_button_led(const SceneSetup* scene, UxState* state)
       led_set_hsv(state, scene->led, 0, SAT_OFF, VAL_OFF);
     break;
   case SHIFT_STATE_SAV:
-    int8_t load = state->hw_state->button_pressed_t[scene->button] > 0;
-    int8_t save = state->hw_state->button_pressed_t[scene->button] > MS(1000);
+    // Same predicates the action path uses, so the LED cannot disagree with
+    // what the release will actually do.
+    int8_t load = btn_down(&state->in, scene->button);
+    int8_t save = btn_holding(&state->in, scene->button, UI_T_VLONG);
     led_set_hsv(state, scene->led, save ? HUE_RED : HUE_GREEN, SAT_MAX, load ? VAL_HIG : VAL_MED);
     break;
   case SHIFT_STATE_CLR:
-    int8_t held = state->hw_state->button_pressed_t[scene->button] > 10;
+    int8_t held = btn_down(&state->in, scene->button);
     led_set_hsv(state, scene->led, HUE_RED, SAT_HIG, (state->engine_state->blink_fast || held) * VAL_LOW);
     break;
   case SHIFT_STATE_CPY:
@@ -140,10 +143,8 @@ void compute_scenes_contribution(UxState* state)
 
 void update_scene_button(const SceneSetup* scene, UxState* state)
 {
-  int8_t pressed      = state->hw_state->button_released_t[scene->button] > MS(10);
-  int8_t pressed_long = state->hw_state->button_released_t[scene->button] > MS(1000);
-  uint32_t hold_time  = state->hw_state->button_pressed_t[scene->button];
-  int8_t momentary    = hold_time >= MS(10);
+  int8_t pressed   = btn_ev(&state->in, scene->button, BTN_EV_UP);
+  int8_t momentary = btn_holding(&state->in, scene->button, UI_T_DEBOUNCE);
   // Momentarty activation
   switch (state->engine_state->shift_state)
   {
@@ -178,18 +179,17 @@ void update_scene_button(const SceneSetup* scene, UxState* state)
     }
     break;
   case SHIFT_STATE_SAV:
-    if (pressed)
+    // Store fires the moment the hold crosses UI_T_VLONG, so the red LED and
+    // the write happen together; the matching release must then not also load.
+    if (btn_ev(&state->in, scene->button, BTN_EV_VLONG))
     {
-      if (pressed_long)
+      preset_store(state->engine_config, scene->id);
+    }
+    else if (pressed && btn_held(&state->in, scene->button) < UI_T_VLONG)
+    {
+      if (!preset_load(state->engine_config, scene->id))
       {
-        preset_store(state->engine_config, scene->id);
-      }
-      else
-      {
-        if (!preset_load(state->engine_config, scene->id))
-        {
-          error_set(5);
-        }
+        error_set(5);
       }
     }
     break;

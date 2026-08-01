@@ -20,6 +20,7 @@ set(BMCV_CORE_SOURCES
     quantizer.c
     scene.c
     stepped_random.c
+    ui_input.c
     ux_setup.c
     ux_state.c
     wave_fn.c

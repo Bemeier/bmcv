@@ -2,19 +2,21 @@
 #include "color_presets.h"
 #include "helpers.h"
 #include "state.h"
+#include "ui_input.h"
 #include "led_fb.h"
 #include <stdint.h>
 
 void update_shift_mode(const CtrlButtonSetup* btn, UxState* state)
 {
-  uint32_t pressed_since  = state->hw_state->button_pressed_t[state->ux_setup->ctrl_buttons[btn->id].button];
-  uint32_t released_after = state->hw_state->button_released_t[state->ux_setup->ctrl_buttons[btn->id].button];
+  int8_t b = state->ux_setup->ctrl_buttons[btn->id].button;
 
-  if (pressed_since > CTRL_SHIFT_ACTIVATION)
+  if (btn_ev(&state->in, b, BTN_EV_HOLD))
   {
     state->engine_state->shift_state = (ShiftStates) btn->id;
   }
-  else if (released_after > 0 && released_after <= CTRL_SHIFT_ACTIVATION &&
+  // QNT is the exception: there the ctrl and scene buttons are a piano-style
+  // keyboard for semitone selection, so only QNT's own button may exit it.
+  else if (btn_ev(&state->in, b, BTN_EV_TAP) &&
            (state->engine_state->shift_state != SHIFT_STATE_QNT || btn->id == SHIFT_STATE_QNT))
   {
     state->engine_state->shift_state = SHIFT_STATE_NONE;
@@ -23,11 +25,10 @@ void update_shift_mode(const CtrlButtonSetup* btn, UxState* state)
 
 void update_selected_param(const CtrlButtonSetup* btn, UxState* state)
 {
-  uint32_t released_after = state->hw_state->button_released_t[state->ux_setup->ctrl_buttons[btn->id].button];
-  if (state->engine_state->shift_state == SHIFT_STATE_NONE && btn->id < CH_PARAM_COUNT && released_after > 0 && released_after < MS(200))
+  int8_t b = state->ux_setup->ctrl_buttons[btn->id].button;
+  if (state->engine_state->shift_state == SHIFT_STATE_NONE && btn->id < CH_PARAM_COUNT && btn_ev(&state->in, b, BTN_EV_TAP))
   {
     state->engine_state->selected_param = (ChannelParameters) btn->id;
-    return;
   }
 }
 

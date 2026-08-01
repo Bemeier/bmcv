@@ -2,6 +2,7 @@
 #define INC_LIB_UXSTATE_H_
 
 #include "state.h"
+#include "ui_input.h"
 #include "ux_setup.h"
 #include <stdint.h>
 
@@ -14,6 +15,10 @@ typedef struct
   HwState* hw_state;
   EngineConfig* engine_config;
   EngineState* engine_state;
+
+  // Derived button gestures and accumulated encoder movement. Every UX
+  // handler reads this rather than hw_state's raw press timers.
+  UiInput in;
 } UxState;
 
 void update_ux_state(UxState* state);

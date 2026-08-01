@@ -2,6 +2,7 @@
 #include "assign.h"
 #include "color_presets.h"
 #include "state.h"
+#include "ui_input.h"
 #include "led_fb.h"
 
 void update_quantizer_buttons(UxState* state)
@@ -11,7 +12,7 @@ void update_quantizer_buttons(UxState* state)
   // TODO: The one non-semitone button?
   for (uint16_t st = 0; st < N_SEMITONES; st++)
   {
-    if (state->hw_state->button_released_t[state->ux_setup->quantizer_semitones[st].button] > 0)
+    if (btn_ev(&state->in, state->ux_setup->quantizer_semitones[st].button, BTN_EV_UP))
     {
       state->engine_config->quantize_mask ^= (1u << st);
     }

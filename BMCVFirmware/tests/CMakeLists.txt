@@ -53,6 +53,8 @@ bmcv_add_test(test_quantizer)
 bmcv_add_test(test_assign)
 bmcv_add_test(test_led_render)
 bmcv_add_test(test_config_validate)
+bmcv_add_test(test_ui_input)
+bmcv_add_test(test_ui_gestures)
 
 
 add_executable(render_channel ${BMCV_ROOT}/tools/render_channel.c)
