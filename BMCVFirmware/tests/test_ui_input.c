@@ -64,11 +64,13 @@ TEST_CASE(hold_long_and_vlong_each_fire_once_at_their_threshold)
   tick(&in, &hw, MS(1));
   ui_input_drain(&in);
 
-  // Just short of UI_T_HOLD.
-  tick(&in, &hw, MS(90));
+  // Just short of UI_T_HOLD. Expressed against the constant rather than a
+  // number copied from it, so retuning the threshold does not silently move
+  // what this is testing.
+  tick(&in, &hw, UI_T_HOLD - MS(20));
   CHECK(!btn_ev(&in, 7, BTN_EV_HOLD));
 
-  tick(&in, &hw, MS(20)); // now past 100ms
+  tick(&in, &hw, MS(40)); // now past it
   CHECK(btn_ev(&in, 7, BTN_EV_HOLD));
   CHECK(!btn_ev(&in, 7, BTN_EV_LONG));
 

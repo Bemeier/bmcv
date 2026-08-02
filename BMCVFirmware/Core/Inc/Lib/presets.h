@@ -10,7 +10,7 @@
 #define FRAM_MAGIC 0x424D4356
 #define FRAM_CONFIG_SLOT_SIZE 896
 #define FRAM_CONFIG_BASE_ADDR 0x0000
-#define CONFIG_STATE_VERSION 3
+#define CONFIG_STATE_VERSION 4
 
 typedef struct __attribute__((packed))
 {

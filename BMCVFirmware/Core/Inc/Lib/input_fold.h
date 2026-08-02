@@ -46,14 +46,20 @@ typedef struct
   int16_t encoder_pos[N_ENCODERS];
 } InputSample;
 
-// Bookkeeping that outlives a single tick: just the frame ring.
+// Bookkeeping that outlives a single tick: this frame and the one before it.
+//
+// Two named frames rather than a ring with an index: only one tick of history
+// is ever wanted - previous button levels, previous encoder positions, previous
+// timestamp - and `curr` staying put means ux->hw_state is set once and a live
+// debugger has a fixed address to watch. The ring's alternated every tick.
 typedef struct
 {
-  HwState frames[STATE_RINGBUF_SIZE];
-  uint8_t idx;
+  HwState curr;
+  HwState prev;
 } InputFrames;
 
-// Points ux->hw_state at a zeroed first frame timestamped now_us.
+// Points ux->hw_state at a zeroed frame timestamped now_us. It keeps pointing
+// there for the life of the instance.
 void input_frames_init(InputFrames* in, UxState* ux, uint32_t now_us);
 
 // Fold one sample into a fresh HwState frame: trigger sources, clock and reset

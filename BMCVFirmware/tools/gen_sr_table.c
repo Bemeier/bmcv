@@ -27,21 +27,34 @@ static float hash01(uint32_t x) { return (hash_u32(x) & 0x00FFFFFF) * (1.0f / 16
 // sweep. Measured: at length 2 that is 18% of the sweep, in runs 15% wide -
 // wide enough to turn a chunk of the knob into dead travel.
 //
-// So each (length, morph) gets a precomputed affine correction, applied as
-// out = value * gain + offset. It is deliberately gentle: patterns that
-// already span SR_NORM_TARGET are left completely alone (gain 1.0), so the
-// natural variation between calm and busy settings survives - only genuinely
-// collapsed patterns are lifted, and never by more than SR_NORM_MAX_GAIN.
+// So each (length, hold probability, morph) gets a precomputed affine
+// correction, applied as out = value * gain + offset. It is deliberately
+// gentle: patterns that already span SR_NORM_TARGET are left completely alone
+// (gain 1.0), so the natural variation between calm and busy settings survives
+// - only genuinely collapsed patterns are lifted, and never by more than
+// SR_NORM_MAX_GAIN.
 //
 // Span does not depend on the hold/smoothness setting: the eased curve passes
 // exactly through each slot value, so one table serves all the stepped modes.
+// It does depend on the hold *probability*, which is why that is an axis:
+// MOD drives it, and a table generated at one probability drifts out of
+// correction as soon as the knob moves off it.
+//
+// The probability axis is a smoothing, not an exact fit. The true span steps
+// discretely as the probability crosses each slot's gate, so the bins are
+// interpolated between - which is fine, because the correction is gentle and
+// changes smoothly with the knob rather than jumping.
 // ---------------------------------------------------------------------------
 
 #define SR_NORM_BINS 128
 #define SR_NORM_TARGET 1.3f
 #define SR_NORM_MAX_GAIN 10.0f
-#define SR_HOLD_PROBABILITY 0.30f
-#define SR_HOLD_FADE_IN_STEPS 6.0f
+
+// The probability axis: bins spanning [0, SR_HOLD_MAX]. The short-pattern fade
+// is not applied here - the runtime owns it, so the table covers the whole
+// range at every length and the fade simply picks a lower point on it.
+#define SR_PROB_BINS 8
+#define SR_HOLD_MAX 0.85f
 
 static const int sr_lengths[] = {3, 4, 5, 6, 7, 8, 12, 16, 24, 32, 48, 64};
 #define SR_LENGTH_COUNT ((int) (sizeof(sr_lengths) / sizeof(sr_lengths[0])))
@@ -83,8 +96,14 @@ static int source_slot(int slot, float hold_probability)
 static void gen_normalisation(void)
 {
   printf("// Affine correction keeping short patterns from collapsing to flat.\n");
-  printf("// Indexed [length][morph bin]; apply as out = value * gain + offset.\n");
+  printf("// Indexed [length][hold probability bin][morph bin]; apply as\n");
+  printf("// out = value * gain + offset, interpolating both bin axes.\n");
+  printf("//\n");
+  printf("// SR_HOLD_MAX is the top of the probability axis, so the runtime cannot\n");
+  printf("// ask for a probability the table was never generated for.\n");
   printf("#define SR_NORM_BINS %d\n", SR_NORM_BINS);
+  printf("#define SR_PROB_BINS %d\n", SR_PROB_BINS);
+  printf("#define SR_HOLD_MAX %.4ff\n", SR_HOLD_MAX);
   printf("#define SR_LENGTH_COUNT %d\n\n", SR_LENGTH_COUNT);
 
   printf("static const uint8_t sr_lengths[SR_LENGTH_COUNT] = {");
@@ -92,80 +111,86 @@ static void gen_normalisation(void)
     printf("%s%d", i ? ", " : "", sr_lengths[i]);
   printf("};\n\n");
 
-  float gain[SR_LENGTH_COUNT][SR_NORM_BINS], offset[SR_LENGTH_COUNT][SR_NORM_BINS];
+  static float gain[SR_LENGTH_COUNT][SR_PROB_BINS][SR_NORM_BINS], offset[SR_LENGTH_COUNT][SR_PROB_BINS][SR_NORM_BINS];
 
   for (int li = 0; li < SR_LENGTH_COUNT; li++)
   {
-    int length             = sr_lengths[li];
-    float hold_probability = SR_HOLD_PROBABILITY * fclampf((float) (length - 2) / SR_HOLD_FADE_IN_STEPS, 0.0f, 1.0f);
+    int length = sr_lengths[li];
 
-    for (int b = 0; b < SR_NORM_BINS; b++)
+    for (int pi = 0; pi < SR_PROB_BINS; pi++)
     {
-      float morph = (float) b / (float) SR_NORM_BINS;
-      float lo = 1e9f, hi = -1e9f;
-      for (int i = 0; i < length; i++)
+      float hold_probability = SR_HOLD_MAX * (float) pi / (float) (SR_PROB_BINS - 1);
+
+      for (int b = 0; b < SR_NORM_BINS; b++)
       {
-        float v = slot_value(source_slot(i, hold_probability), morph);
-        if (v < lo)
-          lo = v;
-        if (v > hi)
-          hi = v;
+        float morph = (float) b / (float) SR_NORM_BINS;
+        float lo = 1e9f, hi = -1e9f;
+        for (int i = 0; i < length; i++)
+        {
+          float v = slot_value(source_slot(i, hold_probability), morph);
+          if (v < lo)
+            lo = v;
+          if (v > hi)
+            hi = v;
+        }
+        float span = hi - lo;
+
+        // Anchor the correction on slot 0 rather than on the pattern's
+        // midpoint. Slot 0's raw value does not depend on the length, so
+        // anchoring there makes the corrected output at the cycle boundary
+        // identical at every length - which is what lets the engine switch
+        // pattern length on the wrap without a step in the signal. Anchoring
+        // on the midpoint instead left a 0.34 jump, because the midpoint moves
+        // with the length.
+        float anchor = slot_value(source_slot(0, hold_probability), morph);
+
+        float g = (span < 1e-6f) ? SR_NORM_MAX_GAIN : fclampf(SR_NORM_TARGET / span, 1.0f, SR_NORM_MAX_GAIN);
+
+        // Cap the gain so the anchored result cannot leave [-1,1]. Both limits
+        // are >= 1 whenever lo/hi are within [-1,1], so this never shrinks the
+        // signal, it only declines to expand it as far as we wanted.
+        if (hi > anchor)
+        {
+          float limit = (1.0f - anchor) / (hi - anchor);
+          if (limit < g)
+            g = limit;
+        }
+        if (lo < anchor)
+        {
+          float limit = (1.0f + anchor) / (anchor - lo);
+          if (limit < g)
+            g = limit;
+        }
+        if (g < 1.0f)
+          g = 1.0f;
+
+        // out = anchor + (v - anchor) * g
+        gain[li][pi][b]   = g;
+        offset[li][pi][b] = anchor * (1.0f - g);
       }
-      float span = hi - lo;
-
-      // Anchor the correction on slot 0 rather than on the pattern's midpoint.
-      // Slot 0's raw value does not depend on the length, so anchoring there
-      // makes the corrected output at the cycle boundary identical at every
-      // length - which is what lets the engine switch pattern length on the
-      // wrap without a step in the signal. Anchoring on the midpoint instead
-      // left a 0.34 jump, because the midpoint moves with the length.
-      float anchor = slot_value(source_slot(0, hold_probability), morph);
-
-      float g = (span < 1e-6f) ? SR_NORM_MAX_GAIN : fclampf(SR_NORM_TARGET / span, 1.0f, SR_NORM_MAX_GAIN);
-
-      // Cap the gain so the anchored result cannot leave [-1,1]. Both limits
-      // are >= 1 whenever lo/hi are within [-1,1], so this never shrinks the
-      // signal, it only declines to expand it as far as we wanted.
-      if (hi > anchor)
-      {
-        float limit = (1.0f - anchor) / (hi - anchor);
-        if (limit < g)
-          g = limit;
-      }
-      if (lo < anchor)
-      {
-        float limit = (1.0f + anchor) / (anchor - lo);
-        if (limit < g)
-          g = limit;
-      }
-      if (g < 1.0f)
-        g = 1.0f;
-
-      // out = anchor + (v - anchor) * g
-      gain[li][b]   = g;
-      offset[li][b] = anchor * (1.0f - g);
     }
   }
 
-  printf("static const float sr_norm_gain[SR_LENGTH_COUNT][SR_NORM_BINS] = {\n");
-  for (int li = 0; li < SR_LENGTH_COUNT; li++)
-  {
-    printf("    {");
-    for (int b = 0; b < SR_NORM_BINS; b++)
-      printf("%s%.6ff", b ? "," : "", gain[li][b]);
-    printf("},\n");
-  }
-  printf("};\n\n");
+  const char* names[2]                                = {"sr_norm_gain", "sr_norm_offset"};
+  const float(*tables[2])[SR_PROB_BINS][SR_NORM_BINS] = {gain, offset};
 
-  printf("static const float sr_norm_offset[SR_LENGTH_COUNT][SR_NORM_BINS] = {\n");
-  for (int li = 0; li < SR_LENGTH_COUNT; li++)
+  for (int t = 0; t < 2; t++)
   {
-    printf("    {");
-    for (int b = 0; b < SR_NORM_BINS; b++)
-      printf("%s%.6ff", b ? "," : "", offset[li][b]);
-    printf("},\n");
+    printf("static const float %s[SR_LENGTH_COUNT][SR_PROB_BINS][SR_NORM_BINS] = {\n", names[t]);
+    for (int li = 0; li < SR_LENGTH_COUNT; li++)
+    {
+      printf("    {\n");
+      for (int pi = 0; pi < SR_PROB_BINS; pi++)
+      {
+        printf("        {");
+        for (int b = 0; b < SR_NORM_BINS; b++)
+          printf("%s%.6ff", b ? "," : "", tables[t][li][pi][b]);
+        printf("},\n");
+      }
+      printf("    },\n");
+    }
+    printf("};\n\n");
   }
-  printf("};\n\n");
 }
 
 int main(void)

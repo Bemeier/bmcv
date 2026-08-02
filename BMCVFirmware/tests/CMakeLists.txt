@@ -47,6 +47,7 @@ function(bmcv_add_test name)
   add_test(NAME ${name} COMMAND ${name})
 endfunction()
 
+bmcv_add_test(test_helpers)
 bmcv_add_test(test_stepped_random)
 bmcv_add_test(test_channel)
 bmcv_add_test(test_clock_sync)

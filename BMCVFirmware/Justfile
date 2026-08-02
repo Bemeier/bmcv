@@ -84,6 +84,13 @@ web-check: wasm
 # Everything that can be checked without hardware or a browser.
 check: test flows wasm-check web-check
 
+# Regenerate the stepped-random tables into Core/Inc/Lib/stepped_random_table.h.
+# Output is checked in, so this only needs running after editing the generator -
+# review the diff, then `just test` to confirm the pattern properties still hold.
+sr-table:
+	cc -O2 -o build-native/gen_sr_table tools/gen_sr_table.c -lm
+	./build-native/gen_sr_table > Core/Inc/Lib/stepped_random_table.h
+
 # Regenerate the panel layout from the hardware repo's KiCad output plus the
 # firmware's own HwSetup tables. Outputs are checked in, so this only needs
 # running after editing hw_setup.c or when the board changes - review the diff.

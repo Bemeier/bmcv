@@ -200,21 +200,44 @@ TEST_CASE(length_index_maps_to_the_curated_step_counts)
   CHECK(sr_length_for_index(999) == 64);
 }
 
-// MOD skews where the step boundaries fall. Provisional behaviour, but two
-// things have to hold whatever it ends up being: it must do something, and it
-// must not break the two properties the whole design rests on - the loop
-// closing on itself and the output staying in range.
-TEST_CASE(mod_skews_the_pattern_without_breaking_the_loop)
+// How many of the pattern's steps take a new value rather than tying to the
+// previous one. Sampled inside each step's hold region, where the curve is
+// sitting exactly on the slot value.
+static int distinct_steps(float mod, int length_idx)
 {
-  int differs = 0;
-  for (int i = 0; i < 512; i++)
-  {
-    float p = (float) i / 512.0f;
-    if (fabsf(stepped_random(p, 0.3f, 0.7f, 5, SR_HOLD_SEMI) - sr_flat(p, 0.3f, 5, SR_HOLD_SEMI)) > 1e-4f)
-      differs++;
-  }
-  CHECK(differs > 100);
+  int length  = sr_length_for_index(length_idx);
+  int changes = 0;
+  float prev  = stepped_random(0.4f / (float) length, 0.3f, mod, length_idx, SR_HOLD_HARD);
 
+  for (int i = 1; i < length; i++)
+  {
+    float v = stepped_random(((float) i + 0.4f) / (float) length, 0.3f, mod, length_idx, SR_HOLD_HARD);
+    if (fabsf(v - prev) > 1e-4f)
+      changes++;
+    prev = v;
+  }
+  return changes;
+}
+
+// MOD is the pattern's density: how often a step ties to the previous value
+// instead of taking a new one.
+TEST_CASE(mod_thins_the_pattern_out_as_it_turns_up)
+{
+  const int li = 7; // 16 steps - long enough that the short-pattern fade is fully in
+
+  int busy    = distinct_steps(-1.0f, li);
+  int neutral = distinct_steps(0.0f, li);
+  int sparse  = distinct_steps(1.0f, li);
+
+  CHECK(busy > neutral && neutral > sparse);
+  CHECK(busy == sr_length_for_index(li) - 1); // every step takes a new value
+  CHECK(sparse >= 3);                         // and it never collapses to one held value
+}
+
+// Whatever the density, the two properties the whole design rests on have to
+// hold: the cycle closes on itself, and the output stays in range.
+TEST_CASE(every_density_still_closes_the_loop_and_stays_in_range)
+{
   for (float mod = -1.0f; mod <= 1.0f; mod += 0.25f)
   {
     for (int li = 0; li < SR_LENGTH_COUNT; li++)
@@ -236,6 +259,35 @@ TEST_CASE(mod_skews_the_pattern_without_breaking_the_loop)
   }
 }
 
+// The normalisation table gained a probability axis for exactly this reason: a
+// correction generated at one density drifts as MOD moves off it, and the
+// symptom is the pattern going quiet at some settings and not others.
+TEST_CASE(no_density_setting_collapses_to_a_flat_output)
+{
+  for (float mod = -1.0f; mod <= 1.0f; mod += 0.2f)
+  {
+    for (int li = 0; li < SR_LENGTH_COUNT; li++)
+    {
+      float worst = 1e9f;
+      for (float shape = -1.0f; shape <= 1.0f; shape += 0.05f)
+      {
+        float lo = 1e9f, hi = -1e9f;
+        for (int i = 0; i < 512; i++)
+        {
+          float v = stepped_random((float) i / 512.0f, shape, mod, li, SR_HOLD_SEMI);
+          if (v < lo)
+            lo = v;
+          if (v > hi)
+            hi = v;
+        }
+        if (hi - lo < worst)
+          worst = hi - lo;
+      }
+      CHECK(worst > 0.5f);
+    }
+  }
+}
+
 int main(void)
 {
   RUN_TEST(output_stays_in_bipolar_range);
@@ -248,6 +300,8 @@ int main(void)
   RUN_TEST(longer_patterns_contain_more_events);
   RUN_TEST(hold_setting_controls_how_step_like_the_curve_is);
   RUN_TEST(length_index_maps_to_the_curated_step_counts);
-  RUN_TEST(mod_skews_the_pattern_without_breaking_the_loop);
+  RUN_TEST(mod_thins_the_pattern_out_as_it_turns_up);
+  RUN_TEST(every_density_still_closes_the_loop_and_stays_in_range);
+  RUN_TEST(no_density_setting_collapses_to_a_flat_output);
   return TESTKIT_SUMMARY();
 }

@@ -8,8 +8,6 @@
 // and encoders were doing at a given microsecond. Produced by input_fold.c from
 // a raw InputSample and consumed by everything downstream.
 
-#define STATE_RINGBUF_SIZE 2
-
 typedef struct
 {
   uint32_t time; // timestamp of state

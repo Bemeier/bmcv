@@ -109,6 +109,24 @@ int ui_sel_is_candidate(const UxState* state, TargetKind kind, int8_t id)
   return (m->dst_kinds & TGT_BIT(kind)) && can_commit(state->ui->sel.action, state->ui->sel.src_kind, kind);
 }
 
+uint8_t ui_sel_press_stages(const UxState* state, TargetKind kind, int8_t id)
+{
+  const UiModeDesc* m = ui_mode(state->ui->shift_state);
+
+  // Only the immediate actions have anything to show while held. Everywhere
+  // else a press either picks a source or commits one, and neither has a
+  // second stage or a threshold to cross - the press is the whole gesture.
+  if (!m->immediate || !ui_sel_is_candidate(state, kind, id))
+    return 0;
+
+  // CLR on a channel: a tap clears it in the active scene, a hold clears the
+  // whole channel. A scene has only the one thing it can mean.
+  if (m->action == ACT_CLEAR && kind == TGT_CHANNEL)
+    return 2;
+
+  return 1;
+}
+
 void ui_sel_press(UxState* state, TargetKind kind, int8_t id, uint8_t is_long)
 {
   const UiModeDesc* m = ui_mode(state->ui->shift_state);

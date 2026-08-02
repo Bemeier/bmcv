@@ -83,10 +83,12 @@ clockCell.fader.parentElement.querySelector('.in-ctl').insertAdjacentHTML('after
 const clockOn = document.getElementById('clock-on');
 const clockBpm = document.getElementById('clock-bpm');
 
-// While the clock is generating, the fader would only fight it.
+// While the clock is generating, the fader would only fight it - and whatever
+// it was left at becomes the gate's low level, so a jack sitting at -4V would
+// produce a clock that never crosses the threshold. Zero it either way.
 function syncClockUi() {
   clockCell.fader.dataset.disabled = clockOn.checked ? '1' : '0';
-  if (!clockOn.checked) clockCell.setLevel(inputLevel[CLOCK_INPUT]);
+  clockCell.setLevel(0);
 }
 clockOn.addEventListener('change', syncClockUi);
 syncClockUi();

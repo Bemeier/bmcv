@@ -30,7 +30,7 @@ set(BMCV_CORE_SOURCES
     ui_select.c
     ux_setup.c
     ux_state.c
-    wave_fn.c
+    wavetable.c
 )
 
 set(BMCV_DRIVER_SOURCES

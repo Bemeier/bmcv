@@ -8,7 +8,7 @@
 #include "math.h"
 #include "stepped_random.h"
 #include "stepped_random_table.h"
-#include "wave_fn.h"
+#include "wavetable.h"
 #include <stdint.h>
 
 #define N_FREQ_SCALE 255
@@ -56,6 +56,40 @@ static float clamp_output(float value, int8_t mode)
   default:
     return fclamp(value, (float) INT16_MIN, (float) INT16_MAX);
   }
+}
+
+// PWM: a gate with an envelope on it.
+//
+// SHP is the pulse width. MOD splits ramp time between the two edges, each
+// confined to its own segment - the rise inside the on-time, the fall inside
+// the off-time - so the width still means what it says at either extreme. MOD 0
+// is a hard gate, negative snaps up and decays, positive swells and then drops.
+//
+// The ramps are curved rather than linear, which is what makes the negative
+// side read as an envelope rather than as a triangle: the attack is concave
+// (quick off the floor, easing into the plateau) and the decay convex (steep,
+// then a tail). One multiply each, and no expf on a path that runs eight times
+// a tick.
+static float pwm_shape(float phase, float shape, float mod)
+{
+  // Off both end stops, so the pulse never disappears entirely.
+  float width = fclamp(0.5f + shape * 0.48f, 0.02f, 0.98f);
+
+  if (phase < width)
+  {
+    float rise = (mod > 0.0f) ? mod * width : 0.0f;
+    if (phase >= rise)
+      return 1.0f; // covers rise == 0, where the edge is instant
+    float x = phase / rise;
+    return -1.0f + 2.0f * (2.0f * x - x * x);
+  }
+
+  float fall = (mod < 0.0f) ? -mod * (1.0f - width) : 0.0f;
+  float t    = phase - width;
+  if (t >= fall)
+    return -1.0f;
+  float y = 1.0f - t / fall;
+  return -1.0f + 2.0f * y * y;
 }
 
 void channel_init(uint8_t ch, EngineState* es)
@@ -193,19 +227,11 @@ void channel_compute(uint8_t ch, EngineState* es, const EngineConfig* cfg, const
 
   switch (chcfg->shape_mode)
   {
-  case SHAPE_STEPPED_SMOOTH:
+  case SHAPE_STEPPED:
     raw = stepped_random(phase, shape, mod, *latched_idx, SR_HOLD_SMOOTH);
     break;
-  case SHAPE_STEPPED_SEMI:
-    raw = stepped_random(phase, shape, mod, *latched_idx, SR_HOLD_SEMI);
-    break;
-  case SHAPE_STEPPED_HARD:
-    raw = stepped_random(phase, shape, mod, *latched_idx, SR_HOLD_HARD);
-    break;
   case SHAPE_PWM:
-    // SHP is the pulse width, kept off both end stops so the pulse never
-    // disappears entirely. MOD is not wired in here yet.
-    raw = (phase < fclamp(0.5f + shape * 0.48f, 0.02f, 0.98f)) ? 1.0f : -1.0f;
+    raw = pwm_shape(phase, shape, mod);
     break;
   case SHAPE_LFO:
   default:

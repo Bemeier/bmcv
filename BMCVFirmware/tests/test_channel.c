@@ -127,7 +127,7 @@ TEST_CASE(phase_advances_by_frequency_times_dt_without_pll_lock)
 
 static void set_stepped_channel(Fixture* f, int8_t length_idx)
 {
-  f->engine_config.channel_state[0].shape_mode    = SHAPE_STEPPED_HARD;
+  f->engine_config.channel_state[0].shape_mode    = SHAPE_STEPPED;
   f->engine_config.channel_state[0].sr_length_idx = length_idx;
   fixture_set_param(f, 0, 0, CH_PARAM_FRQ, 0); // 1x the beat
   fixture_set_param(f, 0, 0, CH_PARAM_AMP, 20000);
@@ -279,6 +279,98 @@ TEST_CASE(pwm_is_a_square_whose_duty_follows_the_shape_parameter)
   CHECK(high_at[1] > 200 && high_at[1] < 300); // ~50% at the centre
 }
 
+// Sample one full cycle of channel 0 at 1x the beat, which is one second.
+static void sweep_cycle(Fixture* f, float* out, int n)
+{
+  for (int i = 0; i < n; i++)
+  {
+    fixture_tick(f, 1000000u / (uint32_t) n);
+    out[i] = (float) f->engine_state.channels_output_level[0];
+  }
+}
+
+static void setup_pwm(Fixture* f, int16_t shp, int16_t mod)
+{
+  fixture_init(f);
+  Clock_Init(&f->engine_state.clock);
+  f->engine_config.channel_state[0].shape_mode = SHAPE_PWM;
+  fixture_set_param(f, 0, 0, CH_PARAM_AMP, 20000);
+  fixture_set_param(f, 0, 0, CH_PARAM_FRQ, 0);
+  fixture_set_param(f, 0, 0, CH_PARAM_SHP, shp);
+  fixture_set_param(f, 0, 0, CH_PARAM_MOD, mod);
+}
+
+// Where in the cycle the output peaks, as a fraction. Which edge the ramp is on
+// is the whole point of MOD's sign, and it is what the peak position shows.
+static float peak_position(const float* v, int n)
+{
+  int best = 0;
+  for (int i = 1; i < n; i++)
+  {
+    if (v[i] > v[best])
+      best = i;
+  }
+  return (float) best / (float) n;
+}
+
+static int intermediate_samples(const float* v, int n)
+{
+  int count = 0;
+  for (int i = 0; i < n; i++)
+  {
+    if (v[i] > -19000.0f && v[i] < 19000.0f)
+      count++;
+  }
+  return count;
+}
+
+// MOD 0 is still a gate; either side of it the gate grows an envelope, on the
+// edge the sign picks and confined to that edge's own segment.
+TEST_CASE(pwm_mod_puts_an_envelope_on_one_edge_or_the_other)
+{
+  const int N = 400;
+  float v[400];
+
+  Fixture f;
+
+  setup_pwm(&f, 0, 0); // hard gate
+  sweep_cycle(&f, v, N);
+  CHECK(intermediate_samples(v, N) <= 2); // only the two crossings
+
+  // Negative: instant attack, then a decay through the off-time. The peak is
+  // at the very start of the cycle and the ramp is real.
+  setup_pwm(&f, 0, -INT16_MAX);
+  sweep_cycle(&f, v, N);
+  CHECK(intermediate_samples(v, N) > N / 8);
+  CHECK(peak_position(v, N) < 0.25f);
+
+  // Positive: a swell across the on-time, then a hard drop. The peak is at the
+  // end of the on-time, which at this width is the middle of the cycle.
+  setup_pwm(&f, 0, INT16_MAX);
+  sweep_cycle(&f, v, N);
+  CHECK(intermediate_samples(v, N) > N / 8);
+  CHECK(peak_position(v, N) > 0.25f);
+}
+
+// Each ramp stays inside its own segment, so the width still means what it says
+// however far MOD is turned: a narrow pulse decays over the long off-time, and
+// the on-time itself stays narrow.
+TEST_CASE(the_pwm_envelope_stays_inside_its_own_segment)
+{
+  const int N = 400;
+  float v[400];
+
+  Fixture f;
+  setup_pwm(&f, -25000, -INT16_MAX); // narrow pulse, full decay
+  sweep_cycle(&f, v, N);
+
+  // Width here is ~13% of the cycle, so the decay has the remaining ~87% to
+  // run through and the output is still falling well past the halfway point.
+  CHECK(v[N / 2] > -20000.0f);
+  CHECK(v[N - 1] < v[N / 2]);
+  CHECK(peak_position(v, N) < 0.2f);
+}
+
 int main(void)
 {
   RUN_TEST(zero_amplitude_channel_outputs_the_offset);
@@ -293,5 +385,7 @@ int main(void)
   RUN_TEST(pattern_length_applies_immediately_while_the_encoder_is_turning);
   RUN_TEST(the_output_clamp_bounds_the_swing_without_rescaling_it);
   RUN_TEST(pwm_is_a_square_whose_duty_follows_the_shape_parameter);
+  RUN_TEST(pwm_mod_puts_an_envelope_on_one_edge_or_the_other);
+  RUN_TEST(the_pwm_envelope_stays_inside_its_own_segment);
   return TESTKIT_SUMMARY();
 }

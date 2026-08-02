@@ -55,6 +55,13 @@ int ui_sel_is_src(const UiState* ui, TargetKind kind, int8_t id);
 // so the two cannot disagree.
 int ui_sel_is_candidate(const UxState* state, TargetKind kind, int8_t id);
 
+// How many distinct things releasing this element could do: 0 for nothing,
+// 1 for a press that means one thing however long it is held, 2 where holding
+// past UI_T_LONG does something wider. The renderer asks so it can show what
+// letting go would do, and show the second stage differently, without
+// re-deriving rules that live here.
+uint8_t ui_sel_press_stages(const UxState* state, TargetKind kind, int8_t id);
+
 // The single entry point for "the user pressed this element". Picks a source,
 // commits against a held source, or performs an immediate action, according
 // to the active mode's descriptor.

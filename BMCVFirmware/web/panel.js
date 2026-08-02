@@ -103,7 +103,11 @@ function bindEncoder(ring, cap, e) {
   ring.addEventListener('pointerup', stop);
   ring.addEventListener('pointercancel', stop);
 
-  ring.addEventListener('wheel', ev => { ev.preventDefault(); turnEncoder(e.index, ev.deltaY < 0 ? 1 : -1); }, { passive: false });
+  // On the cap as well as the ring: the cap is a good half of the knob, and
+  // having the wheel do nothing over the middle of it reads as a dead spot.
+  const wheel = ev => { ev.preventDefault(); turnEncoder(e.index, ev.deltaY < 0 ? 1 : -1); };
+  ring.addEventListener('wheel', wheel, { passive: false });
+  cap.addEventListener('wheel', wheel, { passive: false });
 
   const label = `${e.designator} — encoder ${e.index}, channel ${e.channel}`;
   for (const n of [ring, cap]) {
@@ -229,9 +233,11 @@ let setSliderFromPos;
   const travel = s.travel_mm;
   const horizontal = (s.axis ?? 'x') === 'x';
 
+  // The same grey the encoder bodies wear, so the two read as the same kind of
+  // part rather than the fader being the brightest thing on the panel.
   const knob = horizontal
-    ? el('rect', { x: x - travel / 2 - 2, y: y - 3.3, width: 4, height: 6.6, rx: 1.1, fill: '#b7bcc3', stroke: '#101317', 'stroke-width': .4 })
-    : el('rect', { x: x - 4.4, y: y + travel / 2 - 2, width: 8.8, height: 4, rx: 1.2, fill: '#8f959d', stroke: '#101317', 'stroke-width': .4 });
+    ? el('rect', { x: x - travel / 2 - 2, y: y - 3.3, width: 4, height: 6.6, rx: 1.1, fill: '#6b7078', stroke: '#101317', 'stroke-width': .4 })
+    : el('rect', { x: x - 4.4, y: y + travel / 2 - 2, width: 8.8, height: 4, rx: 1.2, fill: '#6b7078', stroke: '#101317', 'stroke-width': .4 });
   const hit = horizontal
     ? el('rect', { x: x - travel / 2 - 3, y: y - 5.5, width: travel + 6, height: 11, fill: 'transparent', class: 'slider-hit' })
     : el('rect', { x: x - 5.5, y: y - travel / 2 - 3, width: 11, height: travel + 6, fill: 'transparent', class: 'slider-hit' });

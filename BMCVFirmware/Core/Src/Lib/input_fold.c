@@ -24,17 +24,23 @@ uint8_t input_trig_step(int16_t cv, uint8_t* state)
 void input_frames_init(InputFrames* in, UxState* ux, uint32_t now_us)
 {
   memset(in, 0, sizeof(*in));
-  in->frames[0].time = now_us;
-  ux->hw_state       = &in->frames[0];
+  in->curr.time = now_us;
+  ux->hw_state  = &in->curr;
 }
 
 uint8_t input_fold(InputFrames* in, UxState* ux, const InputSample* sample, uint32_t now_us)
 {
   const HwSetup* hw = ux->hw_setup;
 
-  HwState* prev = &in->frames[in->idx];
-  in->idx       = (uint8_t) ((in->idx + 1) % STATE_RINGBUF_SIZE);
-  HwState* curr = &in->frames[in->idx];
+  // This tick's frame is built in place over the last one, which is kept whole
+  // for the level comparisons below. Every field is written before anything
+  // downstream reads it - engine_tick runs after input_fold returns - and the
+  // one thing called from inside here, channel_take_trig, reads engine state
+  // rather than this.
+  in->prev = in->curr;
+
+  HwState* prev = &in->prev;
+  HwState* curr = &in->curr;
 
   curr->dt   = now_us - prev->time;
   curr->time = now_us;
@@ -44,8 +50,8 @@ uint8_t input_fold(InputFrames* in, UxState* ux, const InputSample* sample, uint
     curr->trigger_src[TRIG_SRC_INPUT(g)] = sample->cv_trig[hw->input_adc_idx[g]];
   }
 
-  // Channels can trigger each other; ux->hw_state still points at prev here,
-  // which is what channel_take_trig expects to compare against.
+  // Channels can trigger each other. This consumes the pending flag off
+  // EngineState, so it must happen exactly once per tick.
   for (uint8_t c = 0; c < N_CHANNELS; c++)
   {
     curr->trigger_src[TRIG_SRC_CHANNEL(c)] = channel_take_trig(c, ux->engine_state);
@@ -99,8 +105,6 @@ uint8_t input_fold(InputFrames* in, UxState* ux, const InputSample* sample, uint
     curr->encoder_delta[e] = (int16_t) (curr->encoder_state[e] - prev->encoder_state[e]);
     dirty |= curr->encoder_delta[e] != 0;
   }
-
-  ux->hw_state = curr;
 
   return dirty;
 }

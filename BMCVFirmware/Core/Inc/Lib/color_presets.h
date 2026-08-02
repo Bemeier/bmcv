@@ -17,6 +17,10 @@
 
 #define VAL_OFF 0
 
+// Below the base layer's brightness, for something that should be legible
+// without competing with anything: the unselected parameter buttons.
+#define VAL_DIM 2
+
 #define VAL_LOW 8
 
 #define VAL_MED 32
@@ -57,7 +61,10 @@
 //
 // Brightness discipline: LEDs read as far too bright above VAL_MED on this
 // hardware, so base and context layers stay at VAL_LOW and confirmations stop
-// at VAL_MED. VAL_HIG and VAL_MAX are not used by the layered renderer.
+// at VAL_MED. VAL_HIG is for the two places where the point is being
+// unmistakably brighter than something else of the same colour: the second
+// stage of a held press, and the selected parameter button against the dim
+// row it sits in. VAL_MAX is not used by the layered renderer.
 //
 // White is the whole vocabulary of assignment, and nothing else uses it: a
 // short white flash over an element's own colour means "this can be picked",

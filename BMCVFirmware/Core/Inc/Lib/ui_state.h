@@ -23,9 +23,9 @@
 #define MARK_BLINK_PERIOD 1600000
 #define MARK_BLINK_ON 200000
 
-// How long an element keeps showing the value being edited before decaying
-// back to its base state.
-#define UI_EDIT_DISPLAY MS(1000)
+// How long the encoders keep showing the selected parameter before decaying
+// back to the output level.
+#define UI_EDIT_DISPLAY MS(2000)
 
 // Everything the interaction layer owns: what mode the user is in, what they
 // have selected, what is being shown back to them.
@@ -57,10 +57,12 @@ typedef struct UiState
   // presets, and booting into a muted channel is not wanted behaviour.
   uint8_t muted[N_CHANNELS];
 
-  // Transient value display: how much longer this element should show the
-  // value being edited instead of its base state.
-  uint32_t channels_edit_hold[N_CHANNELS];
-  uint8_t channels_edit_hue[N_CHANNELS];
+  // Transient value display: how much longer the encoders should show the
+  // selected parameter instead of the output level.
+  //
+  // One timer for all eight, not one each: the point of showing it is to
+  // compare the channels against each other, which needs them all lit at once.
+  uint32_t param_display_hold;
 
   uint8_t blink_slow;
   uint8_t blink_fast;
@@ -69,19 +71,14 @@ typedef struct UiState
   UiInput in;
 } UiState;
 
-// Arm the transient value display on one channel: for UI_EDIT_DISPLAY it shows
-// the parameter being edited instead of its output level. Handlers write it,
-// the renderer reads it.
+// Show the selected parameter on every encoder for UI_EDIT_DISPLAY. Armed by
+// turning any channel's encoder and by picking a parameter; read by the
+// renderer.
 //
-// Only no-mode needs this. A shift mode's channel LEDs show that mode's setting
-// permanently (ChannelBaseLayer), so there is nothing there to reveal and then
-// decay back from - and the "reveal everything on mode entry" that used to be
-// here is what flashed every encoder red on the way out of a mode, because an
-// untouched channel's frequency hue is still zero.
-static inline void ui_show_channel_edit(UiState* ui, uint8_t channel)
-{
-  if (channel < N_CHANNELS)
-    ui->channels_edit_hold[channel] = UI_EDIT_DISPLAY;
-}
+// Only no-mode needs it. A shift mode's channel LEDs show that mode's setting
+// for as long as the mode is active (ChannelBaseLayer), so there is nothing to
+// reveal and decay back from - and arming this on mode *entry* is what used to
+// flash every encoder red on the way back out.
+static inline void ui_show_param_display(UiState* ui) { ui->param_display_hold = UI_EDIT_DISPLAY; }
 
 #endif /* INC_LIB_UI_STATE_H_ */

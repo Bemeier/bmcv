@@ -14,6 +14,15 @@
 
 static LedRgb led_of_ctrl_button(Fixture* f, uint8_t btn_id) { return f->engine_state.leds[f->ux_setup->ctrl_buttons[btn_id].led]; }
 
+static LedRgb led_of_channel(Fixture* f, uint8_t ch) { return f->engine_state.leds[f->ux_setup->channels[ch].led]; }
+static LedRgb led_of_scene(Fixture* f, uint8_t s) { return f->engine_state.leds[f->ux_setup->scenes[s].led]; }
+static int lit(LedRgb c) { return c.r > 0 || c.g > 0 || c.b > 0; }
+static int purple(LedRgb c) { return c.b > 0 && c.r > 0 && c.g == 0; }
+// Which primary dominates, for colours bright enough that the others are not
+// quite zero.
+static int bluest(LedRgb c) { return c.b > c.r && c.b > c.g; }
+static int greenest(LedRgb c) { return c.g > c.r && c.g > c.b; }
+
 TEST_CASE(hsv_maps_onto_expected_rgb)
 {
   Fixture f;
@@ -57,7 +66,9 @@ TEST_CASE(out_of_range_led_index_is_ignored_rather_than_corrupting_memory)
   }
 }
 
-TEST_CASE(selected_param_button_lights_up_and_others_do_not)
+// With no mode running the whole parameter row is legible - which colour goes
+// with which parameter - and the selected one stands well clear of the rest.
+TEST_CASE(the_selected_param_button_stands_out_from_the_dim_others)
 {
   Fixture f;
   fixture_init(&f);
@@ -67,10 +78,23 @@ TEST_CASE(selected_param_button_lights_up_and_others_do_not)
   ui_render(&f.ux);
 
   LedRgb selected = led_of_ctrl_button(&f, CH_PARAM_AMP);
-  CHECK(selected.r > 0 || selected.g > 0 || selected.b > 0);
+  LedRgb other    = led_of_ctrl_button(&f, CH_PARAM_FRQ);
+  CHECK(lit(selected) && lit(other));
+  CHECK(selected.r + selected.g + selected.b > 4 * (other.r + other.g + other.b));
+}
 
-  LedRgb other = led_of_ctrl_button(&f, CH_PARAM_FRQ);
-  CHECK(other.r == 0 && other.g == 0 && other.b == 0);
+// Inside a mode only that mode's own button is lit, so the row cannot be
+// mistaken for a parameter selection.
+TEST_CASE(parameter_buttons_go_dark_while_a_shift_mode_is_running)
+{
+  Fixture f;
+  fixture_init(&f);
+  f.ui_state.shift_state    = SHIFT_STATE_MON;
+  f.ui_state.selected_param = CH_PARAM_AMP;
+
+  ui_render(&f.ux);
+  CHECK(!lit(led_of_ctrl_button(&f, CH_PARAM_AMP)));
+  CHECK(!lit(led_of_ctrl_button(&f, CH_PARAM_FRQ)));
 }
 
 TEST_CASE(active_shift_mode_button_blinks_with_the_slow_blink_signal)
@@ -89,15 +113,6 @@ TEST_CASE(active_shift_mode_button_blinks_with_the_slow_blink_signal)
   LedRgb dark = led_of_ctrl_button(&f, SHIFT_STATE_SYS);
   CHECK(dark.r == 0 && dark.g == 0 && dark.b == 0);
 }
-
-static LedRgb led_of_channel(Fixture* f, uint8_t ch) { return f->engine_state.leds[f->ux_setup->channels[ch].led]; }
-static LedRgb led_of_scene(Fixture* f, uint8_t s) { return f->engine_state.leds[f->ux_setup->scenes[s].led]; }
-static int lit(LedRgb c) { return c.r > 0 || c.g > 0 || c.b > 0; }
-static int purple(LedRgb c) { return c.b > 0 && c.r > 0 && c.g == 0; }
-// Which primary dominates, for colours bright enough that the others are not
-// quite zero.
-static int bluest(LedRgb c) { return c.b > c.r && c.b > c.g; }
-static int greenest(LedRgb c) { return c.g > c.r && c.g > c.b; }
 
 // The layer stack is the whole point of the renderer: base < context < edit <
 // confirmation, and each layer must be able to win over the one below.
@@ -178,15 +193,15 @@ TEST_CASE(a_shift_mode_shows_its_own_setting_and_never_the_output_level)
   Fixture f;
   fixture_init(&f);
   f.ui_state.shift_state                      = SHIFT_STATE_SYS;
-  f.engine_state.channels_output_level[1]     = -DAC_5V;            // red, were it shown
-  f.engine_config.channel_state[1].shape_mode = SHAPE_STEPPED_HARD; // yellow as a value
+  f.engine_state.channels_output_level[1]     = -DAC_5V;   // red, were it shown
+  f.engine_config.channel_state[1].shape_mode = SHAPE_PWM; // yellow as a value
 
   ui_render(&f.ux);
   LedRgb l = led_of_channel(&f, 1);
   CHECK(l.g > 0 && l.b == 0); // the shape colour...
 
   // ...and it does not decay back to anything: there is nothing transient here.
-  f.ui_state.channels_edit_hold[1] = 0;
+  f.ui_state.param_display_hold = 0;
   ui_render(&f.ux);
   CHECK(led_of_channel(&f, 1).g > 0);
 }
@@ -227,7 +242,7 @@ TEST_CASE(pattern_length_only_lights_the_channels_it_applies_to)
   Fixture f;
   fixture_init(&f);
   f.ui_state.shift_state                      = SHIFT_STATE_STA;
-  f.engine_config.channel_state[0].shape_mode = SHAPE_STEPPED_SEMI;
+  f.engine_config.channel_state[0].shape_mode = SHAPE_STEPPED;
   f.engine_config.channel_state[1].shape_mode = SHAPE_LFO;
 
   ui_render(&f.ux);
@@ -263,6 +278,67 @@ TEST_CASE(the_output_clamp_reads_as_polarity_by_hue_and_range_by_brightness)
   LedRgb uni_10 = led_of_channel(&f, 2), uni_5 = led_of_channel(&f, 3);
   CHECK(greenest(uni_10) && greenest(uni_5)); // unipolar reads green
   CHECK(uni_10.g > uni_5.g);
+}
+
+// A press that acts on release used to show nothing at all until it had
+// already happened.
+TEST_CASE(holding_a_clear_shows_what_letting_go_would_do)
+{
+  Fixture f;
+  fixture_init(&f);
+  f.ui_state.shift_state = SHIFT_STATE_CLR;
+  f.ui_state.blink_fast  = 1;
+
+  int8_t btn = f.ux_setup->channels[2].button;
+
+  // The blink signal is recomputed from the clock every tick, so it is forced
+  // to its "on" half after each hold rather than once at the top.
+  LedRgb idle = (ui_render(&f.ux), led_of_channel(&f, 2));
+
+  // Past the debounce: the colour of the act, brighter once the hold has
+  // widened it from this scene to every scene.
+  fixture_hold(&f, btn, UI_T_HOLD);
+  f.ui_state.blink_fast = 1;
+  ui_render(&f.ux);
+  LedRgb stage1 = led_of_channel(&f, 2);
+  CHECK(lit(stage1) && stage1.b > idle.b);
+
+  fixture_hold(&f, btn, UI_T_LONG);
+  f.ui_state.blink_fast = 1;
+  ui_render(&f.ux);
+  LedRgb stage2 = led_of_channel(&f, 2);
+  CHECK(stage2.b > stage1.b);
+  CHECK(bluest(stage1) && bluest(stage2)); // the same colour, only brighter
+
+  // And it blinks rather than sitting on, so it reads as pending.
+  f.ui_state.blink_fast = 0;
+  ui_render(&f.ux);
+  CHECK(!lit(led_of_channel(&f, 2)));
+
+  // Nothing has been cleared yet: that happens on the release.
+  CHECK(f.engine_config.channel_state[2].params[0][CH_PARAM_FRQ] != -255 || f.engine_config.channel_state[2].params[0][CH_PARAM_AMP] == 0);
+}
+
+// A scene has only one thing a press can mean, so it must not pretend to have
+// a second stage.
+TEST_CASE(a_one_stage_press_does_not_get_brighter_when_held)
+{
+  Fixture f;
+  fixture_init(&f);
+  f.ui_state.shift_state = SHIFT_STATE_CLR;
+  f.ui_state.blink_fast  = 1;
+
+  int8_t btn = f.ux_setup->scenes[3].button;
+
+  fixture_hold(&f, btn, UI_T_HOLD);
+  f.ui_state.blink_fast = 1;
+  ui_render(&f.ux);
+  LedRgb held = led_of_scene(&f, 3);
+
+  fixture_hold(&f, btn, UI_T_LONG);
+  f.ui_state.blink_fast = 1;
+  ui_render(&f.ux);
+  CHECK(led_of_scene(&f, 3).b == held.b);
 }
 
 // White is the assignment vocabulary, and it is a mark rather than a blink: in
@@ -312,6 +388,30 @@ TEST_CASE(while_a_source_is_held_only_valid_destinations_light)
   CHECK(!lit(led_of_scene(&f, 2)));
 }
 
+// The frequency ratio reads as a coded hue rather than a level, and it holds
+// still: multiplying it by the fast blink was survivable when one channel lit
+// on touch, and became a row of eight flashing green as soon as picking the
+// parameter lit all of them.
+TEST_CASE(the_frequency_hue_does_not_blink)
+{
+  Fixture f;
+  fixture_init(&f);
+  f.ui_state.shift_state        = SHIFT_STATE_NONE;
+  f.ui_state.selected_param     = CH_PARAM_FRQ;
+  f.ui_state.param_display_hold = UI_EDIT_DISPLAY;
+
+  f.ui_state.blink_fast = 1;
+  ui_render(&f.ux);
+  LedRgb on = led_of_channel(&f, 0);
+
+  f.ui_state.blink_fast = 0;
+  ui_render(&f.ux);
+  LedRgb off = led_of_channel(&f, 0);
+
+  CHECK(lit(on));
+  CHECK(on.r == off.r && on.g == off.g && on.b == off.b);
+}
+
 // With no mode active the ring is a level meter, and the parameter being edited
 // only borrows it on touch.
 TEST_CASE(the_selected_parameter_shows_on_touch_and_decays_back_to_the_output_level)
@@ -323,12 +423,12 @@ TEST_CASE(the_selected_parameter_shows_on_touch_and_decays_back_to_the_output_le
   f.engine_state.channels_output_level[1]                                            = -DAC_5V; // red as a base
   f.engine_config.channel_state[1].params[f.engine_state.active_scene][CH_PARAM_AMP] = ADC_5V / 2;
 
-  f.ui_state.channels_edit_hold[1] = UI_EDIT_DISPLAY;
+  f.ui_state.param_display_hold = UI_EDIT_DISPLAY;
   ui_render(&f.ux);
   LedRgb touched = led_of_channel(&f, 1);
   CHECK(touched.g > 0 && touched.r == 0); // the positive parameter, not the level
 
-  f.ui_state.channels_edit_hold[1] = 0;
+  f.ui_state.param_display_hold = 0;
   ui_render(&f.ux);
   LedRgb settled = led_of_channel(&f, 1);
   CHECK(settled.r > 0 && settled.g == 0); // back to the negative output level
@@ -339,7 +439,8 @@ int main(void)
   RUN_TEST(hsv_maps_onto_expected_rgb);
   RUN_TEST(bipolar_cv_shows_green_when_positive_and_red_when_negative);
   RUN_TEST(out_of_range_led_index_is_ignored_rather_than_corrupting_memory);
-  RUN_TEST(selected_param_button_lights_up_and_others_do_not);
+  RUN_TEST(the_selected_param_button_stands_out_from_the_dim_others);
+  RUN_TEST(parameter_buttons_go_dark_while_a_shift_mode_is_running);
   RUN_TEST(active_shift_mode_button_blinks_with_the_slow_blink_signal);
   RUN_TEST(a_confirmation_flash_overrides_the_candidate_highlight_beneath_it);
   RUN_TEST(every_channel_and_scene_led_is_written_in_every_mode);
@@ -349,8 +450,11 @@ int main(void)
   RUN_TEST(the_mute_page_shows_green_for_passing_and_purple_for_gated);
   RUN_TEST(pattern_length_only_lights_the_channels_it_applies_to);
   RUN_TEST(the_output_clamp_reads_as_polarity_by_hue_and_range_by_brightness);
+  RUN_TEST(holding_a_clear_shows_what_letting_go_would_do);
+  RUN_TEST(a_one_stage_press_does_not_get_brighter_when_held);
   RUN_TEST(a_pickable_element_keeps_its_state_colour_and_marks_itself_white);
   RUN_TEST(while_a_source_is_held_only_valid_destinations_light);
+  RUN_TEST(the_frequency_hue_does_not_blink);
   RUN_TEST(the_selected_parameter_shows_on_touch_and_decays_back_to_the_output_level);
   return TESTKIT_SUMMARY();
 }

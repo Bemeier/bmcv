@@ -29,7 +29,7 @@
 // scattered `released_t > MS(10)` checks were really asking for, so the test
 // belongs here rather than at every call site.
 #define UI_T_DEBOUNCE MS(10)
-#define UI_T_HOLD MS(100)
+#define UI_T_HOLD MS(150)
 #define UI_T_LONG MS(500)
 #define UI_T_VLONG MS(1000)
 

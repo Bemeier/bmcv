@@ -38,5 +38,14 @@ void ui_ctrl_selected_param(const CtrlButtonSetup* btn, UxState* state)
   if (state->ui->shift_state == SHIFT_STATE_NONE && btn->id < CH_PARAM_COUNT && btn_ev(&state->ui->in, btn->button, BTN_EV_TAP))
   {
     state->ui->selected_param = (ChannelParameters) btn->id;
+
+    // Picking a parameter shows it across every encoder for a moment, the same
+    // as touching one does - including when it is the parameter already
+    // selected, which makes the button a "show me where these are set" key.
+    //
+    // The tap that *left* a shift mode is excluded above, deliberately: coming
+    // out of a mode should land back on the output monitor rather than on a
+    // parameter the user did not ask to see.
+    ui_show_param_display(state->ui);
   }
 }

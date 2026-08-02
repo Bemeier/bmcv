@@ -25,7 +25,10 @@
 
 // Chance that a step repeats the previous value instead of taking a new one,
 // which gives the pattern ties and rests rather than a fresh value every step.
-#define SR_HOLD_PROBABILITY 0.30f
+// This is what MOD moves; the value here is what MOD 0 asks for, and the top of
+// the range is SR_HOLD_MAX, which the normalisation table defines because it is
+// that table's own axis.
+#define SR_HOLD_NEUTRAL 0.30f
 
 // Repeats are faded out on short patterns, where a single repeat would flatten
 // too large a fraction of the cycle.
@@ -72,25 +75,46 @@ static inline int sr_source_slot(int slot, float hold_probability)
 
 int sr_length_for_index(int length_idx) { return sr_lengths[iclamp(length_idx, 0, SR_LENGTH_COUNT - 1)]; }
 
+// How often a step ties to the previous one instead of taking a new value: the
+// pattern's density, which is what MOD drives.
+//
+// Bipolar around the neutral 0.30, so MOD 0 is the behaviour the pattern was
+// designed around: fully left every step is new and the cycle is at its
+// busiest, fully right most steps are ties and the pattern reads as a handful
+// of long notes. Short patterns fade it in - one tie out of three steps
+// flattens too much of the cycle to be worth having.
+static float sr_hold_probability(float mod, int length)
+{
+  mod = fclamp(mod, -1.0f, 1.0f);
+
+  float p = (mod <= 0.0f) ? SR_HOLD_NEUTRAL * (1.0f + mod) : SR_HOLD_NEUTRAL + mod * (SR_HOLD_MAX - SR_HOLD_NEUTRAL);
+
+  return p * fclamp((float) (length - 2) / SR_HOLD_FADE_IN_STEPS, 0.0f, 1.0f);
+}
+
+// One value out of a [length][probability][morph] table, interpolated on both
+// bin axes. The length is an index, not a bin: it is one of a curated set and
+// there is nothing between its entries.
+static float sr_norm_lookup(const float table[SR_LENGTH_COUNT][SR_PROB_BINS][SR_NORM_BINS], int length_idx, int prob_bin, float prob_frac,
+                            int bin, int bin_next, float bin_frac)
+{
+  float lo = lerp(table[length_idx][prob_bin][bin], table[length_idx][prob_bin][bin_next], bin_frac);
+  float hi = lerp(table[length_idx][prob_bin + 1][bin], table[length_idx][prob_bin + 1][bin_next], bin_frac);
+  return lerp(lo, hi, prob_frac);
+}
+
 float stepped_random(float phase, float shape, float mod, int length_idx, float hold)
 {
   length_idx = iclamp(length_idx, 0, SR_LENGTH_COUNT - 1);
   int length = sr_lengths[length_idx];
 
-  // MOD warps where in the cycle the step boundaries land - a swing, in effect.
-  // The warp is monotonic and fixes both endpoints, so the lattice is still
-  // read once per cycle in order and the loop still closes seamlessly; only the
-  // timing of the steps changes, never the set of values. See the header: this
-  // mapping is provisional.
-  phase = phase_mod(fclamp(phase, 0.0f, 1.0f), mod);
-
   // Morph position. One full turn across the knob, matching the way the
   // parameter itself wraps at its extremes.
   float morph = 0.5f * (shape + 1.0f);
 
-  float hold_probability = SR_HOLD_PROBABILITY * fclamp((float) (length - 2) / SR_HOLD_FADE_IN_STEPS, 0.0f, 1.0f);
+  float hold_probability = sr_hold_probability(mod, length);
 
-  float x  = phase * (float) length;
+  float x  = fclamp(phase, 0.0f, 1.0f) * (float) length;
   int step = (int) x;
   if (step >= length)
   {
@@ -120,8 +144,19 @@ float stepped_random(float phase, float shape, float mod, int length_idx, float 
   bin            = bin % SR_NORM_BINS;
   int bin_next   = (bin + 1) % SR_NORM_BINS;
 
-  float gain   = lerp(sr_norm_gain[length_idx][bin], sr_norm_gain[length_idx][bin_next], bin_frac);
-  float offset = lerp(sr_norm_offset[length_idx][bin], sr_norm_offset[length_idx][bin_next], bin_frac);
+  // The probability axis of the same table. sr_hold_probability() cannot exceed
+  // SR_HOLD_MAX, so the top bin is only ever reached exactly.
+  float prob_pos  = (hold_probability / SR_HOLD_MAX) * (float) (SR_PROB_BINS - 1);
+  int prob_bin    = (int) prob_pos;
+  float prob_frac = prob_pos - (float) prob_bin;
+  if (prob_bin >= SR_PROB_BINS - 1)
+  {
+    prob_bin  = SR_PROB_BINS - 2;
+    prob_frac = 1.0f;
+  }
+
+  float gain   = sr_norm_lookup(sr_norm_gain, length_idx, prob_bin, prob_frac, bin, bin_next, bin_frac);
+  float offset = sr_norm_lookup(sr_norm_offset, length_idx, prob_bin, prob_frac, bin, bin_next, bin_frac);
 
   return fclamp(value * gain + offset, -1.0f, 1.0f);
 }

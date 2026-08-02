@@ -93,6 +93,22 @@ static const uint8_t quantized_multipliers_colors[N_FREQ_MULTIPLIERS] = {
 _Static_assert(sizeof quantized_multipliers_colors / sizeof quantized_multipliers_colors[0] == N_FREQ_MULTIPLIERS,
                "one colour per multiplier, read with the same index");
 
+uint8_t ui_channel_freq_hue(int16_t value)
+{
+  // The table is sorted, so the first entry not below the value is either the
+  // match or one past the nearest one below it.
+  size_t idx = 0;
+  while (idx + 1 < N_FREQ_MULTIPLIERS && quantized_multipliers[idx] < value)
+  {
+    idx++;
+  }
+  if (idx > 0 && (value - quantized_multipliers[idx - 1]) < (quantized_multipliers[idx] - value))
+  {
+    idx--;
+  }
+  return quantized_multipliers_colors[idx];
+}
+
 static void ui_channel_param(const ChannelSetup* ch, UxState* state)
 {
   ChannelConfig* chcfg = &state->engine_config->channel_state[ch->id];
@@ -104,7 +120,10 @@ static void ui_channel_param(const ChannelSetup* ch, UxState* state)
     return;
 
   ux_note_channel_edit(state, ch->id);
-  ui_show_channel_edit(state->ui, ch->id);
+
+  // Every encoder shows the parameter, not just this one: the reason to see it
+  // at all is to compare this channel against the others.
+  ui_show_param_display(state->ui);
 
   // By value: ChannelConfig is a packed FRAM record, so a pointer into it is
   // potentially unaligned.
@@ -117,9 +136,8 @@ static void ui_channel_param(const ChannelSetup* ch, UxState* state)
   }
   else if (param == CH_PARAM_FRQ)
   {
-    size_t idx                           = 0;
-    value                                = val_neighbour(value, delta, quantized_multipliers, N_FREQ_MULTIPLIERS, &idx);
-    state->ui->channels_edit_hue[ch->id] = quantized_multipliers_colors[idx];
+    size_t idx = 0;
+    value      = val_neighbour(value, delta, quantized_multipliers, N_FREQ_MULTIPLIERS, &idx);
   }
   else
   {
@@ -129,15 +147,18 @@ static void ui_channel_param(const ChannelSetup* ch, UxState* state)
   chcfg->params[scene][param] = value;
 }
 
-// Three of the four encoder targets cycle a discrete per-channel setting and
-// arm the value display. By value rather than through a pointer, because the
-// three fields have three different types - two of them enums, which are not
-// int8_t and must not be aliased as one.
-static int cycle_mode(UxState* state, uint8_t ch_id, int current, int16_t delta, int count)
-{
-  ui_show_channel_edit(state->ui, ch_id);
-  return delta_modulo_step(current, delta, count);
-}
+// Step one of a mode's discrete settings, one detent at a time.
+//
+// Clamped at both ends rather than wrapping. These are short lists of unrelated
+// states, not continuous values, and rolling off one end into the other is
+// never a move anyone means to make - the jump from "off" to the most extreme
+// setting is the largest change on the page. Every one of these lists has its
+// default at index 0, so spinning fully left is a reset you can make blind.
+//
+// By value rather than through a pointer, because the fields have different
+// types - some of them enums, which are not int8_t and must not be aliased as
+// one. No display to arm: in a shift mode the setting is what the LED shows.
+static int step_setting(int current, int16_t delta, int count) { return iclamp(current + iclamp(delta, -1, 1), 0, count - 1); }
 
 void ui_channel_update(const ChannelSetup* ch, UxState* state)
 {
@@ -194,7 +215,7 @@ void ui_channel_update(const ChannelSetup* ch, UxState* state)
     break;
 
   case ENC_SHAPE:
-    chcfg->shape_mode = (int8_t) cycle_mode(state, ch->id, chcfg->shape_mode, delta, SHAPE_MODE_COUNT);
+    chcfg->shape_mode = (int8_t) step_setting(chcfg->shape_mode, delta, SHAPE_MODE_COUNT);
     break;
 
   case ENC_QUANT:
@@ -202,13 +223,13 @@ void ui_channel_update(const ChannelSetup* ch, UxState* state)
     // assignment for the same value.
     if (ui_sel_pending(state->ui))
       break;
-    chcfg->quantize_mode = (ChannelQuantizeMode) cycle_mode(state, ch->id, chcfg->quantize_mode, delta, QUANTIZE_MODE_COUNT);
+    chcfg->quantize_mode = (ChannelQuantizeMode) step_setting(chcfg->quantize_mode, delta, QUANTIZE_MODE_COUNT);
     break;
 
   case ENC_AMPMODE:
     if (pressing)
       break; // the button is picking a source, not modifying the encoder
-    chcfg->input_amp_mode = (ChannelInputAmpMode) cycle_mode(state, ch->id, chcfg->input_amp_mode, delta, INPUT_AMP_MODE_COUNT);
+    chcfg->input_amp_mode = (ChannelInputAmpMode) step_setting(chcfg->input_amp_mode, delta, INPUT_AMP_MODE_COUNT);
     break;
 
   case ENC_MUTE:
@@ -224,17 +245,14 @@ void ui_channel_update(const ChannelSetup* ch, UxState* state)
     // too, rather than silently moving a setting with no visible effect.
     if (!shape_mode_is_stepped(chcfg->shape_mode))
       break;
-    // Clamped, not wrapped: this is a ramp from 3 steps to 64, and rolling off
-    // one end into the other is not a move anyone means to make.
-    chcfg->sr_length_idx = (int8_t) iclamp(chcfg->sr_length_idx + iclamp(delta, -1, 1), 0, SR_LENGTH_COUNT - 1);
+    chcfg->sr_length_idx = (int8_t) step_setting(chcfg->sr_length_idx, delta, SR_LENGTH_COUNT);
     // The engine latches pattern length at the cycle wrap unless the user is
     // actively turning this channel - which is what this records.
     ux_note_channel_edit(state, ch->id);
-    ui_show_channel_edit(state->ui, ch->id);
     break;
 
   case ENC_CLAMP:
-    chcfg->clamp_mode = (int8_t) cycle_mode(state, ch->id, chcfg->clamp_mode, delta, CLAMP_MODE_COUNT);
+    chcfg->clamp_mode = (int8_t) step_setting(chcfg->clamp_mode, delta, CLAMP_MODE_COUNT);
     break;
 
   default:

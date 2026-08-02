@@ -12,7 +12,7 @@ static int8_t ctrl_btn(Fixture* f, uint8_t id) { return f->ux_setup->ctrl_button
 
 static void latch(Fixture* f, uint8_t mode)
 {
-  fixture_hold(f, ctrl_btn(f, mode), MS(150));
+  fixture_hold(f, ctrl_btn(f, mode), UI_T_HOLD + MS(50));
   fixture_release(f, ctrl_btn(f, mode));
 }
 

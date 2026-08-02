@@ -74,11 +74,8 @@ static void age_timers(UxState* state, uint32_t dt)
 {
   ui_feedback_tick(state->ui, dt);
 
-  for (uint8_t c = 0; c < N_CHANNELS; c++)
-  {
-    uint32_t* hold = &state->ui->channels_edit_hold[c];
-    *hold          = (*hold > dt) ? (*hold - dt) : 0;
-  }
+  uint32_t* hold = &state->ui->param_display_hold;
+  *hold          = (*hold > dt) ? (*hold - dt) : 0;
 }
 
 void ux_update(UxState* state, uint32_t now_us)

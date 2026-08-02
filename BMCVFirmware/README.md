@@ -12,6 +12,7 @@
   - SHP morphs the pattern, MOD sets pattern length (3..64 steps, curated set)
   - Loops seamlessly, so it stays locked under the PLL
 - [ ] Full Input & Channel Cross modulation support
+- [x] MOD as a second shaping parameter in every shape mode
 - [x] UX: Fix long press control button in quantizer mode
 - [x] UX: Consistent colors (semantic palette in color_presets.h)
 - [x] UX: Consistent blinking (white mark for assignment; source and mute steady)
@@ -24,6 +25,10 @@
 
 One fact per LED, and the same colour for the same idea on every page.
 
+- **Ctrl-page settings clamp, they do not wrap.** Each is a short list of
+  unrelated states with its default at index 0, so spinning an encoder fully
+  left resets it and you can do that without looking. Rolling off one end into
+  the other would be the largest change on the page.
 - **Setting states** are the base layer. Index 0 of every setting - disabled,
   default, neutral - is **purple**; **cyan** is continuous / level-following or
   multiplicative, **green** additive or half-way, **yellow** triggered / clocked
@@ -39,6 +44,10 @@ One fact per LED, and the same colour for the same idea on every page.
   the encoder ring shows that mode's setting, or nothing if it has none.
 - **Confirmations** are a brief flash on top: green wrote, purple cleared, cyan
   loaded. Red is errors only.
+- **A held press shows what letting go would do**, in the colour of that act and
+  blinking. Where holding longer does something wider - clearing every scene
+  rather than this one - the same colour gets brighter once that threshold is
+  crossed. Nothing commits until the release.
 
 # Shift Modes
 
@@ -61,8 +70,40 @@ One fact per LED, and the same colour for the same idea on every page.
   - TODO: Clock div
   - TODO: PLL sensitivity? Could also be per channel?
 - Channel:
-  - Set Waveshape mode: wavetable, three stepped-random flavours, PWM square.
-    In PWM, SHP is the pulse width.
+  - Set Waveshape mode: wavetable, stepped random, PWM square.
+
+# Shape modes
+
+SHP picks the shape; **MOD is the second axis**, and what it means per mode:
+
+| mode | SHP | MOD |
+|---|---|---|
+| wavetable | table slice | **skew** - leans the waveform early or late |
+| stepped random | pattern morph | **density** - how often a step ties to the previous value instead of taking a new one |
+| PWM | pulse width | **envelope** - ramp time on one edge |
+
+Three modes, not five: the stepped variants were one algorithm at three hold
+values, which made a long list out of one idea. If hold comes back it should
+come back as a per-channel setting, the way pattern length did.
+
+Where MOD leans something, the sign is the same everywhere: **negative leans
+early, positive leans late.** Stepped random is the exception - density has no
+early or late - and there negative is busy, positive is sparse.
+
+- **Wavetable skew** is a rational phase warp that fixes both cycle endpoints
+  and is monotone, so the loop still closes; it turns a sine into a skewed sine
+  and a triangle into a ramp.
+- **Stepped density** at MOD 0 is the 30% tie probability the pattern was
+  designed around: fully left every step takes a new value, fully right the
+  cycle is a handful of long notes. Faded in on short patterns, where one tie
+  flattens too much. The normalisation table carries a probability axis so the
+  correction holds as MOD moves.
+- **PWM envelope**: MOD 0 is a hard gate. Negative snaps up and decays through
+  the off-time; positive swells across the on-time and drops at the end. Each
+  ramp is confined to its own segment, so the width still means what it says at
+  either extreme, and the ramps are curved - concave attack, convex decay - so
+  the negative side reads as an envelope rather than a triangle. A narrow pulse
+  with MOD hard left is a percussive envelope locked to the beat.
 
 ## SAV - Save & Load
 
@@ -116,9 +157,17 @@ pages that LED belongs to whatever the page edits. Mute clears on power cycle.
 
 ## No mode
 
+Ctrl Buttons: - Each parameter button glows very dim in its own colour, so the
+row says which colour means which parameter; the selected one is several times
+brighter. All dark while a shift mode is running.
 Scene Buttons: - Hold to make that scene active momentarily
-Channel: - The ring is a level meter, showing what the channel is putting out,
-and borrows itself briefly to show the selected parameter while it is being
-turned. Press to clear that parameter in the active scene, hold to clear it in
-every scene - a purple flash confirms, longer for the wider one. Holding while
-turning is the fine-adjust modifier and clears nothing.
+Channel: - The ring is a level meter, showing what the channel is putting out.
+Touching any encoder, or tapping a parameter button (including the one already
+selected), shows that parameter on **all eight** for a couple of seconds - the
+point of seeing it is to compare the channels against each other - then decays
+back to the meter. Leaving a shift mode does not: that lands straight back on
+the meter.
+
+Press to clear the parameter in the active scene, hold to clear it in every
+scene - purple while held, brighter for the wider one, and a purple flash on
+release. Holding while turning is the fine-adjust modifier and clears nothing.

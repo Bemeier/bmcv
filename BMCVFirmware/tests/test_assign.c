@@ -63,7 +63,7 @@ TEST_CASE(clearing_a_whole_channel_also_drops_its_routing_and_modes)
   ch->src_trig       = 3;
   ch->input_amp_mode = INPUT_AMP_MULT;
   ch->quantize_mode  = QUANTIZE_CONTINUOUS;
-  ch->shape_mode     = SHAPE_STEPPED_HARD;
+  ch->shape_mode     = SHAPE_STEPPED;
   ch->sr_length_idx  = 5;
   ch->clamp_mode     = CLAMP_UNI_5;
 
@@ -87,12 +87,12 @@ TEST_CASE(clearing_one_scene_leaves_the_channel_settings_alone)
 
   ChannelConfig* ch = &f.engine_config.channel_state[2];
   ch->src_input     = 1;
-  ch->shape_mode    = SHAPE_STEPPED_HARD;
+  ch->shape_mode    = SHAPE_STEPPED;
 
   clear_channel(2, 0, &f.ux);
 
   CHECK(ch->src_input == 1);
-  CHECK(ch->shape_mode == SHAPE_STEPPED_HARD);
+  CHECK(ch->shape_mode == SHAPE_STEPPED);
 }
 
 TEST_CASE(two_step_assign_copies_scene_to_scene_for_every_channel)

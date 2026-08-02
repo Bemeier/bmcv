@@ -20,7 +20,7 @@ TEST_CASE(holding_a_ctrl_button_latches_its_shift_mode_and_it_survives_release)
   fixture_init(&f);
   f.ui_state.shift_state = SHIFT_STATE_NONE;
 
-  fixture_hold(&f, ctrl_btn(&f, SHIFT_STATE_CPY), MS(150));
+  fixture_hold(&f, ctrl_btn(&f, SHIFT_STATE_CPY), UI_T_HOLD + MS(50));
   CHECK(f.ui_state.shift_state == SHIFT_STATE_CPY);
 
   // Releasing after the hold must not drop straight back out.
@@ -43,7 +43,7 @@ TEST_CASE(tapping_a_ctrl_button_exits_an_active_shift_mode)
   Fixture f;
   fixture_init(&f);
 
-  fixture_hold(&f, ctrl_btn(&f, SHIFT_STATE_SYS), MS(150));
+  fixture_hold(&f, ctrl_btn(&f, SHIFT_STATE_SYS), UI_T_HOLD + MS(50));
   fixture_release(&f, ctrl_btn(&f, SHIFT_STATE_SYS));
   CHECK(f.ui_state.shift_state == SHIFT_STATE_SYS);
 
@@ -58,7 +58,7 @@ TEST_CASE(quantizer_mode_is_not_exited_by_other_ctrl_buttons)
   Fixture f;
   fixture_init(&f);
 
-  fixture_hold(&f, ctrl_btn(&f, SHIFT_STATE_QNT), MS(150));
+  fixture_hold(&f, ctrl_btn(&f, SHIFT_STATE_QNT), UI_T_HOLD + MS(50));
   fixture_release(&f, ctrl_btn(&f, SHIFT_STATE_QNT));
   CHECK(f.ui_state.shift_state == SHIFT_STATE_QNT);
 
@@ -125,13 +125,59 @@ TEST_CASE(encoder_in_sys_mode_steps_the_shape_mode)
   Fixture f;
   fixture_init(&f);
 
-  fixture_hold(&f, ctrl_btn(&f, SHIFT_STATE_SYS), MS(150));
+  fixture_hold(&f, ctrl_btn(&f, SHIFT_STATE_SYS), UI_T_HOLD + MS(50));
   fixture_release(&f, ctrl_btn(&f, SHIFT_STATE_SYS));
   CHECK(f.ui_state.shift_state == SHIFT_STATE_SYS);
 
   f.engine_config.channel_state[1].shape_mode = SHAPE_LFO;
   fixture_encoder(&f, f.ux_setup->channels[1].encoder, 1);
-  CHECK(f.engine_config.channel_state[1].shape_mode == SHAPE_STEPPED_SMOOTH);
+  CHECK(f.engine_config.channel_state[1].shape_mode == SHAPE_STEPPED);
+}
+
+// Ctrl-page settings clamp at both ends instead of wrapping. They are short
+// lists of unrelated states, so rolling off one end into the other is the
+// largest change on the page and never a move anyone means to make - and with
+// every list's default at index 0, spinning fully left is a blind reset.
+TEST_CASE(ctrl_page_settings_clamp_at_both_ends_instead_of_wrapping)
+{
+  Fixture f;
+  fixture_init(&f);
+
+  fixture_hold(&f, ctrl_btn(&f, SHIFT_STATE_SYS), UI_T_HOLD + MS(50));
+  fixture_release(&f, ctrl_btn(&f, SHIFT_STATE_SYS));
+
+  int8_t enc = f.ux_setup->channels[1].encoder;
+
+  for (int i = 0; i < SHAPE_MODE_COUNT + 3; i++)
+    fixture_encoder(&f, enc, 1);
+  CHECK(f.engine_config.channel_state[1].shape_mode == SHAPE_MODE_COUNT - 1);
+
+  for (int i = 0; i < SHAPE_MODE_COUNT + 3; i++)
+    fixture_encoder(&f, enc, -1);
+  CHECK(f.engine_config.channel_state[1].shape_mode == 0); // the default, at the far left
+
+  // One detent is one step, however big the encoder delta claims to be.
+  fixture_encoder(&f, enc, 4);
+  CHECK(f.engine_config.channel_state[1].shape_mode == 1);
+}
+
+TEST_CASE(the_output_clamp_setting_clamps_rather_than_wrapping_too)
+{
+  Fixture f;
+  fixture_init(&f);
+
+  fixture_hold(&f, ctrl_btn(&f, SHIFT_STATE_SAV), UI_T_HOLD + MS(50));
+  fixture_release(&f, ctrl_btn(&f, SHIFT_STATE_SAV));
+
+  int8_t enc = f.ux_setup->channels[0].encoder;
+
+  for (int i = 0; i < CLAMP_MODE_COUNT + 3; i++)
+    fixture_encoder(&f, enc, 1);
+  CHECK(f.engine_config.channel_state[0].clamp_mode == CLAMP_MODE_COUNT - 1);
+
+  for (int i = 0; i < CLAMP_MODE_COUNT + 3; i++)
+    fixture_encoder(&f, enc, -1);
+  CHECK(f.engine_config.channel_state[0].clamp_mode == CLAMP_BI_10);
 }
 
 // A press with no encoder movement clears the selected param; the same press
@@ -195,7 +241,7 @@ TEST_CASE(the_encoder_mutes_one_way_and_unmutes_the_other_in_mute_mode)
   Fixture f;
   fixture_init(&f);
 
-  fixture_hold(&f, ctrl_btn(&f, SHIFT_STATE_MUT), MS(150));
+  fixture_hold(&f, ctrl_btn(&f, SHIFT_STATE_MUT), UI_T_HOLD + MS(50));
   fixture_release(&f, ctrl_btn(&f, SHIFT_STATE_MUT));
 
   fixture_encoder(&f, f.ux_setup->channels[3].encoder, -1);
@@ -220,6 +266,8 @@ int main(void)
   RUN_TEST(a_scene_button_bounce_does_not_trigger_momentary_activation);
   RUN_TEST(turning_an_encoder_edits_the_selected_param_of_the_active_scene);
   RUN_TEST(encoder_in_sys_mode_steps_the_shape_mode);
+  RUN_TEST(ctrl_page_settings_clamp_at_both_ends_instead_of_wrapping);
+  RUN_TEST(the_output_clamp_setting_clamps_rather_than_wrapping_too);
   RUN_TEST(pressing_the_encoder_clears_the_param_only_when_it_was_not_turned);
   RUN_TEST(a_tap_clears_the_param_in_one_scene_and_a_hold_clears_it_in_all);
   RUN_TEST(the_encoder_mutes_one_way_and_unmutes_the_other_in_mute_mode);

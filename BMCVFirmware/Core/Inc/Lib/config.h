@@ -34,18 +34,16 @@ typedef enum
 // append - inserting or reordering would silently remap saved channels.
 typedef enum
 {
-  SHAPE_LFO,            // wavetable
-  SHAPE_STEPPED_SMOOTH, // random steps, fully eased between values
-  SHAPE_STEPPED_SEMI,   // random steps, half held then eased
-  SHAPE_STEPPED_HARD,   // random steps, mostly held with a quick eased edge
-  SHAPE_PWM,            // square; CH_PARAM_SHP is the pulse width
+  SHAPE_LFO,     // wavetable
+  SHAPE_STEPPED, // random values, eased between; MOD is the density
+  SHAPE_PWM,     // square; SHP is the pulse width, MOD the envelope
   SHAPE_MODE_COUNT,
 } ChannelShapeMode;
 
-// The stepped modes read their pattern length from ChannelConfig.sr_length_idx
+// The stepped mode reads its pattern length from ChannelConfig.sr_length_idx
 // rather than from a scene parameter, so this is what says whether that setting
 // means anything for a given channel.
-static inline int shape_mode_is_stepped(int8_t mode) { return mode >= SHAPE_STEPPED_SMOOTH && mode <= SHAPE_STEPPED_HARD; }
+static inline int shape_mode_is_stepped(int8_t mode) { return mode == SHAPE_STEPPED; }
 
 // What the output stage clamps a channel to. A range, not a scaling: the
 // parameters still mean what they say and the ends of the swing are cut off.

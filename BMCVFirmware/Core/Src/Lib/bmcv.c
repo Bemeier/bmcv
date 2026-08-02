@@ -30,8 +30,9 @@ static uint8_t midi_poll = 0;
 
 // The module. One struct holding config, signal path, interaction state, the
 // input layer and the wiring between them - see instance.h. The firmware has
-// exactly one; a simulator has one per instance.
-static BmcvInstance bmcv;
+// exactly one; a simulator has one per instance. Declared in bmcv.h, and
+// external only so a debugger can name it.
+BmcvInstance bmcv;
 
 // Preset persistence for the core. On the module this is FRAM; the simulator
 // and a VCV Rack instance plug their own storage in here instead.

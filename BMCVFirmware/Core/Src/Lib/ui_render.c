@@ -6,6 +6,7 @@
 #include "hw_setup.h"
 #include "led_fb.h"
 #include "stepped_random_table.h" // SR_LENGTH_COUNT
+#include "ui_channel.h"
 #include "ui_feedback.h"
 #include "ui_input.h"
 #include "ui_mode.h"
@@ -20,8 +21,9 @@
 // looks the same on the SYS page as it does on QNT.
 static const uint8_t quantize_mode_color[QUANTIZE_MODE_COUNT]   = {HUE_STATE_DEFAULT, HUE_STATE_LEVEL, HUE_STATE_EVENT};
 static const uint8_t input_amp_mode_color[INPUT_AMP_MODE_COUNT] = {HUE_STATE_DEFAULT, HUE_STATE_MIX, HUE_STATE_MULT};
-// LFO, then the stepped modes as a ramp from continuous to fully stepped.
-static const uint8_t shape_mode_color[SHAPE_MODE_COUNT] = {HUE_STATE_DEFAULT, HUE_STATE_LEVEL, HUE_STATE_MIX, HUE_STATE_EVENT};
+// The wavetable is the default; stepped random is a continuously varying level,
+// and PWM is a gate.
+static const uint8_t shape_mode_color[SHAPE_MODE_COUNT] = {HUE_STATE_DEFAULT, HUE_STATE_LEVEL, HUE_STATE_EVENT};
 static const uint8_t input_mode_color[INPUT_MODE_COUNT] = {HUE_STATE_DEFAULT, HUE_STATE_EVENT, HUE_STATE_RESET, HUE_STATE_LEVEL};
 
 // The output clamp is two facts - polarity and range - so it uses two axes:
@@ -97,21 +99,60 @@ void ui_render_feedback(UxState* state, int16_t led, TargetKind kind, int8_t id)
 // that mode's setting permanently, so there is nothing to reveal on touch. The
 // selected parameter is the exception - it is a number, not a mode, and the LED
 // is needed for the output level the rest of the time.
+//
+// All eight at once, on one timer: seeing where a parameter sits is a
+// comparison, and comparing needs the row lit together.
 static void render_channel_param_edit(UxState* s, const ChannelSetup* ch)
 {
   if (ui_mode(s->ui->shift_state)->channel_enc_target != ENC_PARAM)
     return;
-  if (s->ui->channels_edit_hold[ch->id] == 0)
+  if (s->ui->param_display_hold == 0)
     return;
 
-  const ChannelConfig* cfg = &s->engine_config->channel_state[ch->id];
+  int16_t value = s->engine_config->channel_state[ch->id].params[s->engine_state->active_scene][s->ui->selected_param];
 
   // Frequency is a ratio, not a level, so it reads as a coded hue rather than
-  // a bipolar bar.
+  // a bipolar bar. Steady: it used to be multiplied by the fast blink, which
+  // was survivable when one channel lit on touch and became a row of eight
+  // flashing at once as soon as picking the parameter lit all of them.
   if (s->ui->selected_param == CH_PARAM_FRQ)
-    led_set_hsv(s, ch->led, s->ui->channels_edit_hue[ch->id], SAT_MAX, s->ui->blink_fast * VAL_MED);
+    led_set_hsv(s, ch->led, ui_channel_freq_hue(value), SAT_MAX, VAL_MED);
   else
-    led_set_adcr(s, ch->led, cfg->params[s->engine_state->active_scene][s->ui->selected_param]);
+    led_set_adcr(s, ch->led, value);
+}
+
+/* ---- layer 1b: what letting go would do -------------------------------- */
+
+// A press that acts on release used to show nothing until it had already
+// happened. While one is held, the element now wears the colour of what the
+// release would do, blinking; a press with a second, wider stage says so by
+// getting brighter once that threshold is crossed. Nothing commits here - the
+// handlers still act on the release, this only says what is about to happen.
+static void render_held_action(UxState* s, int16_t led, int8_t button, UiColor c, uint8_t stages)
+{
+  if (stages == 0 || !btn_holding(&s->ui->in, button, UI_T_DEBOUNCE))
+    return;
+
+  if (stages > 1 && btn_holding(&s->ui->in, button, UI_T_LONG))
+    c.v = VAL_HIG;
+
+  set(s, led, s->ui->blink_fast ? c : (UiColor){c.h, c.s, VAL_OFF});
+}
+
+// The same, for the parameter clear in no-mode. Not routed through the
+// selection model - that press is not a selection - and gated on the same
+// condition the handler applies, so a button being held as the fine-adjust
+// modifier does not advertise a clear it will not perform.
+static void render_held_param_clear(UxState* s, const ChannelSetup* ch)
+{
+  if (ui_mode(s->ui->shift_state)->channel_btn_action != CHB_RESET_PARAM)
+    return;
+
+  uint32_t since_edit = s->hw_state->time - s->engine_state->channels_last_delta[ch->id];
+  if (btn_held(&s->ui->in, ch->button) >= since_edit)
+    return;
+
+  render_held_action(s, ch->led, ch->button, ui_feedback_color(FB_CLEAR), 2);
 }
 
 /* ---- per element ------------------------------------------------------- */
@@ -183,6 +224,8 @@ static void render_channel(UxState* s, const ChannelSetup* ch)
 
   render_channel_base(s, ch, m);
   ui_render_context(s, ch->led, TGT_CHANNEL, ch->id);
+  render_held_action(s, ch->led, ch->button, ui_feedback_color(FB_CLEAR), ui_sel_press_stages(s, TGT_CHANNEL, ch->id));
+  render_held_param_clear(s, ch);
   render_channel_param_edit(s, ch);
   ui_render_feedback(s, ch->led, TGT_CHANNEL, ch->id);
 }
@@ -253,6 +296,7 @@ static void render_scene(UxState* s, const SceneSetup* scene)
 
   render_scene_base(s, scene, m);
   ui_render_context(s, scene->led, m->scene_btn_kind, scene->id);
+  render_held_action(s, scene->led, scene->button, ui_feedback_color(FB_CLEAR), ui_sel_press_stages(s, m->scene_btn_kind, scene->id));
   ui_render_feedback(s, scene->led, m->scene_btn_kind, scene->id);
 }
 
@@ -263,10 +307,15 @@ static void render_ctrl_button(UxState* s, const CtrlButtonSetup* btn)
 
   if (s->ui->shift_state == btn->id)
     led_set_hsv(s, btn->led, btn->color, SAT_MAX, s->ui->blink_slow ? VAL_MED : 0);
-  else if (s->ui->selected_param == btn->id && s->ui->shift_state == SHIFT_STATE_NONE)
-    led_set_hsv(s, btn->led, btn->color, SAT_MAX, VAL_MED);
+  else if (s->ui->shift_state != SHIFT_STATE_NONE)
+    led_set_hsv(s, btn->led, btn->color, SAT_MAX, VAL_OFF); // a mode is running; its button is the only lit one
+  else if (s->ui->selected_param == btn->id)
+    led_set_hsv(s, btn->led, btn->color, SAT_MAX, VAL_HIG);
   else
-    led_set_hsv(s, btn->led, btn->color, SAT_MAX, VAL_OFF);
+    // Barely on, but on: it says which colour belongs to which parameter, so
+    // the row can be read without pressing anything. Far enough below the
+    // selected one that which is which is obvious across the room.
+    led_set_hsv(s, btn->led, btn->color, SAT_MAX, VAL_DIM);
 }
 
 static void render_quantizer(UxState* s)
