@@ -11,10 +11,14 @@
 #include "ui_select.h"
 #include <stdint.h>
 
-// Blink rates for anything that pulses, in microseconds. Presentation, so they
-// live with the rest of the interaction layer rather than with the engine.
-#define FAST_BLINK_PERIOD 300000
+// Blink rate for anything that pulses, in microseconds. Presentation, so it
+// lives with the rest of the interaction layer rather than with the engine.
 #define SLOW_BLINK_PERIOD 800000
+
+// How long a held press drops out for as it crosses one of its thresholds.
+// A dip, not a blink: what is wanted is "that registered", once, at the moment
+// it becomes true - a pulse that keeps going says something is still happening.
+#define UI_HELD_DIP MS(90)
 
 // The assignment marker is not a blink but a mark: mostly off, with a short
 // flash on a long period. That is what lets an element keep showing its own
@@ -65,7 +69,6 @@ typedef struct UiState
   uint32_t param_display_hold;
 
   uint8_t blink_slow;
-  uint8_t blink_fast;
   uint8_t blink_mark; // short, on a long period; see MARK_BLINK_ON
 
   UiInput in;

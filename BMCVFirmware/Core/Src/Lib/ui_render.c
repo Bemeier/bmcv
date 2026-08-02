@@ -123,20 +123,44 @@ static void render_channel_param_edit(UxState* s, const ChannelSetup* ch)
 
 /* ---- layer 1b: what letting go would do -------------------------------- */
 
+// The colour of the act a release would perform. Taken from the confirmation
+// palette rather than from the mode's tint, so "about to clear" and "cleared"
+// are the same colour - which on the clear page is also what the page is
+// tinted, because that page is nothing but that one act.
+static uint8_t held_action_hue(const UiModeDesc* m) { return ui_feedback_color(m->action == ACT_CLEAR ? FB_CLEAR : FB_WRITE).h; }
+
 // A press that acts on release used to show nothing until it had already
-// happened. While one is held, the element now wears the colour of what the
-// release would do, blinking; a press with a second, wider stage says so by
-// getting brighter once that threshold is crossed. Nothing commits here - the
-// handlers still act on the release, this only says what is about to happen.
-static void render_held_action(UxState* s, int16_t led, int8_t button, UiColor c, uint8_t stages)
+// happened. While one is held, the element wears the colour of what the release
+// would do and dips out once - off, then back on - as each threshold is
+// crossed. Nothing commits here: the handlers still act on the release, this
+// only says what is about to happen.
+//
+// A dip rather than a blink, and the same brightness as the page underneath it
+// at the first stage, so the only thing being said is "that registered". A
+// press with a second, wider stage says so by getting brighter, and dips again
+// as it gets there.
+static void render_held_action(UxState* s, int16_t led, int8_t button, uint8_t hue, uint8_t stages)
 {
-  if (stages == 0 || !btn_holding(&s->ui->in, button, UI_T_DEBOUNCE))
+  if (stages == 0 || !btn_down(&s->ui->in, button))
     return;
 
-  if (stages > 1 && btn_holding(&s->ui->in, button, UI_T_LONG))
-    c.v = VAL_HIG;
+  uint32_t held = btn_held(&s->ui->in, button);
+  if (held < UI_T_DEBOUNCE)
+    return;
 
-  set(s, led, s->ui->blink_fast ? c : (UiColor){c.h, c.s, VAL_OFF});
+  uint32_t stage_start = UI_T_DEBOUNCE;
+  uint8_t value        = VAL_LOW;
+
+  if (stages > 1 && held >= UI_T_LONG)
+  {
+    stage_start = UI_T_LONG;
+    value       = VAL_HIG;
+  }
+
+  if (held - stage_start < UI_HELD_DIP)
+    value = VAL_OFF;
+
+  led_set_hsv(s, led, hue, SAT_HIG, value);
 }
 
 // The same, for the parameter clear in no-mode. Not routed through the
@@ -152,7 +176,7 @@ static void render_held_param_clear(UxState* s, const ChannelSetup* ch)
   if (btn_held(&s->ui->in, ch->button) >= since_edit)
     return;
 
-  render_held_action(s, ch->led, ch->button, ui_feedback_color(FB_CLEAR), 2);
+  render_held_action(s, ch->led, ch->button, ui_feedback_color(FB_CLEAR).h, 2);
 }
 
 /* ---- per element ------------------------------------------------------- */
@@ -224,7 +248,7 @@ static void render_channel(UxState* s, const ChannelSetup* ch)
 
   render_channel_base(s, ch, m);
   ui_render_context(s, ch->led, TGT_CHANNEL, ch->id);
-  render_held_action(s, ch->led, ch->button, ui_feedback_color(FB_CLEAR), ui_sel_press_stages(s, TGT_CHANNEL, ch->id));
+  render_held_action(s, ch->led, ch->button, held_action_hue(m), ui_sel_press_stages(s, TGT_CHANNEL, ch->id));
   render_held_param_clear(s, ch);
   render_channel_param_edit(s, ch);
   ui_render_feedback(s, ch->led, TGT_CHANNEL, ch->id);
@@ -296,7 +320,7 @@ static void render_scene(UxState* s, const SceneSetup* scene)
 
   render_scene_base(s, scene, m);
   ui_render_context(s, scene->led, m->scene_btn_kind, scene->id);
-  render_held_action(s, scene->led, scene->button, ui_feedback_color(FB_CLEAR), ui_sel_press_stages(s, m->scene_btn_kind, scene->id));
+  render_held_action(s, scene->led, scene->button, held_action_hue(m), ui_sel_press_stages(s, m->scene_btn_kind, scene->id));
   ui_render_feedback(s, scene->led, m->scene_btn_kind, scene->id);
 }
 

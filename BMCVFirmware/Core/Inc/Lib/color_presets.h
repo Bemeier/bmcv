@@ -14,6 +14,10 @@
 // level. The selection/transfer family and mute all sit here.
 #define HUE_PURPLE 180
 #define HUE_MAGENTA 200
+// Between magenta and red. Clearing wears this rather than purple: purple is
+// what "off" or "default" looks like on half the pages, and the one page whose
+// whole job is destructive should not be the same colour as a neutral setting.
+#define HUE_PINK 225
 
 #define VAL_OFF 0
 
@@ -68,8 +72,11 @@
 //
 // White is the whole vocabulary of assignment, and nothing else uses it: a
 // short white flash over an element's own colour means "this can be picked",
-// steady white means "the thing you are holding can go here". Purple is left
-// to mean off / default / cleared, which is what it means everywhere else.
+// steady white means "the thing you are holding can go here".
+//
+// Purple is what a selection looks like - the source you are holding, and the
+// flash confirming where it landed - and what "off" or "default" looks like in
+// a settings list. Pink is destructive. Red is errors, and nothing else.
 typedef struct
 {
   uint8_t h, s, v;
@@ -81,8 +88,8 @@ typedef struct
 #define UI_COL_SOURCE ((UiColor){HUE_PURPLE, SAT_MAX, VAL_LOW})        // steady: already picked
 #define UI_COL_MUTED ((UiColor){HUE_PURPLE, SAT_HIG, VAL_LOW})         // steady: output gated to 0V
 #define UI_COL_UNMUTED ((UiColor){HUE_GREEN, SAT_HIG, VAL_LOW})        // steady: output passing, on the mute page
-#define UI_COL_CONFIRM_WRITE ((UiColor){HUE_GREEN, SAT_MAX, VAL_MED})  // copy / save / assign committed
-#define UI_COL_CONFIRM_CLEAR ((UiColor){HUE_PURPLE, SAT_MAX, VAL_MED}) // clear committed
+#define UI_COL_CONFIRM_WRITE ((UiColor){HUE_PURPLE, SAT_MAX, VAL_MED}) // copy / save / assign committed
+#define UI_COL_CONFIRM_CLEAR ((UiColor){HUE_PINK, SAT_MAX, VAL_MED})   // clear committed
 #define UI_COL_CONFIRM_LOAD ((UiColor){HUE_CYAN, SAT_MAX, VAL_MED})    // preset loaded
 #define UI_COL_ERROR ((UiColor){HUE_RED, SAT_MAX, VAL_MED})            // slow blink; red is errors only
 

@@ -1,5 +1,28 @@
 # Changelog
 
+## Clearing looks like clearing
+
+### Changed
+
+- **A held press dips out once instead of blinking.** It crosses a threshold,
+  drops for 90ms and comes back - "that registered" - rather than pulsing for as
+  long as it is held, which reads as something still in progress. At the first
+  stage it returns to exactly what the page was showing, so the dip is the whole
+  message; the second, wider stage returns brighter and dips again on the way
+  there. `blink_fast` had no other user and is gone with it, along with
+  `FAST_BLINK_PERIOD`.
+- **The held colour is no longer a second purple.** It was the confirmation
+  purple over a page tinted a different purple - two shades of the same hue
+  meaning different things. It is now the colour of the act itself, which on the
+  clear page is what the page is already tinted.
+- **Clearing is pink.** Purple means "off" or "default" in half the settings
+  lists and "selected" in the other half, which is far too neutral for the one
+  page whose whole job is destructive. `HUE_PINK` sits between magenta and red,
+  clear of both.
+- **A committed copy, save or assign flashes purple**, not green - the same
+  purple the source was held in, so the flash says "this is where the thing you
+  picked went" in the colour you picked it with.
+
 ## Three shape modes, and settings that stop at the ends
 
 ### Changed

@@ -8,8 +8,8 @@
 - [ ] PLL error term & sensitivity tuning
 - [x] Verify output levels & ranges (AMP at full scale is the full +/-10V)
 - [ ] Verify output precision
-- [x] Add stepped random modes (smooth, semismooth & stepped variants?)
-  - SHP morphs the pattern, MOD sets pattern length (3..64 steps, curated set)
+- [x] Add a stepped random shape mode
+  - SHP morphs the pattern, MOD sets its density; length is per channel, on STA
   - Loops seamlessly, so it stays locked under the PLL
 - [ ] Full Input & Channel Cross modulation support
 - [x] MOD as a second shaping parameter in every shape mode
@@ -19,7 +19,7 @@
 - [x] UX: Consistency with channel knob display & adjustments in shift mode(s)
 - [x] UX: Consistent "mark" feature (transient value display, all modes)
 - [x] UX: A shift mode's channel LEDs show that mode's setting, never the output
-- [ ] UX: Tune UI_EDIT_DISPLAY / UI_FB_DURATION / MARK_BLINK_ON on hardware
+- [ ] UX: Tune UI_EDIT_DISPLAY / UI_FB_DURATION / MARK_BLINK_ON / UI_HELD_DIP on hardware
 
 # LED language
 
@@ -32,7 +32,8 @@ One fact per LED, and the same colour for the same idea on every page.
 - **Setting states** are the base layer. Index 0 of every setting - disabled,
   default, neutral - is **purple**; **cyan** is continuous / level-following or
   multiplicative, **green** additive or half-way, **yellow** triggered / clocked
-  / stepped, **red** reset. See `HUE_STATE_*` in `color_presets.h`. The output
+  / stepped, **red** reset. Destructive is **pink**, and belongs to clearing
+  alone. See `HUE_STATE_*` in `color_presets.h`. The output
   clamp is the one place brightness also carries meaning, because it is two
   facts on one LED.
 - **White is assignment, and nothing else uses it.** A short white flash every
@@ -42,35 +43,15 @@ One fact per LED, and the same colour for the same idea on every page.
   cannot be pressed it does not light.
 - **Output level** only appears when no shift mode is active. In a shift mode
   the encoder ring shows that mode's setting, or nothing if it has none.
-- **Confirmations** are a brief flash on top: green wrote, purple cleared, cyan
-  loaded. Red is errors only.
-- **A held press shows what letting go would do**, in the colour of that act and
-  blinking. Where holding longer does something wider - clearing every scene
-  rather than this one - the same colour gets brighter once that threshold is
-  crossed. Nothing commits until the release.
-
-# Shift Modes
-
-## STA/STB - Assign Scenes
-
-- Scene Buttons:
-  - Assign Scene 1-7 to A/B
-- Channel Encoders (STA):
-  - Stepped-random pattern length: how many steps a cycle is divided into, from
-    a curated set (3..64). Per channel, not per scene - there is nothing between
-    8 steps and 12, so a crossfaded value would be meaningless. Dark and inert
-    on channels that are not in a stepped mode.
-- Channel Encoders (STB):
-  - Nothing (Maybe: transition/smoothing sensitivity)
-
-## SYS - System Config & Channel Modes
-
-- Scene Buttons:
-  - Input mode (1-4)
-  - TODO: Clock div
-  - TODO: PLL sensitivity? Could also be per channel?
-- Channel:
-  - Set Waveshape mode: wavetable, stepped random, PWM square.
+- **Confirmations** are a brief flash on top: purple wrote, pink cleared, cyan
+  loaded. Purple is the selection colour, so a copy landing somewhere flashes
+  the colour the source was held in. Red is errors only.
+- **A held press dips out once as it crosses each of its thresholds** - off,
+  then back on - which says "that registered" rather than pulsing away as if
+  something were still in progress. At the first stage it comes back exactly as
+  the page had it; where holding longer does something wider - clearing every
+  scene rather than this one - it comes back brighter, in the same colour.
+  Nothing commits until the release.
 
 # Shape modes
 
@@ -105,6 +86,29 @@ early or late - and there negative is busy, positive is sparse.
   the negative side reads as an envelope rather than a triangle. A narrow pulse
   with MOD hard left is a percussive envelope locked to the beat.
 
+# Shift Modes
+
+## STA/STB - Assign Scenes
+
+- Scene Buttons:
+  - Assign Scene 1-7 to A/B
+- Channel Encoders (STA):
+  - Stepped-random pattern length: how many steps a cycle is divided into, from
+    a curated set (3..64). Per channel, not per scene - there is nothing between
+    8 steps and 12, so a crossfaded value would be meaningless. Dark and inert
+    on channels that are not in a stepped mode.
+- Channel Encoders (STB):
+  - Nothing (Maybe: transition/smoothing sensitivity)
+
+## SYS - System Config & Channel Modes
+
+- Scene Buttons:
+  - Input mode (1-4)
+  - TODO: Clock div
+  - TODO: PLL sensitivity? Could also be per channel?
+- Channel:
+  - Set Waveshape mode: wavetable, stepped random, PWM square.
+
 ## SAV - Save & Load
 
 - Scene Buttons:
@@ -130,7 +134,9 @@ Channel: - Rot: Quantizer Mode - Press: Assign Sample Trigger
 
 ## CLR - Clear Channels & Scenes
 
-Everything on the page is one act, so it wears one colour: purple, marked white.
+Everything on the page is one act, so it wears one colour: pink, marked white.
+Pink rather than purple, which means "off" or "default" on half the other pages
+and reads as far too neutral for the one page that destroys things.
 
 Scene Buttons: - Select scene to clear
 Channel: - Tap clears that channel in the active scene. Hold clears the whole
@@ -169,5 +175,6 @@ back to the meter. Leaving a shift mode does not: that lands straight back on
 the meter.
 
 Press to clear the parameter in the active scene, hold to clear it in every
-scene - purple while held, brighter for the wider one, and a purple flash on
-release. Holding while turning is the fine-adjust modifier and clears nothing.
+scene - pink while held, dipping out once at each threshold and brighter for the
+wider one, then a pink flash on release. Holding while turning is the
+fine-adjust modifier and clears nothing.

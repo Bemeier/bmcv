@@ -133,7 +133,7 @@ TEST_CASE(a_confirmation_flash_overrides_the_candidate_highlight_beneath_it)
   ui_feedback_emit(&f.ui_state, FB_WRITE, TGT_CHANNEL, 3);
   ui_render(&f.ux);
   LedRgb confirmed = led_of_channel(&f, 3);
-  CHECK(confirmed.g > candidate.g);
+  CHECK(bluest(confirmed) && confirmed.b > candidate.b);
 }
 
 // The bug class the layered renderer removes: an arm that wrote nothing left
@@ -281,42 +281,48 @@ TEST_CASE(the_output_clamp_reads_as_polarity_by_hue_and_range_by_brightness)
 }
 
 // A press that acts on release used to show nothing at all until it had
-// already happened.
-TEST_CASE(holding_a_clear_shows_what_letting_go_would_do)
+// already happened. It dips out once as it crosses each of its thresholds -
+// off, then back on - which says "that registered" without a pulse that keeps
+// going and implies something is still in progress.
+TEST_CASE(holding_a_clear_dips_once_as_it_crosses_each_threshold)
 {
   Fixture f;
   fixture_init(&f);
   f.ui_state.shift_state = SHIFT_STATE_CLR;
-  f.ui_state.blink_fast  = 1;
+  f.ui_state.blink_mark  = 0;
 
   int8_t btn = f.ux_setup->channels[2].button;
 
-  // The blink signal is recomputed from the clock every tick, so it is forced
-  // to its "on" half after each hold rather than once at the top.
-  LedRgb idle = (ui_render(&f.ux), led_of_channel(&f, 2));
-
-  // Past the debounce: the colour of the act, brighter once the hold has
-  // widened it from this scene to every scene.
-  fixture_hold(&f, btn, UI_T_HOLD);
-  f.ui_state.blink_fast = 1;
   ui_render(&f.ux);
-  LedRgb stage1 = led_of_channel(&f, 2);
-  CHECK(lit(stage1) && stage1.b > idle.b);
+  LedRgb idle = led_of_channel(&f, 2);
+  CHECK(lit(idle));
 
-  fixture_hold(&f, btn, UI_T_LONG);
-  f.ui_state.blink_fast = 1;
-  ui_render(&f.ux);
-  LedRgb stage2 = led_of_channel(&f, 2);
-  CHECK(stage2.b > stage1.b);
-  CHECK(bluest(stage1) && bluest(stage2)); // the same colour, only brighter
-
-  // And it blinks rather than sitting on, so it reads as pending.
-  f.ui_state.blink_fast = 0;
+  // fixture_hold adds to the press, so these are increments, not totals.
+  // Just past the point where a release would clear: dark, briefly.
+  fixture_hold(&f, btn, MS(20));
   ui_render(&f.ux);
   CHECK(!lit(led_of_channel(&f, 2)));
 
+  // Then back to exactly what the page was showing - the dip was the message.
+  fixture_hold(&f, btn, MS(150));
+  ui_render(&f.ux);
+  LedRgb after = led_of_channel(&f, 2);
+  CHECK(after.r == idle.r && after.g == idle.g && after.b == idle.b);
+
+  // Crossing into "every scene" dips again...
+  fixture_hold(&f, btn, MS(350));
+  ui_render(&f.ux);
+  CHECK(!lit(led_of_channel(&f, 2)));
+
+  // ...and comes back brighter, in the same colour.
+  fixture_hold(&f, btn, MS(150));
+  ui_render(&f.ux);
+  LedRgb wide = led_of_channel(&f, 2);
+  CHECK(wide.r > idle.r && wide.b > idle.b);
+  CHECK(wide.r > wide.b && wide.b > wide.g); // pink, as the page is
+
   // Nothing has been cleared yet: that happens on the release.
-  CHECK(f.engine_config.channel_state[2].params[0][CH_PARAM_FRQ] != -255 || f.engine_config.channel_state[2].params[0][CH_PARAM_AMP] == 0);
+  CHECK(f.engine_config.channel_state[2].params[0][CH_PARAM_FRQ] == -255);
 }
 
 // A scene has only one thing a press can mean, so it must not pretend to have
@@ -326,19 +332,31 @@ TEST_CASE(a_one_stage_press_does_not_get_brighter_when_held)
   Fixture f;
   fixture_init(&f);
   f.ui_state.shift_state = SHIFT_STATE_CLR;
-  f.ui_state.blink_fast  = 1;
+  f.ui_state.blink_mark  = 0;
 
   int8_t btn = f.ux_setup->scenes[3].button;
 
-  fixture_hold(&f, btn, UI_T_HOLD);
-  f.ui_state.blink_fast = 1;
+  fixture_hold(&f, btn, MS(150));
   ui_render(&f.ux);
   LedRgb held = led_of_scene(&f, 3);
+  CHECK(lit(held));
 
-  fixture_hold(&f, btn, UI_T_LONG);
-  f.ui_state.blink_fast = 1;
+  fixture_hold(&f, btn, MS(500)); // well past UI_T_LONG and its dip
   ui_render(&f.ux);
-  CHECK(led_of_scene(&f, 3).b == held.b);
+  LedRgb still = led_of_scene(&f, 3);
+  CHECK(still.r == held.r && still.g == held.g && still.b == held.b);
+}
+
+// Clearing is pink and selecting is purple: the page whose whole job is
+// destructive should not wear the colour that means "off" on half the others.
+TEST_CASE(clearing_and_selecting_do_not_share_a_colour)
+{
+  UiColor clear = ui_feedback_color(FB_CLEAR);
+  UiColor write = ui_feedback_color(FB_WRITE);
+
+  CHECK(clear.h == HUE_PINK);
+  CHECK(write.h == HUE_PURPLE && write.h == UI_COL_SOURCE.h);
+  CHECK(clear.h != ui_feedback_color(FB_ERROR).h);
 }
 
 // White is the assignment vocabulary, and it is a mark rather than a blink: in
@@ -389,10 +407,10 @@ TEST_CASE(while_a_source_is_held_only_valid_destinations_light)
 }
 
 // The frequency ratio reads as a coded hue rather than a level, and it holds
-// still: multiplying it by the fast blink was survivable when one channel lit
-// on touch, and became a row of eight flashing green as soon as picking the
-// parameter lit all of them.
-TEST_CASE(the_frequency_hue_does_not_blink)
+// still. It used to be multiplied by a fast blink to mark it as a code rather
+// than a level: survivable when touching one channel lit one LED, and a row of
+// eight flashing green in unison once picking the parameter lit all of them.
+TEST_CASE(the_frequency_hue_does_not_pulse)
 {
   Fixture f;
   fixture_init(&f);
@@ -400,11 +418,13 @@ TEST_CASE(the_frequency_hue_does_not_blink)
   f.ui_state.selected_param     = CH_PARAM_FRQ;
   f.ui_state.param_display_hold = UI_EDIT_DISPLAY;
 
-  f.ui_state.blink_fast = 1;
+  f.ui_state.blink_slow = 1;
+  f.ui_state.blink_mark = 1;
   ui_render(&f.ux);
   LedRgb on = led_of_channel(&f, 0);
 
-  f.ui_state.blink_fast = 0;
+  f.ui_state.blink_slow = 0;
+  f.ui_state.blink_mark = 0;
   ui_render(&f.ux);
   LedRgb off = led_of_channel(&f, 0);
 
@@ -450,11 +470,12 @@ int main(void)
   RUN_TEST(the_mute_page_shows_green_for_passing_and_purple_for_gated);
   RUN_TEST(pattern_length_only_lights_the_channels_it_applies_to);
   RUN_TEST(the_output_clamp_reads_as_polarity_by_hue_and_range_by_brightness);
-  RUN_TEST(holding_a_clear_shows_what_letting_go_would_do);
+  RUN_TEST(holding_a_clear_dips_once_as_it_crosses_each_threshold);
+  RUN_TEST(clearing_and_selecting_do_not_share_a_colour);
   RUN_TEST(a_one_stage_press_does_not_get_brighter_when_held);
   RUN_TEST(a_pickable_element_keeps_its_state_colour_and_marks_itself_white);
   RUN_TEST(while_a_source_is_held_only_valid_destinations_light);
-  RUN_TEST(the_frequency_hue_does_not_blink);
+  RUN_TEST(the_frequency_hue_does_not_pulse);
   RUN_TEST(the_selected_parameter_shows_on_touch_and_decays_back_to_the_output_level);
   return TESTKIT_SUMMARY();
 }

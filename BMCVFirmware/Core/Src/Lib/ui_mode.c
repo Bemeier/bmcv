@@ -106,7 +106,7 @@ static const UiModeDesc modes[SHIFT_STATE_COUNT] = {
                          .scene_btn_action   = SCN_SELECT,
                          .channel_base       = CHBASE_TINT,
                          .scene_btn_base     = SCB_MODE_TINT,
-                         .tint_hue           = HUE_PURPLE},
+                         .tint_hue           = HUE_PINK},
 
     [SHIFT_STATE_NONE] = {.name               = "---",
                           .scene_btn_kind     = TGT_SCENE,
