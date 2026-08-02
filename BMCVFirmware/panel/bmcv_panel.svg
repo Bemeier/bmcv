@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="81.0mm" height="128.5mm" viewBox="0 0 81.0 128.5">
+<style>
+  .panel{fill:#22252b}.jack{fill:#111;stroke:#8a8f98;stroke-width:.4}
+  .enc{fill:#3b4048;stroke:#c8ccd4;stroke-width:.5}
+  .sw{fill:#2c3038;stroke:#c8ccd4;stroke-width:.4}
+  .tact{fill:#2c3038;stroke:#8a8f98;stroke-width:.4}
+  .slider{fill:#1a1c21;stroke:#8a8f98;stroke-width:.4}
+  .knob{fill:#5a626e;stroke:#c8ccd4;stroke-width:.35}
+  text{font-family:sans-serif;fill:#dfe3ea;text-anchor:middle;dominant-baseline:middle}
+  .lbl{font-size:1.9px}.sub{font-size:1.5px;fill:#9aa1ac}
+</style>
+<rect class="panel" x="0" y="0" width="81.0" height="128.5" rx="1.25"/>
+<circle class="jack" cx="8.000" cy="15.250" r="3.0"/>
+<text class="sub" x="8.000" y="19.850">OUT0</text>
+<circle class="jack" cx="21.000" cy="15.250" r="3.0"/>
+<text class="sub" x="21.000" y="19.850">OUT1</text>
+<circle class="jack" cx="8.000" cy="25.250" r="3.0"/>
+<text class="sub" x="8.000" y="29.850">OUT2</text>
+<circle class="jack" cx="21.000" cy="25.250" r="3.0"/>
+<text class="sub" x="21.000" y="29.850">OUT3</text>
+<circle class="jack" cx="60.000" cy="15.250" r="3.0"/>
+<text class="sub" x="60.000" y="19.850">OUT4</text>
+<circle class="jack" cx="73.000" cy="15.250" r="3.0"/>
+<text class="sub" x="73.000" y="19.850">OUT5</text>
+<circle class="jack" cx="60.000" cy="25.250" r="3.0"/>
+<text class="sub" x="60.000" y="29.850">OUT6</text>
+<circle class="jack" cx="73.000" cy="25.250" r="3.0"/>
+<text class="sub" x="73.000" y="29.850">OUT7</text>
+<circle class="jack" cx="34.000" cy="18.250" r="3.0"/>
+<text class="sub" x="34.000" y="22.850">IN0</text>
+<circle class="jack" cx="47.000" cy="18.250" r="3.0"/>
+<text class="sub" x="47.000" y="22.850">IN1</text>
+<circle class="jack" cx="34.000" cy="28.250" r="3.0"/>
+<text class="sub" x="34.000" y="32.850">IN2</text>
+<circle class="jack" cx="47.000" cy="28.250" r="3.0"/>
+<text class="sub" x="47.000" y="32.850">IN3</text>
+<circle class="enc" cx="73.000" cy="48.250" r="6.0"/>
+<line x1="73.000" y1="48.250" x2="73.000" y2="43.250" stroke="#c8ccd4" stroke-width=".6"/>
+<text class="lbl" x="73.000" y="56.850">CH5</text>
+<circle class="enc" cx="55.000" cy="48.250" r="6.0"/>
+<line x1="55.000" y1="48.250" x2="55.000" y2="43.250" stroke="#c8ccd4" stroke-width=".6"/>
+<text class="lbl" x="55.000" y="56.850">CH4</text>
+<circle class="enc" cx="26.000" cy="48.250" r="6.0"/>
+<line x1="26.000" y1="48.250" x2="26.000" y2="43.250" stroke="#c8ccd4" stroke-width=".6"/>
+<text class="lbl" x="26.000" y="56.850">CH1</text>
+<circle class="enc" cx="8.000" cy="48.250" r="6.0"/>
+<line x1="8.000" y1="48.250" x2="8.000" y2="43.250" stroke="#c8ccd4" stroke-width=".6"/>
+<text class="lbl" x="8.000" y="56.850">CH0</text>
+<circle class="enc" cx="8.000" cy="66.250" r="6.0"/>
+<line x1="8.000" y1="66.250" x2="8.000" y2="61.250" stroke="#c8ccd4" stroke-width=".6"/>
+<text class="lbl" x="8.000" y="74.850">CH2</text>
+<circle class="enc" cx="26.000" cy="66.250" r="6.0"/>
+<line x1="26.000" y1="66.250" x2="26.000" y2="61.250" stroke="#c8ccd4" stroke-width=".6"/>
+<text class="lbl" x="26.000" y="74.850">CH3</text>
+<circle class="enc" cx="73.000" cy="66.250" r="6.0"/>
+<line x1="73.000" y1="66.250" x2="73.000" y2="61.250" stroke="#c8ccd4" stroke-width=".6"/>
+<text class="lbl" x="73.000" y="74.850">CH7</text>
+<circle class="enc" cx="55.000" cy="66.250" r="6.0"/>
+<line x1="55.000" y1="66.250" x2="55.000" y2="61.250" stroke="#c8ccd4" stroke-width=".6"/>
+<text class="lbl" x="55.000" y="74.850">CH6</text>
+<rect class="slider" x="16.000" y="87.250" width="49.0" height="6" rx="2"/>
+<rect class="knob" x="38.500" y="86.050" width="4" height="8.4" rx="1.2"/>
+<text class="sub" x="40.500" y="97.850">SCENE</text>
+<rect class="sw" x="18.750" y="98.250" width="9" height="9" rx="1.4"/>
+<text class="lbl" x="23.250" y="101.350">SYS</text>
+<text class="sub" x="23.250" y="104.750">D#</text>
+<rect class="sw" x="13.000" y="109.250" width="9" height="9" rx="1.4"/>
+<text class="lbl" x="17.500" y="112.350">S1</text>
+<text class="sub" x="17.500" y="115.750">D</text>
+<rect class="sw" x="7.250" y="98.250" width="9" height="9" rx="1.4"/>
+<text class="lbl" x="11.750" y="101.350">STA</text>
+<text class="sub" x="11.750" y="104.750">C#</text>
+<rect class="sw" x="1.500" y="109.250" width="9" height="9" rx="1.4"/>
+<text class="lbl" x="6.000" y="112.350">S0</text>
+<text class="sub" x="6.000" y="115.750">C</text>
+<rect class="sw" x="30.250" y="98.250" width="9" height="9" rx="1.4"/>
+<text class="lbl" x="34.750" y="101.350">QNT</text>
+<rect class="sw" x="24.500" y="109.250" width="9" height="9" rx="1.4"/>
+<text class="lbl" x="29.000" y="112.350">S2</text>
+<text class="sub" x="29.000" y="115.750">E</text>
+<rect class="sw" x="36.000" y="109.250" width="9" height="9" rx="1.4"/>
+<text class="lbl" x="40.500" y="112.350">S3</text>
+<text class="sub" x="40.500" y="115.750">F</text>
+<rect class="sw" x="41.750" y="98.250" width="9" height="9" rx="1.4"/>
+<text class="lbl" x="46.250" y="101.350">MON</text>
+<text class="sub" x="46.250" y="104.750">F#</text>
+<rect class="sw" x="53.250" y="98.250" width="9" height="9" rx="1.4"/>
+<text class="lbl" x="57.750" y="101.350">SAV</text>
+<text class="sub" x="57.750" y="104.750">G#</text>
+<rect class="sw" x="64.750" y="98.250" width="9" height="9" rx="1.4"/>
+<text class="lbl" x="69.250" y="101.350">STB</text>
+<text class="sub" x="69.250" y="104.750">A#</text>
+<rect class="sw" x="47.500" y="109.250" width="9" height="9" rx="1.4"/>
+<text class="lbl" x="52.000" y="112.350">S4</text>
+<text class="sub" x="52.000" y="115.750">G</text>
+<rect class="sw" x="59.000" y="109.250" width="9" height="9" rx="1.4"/>
+<text class="lbl" x="63.500" y="112.350">S5</text>
+<text class="sub" x="63.500" y="115.750">A</text>
+<rect class="sw" x="70.500" y="109.250" width="9" height="9" rx="1.4"/>
+<text class="lbl" x="75.000" y="112.350">S6</text>
+<text class="sub" x="75.000" y="115.750">B</text>
+<rect class="tact" x="37.500" y="45.250" width="6" height="6" rx="1"/>
+<text class="sub" x="40.500" y="48.250">CLR</text>
+<rect class="tact" x="37.500" y="59.250" width="6" height="6" rx="1"/>
+<text class="sub" x="40.500" y="62.250">CPY</text>
+<rect class="tact" x="37.500" y="73.250" width="6" height="6" rx="1"/>
+<text class="sub" x="40.500" y="76.250">MUT</text>
+</svg>

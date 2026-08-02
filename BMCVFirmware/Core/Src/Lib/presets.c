@@ -5,9 +5,11 @@
 
 _Static_assert(sizeof(EngineConfigRecord) <= FRAM_CONFIG_SLOT_SIZE, "ConfigState too large for FRAM slot");
 
-int8_t preset_store(EngineConfig* cfg, int8_t dst)
+int8_t preset_store(const EngineConfig* cfg, int8_t dst)
 {
-  if (dst >= FRAM_CONFIG_SLOTS)
+  // Both ends: a negative slot would produce a wrapped uint16_t address and
+  // write somewhere arbitrary in FRAM.
+  if (dst < 0 || dst >= FRAM_CONFIG_SLOTS)
     return 0;
 
   EngineConfigRecord rec = {.hdr =
@@ -25,7 +27,7 @@ int8_t preset_store(EngineConfig* cfg, int8_t dst)
 
 int8_t preset_load(EngineConfig* cfg, int8_t src)
 {
-  if (src >= FRAM_CONFIG_SLOTS)
+  if (src < 0 || src >= FRAM_CONFIG_SLOTS)
     return 0;
 
   EngineConfigRecord rec;

@@ -3,7 +3,7 @@
 
 #include "helpers.h"
 #include "hw_setup.h"
-#include "state.h"
+#include "hw_state.h"
 #include <stdint.h>
 
 // Derived button gestures. Every consumer reads these instead of re-deriving

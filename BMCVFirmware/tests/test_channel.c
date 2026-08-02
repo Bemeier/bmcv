@@ -23,7 +23,7 @@ TEST_CASE(amplitude_bounds_the_output_around_the_offset)
   fixture_set_param(&f, 0, 0, CH_PARAM_OFS, 0);
   fixture_set_param(&f, 0, 0, CH_PARAM_AMP, 20000);
   fixture_set_param(&f, 0, 0, CH_PARAM_FRQ, 0); // multiplier 1x
-  Clock_Init();
+  Clock_Init(&f.engine_state.clock);
 
   for (int i = 0; i < 50; i++)
   {
@@ -83,7 +83,7 @@ TEST_CASE(phase_advances_by_frequency_times_dt_without_pll_lock)
   Fixture f;
   fixture_init(&f);
   fixture_set_param(&f, 0, 0, CH_PARAM_FRQ, 0); // multiplier 1x
-  Clock_Init();                                 // have_beat=false, beat_freq_smooth=1.0Hz, no PLL correction applied
+  Clock_Init(&f.engine_state.clock);            // have_beat=false, beat_freq_smooth=1.0Hz, no PLL correction applied
 
   fixture_tick(&f, 500000); // 0.5s at 1Hz -> phase advances by 0.5
 
@@ -108,7 +108,7 @@ TEST_CASE(pattern_length_is_latched_until_the_cycle_wraps)
 {
   Fixture f;
   fixture_init(&f);
-  Clock_Init();
+  Clock_Init(&f.engine_state.clock);
   set_stepped_channel(&f, sr_length_param[0]); // shortest pattern
   fixture_tick(&f, 1000);
   int8_t latched = f.engine_state.channels_length_idx[0];
@@ -130,7 +130,7 @@ TEST_CASE(pattern_length_updates_once_the_cycle_wraps)
 {
   Fixture f;
   fixture_init(&f);
-  Clock_Init();
+  Clock_Init(&f.engine_state.clock);
   set_stepped_channel(&f, sr_length_param[0]);
   fixture_tick(&f, 1000);
   for (int i = 0; i < 40; i++)
@@ -148,14 +148,14 @@ TEST_CASE(pattern_length_applies_immediately_while_the_encoder_is_turning)
 {
   Fixture f;
   fixture_init(&f);
-  Clock_Init();
+  Clock_Init(&f.engine_state.clock);
   set_stepped_channel(&f, sr_length_param[0]);
   fixture_tick(&f, 1000);
   for (int i = 0; i < 40; i++)
     fixture_tick(&f, 20000);
   CHECK(f.engine_state.channels_length_idx[0] == 0);
 
-  // mark the channel as just-edited, the way update_channel_param() does
+  // mark the channel as just-edited, the way ui_channel_param() does
   f.engine_state.channels_last_delta[0] = f.hw_state.time;
   fixture_set_param(&f, 0, 0, CH_PARAM_MOD, sr_length_param[SR_LENGTH_COUNT - 1]);
   fixture_tick(&f, 1000);

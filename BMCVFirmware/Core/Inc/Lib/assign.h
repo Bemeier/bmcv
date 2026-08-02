@@ -13,8 +13,16 @@
 //   channel -> channel   within the active scene
 //   input -> channel     which input modulates it (MON)
 //   trig src -> channel  what samples it (QNT)
+//
+// Each validates its own indices; an out-of-range id is a no-op.
 
 void assign_input_to_channel(int8_t i, int8_t c, UxState* state);
+
+// The two side effects a selection has before it commits, named here rather
+// than written inline in ui_select.c - which is not supposed to know which
+// mode it is running under.
+void assign_input_clear(int8_t c, UxState* state);
+void assign_trig_arm_channel(int8_t c, UxState* state);
 
 void assign_channel_to_channel(int8_t c_src, int8_t c_dst, UxState* state);
 

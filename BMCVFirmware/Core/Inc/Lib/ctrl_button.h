@@ -7,8 +7,8 @@
 // Shift activation now comes from UI_T_HOLD in ui_input.h - the one place
 // press durations are defined.
 
-void update_shift_mode(const CtrlButtonSetup* btn, UxState* state);
+void ui_ctrl_shift_mode(const CtrlButtonSetup* btn, UxState* state);
 
-void update_selected_param(const CtrlButtonSetup* btn, UxState* state);
+void ui_ctrl_selected_param(const CtrlButtonSetup* btn, UxState* state);
 
 #endif /* INC_LIB_CTRL_BUTTON_H_ */

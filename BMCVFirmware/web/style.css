@@ -1,0 +1,205 @@
+:root {
+  color-scheme: dark;
+  --bg: #14161a;
+  --panel: #22252b;
+  --box: #1b1e23;
+  --line: #333840;
+  --fg: #dfe3ea;
+  --muted: #8b929d;
+  --accent: #6fc3ff;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 1.5rem;
+  background: var(--bg);
+  color: var(--fg);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+header { margin-bottom: 1.25rem; }
+h1 { margin: 0; font-size: 1.4rem; font-weight: 600; letter-spacing: .02em; }
+h1 .sub { color: var(--muted); font-weight: 400; }
+.tagline { margin: .35rem 0 0; color: var(--muted); max-width: 60ch; }
+
+h2 {
+  margin: 0 0 .6rem;
+  font-size: .8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--muted);
+}
+h2 .muted { text-transform: none; letter-spacing: 0; font-weight: 400; }
+
+main {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+  max-width: 2000px;
+}
+@media (max-width: 860px) { main { grid-template-columns: 1fr; } }
+
+/* The scope should stop growing once it is comfortably readable; past that the
+   width is better spent putting the controls alongside it than on an ever
+   wider set of eight traces. */
+#side-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+#side-grid > .readouts { grid-column: 1 / -1; }
+
+/* Only split once there is room for the scope *and* a 2x2 input grid beside
+   it. Below this the side panels stay stacked, full width, where 2x2 fits
+   comfortably. */
+@media (min-width: 1800px) {
+  main { grid-template-columns: minmax(320px, 420px) minmax(0, 1fr); }
+  #side-grid { grid-template-columns: minmax(0, 1fr) minmax(440px, 32rem); }
+  /* The scope keeps the left column; everything else stacks on the right. */
+  #side-grid > .panel-box:nth-of-type(1) { grid-row: span 3; }
+}
+
+/* ---- panel ------------------------------------------------------------- */
+
+#panel-wrap {
+  background: var(--box);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: .75rem;
+}
+#panel { width: 100%; height: auto; display: block; touch-action: none; }
+
+.hint {
+  min-height: 1.5em;
+  margin: .5rem 0 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: .8rem;
+  color: var(--accent);
+}
+.help { margin: .5rem 0 0; font-size: .8rem; color: var(--muted); }
+kbd {
+  background: #2b2f36; border: 1px solid var(--line); border-radius: 4px;
+  padding: 0 .3em; font-size: .9em;
+}
+
+/* Interactive SVG parts */
+.hit { cursor: pointer; }
+.enc-ring { cursor: ns-resize; }
+.slider-hit { cursor: ns-resize; }
+
+/* ---- side panels -------------------------------------------------------- */
+
+#side { min-width: 0; }
+
+.panel-box {
+  background: var(--box);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: .9rem 1rem;
+}
+
+.readouts { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 0; }
+.readout {
+  flex: 1 1 120px;
+  background: var(--box);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: .5rem .75rem;
+}
+.readout .label {
+  display: block; font-size: .7rem; text-transform: uppercase;
+  letter-spacing: .08em; color: var(--muted);
+}
+.readout .value {
+  display: block; font-size: 1.15rem; font-weight: 600;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+#scope {
+  width: 100%; display: block; border-radius: 6px; background: #101216;
+  max-width: 1100px;   /* beyond this the traces just get wider, not clearer */
+}
+
+/* The input scopes are one canvas on a 2x2 grid, exactly like the output
+   scopes, with the controls overlaid on the cells rather than wrapped in boxes
+   of their own. */
+/* Half the width of the output scope, so its 2x2 cells come out exactly the
+   size of that one's 4x2 cells - and never narrower than that, whatever column
+   it lands in. */
+.scope-stack { position: relative; max-width: 550px; min-width: 300px; }
+.scope-stack canvas {
+  width: 100%; display: block; border-radius: 6px; background: #101216;
+}
+
+#in-overlay {
+  position: absolute; inset: 0;
+  display: grid; grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr);
+  pointer-events: none;
+}
+.in-cell {
+  display: flex; align-items: stretch; gap: .4rem;
+  padding: .35rem .45rem;
+  min-width: 0; min-height: 0;
+}
+.in-cell > * { pointer-events: auto; }
+.in-cell .spacer { flex: 1; pointer-events: none; }
+.in-ctl {
+  display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-end;
+  gap: .25rem; pointer-events: none;
+}
+.in-ctl > * { pointer-events: auto; }
+.in-ctl button { padding: .05rem .4rem; font-size: .7rem; opacity: .85; }
+.in-ctl button:hover { opacity: 1; }
+.in-ctl .clock { display: flex; align-items: center; gap: .25rem; font-size: .7rem; color: var(--muted); }
+.in-ctl input[type=number] {
+  width: 3.9em; background: rgba(34,38,45,.85); color: var(--fg);
+  border: 1px solid var(--line); border-radius: 4px; padding: 0 .25rem;
+  font: inherit; font-size: .7rem; font-family: ui-monospace, monospace;
+}
+
+/* Vertical fader, filled from the centre so 0V reads as "no offset". A native
+   range input fills from its minimum, which put a solid bar at -10V. */
+.vslider { position: relative; width: 14px; flex: 0 0 14px; cursor: ns-resize; touch-action: none; }
+.vslider .track {
+  position: absolute; left: 5px; top: 0; width: 4px; height: 100%;
+  background: #262b33; border-radius: 2px;
+}
+.vslider .fill { position: absolute; left: 5px; width: 4px; background: var(--accent); border-radius: 2px; }
+.vslider .zero { position: absolute; left: 1px; width: 12px; height: 1px; background: #4a515b; top: 50%; }
+.vslider .knob {
+  position: absolute; left: 0; width: 14px; height: 7px; margin-top: -3.5px;
+  background: #5a626e; border: 1px solid #c8ccd4; border-radius: 2px;
+}
+.vslider[data-disabled="1"] { opacity: .3; pointer-events: none; }
+
+.row { display: flex; align-items: center; gap: .5rem; font-size: .8rem; color: var(--muted); }
+.row input[type=range] { flex: 1; }
+.row output { font-family: ui-monospace, monospace; width: 5.5em; text-align: right; color: var(--fg); }
+
+.note { margin: .5rem 0 0; font-size: .75rem; color: var(--muted); }
+code { background: #2b2f36; border-radius: 3px; padding: 0 .25em; font-size: .9em; }
+
+/* Fixed layout and tabular figures: the columns used to resize on every value
+   change, which made the whole table jitter. */
+table {
+  width: 100%; border-collapse: collapse; table-layout: fixed;
+  font-size: .78rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+th, td { padding: .2rem .35rem; text-align: right; border-bottom: 1px solid var(--line); }
+th:first-child, td:first-child { text-align: left; color: var(--muted); }
+th { color: var(--muted); font-weight: 500; }
+tr.muted-row td { opacity: .4; }
+
+button {
+  background: #2b2f36; color: var(--fg); border: 1px solid var(--line);
+  border-radius: 6px; padding: .35rem .7rem; cursor: pointer; font: inherit; font-size: .85rem;
+}
+button:hover { background: #353a43; }
+
+.muted { color: var(--muted); font-size: .8rem; }

@@ -1,0 +1,101 @@
+#ifndef BMCV_SIM_RT_H_
+#define BMCV_SIM_RT_H_
+
+#include "hw_setup.h"
+#include <stdint.h>
+
+// Host-side runtime glue: unit conversion, tick decimation and gate edge
+// latching. Deliberately free of any host's types - no Emscripten, no VCV
+// Rack - so the wasm build, the CLI and (later) the Rack plugin share one
+// implementation of the fiddly parts, and so all of it is unit-testable
+// without a host at all.
+
+/* ---- unit conversion ---------------------------------------------------- */
+
+// The module's converters are bipolar +/-10V. ADC counts are a quarter of DAC
+// counts at the same voltage (ADC_10V 8192, DAC_10V 32768).
+
+static inline float sim_dac_to_volts(int16_t dac) { return (float) dac * (10.0f / (float) DAC_10V); }
+
+static inline int16_t sim_volts_to_adc(float volts)
+{
+  float raw = volts * ((float) ADC_10V / 10.0f);
+  // 14-bit signed converter: the positive side stops one count short.
+  if (raw > (float) (ADC_10V - 1))
+    raw = (float) (ADC_10V - 1);
+  if (raw < (float) (-ADC_10V))
+    raw = (float) (-ADC_10V);
+  return (int16_t) (raw >= 0.0f ? raw + 0.5f : raw - 0.5f);
+}
+
+static inline float sim_adc_to_volts(int16_t adc) { return (float) adc * (10.0f / (float) ADC_10V); }
+
+/* ---- tick decimation ---------------------------------------------------- */
+
+// The engine is dt-driven, so it is correct at any tick rate; running it once
+// per audio sample is simply wasteful. A host samples CV every frame but ticks
+// the engine on a divider.
+//
+// Time is accumulated in Q32 microseconds rather than as a rounded integer
+// step. At 48kHz the step is exactly 250us and it makes no difference, but at
+// 44.1kHz a divider of 11 gives 249.43us, and rounding that to 249 would run
+// the engine's clock 0.17% slow - every LFO permanently flat, and drifting
+// further from the host's transport the longer the patch is open. Accumulating
+// the exact value and handing the engine the *difference* between successive
+// integer timestamps keeps the long-run rate exact while still giving
+// input_fold a whole number of microseconds.
+typedef struct
+{
+  uint32_t divider; // host frames per control tick
+  uint32_t counter;
+
+  uint64_t us_q32; // accumulated time, microseconds in Q32
+  uint64_t dt_q32; // exact microseconds per control tick, Q32
+
+  uint32_t now_us; // integer timestamp to pass to the engine
+  uint32_t dt_us;  // now_us minus the previous now_us; varies by +/-1us
+} SimTickDiv;
+
+// control_rate_hz is what the engine will actually run at; the divider is
+// rounded to the nearest whole number of host frames, and the time step is
+// derived from the *rounded* divider so it agrees with what really happens.
+void sim_tickdiv_config(SimTickDiv* d, float sample_rate_hz, float control_rate_hz);
+
+// Advance one host frame. Returns 1 when a control tick is due, having
+// advanced now_us and set dt_us.
+uint8_t sim_tickdiv_step(SimTickDiv* d);
+
+// The rate the engine actually ticks at, which is sample_rate/divider and not
+// necessarily the rate that was requested.
+static inline float sim_tickdiv_rate_hz(const SimTickDiv* d)
+{
+  return d->dt_q32 ? (float) (4294967296.0 * 1000000.0 / (double) d->dt_q32) : 0.0f;
+}
+
+/* ---- gate edge latching ------------------------------------------------- */
+
+// On hardware, gate edges are caught in the ADC DMA callback, which runs
+// faster than the engine loop, so a 1ms pulse is never missed. A host that
+// samples CV per audio frame but ticks the engine at 4kHz has to do the same
+// or it will drop short triggers.
+//
+// Indexed by *converter channel*, matching InputSample.cv_raw.
+typedef struct
+{
+  uint8_t state[N_INPUTS];   // hysteresis latch, as in the ADC driver
+  uint8_t pending[N_INPUTS]; // edge seen since the last take
+} SimTrigLatch;
+
+void sim_trig_reset(SimTrigLatch* t);
+
+// Feed one CV sample in raw ADC units. Call per host frame.
+void sim_trig_sample(SimTrigLatch* t, uint8_t channel, int16_t cv);
+
+// Consume the pending edge for one channel. Call when building an InputSample.
+uint8_t sim_trig_take(SimTrigLatch* t, uint8_t channel);
+
+// Force a one-shot edge, for a UI button or a script that wants a trigger
+// without synthesising a voltage ramp.
+void sim_trig_fire(SimTrigLatch* t, uint8_t channel);
+
+#endif /* BMCV_SIM_RT_H_ */

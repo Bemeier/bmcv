@@ -26,9 +26,4 @@ void ui_render(UxState* state);
 void ui_render_context(UxState* state, int16_t led, TargetKind kind, int8_t id);
 void ui_render_feedback(UxState* state, int16_t led, TargetKind kind, int8_t id);
 
-// Arm the transient value display for every element - used on shift-mode
-// entry so the mode's per-channel state is visible at a glance before
-// decaying back to the output level.
-void ui_render_arm_all_edits(UxState* state);
-
 #endif /* INC_LIB_UI_RENDER_H_ */

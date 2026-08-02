@@ -1,28 +1,65 @@
 #include "assign.h"
 #include "channel.h"
+#include "config.h"
 #include "hw_setup.h"
-#include "state.h"
 #include <stdint.h>
 #include <string.h>
 
-void assign_input_to_channel(int8_t i, int8_t c, UxState* state) { state->engine_config->channel_state[c].src_input = i; }
+// Every mutation here is reachable from a button press, so each one validates
+// its own indices rather than trusting the caller. ui_select.c does pass ids
+// straight through from the setup tables today, but that is the wrong thing to
+// rely on - and it was already inconsistent, with some of these checked and
+// some not.
+
+static int channel_ok(int8_t c) { return c >= 0 && c < N_CHANNELS; }
+static int scene_ok(int8_t s) { return s >= 0 && s < N_SCENES; }
+static int input_ok(int8_t i) { return i >= 0 && i < N_INPUTS; }
+
+void assign_input_to_channel(int8_t i, int8_t c, UxState* state)
+{
+  if (!channel_ok(c) || !input_ok(i))
+    return;
+  state->engine_config->channel_state[c].src_input = i;
+}
+
+// MON: pressing the held source channel again unroutes its input.
+void assign_input_clear(int8_t c, UxState* state)
+{
+  if (!channel_ok(c))
+    return;
+  state->engine_config->channel_state[c].src_input = -1;
+}
+
+// QNT: choosing a channel as the thing to be triggered implies the mode it
+// will be triggered in. Without this the assignment would have no audible
+// effect until the encoder was also turned to reach QUANTIZE_TRIG_SRC.
+void assign_trig_arm_channel(int8_t c, UxState* state)
+{
+  if (!channel_ok(c))
+    return;
+  state->engine_config->channel_state[c].quantize_mode = QUANTIZE_TRIG_SRC;
+}
 
 void clear_channel(int8_t c, int8_t all_scenes, UxState* state)
 {
-  reset_channel(&state->ux_setup->channels[c], state, all_scenes ? -1 : state->engine_state->active_scene);
+  if (!channel_ok(c))
+    return;
+  channel_reset(c, state->engine_state, state->engine_config, all_scenes ? -1 : state->engine_state->active_scene);
 }
 
 void clear_scene(int8_t s, UxState* state)
 {
+  if (!scene_ok(s))
+    return;
   for (int8_t c = 0; c < N_CHANNELS; c++)
   {
-    reset_channel(&state->ux_setup->channels[c], state, s);
+    channel_reset((uint8_t) c, state->engine_state, state->engine_config, s);
   }
 }
 
-void copy_scene_channel(int8_t c_src, int8_t s_src, int8_t c_dst, int8_t s_dst, UxState* state)
+static void copy_scene_channel(int8_t c_src, int8_t s_src, int8_t c_dst, int8_t s_dst, UxState* state)
 {
-  if (c_dst >= N_ENCODERS || c_src >= N_ENCODERS || s_src >= N_SCENES || s_dst >= N_SCENES)
+  if (!channel_ok(c_src) || !channel_ok(c_dst) || !scene_ok(s_src) || !scene_ok(s_dst))
     return;
   memcpy(state->engine_config->channel_state[c_dst].params[s_dst], state->engine_config->channel_state[c_src].params[s_src],
          sizeof state->engine_config->channel_state[c_dst].params[s_dst]);
@@ -40,7 +77,7 @@ void assign_channel_to_scene(int8_t c_src, int8_t s_dst, UxState* state)
 
 void assign_scene_to_scene(int8_t s_src, int8_t s_dst, UxState* state)
 {
-  for (uint8_t c = 0; c < N_CHANNELS; c++)
+  for (int8_t c = 0; c < N_CHANNELS; c++)
   {
     copy_scene_channel(c, s_src, c, s_dst, state);
   }
@@ -51,9 +88,12 @@ void assign_scene_to_scene(int8_t s_src, int8_t s_dst, UxState* state)
 // source and never update.
 void assign_trig_src_use_channel(int8_t c_src, int8_t c_dst, UxState* state)
 {
+  if (!channel_ok(c_src) || !channel_ok(c_dst))
+    return;
+
   if (c_src != c_dst)
   {
-    state->engine_config->channel_state[c_src].src_trig = N_INPUTS + c_dst;
+    state->engine_config->channel_state[c_src].src_trig = TRIG_SRC_CHANNEL(c_dst);
   }
   else
   {
@@ -62,4 +102,9 @@ void assign_trig_src_use_channel(int8_t c_src, int8_t c_dst, UxState* state)
   }
 }
 
-void assign_trig_src_use_input(int8_t c_src, int8_t i_dst, UxState* state) { state->engine_config->channel_state[c_src].src_trig = i_dst; }
+void assign_trig_src_use_input(int8_t c_src, int8_t i_dst, UxState* state)
+{
+  if (!channel_ok(c_src) || !input_ok(i_dst))
+    return;
+  state->engine_config->channel_state[c_src].src_trig = TRIG_SRC_INPUT(i_dst);
+}

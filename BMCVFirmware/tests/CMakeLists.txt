@@ -30,7 +30,9 @@ add_library(bmcv_core STATIC
 )
 target_include_directories(bmcv_core PUBLIC ${BMCV_LIB_INC})
 target_link_libraries(bmcv_core PUBLIC m)
-target_compile_options(bmcv_core PRIVATE -Wall -Wextra)
+# -Wmissing-prototypes catches a non-static function with no declaration, which
+# is how three dead or internal functions here ended up externally visible.
+target_compile_options(bmcv_core PRIVATE -Wall -Wextra -Wmissing-prototypes)
 
 add_library(bmcv_fixture STATIC fixtures/fixture.c)
 target_include_directories(bmcv_fixture PUBLIC fixtures)
@@ -58,8 +60,27 @@ bmcv_add_test(test_ui_gestures)
 bmcv_add_test(test_ui_select)
 bmcv_add_test(test_ui_feedback)
 bmcv_add_test(test_ui_mode)
+bmcv_add_test(test_input_fold)
+bmcv_add_test(test_instance)
+
+# Host-side runtime glue from sim/. Built here so `just test` covers it too -
+# it is shared by every host, so a regression would be everywhere at once.
+bmcv_add_test(test_sim_rt)
+target_sources(test_sim_rt PRIVATE ${BMCV_ROOT}/sim/src/sim_rt.c)
+target_include_directories(test_sim_rt PRIVATE ${BMCV_ROOT}/sim/include)
+
+# Checks the generated panel layout against the firmware's index tables.
+# Needs panel/panel_layout.h, which `just panel` produces.
+bmcv_add_test(test_panel_spec)
+target_include_directories(test_panel_spec PRIVATE ${BMCV_ROOT}/panel)
+target_link_libraries(test_panel_spec PRIVATE m)
 
 
 add_executable(render_channel ${BMCV_ROOT}/tools/render_channel.c)
 target_link_libraries(render_channel PRIVATE bmcv_fixture)
 target_include_directories(render_channel PRIVATE ${BMCV_ROOT}/tools)
+
+# Feeds gen_panel_spec.py the firmware's own index tables, so the generated
+# panel spec cannot drift from hw_setup.c. See `just panel`.
+add_executable(dump_hw_setup ${BMCV_ROOT}/tools/dump_hw_setup.c)
+target_link_libraries(dump_hw_setup PRIVATE bmcv_core)

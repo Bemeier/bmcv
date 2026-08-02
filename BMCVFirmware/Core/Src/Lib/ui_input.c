@@ -1,6 +1,6 @@
 #include "ui_input.h"
 #include "hw_setup.h"
-#include "state.h"
+#include "hw_state.h"
 #include <stdint.h>
 
 void ui_input_update(UiInput* in, const HwState* curr)

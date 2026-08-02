@@ -4,8 +4,8 @@
 // offer must be inert. Those were separate hand-written conditions per mode
 // before, and had already drifted.
 #include "assign.h"
+#include "config.h"
 #include "fixture.h"
-#include "state.h"
 #include "testkit.h"
 #include "ui_mode.h"
 #include "ui_select.h"
@@ -205,12 +205,14 @@ TEST_CASE(modes_with_no_action_ignore_presses_and_offer_nothing)
   CHECK(f.engine_config.channel_state[0].params[0][CH_PARAM_AMP] == 77);
 }
 
+// The keyboard overlay is what makes a tap on another ctrl button a note
+// rather than an exit, so it is the same flag both behaviours read.
 TEST_CASE(quantizer_is_the_only_mode_that_survives_a_tap_on_another_ctrl_button)
 {
   for (uint8_t m = 0; m < SHIFT_STATE_COUNT; m++)
   {
     const UiModeDesc* d = ui_mode(m);
-    CHECK(d->exits_on_other_ctrl == (m != SHIFT_STATE_QNT));
+    CHECK((d->keyboard_overlay != 0) == (m == SHIFT_STATE_QNT));
   }
 }
 

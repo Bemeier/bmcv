@@ -8,6 +8,28 @@
 // would silently route a channel somewhere the user never chose.
 static inline int8_t valid_source_or_unassigned(int8_t value, int8_t count) { return (value >= 0 && value < count) ? value : -1; }
 
+// What a module that has never been saved to comes up with. Here rather than
+// in the composition root, next to the validation that has to accept it, and
+// testable on its own.
+void config_defaults(EngineConfig* cfg)
+{
+  cfg->input_mode[0] = INPUT_CLOCK;
+  cfg->input_mode[1] = INPUT_RESET;
+  cfg->input_mode[2] = INPUT_DEFAULT;
+  cfg->input_mode[3] = INPUT_DEFAULT;
+
+  cfg->scene_a       = 0;
+  cfg->scene_b       = N_SCENES - 1;
+  cfg->quantize_mask = 0x0FFFu; // every semitone enabled
+
+  for (uint8_t c = 0; c < N_CHANNELS; c++)
+  {
+    cfg->channel_state[c].src_input     = -1;
+    cfg->channel_state[c].src_trig      = -1;
+    cfg->channel_state[c].quantize_mode = QUANTIZE_DISABLED;
+  }
+}
+
 void config_validate(EngineConfig* cfg)
 {
   cfg->scene_a = (uint8_t) iclamp(cfg->scene_a, 0, N_SCENES - 1);
@@ -22,7 +44,7 @@ void config_validate(EngineConfig* cfg)
     cfg->input_mode[i] = (InputMode) iclamp(cfg->input_mode[i], 0, INPUT_MODE_COUNT - 1);
   }
 
-  for (uint8_t c = 0; c < N_ENCODERS; c++)
+  for (uint8_t c = 0; c < N_CHANNELS; c++)
   {
     ChannelConfig* ch = &cfg->channel_state[c];
 

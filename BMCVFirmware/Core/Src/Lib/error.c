@@ -1,12 +1,10 @@
 #include "error.h"
 #include <stdint.h>
 
-static volatile uint8_t error_flags = 0;
+void error_set(EngineState* es, uint8_t bit) { es->error_flags |= (uint8_t) (1u << bit); }
 
-void error_set(uint8_t bit) { error_flags |= (1 << bit); }
+void error_clear(EngineState* es) { es->error_flags = 0; }
 
-void error_clear() { error_flags = 0; }
+uint8_t error_get(const EngineState* es, uint8_t bit) { return (es->error_flags >> bit) & 1u; }
 
-uint8_t error_get(uint8_t bit) { return (error_flags >> bit) & 1; }
-
-uint8_t error_any() { return error_flags > 0; }
+uint8_t error_any(const EngineState* es) { return es->error_flags > 0; }

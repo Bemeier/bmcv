@@ -1,11 +1,10 @@
 #include "ui_render.h"
 #include "color_presets.h"
-#include "dac_adc.h"
+#include "config.h"
 #include "error.h"
 #include "helpers.h"
 #include "hw_setup.h"
 #include "led_fb.h"
-#include "state.h"
 #include "ui_feedback.h"
 #include "ui_input.h"
 #include "ui_mode.h"
@@ -58,14 +57,6 @@ void ui_render_feedback(UxState* state, int16_t led, TargetKind kind, int8_t id)
 
 /* ---- layer 2: transient value display ---------------------------------- */
 
-void ui_render_arm_all_edits(UxState* state)
-{
-  for (uint8_t c = 0; c < N_CHANNELS; c++)
-  {
-    state->ui->channels_edit_hold[c] = UI_EDIT_DISPLAY;
-  }
-}
-
 static void render_channel_edit(UxState* s, const ChannelSetup* ch)
 {
   if (s->ui->channels_edit_hold[ch->id] == 0)
@@ -112,29 +103,35 @@ static void render_channel(UxState* s, const ChannelSetup* ch)
   ui_render_feedback(s, ch->led, TGT_CHANNEL, ch->id);
 }
 
-static void render_scene(UxState* s, const SceneSetup* scene)
+// Layer 0 for a scene button. Which of these runs is the mode descriptor's
+// call, not a shift_state comparison - adding a mode adds a row to ui_mode.c,
+// not an arm here.
+static void render_scene_base(UxState* s, const SceneSetup* scene, const UiModeDesc* m)
 {
-  const UiModeDesc* m = ui_mode(s->ui->shift_state);
-
-  // 0: base - what this button stands for in this mode.
-  if (m->scene_btn_kind == TGT_INPUT)
+  switch (m->scene_btn_base)
   {
-    if (scene->id >= N_INPUTS)
-      led_set_hsv(s, scene->led, 0, SAT_OFF, VAL_OFF);
-    else if (s->ui->shift_state == SHIFT_STATE_SYS)
-      led_set_hsv(s, scene->led, input_mode_color[s->engine_config->input_mode[scene->id]], SAT_HIG, VAL_LOW);
-    else
-      led_set_adcr(s, scene->led, get_adc(s->hw_setup->input_adc_idx[scene->id]));
-  }
-  else if (s->ui->shift_state == SHIFT_STATE_SAV)
+  case SCB_INPUT_LEVEL:
+    // input_state[] is the jack reading already scaled into DAC units by the
+    // input layer, so this needs no driver call and stays assertable in a test.
+    led_set_dac(s, scene->led, s->hw_state->input_state[scene->id]);
+    break;
+
+  case SCB_INPUT_MODE:
+    led_set_hsv(s, scene->led, input_mode_color[s->engine_config->input_mode[scene->id]], SAT_HIG, VAL_LOW);
+    break;
+
+  case SCB_PRESET:
   {
     // Held shows which slot is armed; past UI_T_VLONG it turns red to say the
     // release will store rather than load.
     int8_t held = btn_down(&s->ui->in, scene->button);
     int8_t save = btn_holding(&s->ui->in, scene->button, UI_T_VLONG);
     led_set_hsv(s, scene->led, save ? HUE_RED : HUE_GREEN, SAT_MAX, held ? VAL_MED : VAL_LOW);
+    break;
   }
-  else
+
+  case SCB_CROSSFADE:
+  default:
   {
     // Scene crossfade weight, so the blend stays readable in every mode.
     uint8_t val = s->engine_state->scenes_contribution[scene->id] / 8;
@@ -142,14 +139,33 @@ static void render_scene(UxState* s, const SceneSetup* scene)
       val = imax(val, VAL_LOW);
     led_set_hsv(s, scene->led, 0, SAT_OFF, val);
 
-    // In STA/STB the pair currently wired to the crossfader is the "source".
-    if ((s->ui->shift_state == SHIFT_STATE_STA && s->engine_config->scene_a == scene->id) ||
-        (s->ui->shift_state == SHIFT_STATE_STB && s->engine_config->scene_b == scene->id))
+    // In STA/STB the scene currently wired to that end of the crossfader is
+    // the "source" of what the fader does.
+    uint8_t wired = (m->xfade_end == XFADE_A && s->engine_config->scene_a == scene->id) ||
+                    (m->xfade_end == XFADE_B && s->engine_config->scene_b == scene->id);
+    if (wired)
       set(s, scene->led, UI_COL_SOURCE);
+    break;
+  }
+  }
+}
+
+static void render_scene(UxState* s, const SceneSetup* scene)
+{
+  const UiModeDesc* m = ui_mode(s->ui->shift_state);
+
+  // Modes where the scene buttons address inputs only have N_INPUTS of them;
+  // the rest go dark rather than showing a stale base layer. Same guard the
+  // handler uses, in ui_scene_button.
+  if (m->scene_btn_kind == TGT_INPUT && scene->id >= N_INPUTS)
+  {
+    led_set_hsv(s, scene->led, 0, SAT_OFF, VAL_OFF);
+    return;
   }
 
-  ui_render_context(s, scene->led, (TargetKind) m->scene_btn_kind, scene->id);
-  ui_render_feedback(s, scene->led, (TargetKind) m->scene_btn_kind, scene->id);
+  render_scene_base(s, scene, m);
+  ui_render_context(s, scene->led, m->scene_btn_kind, scene->id);
+  ui_render_feedback(s, scene->led, m->scene_btn_kind, scene->id);
 }
 
 static void render_ctrl_button(UxState* s, const CtrlButtonSetup* btn)
@@ -167,7 +183,7 @@ static void render_ctrl_button(UxState* s, const CtrlButtonSetup* btn)
 
 static void render_quantizer(UxState* s)
 {
-  if (s->ui->shift_state != SHIFT_STATE_QNT)
+  if (!ui_mode(s->ui->shift_state)->keyboard_overlay)
     return;
   // While a trigger source is being picked the keyboard is not a keyboard,
   // so the scene/ctrl renderers own those LEDs for the duration.
@@ -186,7 +202,7 @@ static void render_quantizer(UxState* s)
 // suppress the whole UX pass for as long as an error was showing.
 static void render_error(UxState* state)
 {
-  if (!error_any())
+  if (!error_any(state->engine_state))
     return;
 
   led_clear_all(state);
@@ -194,7 +210,7 @@ static void render_error(UxState* state)
 
   for (uint8_t s = 0; s < N_SCENES; s++)
   {
-    uint8_t on = error_get(s) && state->ui->blink_slow;
+    uint8_t on = error_get(state->engine_state, s) && state->ui->blink_slow;
     led_set_hsv(state, state->ux_setup->scenes[s].led, c.h, c.s, on ? c.v : VAL_OFF);
   }
 }

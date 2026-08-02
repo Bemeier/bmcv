@@ -1,135 +1,37 @@
 #include "channel.h"
-#include "assign.h"
 #include "clock_sync.h"
-#include "color_presets.h"
-#include "dac_adc.h"
+#include "config.h"
+#include "engine_state.h"
 #include "helpers.h"
 #include "hw_setup.h"
-#include "led_fb.h"
+#include "hw_state.h"
 #include "math.h"
-#include "state.h"
 #include "stepped_random.h"
 #include "stepped_random_table.h"
-#include "ui_feedback.h"
-#include "ui_input.h"
-#include "ui_mode.h"
-#include "ui_select.h"
-#include "ux_state.h"
 #include "wave_fn.h"
 #include <stdint.h>
 
-#define N_SHP_LEVELS 8
-#define N_AMP_LEVELS 11
-#define N_FREQ_MULTIPLIERS 31
 #define N_FREQ_SCALE 255
-// #define SHAPE_INTERVAL INT16_MAX / M
 
-// Output-side (DAC-domain) trigger detection thresholds for this channel's own
-// signal. Deliberately distinct from dac_adc.h's identically-valued
-// TRIG_THRESH*, which are input-side (ADC-domain) - the two are independent
-// and should be tunable separately.
-#define CHANNEL_TRIG_THRESH 1024
-#define CHANNEL_TRIG_THRESH_LOW 800
+// A channel's own output can trigger another channel's sample & hold, so it
+// gets the same treatment an input jack does: the same two voltages (~1.25V
+// rising, ~0.98V falling), expressed in the DAC domain this signal lives in.
+//
+// These used to be 1024/800 written out again - the input-side numbers copied
+// across without rescaling, which in DAC units is 0.31V, so a channel counted
+// as triggering almost the moment it left zero.
+#define CHANNEL_TRIG_THRESH TRIG_THRESH_DAC
+#define CHANNEL_TRIG_THRESH_LOW TRIG_THRESH_LOW_DAC
 
 // How long after the last encoder movement a channel still counts as being
 // actively edited, during which a pattern-length change applies immediately
 // rather than waiting for the cycle wrap.
 #define MOD_EDIT_WINDOW MS(500)
 
-// Mute fade, in milliseconds. At the ~3kHz DAC rate this is about 15 steps,
+// Mute fade, in milliseconds. At the ~3kHz tick rate this is about 15 steps,
 // and the converter is band-limited well below that, so it is comfortably
 // enough to keep the transition silent.
 #define MUTE_RAMP_MS 5.0f
-
-/*
-static const int16_t quantized_amp_levels[N_AMP_LEVELS] = {
-    -INT16_MAX,     // *-1
-    -INT16_MAX / 2, // *-1/2
-    -INT16_MAX / 3, // *-1/3
-    -INT16_MAX / 4, // *-1/4
-    -INT16_MAX / 8, // *-1/8
-    0,              // 0
-    INT16_MAX / 8,  // *1/4
-    INT16_MAX / 4,  // *1/4
-    INT16_MAX / 3,  // *1/3
-    INT16_MAX / 2,  // *1/2
-    INT16_MAX       // *1
-};
-
-static const int16_t quantized_shp_levels[N_SHP_LEVELS] = {
-    -SHAPE_INTERVAL * 4, -SHAPE_INTERVAL * 3, -SHAPE_INTERVAL * 2, -SHAPE_INTERVAL * 1,
-    -SHAPE_INTERVAL * 0, SHAPE_INTERVAL * 1,  SHAPE_INTERVAL * 2,  SHAPE_INTERVAL * 3,
-};
-*/
-
-static const int16_t quantized_multipliers[N_FREQ_MULTIPLIERS] = {
-    -127 * 255, // 1/128
-    -63 * 255,  // 1/64
-    -31 * 255,  // 1/32
-    -23 * 255,  // 1/24
-    -15 * 255,  // 1/16
-    -11 * 255,  // 1/12
-    -7 * 255,   // 1/8
-    -5 * 255,   // 1/6
-    -4 * 255,   // 1/5
-    -3 * 255,   // 1/4
-    -2 * 255,   // 1/3
-    -1 * 255,   // 1/2
-    -127,       // 2/3
-    -85,        // 3/4
-    -64,        // 4/5
-    0,          // 1
-    64,         // 5/4
-    85,         // 4/3
-    127,        // 3/2
-    1 * 255,    // 2
-    2 * 255,    // 3
-    3 * 255,    // 4
-    4 * 255,    // 5
-    5 * 255,    // 6
-    7 * 255,    // 8
-    11 * 255,   // 12
-    15 * 255,   // 16
-    23 * 255,   // 24
-    31 * 255,   // 32
-    63 * 255,   // 32
-    127 * 255,  // 128
-};
-
-// TODO: Even dividers: green
-static const uint8_t quantized_multipliers_colors[N_FREQ_MULTIPLIERS] = {
-    HUE_GREEN,  // 1/128
-    HUE_CYAN,   // 1/64
-    HUE_GREEN,  // 1/32
-    HUE_RED,    // 1/24
-    HUE_GREEN,  // 1/16
-    HUE_RED,    // 1/12
-    HUE_GREEN,  // 1/8
-    HUE_RED,    // 1/6
-    HUE_YELLOW, // 1/5
-    HUE_GREEN,  // 1/4
-    HUE_RED,    // 1/3
-    HUE_GREEN,  // 1/2
-    HUE_CYAN,   // 2/3
-    HUE_CYAN,   // 3/4
-    HUE_CYAN,   // 5/4
-    HUE_GREEN,  // 1
-    HUE_CYAN,   // 5/4
-    HUE_CYAN,   // 4/3
-    HUE_CYAN,   // 3/2
-    HUE_GREEN,  // 2
-    HUE_RED,    // 3
-    HUE_GREEN,  // 4
-    HUE_YELLOW, // 5
-    HUE_RED,    // 6
-    HUE_GREEN,  // 8
-    HUE_RED,    // 12
-    HUE_GREEN,  // 16
-    HUE_RED,    // 24
-    HUE_CYAN,   // 32
-    HUE_GREEN,  // 64
-    HUE_CYAN    // 64
-};
 
 // Per-channel mutable state (prev_out / trig_state / trig_flag / last_delta)
 // lives in EngineState so it resets with the rest of the engine and does not
@@ -137,192 +39,63 @@ static const uint8_t quantized_multipliers_colors[N_FREQ_MULTIPLIERS] = {
 
 static const float k_sync = 0.075f;
 
-void update_channel_param(const ChannelSetup* ch, UxState* state)
+void channel_init(uint8_t ch, EngineState* es)
 {
-  ChannelConfig* chcfg = &state->engine_config->channel_state[ch->id];
-  int8_t param         = state->ui->selected_param;
-  int16_t delta        = enc_delta(&state->ui->in, ch->encoder);
-  int8_t alt           = btn_down(&state->ui->in, ch->button);
-  if (delta == 0)
+  es->channels_shared_phase[ch]     = 0;
+  es->channels_phase_correction[ch] = 0;
+  es->channels_prev_phase[ch]       = 0;
+  es->channels_length_idx[ch]       = -1;   // latch on the first tick
+  es->channels_mute_gain[ch]        = 1.0f; // open, not fading in from silence
+}
+
+void channel_reset_phase(uint8_t ch, EngineState* es)
+{
+  es->channels_shared_phase[ch]     = 0;
+  es->channels_phase_correction[ch] = 0;
+}
+
+void channel_reset_param(uint8_t ch, EngineConfig* cfg, int8_t scene, int8_t param)
+{
+  if (scene < 0 || scene >= N_SCENES || param < 0 || param >= CH_PARAM_COUNT)
     return;
 
-  ui_channel_note_edit(state, ch->id);
-
-  state->ui->channels_edit_hold[ch->id] = UI_EDIT_DISPLAY;
-
-  if (alt)
-  {
-    chcfg->params[state->engine_state->active_scene][param] += 32 * delta;
-  }
-  else if (param == CH_PARAM_FRQ)
-  {
-    size_t idx = 0;
-    chcfg->params[state->engine_state->active_scene][param] =
-        val_neighbour(chcfg->params[state->engine_state->active_scene][param], delta, quantized_multipliers, N_FREQ_MULTIPLIERS, &idx);
-    state->ui->channels_edit_hue[ch->id] = quantized_multipliers_colors[idx];
-  }
-  else if (param == CH_PARAM_MOD && shape_mode_is_stepped(chcfg->shape_mode))
-  {
-    // In the stepped modes MOD picks a pattern length from a discrete set, so
-    // step straight to the next one. Treating it as a continuous parameter
-    // meant ~22 detents of dead travel between divisions.
-    size_t idx = 0;
-    chcfg->params[state->engine_state->active_scene][param] =
-        val_neighbour(chcfg->params[state->engine_state->active_scene][param], delta, sr_length_param, SR_LENGTH_COUNT, &idx);
-  }
-  /*
-  else if (param == CH_PARAM_SHP)
-  {
-      size_t idx = 0;
-      chcfg->params[state->engine_state->active_scene][param] =
-          val_neighbour(chcfg->params[state->engine_state->active_scene][param], delta, quantized_shp_levels, N_SHP_LEVELS, &idx);
-  }
-  */
-  else
-  {
-    chcfg->params[state->engine_state->active_scene][param] += delta * 256;
-  }
+  // Frequency is a ratio: its neutral value is "one beat", which is -255 in
+  // the multiplier table, not zero.
+  cfg->channel_state[ch].params[scene][param] = (param == CH_PARAM_FRQ) ? -255 : 0;
 }
 
-void init_channel(const ChannelSetup* ch, UxState* state)
+void channel_reset(uint8_t ch, EngineState* es, EngineConfig* cfg, int8_t scene)
 {
-  state->engine_state->channels_shared_phase[ch->id]     = 0;
-  state->engine_state->channels_phase_correction[ch->id] = 0;
-  state->engine_state->channels_prev_phase[ch->id]       = 0;
-  state->engine_state->channels_length_idx[ch->id]       = -1;   // latch on the first tick
-  state->engine_state->channels_mute_gain[ch->id]        = 1.0f; // open, not fading in from silence
-}
+  channel_init(ch, es);
 
-void reset_channel_param(const ChannelSetup* ch, UxState* state, int8_t scene, int8_t param)
-{
-  ChannelConfig* chcfg = &state->engine_config->channel_state[ch->id];
-  if (param == CH_PARAM_FRQ)
+  for (uint8_t s = 0; s < N_SCENES; s++)
   {
-    chcfg->params[scene][param] = -255;
-  }
-  else
-  {
-    chcfg->params[scene][param] = 0;
-  }
-}
+    if (scene >= 0 && s != (uint8_t) scene)
+      continue;
 
-void reset_channel(const ChannelSetup* ch, UxState* state, int8_t scene)
-{
-  init_channel(ch, state);
-
-  if (scene < 0)
-  {
-    for (uint8_t s = 0; s < N_SCENES; s++)
-    {
-      for (uint8_t p = 0; p < CH_PARAM_COUNT; p++)
-      {
-        reset_channel_param(ch, state, s, p);
-      }
-    }
-  }
-  else
-  {
     for (uint8_t p = 0; p < CH_PARAM_COUNT; p++)
     {
-      reset_channel_param(ch, state, scene, p);
+      channel_reset_param(ch, cfg, (int8_t) s, (int8_t) p);
     }
   }
 }
 
-void reset_channel_phase(const ChannelSetup* ch, UxState* state)
+void channel_compute(uint8_t ch, EngineState* es, const EngineConfig* cfg, const HwState* hw)
 {
-  state->engine_state->channels_shared_phase[ch->id]     = 0;
-  state->engine_state->channels_phase_correction[ch->id] = 0;
-}
-
-void update_channel(const ChannelSetup* ch, UxState* state)
-{
-  const UiModeDesc* m  = ui_mode(state->ui->shift_state);
-  int8_t long_pressed  = btn_released_after(&state->ui->in, ch->button, UI_T_LONG);
-  int8_t pressed       = btn_ev(&state->ui->in, ch->button, BTN_EV_UP);
-  int8_t pressing      = btn_down(&state->ui->in, ch->button);
-  int16_t delta        = enc_delta(&state->ui->in, ch->encoder);
-  ChannelConfig* chcfg = &state->engine_config->channel_state[ch->id];
-
-  switch (m->channel_btn_action)
-  {
-  case CHB_SELECT:
-    if (pressed)
-      ui_sel_press(state, (TargetKind) m->channel_btn_kind, ch->id, long_pressed);
-    break;
-  case CHB_MUTE_TOGGLE:
-    // On release rather than press: easier to perform accurately, and it
-    // matches every other momentary action in the UI.
-    if (pressed)
-      state->ui->muted[ch->id] = !state->ui->muted[ch->id];
-    break;
-  case CHB_RESET_PARAM:
-    // Only a long press that spanned no encoder movement resets the param -
-    // otherwise holding the button as a fine-adjust modifier would wipe the
-    // value the user was just adjusting.
-    if (long_pressed && btn_held(&state->ui->in, ch->button) < state->hw_state->time - state->engine_state->channels_last_delta[ch->id])
-    {
-      reset_channel_param(ch, state, state->engine_state->active_scene, state->ui->selected_param);
-      return;
-    }
-    break;
-  default:
-    break;
-  }
-
-  if (delta == 0)
-    return;
-
-  switch (m->channel_enc_target)
-  {
-  case ENC_PARAM:
-    update_channel_param(ch, state);
-    break;
-  case ENC_SHAPE:
-    chcfg->shape_mode                     = delta_modulo_step(chcfg->shape_mode, delta, SHAPE_MODE_COUNT);
-    state->ui->channels_edit_hold[ch->id] = UI_EDIT_DISPLAY;
-    break;
-  case ENC_QUANT:
-    // While a trigger source is being picked the encoder would fight the
-    // assignment for the same value.
-    if (ui_sel_pending(state->ui))
-      break;
-    chcfg->quantize_mode                  = delta_modulo_step(chcfg->quantize_mode, delta, QUANTIZE_MODE_COUNT);
-    state->ui->channels_edit_hold[ch->id] = UI_EDIT_DISPLAY;
-    break;
-  case ENC_AMPMODE:
-    if (pressing)
-      break; // the button is picking a source, not modifying the encoder
-    chcfg->input_amp_mode                 = delta_modulo_step(chcfg->input_amp_mode, delta, INPUT_AMP_MODE_COUNT);
-    state->ui->channels_edit_hold[ch->id] = UI_EDIT_DISPLAY;
-    break;
-  default:
-    break;
-  }
-}
-
-void compute_channel_scene(const ChannelSetup* ch, UxState* state)
-{
-  (void) ch;
-  (void) state;
-}
-
-void compute_channel(const ChannelSetup* ch, UxState* state)
-{
-  ChannelConfig* chcfg = &state->engine_config->channel_state[ch->id];
-  float dt_s           = state->hw_state->dt * US_TO_S;
+  const ChannelConfig* chcfg = &cfg->channel_state[ch];
+  float dt_s                 = hw->dt * US_TO_S;
 
   int16_t avg[CH_PARAM_COUNT] = {0};
   for (uint8_t s = 0; s < N_SCENES; s++)
   {
-    if (state->engine_state->scenes_contribution[s] == 0)
+    if (es->scenes_contribution[s] == 0)
     {
       continue;
     }
 
     for (uint8_t p = 0; p < CH_PARAM_COUNT; p++)
     {
-      int16_t relative = (int16_t) (((int32_t) chcfg->params[s][p] * state->engine_state->scenes_contribution[s]) / 255);
+      int16_t relative = (int16_t) (((int32_t) chcfg->params[s][p] * es->scenes_contribution[s]) / 255);
       avg[p] += relative;
     }
   }
@@ -334,34 +107,33 @@ void compute_channel(const ChannelSetup* ch, UxState* state)
   float phs        = (float) avg[CH_PARAM_PHS] / INT16_MAX;
 
   float freq_multiplier = freq_param >= 0 ? freq_param + 1.0f : -1.0f / (freq_param - 1.0f);
-  float freq            = g_clk.beat_freq_smooth * freq_multiplier;
+  float freq            = es->clock.beat_freq_smooth * freq_multiplier;
 
   int16_t gcd        = find_denominator(freq_multiplier, 8, 0.025f);
-  float phase_delta  = dt_s * (freq + state->engine_state->channels_phase_correction[ch->id]);
+  float phase_delta  = dt_s * (freq + es->channels_phase_correction[ch]);
   float phase_length = gcd > 0 ? gcd * freq_multiplier : 1.0f;
   float diff         = 0;
 
-  float phase_next = state->engine_state->channels_shared_phase[ch->id] + phase_delta;
+  float phase_next = es->channels_shared_phase[ch] + phase_delta;
 
   if (phase_next >= phase_length)
     phase_next -= phase_length;
   else if (phase_next < 0.0f)
     phase_next += phase_length;
 
-  state->engine_state->channels_shared_phase[ch->id] = phase_next;
-  if (gcd > 0 && g_clk.have_beat)
+  es->channels_shared_phase[ch] = phase_next;
+  if (gcd > 0 && es->clock.have_beat)
   {
-    float beat_mode    = (float) (g_clk.beat_counter % gcd) + g_clk.beat_phase;
+    float beat_mode    = (float) (es->clock.beat_counter % gcd) + es->clock.beat_phase;
     float target_phase = beat_mode * freq_multiplier;
     if (target_phase >= phase_length)
       target_phase -= phase_length;
-    diff = gcd > 0 ? phase_error(target_phase, state->engine_state->channels_shared_phase[ch->id], phase_length) : 0;
+    diff = phase_error(target_phase, es->channels_shared_phase[ch], phase_length);
   }
 
-  state->engine_state->channels_phase_correction[ch->id] =
-      (state->engine_state->channels_phase_correction[ch->id] * (1.0f - k_sync) + diff * k_sync);
+  es->channels_phase_correction[ch] = (es->channels_phase_correction[ch] * (1.0f - k_sync) + diff * k_sync);
 
-  float phase = fmodf(state->engine_state->channels_shared_phase[ch->id] + phs, 1.0f);
+  float phase = fmodf(es->channels_shared_phase[ch] + phs, 1.0f);
   if (phase < 0.0f)
     phase += 1.0f;
   while (phase >= 1.0f)
@@ -379,12 +151,12 @@ void compute_channel(const ChannelSetup* ch, UxState* state)
   // seamless, because slot 0 reads the same at every length - and immediately
   // while the encoder is being turned, so auditioning stays responsive even on
   // a slow LFO.
-  int8_t* latched_idx = &state->engine_state->channels_length_idx[ch->id];
-  float prev_phase    = state->engine_state->channels_prev_phase[ch->id];
+  int8_t* latched_idx = &es->channels_length_idx[ch];
+  float prev_phase    = es->channels_prev_phase[ch];
   uint8_t wrapped     = phase < prev_phase;
-  uint8_t editing     = (state->hw_state->time - state->engine_state->channels_last_delta[ch->id]) < MOD_EDIT_WINDOW;
+  uint8_t editing     = (hw->time - es->channels_last_delta[ch]) < MOD_EDIT_WINDOW;
 
-  state->engine_state->channels_prev_phase[ch->id] = phase;
+  es->channels_prev_phase[ch] = phase;
 
   if (*latched_idx < 0 || wrapped || editing)
   {
@@ -405,22 +177,24 @@ void compute_channel(const ChannelSetup* ch, UxState* state)
   case SHAPE_LFO:
   default:
     raw = wavetable_lookup(phase_mod(phase, mod), shape) / (float) INT16_MAX;
-    // raw = wave_fn(phase, shape, mod);
     break;
   }
 
   float value = offset + amp * raw;
 
-  state->engine_state->cfrm[ch->id]  = freq_multiplier;
-  state->engine_state->cgcd[ch->id]  = gcd;
-  state->engine_state->cphsc[ch->id] = state->engine_state->channels_shared_phase[ch->id];
-  state->engine_state->csphs[ch->id] = phase;
-  state->engine_state->cshp[ch->id]  = shape;
-  state->engine_state->cmod[ch->id]  = mod;
+  ChannelEffective* eff = &es->channels_effective[ch];
+  eff->freq_hz          = freq;
+  eff->freq_ratio       = freq_multiplier;
+  eff->phase            = phase;
+  eff->shape            = shape;
+  eff->mod              = mod;
+  eff->amp              = amp;
+  eff->offset           = offset;
+  eff->gcd              = gcd;
 
   if (chcfg->src_input >= 0 && chcfg->input_amp_mode != INPUT_AMP_DISABLED)
   {
-    int16_t input_val = state->hw_state->input_state[chcfg->src_input];
+    int16_t input_val = hw->input_state[chcfg->src_input];
     if (chcfg->input_amp_mode == INPUT_AMP_ADD)
     {
       value += input_val;
@@ -439,49 +213,45 @@ void compute_channel(const ChannelSetup* ch, UxState* state)
   switch (chcfg->quantize_mode)
   {
   case QUANTIZE_CONTINUOUS:
-    state->engine_state->channels_output_level[ch->id] = quantize_value((int16_t) value, state->engine_config->quantize_mask);
+    es->channels_output_level[ch] = quantize_value((int16_t) value, cfg->quantize_mask);
     break;
   case QUANTIZE_TRIG_SRC:
-    if (chcfg->src_trig >= 0 && state->hw_state->trigger_src[chcfg->src_trig])
+    if (chcfg->src_trig >= 0 && hw->trigger_src[chcfg->src_trig])
     {
-      state->engine_state->channels_output_level[ch->id] = quantize_value((int16_t) value, state->engine_config->quantize_mask);
+      es->channels_output_level[ch] = quantize_value((int16_t) value, cfg->quantize_mask);
     }
     break;
   default:
-    state->engine_state->channels_output_level[ch->id] = (int16_t) value;
+    es->channels_output_level[ch] = (int16_t) value;
   }
 }
 
-// Pure: updates this channel's output trigger edge state. Split out of
-// write_channel_dac so the trigger logic is testable without a DAC.
-void detect_channel_trigger(const ChannelSetup* ch, UxState* state)
+void channel_detect_trigger(uint8_t ch, EngineState* es)
 {
-  EngineState* es  = state->engine_state;
-  int16_t curr_out = es->channels_output_level[ch->id];
+  int16_t curr_out = es->channels_output_level[ch];
 
-  if (es->channels_trig_state[ch->id] < 1 && es->channels_prev_out[ch->id] < CHANNEL_TRIG_THRESH && curr_out >= CHANNEL_TRIG_THRESH)
+  if (es->channels_trig_state[ch] < 1 && es->channels_prev_out[ch] < CHANNEL_TRIG_THRESH && curr_out >= CHANNEL_TRIG_THRESH)
   {
-    es->channels_trig_state[ch->id] = 1;
-    es->channels_trig_flag[ch->id]  = 1;
+    es->channels_trig_state[ch] = 1;
+    es->channels_trig_flag[ch]  = 1;
   }
   else if (curr_out < CHANNEL_TRIG_THRESH_LOW)
   {
-    es->channels_trig_state[ch->id] = 0;
+    es->channels_trig_state[ch] = 0;
   }
-  es->channels_prev_out[ch->id] = curr_out;
+  es->channels_prev_out[ch] = curr_out;
 }
 
 // Gating happens here rather than by zeroing channels_output_level, so a muted
 // channel keeps its real value for cross-modulation and for other channels
 // using it as a trigger source. Mute is the output stage only.
 //
-// The gain ramps instead of jumping: a hard step to zero clicks. Runs at DAC
-// rate, which is where the audible edge is - not at UI rate.
-void write_channel_dac(const ChannelSetup* ch, UxState* state)
+// The gain ramps instead of jumping: a hard step to zero clicks.
+void channel_apply_mute(uint8_t ch, EngineState* es, uint8_t muted, uint32_t dt_us)
 {
-  float* gain  = &state->engine_state->channels_mute_gain[ch->id];
-  float target = state->ui->muted[ch->id] ? 0.0f : 1.0f;
-  float step   = (state->hw_state->dt * US_TO_S) / (MUTE_RAMP_MS * 0.001f);
+  float* gain  = &es->channels_mute_gain[ch];
+  float target = muted ? 0.0f : 1.0f;
+  float step   = (dt_us * US_TO_S) / (MUTE_RAMP_MS * 0.001f);
   float to_go  = target - *gain;
 
   if (to_go > step)
@@ -491,14 +261,14 @@ void write_channel_dac(const ChannelSetup* ch, UxState* state)
   else
     *gain = target;
 
-  dacadc_write(ch->dac_channel, (int16_t) (*gain * (float) state->engine_state->channels_output_level[ch->id]));
+  es->channels_gated_level[ch] = (int16_t) (*gain * (float) es->channels_output_level[ch]);
 }
 
-uint8_t read_channel_trig_state(const ChannelSetup* ch, UxState* state)
+uint8_t channel_take_trig(uint8_t ch, EngineState* es)
 {
-  if (state->engine_state->channels_trig_flag[ch->id])
+  if (es->channels_trig_flag[ch])
   {
-    state->engine_state->channels_trig_flag[ch->id] = 0;
+    es->channels_trig_flag[ch] = 0;
     return 1;
   }
   return 0;

@@ -1,12 +1,24 @@
 #ifndef INC_LIB_UI_STATE_H_
 #define INC_LIB_UI_STATE_H_
 
+#include "config.h"
+#include "engine_state.h"
+#include "helpers.h"
 #include "hw_setup.h"
-#include "state.h"
 #include "ui_feedback.h"
 #include "ui_input.h"
+#include "ui_mode.h"
 #include "ui_select.h"
 #include <stdint.h>
+
+// Blink rates for anything that pulses, in microseconds. Presentation, so they
+// live with the rest of the interaction layer rather than with the engine.
+#define FAST_BLINK_PERIOD 300000
+#define SLOW_BLINK_PERIOD 800000
+
+// How long an element keeps showing the value being edited before decaying
+// back to its base state.
+#define UI_EDIT_DISPLAY MS(1000)
 
 // Everything the interaction layer owns: what mode the user is in, what they
 // have selected, what is being shown back to them.
@@ -40,7 +52,6 @@ typedef struct UiState
 
   // Transient value display: how much longer this element should show the
   // value being edited instead of its base state.
-#define UI_EDIT_DISPLAY MS(1000)
   uint32_t channels_edit_hold[N_CHANNELS];
   uint8_t channels_edit_hue[N_CHANNELS];
 
@@ -49,5 +60,25 @@ typedef struct UiState
 
   UiInput in;
 } UiState;
+
+// Arm the transient value display on one channel: for UI_EDIT_DISPLAY it shows
+// whatever the current mode's encoder edits instead of its base state. Handlers
+// write it, the renderer reads it. A helper rather than the bare assignment it
+// replaces, which appeared at five call sites with no bounds check.
+static inline void ui_show_channel_edit(UiState* ui, uint8_t channel)
+{
+  if (channel < N_CHANNELS)
+    ui->channels_edit_hold[channel] = UI_EDIT_DISPLAY;
+}
+
+// Every channel at once. Used on shift-mode entry, so the mode's per-channel
+// state is legible at a glance before decaying back to the output level.
+static inline void ui_show_all_channel_edits(UiState* ui)
+{
+  for (uint8_t c = 0; c < N_CHANNELS; c++)
+  {
+    ui->channels_edit_hold[c] = UI_EDIT_DISPLAY;
+  }
+}
 
 #endif /* INC_LIB_UI_STATE_H_ */

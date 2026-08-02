@@ -1,7 +1,6 @@
 #include "ui_select.h"
 #include "assign.h"
 #include "hw_setup.h"
-#include "state.h"
 #include "ui_feedback.h"
 #include "ui_mode.h"
 #include "ui_state.h"
@@ -28,6 +27,23 @@ static int can_commit(uint8_t action, uint8_t src_kind, uint8_t dst_kind)
   default:
     return 0;
   }
+}
+
+// Some actions have an effect the moment a source is picked, before any
+// destination exists. Keyed on the action rather than on the shift mode: this
+// file's whole point is that it does not know which mode it is running under,
+// and ACT_* is the vocabulary it does own.
+static void on_pick_src(UxState* state, uint8_t action, uint8_t kind, int8_t id)
+{
+  if (action == ACT_ROUTE_TRIG && kind == TGT_CHANNEL)
+    assign_trig_arm_channel(id, state);
+}
+
+// ... and the inverse, when the source is pressed again to undo it.
+static void on_deselect(UxState* state, uint8_t action, uint8_t kind, int8_t id)
+{
+  if (action == ACT_ROUTE_INPUT && kind == TGT_CHANNEL)
+    assign_input_clear(id, state);
 }
 
 static void commit(UxState* state, uint8_t action, uint8_t src_kind, int8_t src_id, uint8_t dst_kind, int8_t dst_id)
@@ -127,20 +143,13 @@ void ui_sel_press(UxState* state, TargetKind kind, int8_t id, uint8_t is_long)
     sel->src_kind = kind;
     sel->src_id   = id;
 
-    // Choosing a channel as the thing to be triggered implies the mode it
-    // will be triggered in; otherwise the assignment would have no effect
-    // until the encoder was also turned.
-    if (m->action == ACT_ROUTE_TRIG && kind == TGT_CHANNEL)
-    {
-      state->engine_config->channel_state[id].quantize_mode = QUANTIZE_TRIG_SRC;
-    }
+    on_pick_src(state, sel->action, kind, id);
     return;
   }
 
   if (m->allow_deselect && ui_sel_is_src(state->ui, kind, id))
   {
-    if (sel->action == ACT_ROUTE_INPUT)
-      state->engine_config->channel_state[id].src_input = -1;
+    on_deselect(state, sel->action, kind, id);
     ui_feedback_emit(state->ui, FB_CLEAR, kind, id);
     ui_sel_reset(state->ui);
     return;

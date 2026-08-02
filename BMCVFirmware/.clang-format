@@ -11,3 +11,6 @@ IncludeBlocks: Preserve
 AlignConsecutiveAssignments: true
 PointerAlignment: Left
 SortIncludes: true
+# The sim's public header wraps everything in extern "C" for C++ hosts.
+# Indenting a file-wide block buys nothing and costs two columns on every line.
+IndentExternBlock: NoIndent

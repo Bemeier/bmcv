@@ -1,76 +1,99 @@
 #include "ui_mode.h"
-#include "state.h"
+#include "config.h"
+#include "hw_setup.h"
 #include "ui_select.h"
 
+// A ctrl button's index is three things at once: a ShiftStates (hold it to
+// enter that mode), a ChannelParameters for the first six (tap it with no mode
+// active to choose what the encoders edit), and an index into
+// HwSetup.ctrl_button_color[]. Reordering ctrl_button_idx in hw_setup.c would
+// silently remap every shift mode, so state the coupling here, next to the
+// table that depends on it.
+_Static_assert(N_CTRL_BUTTONS == SHIFT_STATE_COUNT - 1, "ctrl button id is a ShiftStates; SHIFT_STATE_NONE has no button");
+_Static_assert(CH_PARAM_COUNT <= N_CTRL_BUTTONS, "the first CH_PARAM_COUNT ctrl buttons select a parameter");
+
 // Every mode, as one table. What each button group does, what the encoder
-// drives, and how the mode is left - all in one place, read by both the
-// dispatcher and the renderer.
+// drives, what the LEDs show underneath, and how the mode is left - all in one
+// place, read by both the dispatcher and the renderer.
 static const UiModeDesc modes[SHIFT_STATE_COUNT] = {
-    [SHIFT_STATE_STA] = {.name = "STA", .exits_on_other_ctrl = 1, .scene_btn_kind = TGT_SCENE, .scene_btn_action = SCN_SET_A},
+    [SHIFT_STATE_STA] = {.name             = "STA",
+                         .scene_btn_kind   = TGT_SCENE,
+                         .scene_btn_action = SCN_SET_XFADE,
+                         .scene_btn_base   = SCB_CROSSFADE,
+                         .xfade_end        = XFADE_A},
 
-    [SHIFT_STATE_STB] = {.name = "STB", .exits_on_other_ctrl = 1, .scene_btn_kind = TGT_SCENE, .scene_btn_action = SCN_SET_B},
+    [SHIFT_STATE_STB] = {.name             = "STB",
+                         .scene_btn_kind   = TGT_SCENE,
+                         .scene_btn_action = SCN_SET_XFADE,
+                         .scene_btn_base   = SCB_CROSSFADE,
+                         .xfade_end        = XFADE_B},
 
-    [SHIFT_STATE_SYS] = {.name                = "SYS",
-                         .exits_on_other_ctrl = 1,
-                         .scene_btn_kind      = TGT_INPUT,
-                         .channel_enc_target  = ENC_SHAPE,
-                         .scene_btn_action    = SCN_INPUT_MODE},
+    [SHIFT_STATE_SYS] = {.name               = "SYS",
+                         .scene_btn_kind     = TGT_INPUT,
+                         .channel_enc_target = ENC_SHAPE,
+                         .scene_btn_action   = SCN_INPUT_MODE,
+                         .scene_btn_base     = SCB_INPUT_MODE},
 
-    [SHIFT_STATE_QNT] = {.name                = "QNT",
-                         .exits_on_other_ctrl = 0, // the keyboard overlay owns the other buttons
-                         .action              = ACT_ROUTE_TRIG,
-                         .src_kinds           = TGT_BIT(TGT_CHANNEL),
-                         .dst_kinds           = TGT_BIT(TGT_CHANNEL) | TGT_BIT(TGT_INPUT),
-                         .channel_btn_kind    = TGT_CHANNEL,
-                         .scene_btn_kind      = TGT_INPUT,
-                         .channel_enc_target  = ENC_QUANT,
-                         .channel_btn_action  = CHB_SELECT,
-                         .scene_btn_action    = SCN_SELECT},
+    [SHIFT_STATE_QNT] = {.name               = "QNT",
+                         .keyboard_overlay   = 1,
+                         .action             = ACT_ROUTE_TRIG,
+                         .src_kinds          = TGT_BIT(TGT_CHANNEL),
+                         .dst_kinds          = TGT_BIT(TGT_CHANNEL) | TGT_BIT(TGT_INPUT),
+                         .channel_btn_kind   = TGT_CHANNEL,
+                         .scene_btn_kind     = TGT_INPUT,
+                         .channel_enc_target = ENC_QUANT,
+                         .channel_btn_action = CHB_SELECT,
+                         .scene_btn_action   = SCN_SELECT,
+                         .scene_btn_base     = SCB_INPUT_LEVEL},
 
-    [SHIFT_STATE_MON] = {.name                = "MON",
-                         .exits_on_other_ctrl = 1,
-                         .action              = ACT_ROUTE_INPUT,
-                         .src_kinds           = TGT_BIT(TGT_CHANNEL),
-                         .dst_kinds           = TGT_BIT(TGT_INPUT),
-                         .allow_deselect      = 1,
-                         .channel_btn_kind    = TGT_CHANNEL,
-                         .scene_btn_kind      = TGT_INPUT,
-                         .channel_enc_target  = ENC_AMPMODE,
-                         .channel_btn_action  = CHB_SELECT,
-                         .scene_btn_action    = SCN_SELECT},
+    [SHIFT_STATE_MON] = {.name               = "MON",
+                         .action             = ACT_ROUTE_INPUT,
+                         .src_kinds          = TGT_BIT(TGT_CHANNEL),
+                         .dst_kinds          = TGT_BIT(TGT_INPUT),
+                         .allow_deselect     = 1,
+                         .channel_btn_kind   = TGT_CHANNEL,
+                         .scene_btn_kind     = TGT_INPUT,
+                         .channel_enc_target = ENC_AMPMODE,
+                         .channel_btn_action = CHB_SELECT,
+                         .scene_btn_action   = SCN_SELECT,
+                         .scene_btn_base     = SCB_INPUT_LEVEL},
 
     // Channel encoders have no use here yet.
-    [SHIFT_STATE_SAV] = {.name = "SAV", .exits_on_other_ctrl = 1, .scene_btn_kind = TGT_SCENE, .scene_btn_action = SCN_PRESET},
+    [SHIFT_STATE_SAV] = {.name = "SAV", .scene_btn_kind = TGT_SCENE, .scene_btn_action = SCN_PRESET, .scene_btn_base = SCB_PRESET},
 
-    // Scene buttons have no use here yet.
-    [SHIFT_STATE_MUT] = {.name = "MUT", .exits_on_other_ctrl = 1, .channel_btn_kind = TGT_CHANNEL, .channel_btn_action = CHB_MUTE_TOGGLE},
+    // Scene buttons have no use here yet, so they keep showing the blend.
+    [SHIFT_STATE_MUT] = {.name               = "MUT",
+                         .channel_btn_kind   = TGT_CHANNEL,
+                         .channel_btn_action = CHB_MUTE_TOGGLE,
+                         .scene_btn_kind     = TGT_SCENE,
+                         .scene_btn_base     = SCB_CROSSFADE},
 
-    [SHIFT_STATE_CPY] = {.name                = "CPY",
-                         .exits_on_other_ctrl = 1,
-                         .action              = ACT_COPY,
-                         .src_kinds           = TGT_BIT(TGT_CHANNEL) | TGT_BIT(TGT_SCENE),
-                         .dst_kinds           = TGT_BIT(TGT_CHANNEL) | TGT_BIT(TGT_SCENE),
-                         .channel_btn_kind    = TGT_CHANNEL,
-                         .scene_btn_kind      = TGT_SCENE,
-                         .channel_btn_action  = CHB_SELECT,
-                         .scene_btn_action    = SCN_SELECT},
+    [SHIFT_STATE_CPY] = {.name               = "CPY",
+                         .action             = ACT_COPY,
+                         .src_kinds          = TGT_BIT(TGT_CHANNEL) | TGT_BIT(TGT_SCENE),
+                         .dst_kinds          = TGT_BIT(TGT_CHANNEL) | TGT_BIT(TGT_SCENE),
+                         .channel_btn_kind   = TGT_CHANNEL,
+                         .scene_btn_kind     = TGT_SCENE,
+                         .channel_btn_action = CHB_SELECT,
+                         .scene_btn_action   = SCN_SELECT,
+                         .scene_btn_base     = SCB_CROSSFADE},
 
-    [SHIFT_STATE_CLR] = {.name                = "CLR",
-                         .exits_on_other_ctrl = 1,
-                         .action              = ACT_CLEAR,
-                         .src_kinds           = TGT_BIT(TGT_CHANNEL) | TGT_BIT(TGT_SCENE),
-                         .immediate           = 1,
-                         .channel_btn_kind    = TGT_CHANNEL,
-                         .scene_btn_kind      = TGT_SCENE,
-                         .channel_btn_action  = CHB_SELECT,
-                         .scene_btn_action    = SCN_SELECT},
+    [SHIFT_STATE_CLR] = {.name               = "CLR",
+                         .action             = ACT_CLEAR,
+                         .src_kinds          = TGT_BIT(TGT_CHANNEL) | TGT_BIT(TGT_SCENE),
+                         .immediate          = 1,
+                         .channel_btn_kind   = TGT_CHANNEL,
+                         .scene_btn_kind     = TGT_SCENE,
+                         .channel_btn_action = CHB_SELECT,
+                         .scene_btn_action   = SCN_SELECT,
+                         .scene_btn_base     = SCB_CROSSFADE},
 
-    [SHIFT_STATE_NONE] = {.name                = "---",
-                          .exits_on_other_ctrl = 1,
-                          .scene_btn_kind      = TGT_SCENE,
-                          .channel_enc_target  = ENC_PARAM,
-                          .channel_btn_action  = CHB_RESET_PARAM,
-                          .scene_btn_action    = SCN_MOMENTARY},
+    [SHIFT_STATE_NONE] = {.name               = "---",
+                          .scene_btn_kind     = TGT_SCENE,
+                          .channel_enc_target = ENC_PARAM,
+                          .channel_btn_action = CHB_RESET_PARAM,
+                          .scene_btn_action   = SCN_MOMENTARY,
+                          .scene_btn_base     = SCB_CROSSFADE},
 };
 
 const UiModeDesc* ui_mode(uint8_t shift_state)

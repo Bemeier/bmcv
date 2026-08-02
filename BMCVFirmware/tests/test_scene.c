@@ -9,7 +9,7 @@ TEST_CASE(same_scene_a_and_b_gives_it_full_weight)
   f.engine_config.scene_a = 2;
   f.engine_config.scene_b = 2;
 
-  compute_scenes_contribution(&f.engine_state, &f.engine_config, f.hw_state.slider_state, f.ui_state.momentary_scene);
+  scene_compute_contribution(&f.engine_state, &f.engine_config, f.hw_state.slider_state, f.ui_state.momentary_scene);
 
   CHECK(f.engine_state.scenes_contribution[2] == 255);
   CHECK(f.engine_state.active_scene == 2);
@@ -28,7 +28,7 @@ TEST_CASE(slider_at_max_fully_favors_scene_a)
   f.engine_config.scene_b = 3;
   f.hw_state.slider_state = SLIDER_MAX_VALUE;
 
-  compute_scenes_contribution(&f.engine_state, &f.engine_config, f.hw_state.slider_state, f.ui_state.momentary_scene);
+  scene_compute_contribution(&f.engine_state, &f.engine_config, f.hw_state.slider_state, f.ui_state.momentary_scene);
 
   CHECK(f.engine_state.scenes_contribution[1] == 255);
   CHECK(f.engine_state.scenes_contribution[3] == 0);
@@ -43,7 +43,7 @@ TEST_CASE(slider_at_min_fully_favors_scene_b)
   f.engine_config.scene_b = 3;
   f.hw_state.slider_state = SLIDER_MIN_VALUE;
 
-  compute_scenes_contribution(&f.engine_state, &f.engine_config, f.hw_state.slider_state, f.ui_state.momentary_scene);
+  scene_compute_contribution(&f.engine_state, &f.engine_config, f.hw_state.slider_state, f.ui_state.momentary_scene);
 
   CHECK(f.engine_state.scenes_contribution[1] == 0);
   CHECK(f.engine_state.scenes_contribution[3] == 255);
@@ -58,7 +58,7 @@ TEST_CASE(slider_midpoint_splits_roughly_evenly)
   f.engine_config.scene_b = 3;
   f.hw_state.slider_state = (SLIDER_MIN_VALUE + SLIDER_MAX_VALUE) / 2;
 
-  compute_scenes_contribution(&f.engine_state, &f.engine_config, f.hw_state.slider_state, f.ui_state.momentary_scene);
+  scene_compute_contribution(&f.engine_state, &f.engine_config, f.hw_state.slider_state, f.ui_state.momentary_scene);
 
   CHECK(f.engine_state.scenes_contribution[1] + f.engine_state.scenes_contribution[3] == 255);
   CHECK(f.engine_state.scenes_contribution[1] > 100 && f.engine_state.scenes_contribution[1] < 155);
@@ -72,7 +72,7 @@ TEST_CASE(momentary_scene_overrides_the_crossfade)
   f.engine_config.scene_b    = 3;
   f.ui_state.momentary_scene = 4;
 
-  compute_scenes_contribution(&f.engine_state, &f.engine_config, f.hw_state.slider_state, f.ui_state.momentary_scene);
+  scene_compute_contribution(&f.engine_state, &f.engine_config, f.hw_state.slider_state, f.ui_state.momentary_scene);
 
   CHECK(f.engine_state.scenes_contribution[4] == 255);
   CHECK(f.engine_state.active_scene == 4);

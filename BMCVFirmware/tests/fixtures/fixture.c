@@ -23,7 +23,7 @@ void fixture_init(Fixture* f)
   f->engine_config.scene_a       = 0;
   f->engine_config.scene_b       = 0;
   f->engine_config.quantize_mask = 0b111111111111;
-  f->ui_state.momentary_scene    = -1; // 0 would be misread as "scene 0 held" (see compute_scenes_contribution)
+  f->ui_state.momentary_scene    = -1; // 0 would be misread as "scene 0 held" (see scene_compute_contribution)
   for (uint8_t c = 0; c < N_ENCODERS; c++)
   {
     f->engine_config.channel_state[c].src_input = -1;
@@ -33,12 +33,12 @@ void fixture_init(Fixture* f)
   f->hw_state.slider_state = SLIDER_MIN_VALUE;
 
   ui_sel_reset(&f->ui_state);
-  Clock_Init(); // clears the global clock, including its smoothing estimate
+  Clock_Init(&f->engine_state.clock); // clears the clock, including its smoothing estimate
 
   for (uint8_t c = 0; c < N_ENCODERS; c++)
   {
-    init_channel(&f->ux_setup->channels[c], &f->ux);
-    reset_channel(&f->ux_setup->channels[c], &f->ux, -1);
+    channel_init(c, &f->engine_state);
+    channel_reset(c, &f->engine_state, &f->engine_config, -1);
   }
 }
 

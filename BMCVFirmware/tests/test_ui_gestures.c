@@ -3,11 +3,12 @@
 // rate limit and the event accumulation together with the handlers - the
 // combination that was previously untested.
 #include "channel.h"
+#include "config.h"
 #include "ctrl_button.h"
 #include "fixture.h"
-#include "state.h"
 #include "testkit.h"
 #include "ui_input.h"
+#include "ui_mode.h"
 
 static int8_t ctrl_btn(Fixture* f, uint8_t id) { return f->ux_setup->ctrl_buttons[id].button; }
 static int8_t scene_btn(Fixture* f, uint8_t id) { return f->ux_setup->scenes[id].button; }

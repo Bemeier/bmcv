@@ -18,7 +18,21 @@ install_manifest.txt
 compile_commands.json
 CTestTestfile.cmake
 build-native
+build-sim
+build-wasm
 
 # render_channel output
 *.wav
 *.csv
+
+# ...but the simulator's golden files are the point, so they are tracked.
+!sim/flows/golden/*.csv
+
+__pycache__
+
+# `just wasm` output. The generated panel spec and artwork under panel/ and
+# web/ are tracked on purpose - they are derived from the hardware repo, which
+# is not always to hand - but these two are built from sources in this repo by
+# a recipe that every consumer already runs first.
+web/bmcv.js
+web/bmcv.wasm

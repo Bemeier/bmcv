@@ -43,8 +43,13 @@ static const char* testkit_test = "";
     }                                                                                                                                      \
   } while (0)
 
-// Call at the end of main(): prints the summary and yields the exit code.
-static inline int testkit_summary(const char* file)
+// Call at the end of main() *as* `return TESTKIT_SUMMARY();` - it prints the
+// summary and yields the exit code ctest reads.
+//
+// [[nodiscard]] because dropping the return value is silent and total: main
+// falls off its end, returns 0, and ctest reports a green run no matter how
+// many checks failed. Four of the test files here did exactly that.
+[[nodiscard]] static inline int testkit_summary(const char* file)
 {
   fprintf(stdout, "%s: %d checks, %d failed\n", file, testkit_checks, testkit_failures);
   return testkit_failures ? 1 : 0;

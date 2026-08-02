@@ -27,11 +27,12 @@ typedef struct
   float freq_est; // running estimate behind beat_freq_smooth; must reset with the rest of the state
 } ClockState;
 
-void Clock_Init(void);
-void Clock_Reset(uint32_t now_us);
-void Clock_Trigger(uint32_t now_us);
-void Clock_Poll(uint32_t now_us);
-
-extern ClockState g_clk;
+// The clock lives in EngineState, one per module instance. It used to be a
+// single global, which was fine for firmware (there is exactly one module) but
+// makes two simulated modules in one process share a tempo.
+void Clock_Init(ClockState* clk);
+void Clock_Reset(ClockState* clk, uint32_t now_us);
+void Clock_Trigger(ClockState* clk, uint32_t now_us);
+void Clock_Poll(ClockState* clk, uint32_t now_us);
 
 #endif /* INC_LIB_CLOCK_SYNC_H_ */

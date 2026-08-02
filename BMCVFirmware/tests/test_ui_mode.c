@@ -2,8 +2,8 @@
 // than switch arms: mute, and the rule that an exit tap is consumed by the
 // exit instead of also changing the selected parameter.
 #include "channel.h"
+#include "config.h"
 #include "fixture.h"
-#include "state.h"
 #include "testkit.h"
 #include "ui_mode.h"
 #include "ui_select.h"
@@ -141,14 +141,14 @@ TEST_CASE(muting_ramps_the_output_down_instead_of_jumping)
 
   // Unmuted, the gain sits fully open.
   f.hw_state.dt = MS(1);
-  write_channel_dac(&f.ux_setup->channels[0], &f.ux);
+  channel_apply_mute(0, &f.engine_state, f.ui_state.muted[0], f.hw_state.dt);
   CHECK_NEAR(f.engine_state.channels_mute_gain[0], 1.0f, 0.001f);
 
   f.ui_state.muted[0] = 1;
 
   // One DAC tick in, it has moved but is nowhere near silent.
   f.hw_state.dt = MS(1);
-  write_channel_dac(&f.ux_setup->channels[0], &f.ux);
+  channel_apply_mute(0, &f.engine_state, f.ui_state.muted[0], f.hw_state.dt);
   CHECK(f.engine_state.channels_mute_gain[0] < 1.0f);
   CHECK(f.engine_state.channels_mute_gain[0] > 0.5f);
 
@@ -156,7 +156,7 @@ TEST_CASE(muting_ramps_the_output_down_instead_of_jumping)
   for (int i = 0; i < 10; i++)
   {
     f.hw_state.dt = MS(1);
-    write_channel_dac(&f.ux_setup->channels[0], &f.ux);
+    channel_apply_mute(0, &f.engine_state, f.ui_state.muted[0], f.hw_state.dt);
   }
   CHECK_NEAR(f.engine_state.channels_mute_gain[0], 0.0f, 0.001f);
 }
@@ -170,12 +170,12 @@ TEST_CASE(a_muted_channel_still_works_as_a_trigger_source)
   f.ui_state.muted[0] = 1;
 
   f.engine_state.channels_output_level[0] = 0;
-  detect_channel_trigger(&f.ux_setup->channels[0], &f.ux);
+  channel_detect_trigger(0, &f.engine_state);
 
   f.engine_state.channels_output_level[0] = DAC_5V; // rising edge
-  detect_channel_trigger(&f.ux_setup->channels[0], &f.ux);
+  channel_detect_trigger(0, &f.engine_state);
 
-  CHECK(read_channel_trig_state(&f.ux_setup->channels[0], &f.ux) == 1);
+  CHECK(channel_take_trig(0, &f.engine_state) == 1);
 }
 
 /* ---- the table itself --------------------------------------------------- */

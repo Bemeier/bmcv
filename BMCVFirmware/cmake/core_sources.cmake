@@ -13,17 +13,20 @@ set(BMCV_CORE_SOURCES
     config_validate.c
     ctrl_button.c
     engine.c
-    envelope.c
     error.c
     hw_setup.c
+    input_fold.c
+    instance.c
     led_fb.c
     quantizer.c
     scene.c
     stepped_random.c
+    ui_channel.c
     ui_feedback.c
     ui_input.c
     ui_mode.c
     ui_render.c
+    ui_scene.c
     ui_select.c
     ux_setup.c
     ux_state.c

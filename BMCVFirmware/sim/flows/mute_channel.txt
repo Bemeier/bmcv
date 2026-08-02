@@ -1,0 +1,13 @@
+#!args --rate=250ms --emit=outputs
+# Wind channel 0 up, then hold MUT and tap channel 0's button to mute it.
+# A muted channel ramps its output down over ~5ms rather than clicking, and
+# still feeds cross-modulation and triggers - only the DAC write is gated.
+0ms     slider 0.0
+50ms    ctrl SAV 1
+80ms    ctrl SAV 0
+200ms   enc 3 400
+1s      ctrl MUT 1
+1s200ms chbtn 0 1
+1s250ms chbtn 0 0
+1s400ms ctrl MUT 0
+3s      end

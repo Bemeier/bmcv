@@ -174,9 +174,9 @@ int main(int argc, char** argv)
     fprintf(csv, "t,phase,shape,mod,level,norm\n");
   }
 
-  const uint32_t dt_us       = 1000000u / a.rate;
-  const uint32_t pulse_us    = (uint32_t) (60000000.0f / (a.bpm * (float) g_clk.PULSES_PER_BEAT));
-  uint32_t next_pulse_us     = 0;
+  const uint32_t dt_us    = 1000000u / a.rate;
+  const uint32_t pulse_us = (uint32_t) (60000000.0f / (a.bpm * (float) f.engine_state.clock.PULSES_PER_BEAT));
+  uint32_t next_pulse_us  = 0;
 
   for (uint32_t i = 0; i < n; i++)
   {
@@ -190,10 +190,10 @@ int main(int argc, char** argv)
     // Synthetic clock, so the PLL behaves as it would with a patched clock in.
     while (f.hw_state.time >= next_pulse_us)
     {
-      Clock_Trigger(next_pulse_us);
+      Clock_Trigger(&f.engine_state.clock, next_pulse_us);
       next_pulse_us += pulse_us;
     }
-    Clock_Poll(f.hw_state.time);
+    Clock_Poll(&f.engine_state.clock, f.hw_state.time);
 
     fixture_tick(&f, dt_us);
 
@@ -202,7 +202,7 @@ int main(int argc, char** argv)
 
     if (csv)
     {
-      fprintf(csv, "%.6f,%.6f,%.6f,%.6f,%d,%.6f\n", i / (double) a.rate, (double) f.engine_state.csphs[RENDER_CH], (double) shape,
+      fprintf(csv, "%.6f,%.6f,%.6f,%.6f,%d,%.6f\n", i / (double) a.rate, (double) f.engine_state.channels_effective[RENDER_CH].phase, (double) shape,
               (double) mod, level, (double) samples[i]);
     }
   }

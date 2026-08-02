@@ -1,6 +1,6 @@
 // Builds a fully-wired UxState (HwSetup + UxSetup + zeroed HwState/
-// EngineConfig/EngineState) so tests and tools can call compute_channel(),
-// compute_scenes_contribution(), etc. exactly as bmcv_main() does, without
+// EngineConfig/EngineState) so tests and tools can call channel_compute(),
+// scene_compute_contribution(), etc. exactly as bmcv_main() does, without
 // any hardware behind it.
 #ifndef BMCV_TEST_FIXTURE_H_
 #define BMCV_TEST_FIXTURE_H_
@@ -30,7 +30,7 @@ typedef struct
 void fixture_init(Fixture* f);
 
 // Advances hw_state time by dt_us, recomputes the scene crossfade, then
-// ticks compute_channel() for every channel (mirrors bmcv_main()'s DSP
+// ticks channel_compute() for every channel (mirrors bmcv_main()'s DSP
 // block). Channel outputs land in f->engine_state.channels_output_level[].
 void fixture_tick(Fixture* f, uint32_t dt_us);
 
