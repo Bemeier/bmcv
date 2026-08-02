@@ -119,7 +119,13 @@ float bmcv_sim_engine_fps(const BmcvSim* s);
 float bmcv_sim_dac_fps(const BmcvSim* s);
 int32_t bmcv_sim_selected_param(const BmcvSim* s);
 int32_t bmcv_sim_active_scene(const BmcvSim* s);
+
+// Two different tempos, and they are only equal while a clock is locked.
+// bpm is what the clock input measured; active_bpm is the rate the oscillators
+// are actually running against, which free-runs at the last measured tempo once
+// the pulses stop. have_beat says whether the first is still live.
 float bmcv_sim_bpm(const BmcvSim* s);
+float bmcv_sim_active_bpm(const BmcvSim* s);
 int32_t bmcv_sim_have_beat(const BmcvSim* s);
 int32_t bmcv_sim_scene_contribution(const BmcvSim* s, int32_t scene);
 int32_t bmcv_sim_channel_muted(const BmcvSim* s, int32_t channel);
@@ -129,6 +135,12 @@ int32_t bmcv_sim_error_flags(const BmcvSim* s);
 // number that was dialled in, not the one in use.
 int32_t bmcv_sim_channel_param(const BmcvSim* s, int32_t channel, int32_t param);
 
+// The channel's waveshape mode, and the name of one. Not per scene: shape is a
+// channel property. Names are here rather than in a frontend for the same
+// reason the mode names are - one table, asserted against the enum it came from.
+int32_t bmcv_sim_channel_shape_mode(const BmcvSim* s, int32_t channel);
+const char* bmcv_sim_shape_mode_name(int32_t mode);
+
 // What each channel is *actually* doing, after the scene crossfade and the
 // parameter maths, in units a person can read. 8 * BMCV_EFF_COUNT floats,
 // channel-major: index [channel * BMCV_EFF_COUNT + field].
@@ -136,12 +148,13 @@ enum
 {
   BMCV_EFF_FREQ_HZ,    // oscillator rate
   BMCV_EFF_FREQ_RATIO, // multiple of the beat rate
-  BMCV_EFF_PHASE,      // 0..1
+  BMCV_EFF_PHASE,      // 0..1, where the oscillator is right now
   BMCV_EFF_SHAPE,      // -1..1
   BMCV_EFF_MOD,        // -1..1
   BMCV_EFF_AMP_V,      // peak swing, volts
   BMCV_EFF_OFFSET_V,   // DC offset, volts
   BMCV_EFF_GCD,        // cycle length in beats the phase locks to, 0 if free
+  BMCV_EFF_PHASE_OFS,  // the phase-shift parameter, in turns
   BMCV_EFF_COUNT,
 };
 const float* bmcv_sim_effective(const BmcvSim* s);

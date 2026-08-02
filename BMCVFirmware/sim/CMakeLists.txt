@@ -65,11 +65,14 @@ if(EMSCRIPTEN)
       _bmcv_sim_selected_param
       _bmcv_sim_active_scene
       _bmcv_sim_bpm
+      _bmcv_sim_active_bpm
       _bmcv_sim_have_beat
       _bmcv_sim_scene_contribution
       _bmcv_sim_channel_muted
       _bmcv_sim_error_flags
       _bmcv_sim_channel_param
+      _bmcv_sim_channel_shape_mode
+      _bmcv_sim_shape_mode_name
       _bmcv_sim_storage_size
       _bmcv_sim_storage_get
       _bmcv_sim_storage_set

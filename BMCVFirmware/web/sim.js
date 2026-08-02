@@ -29,7 +29,7 @@ export const N_LEDS = 21;
 export const SCOPE_LEN = 4096;
 
 // Effective-value fields, matching the enum in bmcv_sim.h.
-export const EFF = { FREQ_HZ: 0, FREQ_RATIO: 1, PHASE: 2, SHAPE: 3, MOD: 4, AMP_V: 5, OFFSET_V: 6, GCD: 7, COUNT: 8 };
+export const EFF = { FREQ_HZ: 0, FREQ_RATIO: 1, PHASE: 2, SHAPE: 3, MOD: 4, AMP_V: 5, OFFSET_V: 6, GCD: 7, PHASE_OFS: 8, COUNT: 9 };
 
 // The shift-mode names, read out of the firmware's own ui_mode.c table rather
 // than retyped. This list used to exist in four places - the mode table, the
@@ -38,6 +38,17 @@ export const SHIFT_NAMES = Array.from({ length: _('mode_count')() }, (_i, i) => 
   const ptr = _('mode_name')(i);
   return ptr ? Module.UTF8ToString(ptr) : '—';
 });
+
+// Same idea for the waveshape modes: the firmware names them, the table here
+// only looks them up.
+export const SHAPE_NAMES = (() => {
+  const names = [];
+  for (let i = 0; ; i++) {
+    const ptr = _('shape_mode_name')(i);
+    if (!ptr) return names;
+    names.push(Module.UTF8ToString(ptr));
+  }
+})();
 
 const storageSize = _('storage_size')();
 
@@ -77,8 +88,15 @@ export const sim = {
   shiftState: () => _('shift_state')(handle),
   selectedParam: () => _('selected_param')(handle),
   activeScene: () => _('active_scene')(handle),
+
+  // Two tempos: what the clock input measured, and what the oscillators are
+  // running against. They only agree while a clock is locked - see haveBeat.
   bpm: () => _('bpm')(handle),
+  activeBpm: () => _('active_bpm')(handle),
+  haveBeat: () => _('have_beat')(handle) === 1,
+
   muted: c => _('channel_muted')(handle, c),
+  shapeMode: c => _('channel_shape_mode')(handle, c),
 
   /* ---- persistence ------------------------------------------------------ */
   //

@@ -91,14 +91,13 @@ void ux_update(UxState* state, uint32_t now_us)
     ui_ctrl_shift_mode(&state->ux_setup->ctrl_buttons[b], state);
   }
 
-  // Entering a mode reveals every channel's state for that mode before
-  // decaying back to the output level, so the mode is legible at a glance
-  // without permanently replacing what the LEDs normally show.
+  // A mode's channel LEDs show that mode's own setting for as long as it is
+  // active, so entry needs no reveal - only the half-finished selection from
+  // the mode being left has to go.
   if (state->ui->shift_state != state->ui->prev_shift_state)
   {
     state->ui->prev_shift_state = state->ui->shift_state;
     ui_sel_reset(state->ui);
-    ui_show_all_channel_edits(state->ui);
   }
 
   for (uint8_t b = 0; b < N_CTRL_BUTTONS; b++)

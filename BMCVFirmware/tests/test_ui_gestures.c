@@ -7,6 +7,7 @@
 #include "ctrl_button.h"
 #include "fixture.h"
 #include "testkit.h"
+#include "ui_feedback.h"
 #include "ui_input.h"
 #include "ui_mode.h"
 
@@ -133,10 +134,10 @@ TEST_CASE(encoder_in_sys_mode_steps_the_shape_mode)
   CHECK(f.engine_config.channel_state[1].shape_mode == SHAPE_STEPPED_SMOOTH);
 }
 
-// A long press with no encoder movement resets the selected param; the same
-// press while turning the encoder must not, because there the button is
-// acting as a fine-adjust modifier.
-TEST_CASE(long_press_resets_the_param_only_when_the_encoder_was_not_turned)
+// A press with no encoder movement clears the selected param; the same press
+// while turning the encoder must not, because there the button is acting as a
+// fine-adjust modifier.
+TEST_CASE(pressing_the_encoder_clears_the_param_only_when_it_was_not_turned)
 {
   Fixture f;
   fixture_init(&f);
@@ -145,7 +146,7 @@ TEST_CASE(long_press_resets_the_param_only_when_the_encoder_was_not_turned)
   f.engine_state.active_scene = 0;
 
   fixture_set_param(&f, 0, 0, CH_PARAM_OFS, 4321);
-  fixture_press(&f, f.ux_setup->channels[0].button, MS(600));
+  fixture_press(&f, f.ux_setup->channels[0].button, MS(40));
   CHECK(f.engine_config.channel_state[0].params[0][CH_PARAM_OFS] == 0);
 
   // Now the modifier case: turn the encoder during the hold.
@@ -156,6 +157,56 @@ TEST_CASE(long_press_resets_the_param_only_when_the_encoder_was_not_turned)
   fixture_hold(&f, f.ux_setup->channels[0].button, MS(600));
   fixture_release(&f, f.ux_setup->channels[0].button);
   CHECK(f.engine_config.channel_state[0].params[0][CH_PARAM_OFS] != 0);
+}
+
+// A tap is scoped to the scene on screen; holding widens it to every scene.
+// Both report back, and the wider one says so by lasting longer.
+TEST_CASE(a_tap_clears_the_param_in_one_scene_and_a_hold_clears_it_in_all)
+{
+  Fixture f;
+  fixture_init(&f);
+  f.ui_state.shift_state      = SHIFT_STATE_NONE;
+  f.ui_state.selected_param   = CH_PARAM_OFS;
+  f.engine_state.active_scene = 0;
+
+  for (uint8_t s = 0; s < N_SCENES; s++)
+    fixture_set_param(&f, 0, s, CH_PARAM_OFS, 4321);
+
+  fixture_press(&f, f.ux_setup->channels[0].button, MS(40));
+  CHECK(f.engine_config.channel_state[0].params[0][CH_PARAM_OFS] == 0);
+  CHECK(f.engine_config.channel_state[0].params[1][CH_PARAM_OFS] == 4321);
+
+  FeedbackKind k;
+  CHECK(ui_feedback_active(&f.ui_state, TGT_CHANNEL, 0, &k));
+  CHECK(k == FB_CLEAR);
+
+  fixture_press(&f, f.ux_setup->channels[0].button, MS(600));
+  for (uint8_t s = 0; s < N_SCENES; s++)
+    CHECK(f.engine_config.channel_state[0].params[s][CH_PARAM_OFS] == 0);
+
+  CHECK(ui_feedback_active(&f.ui_state, TGT_CHANNEL, 0, &k));
+  CHECK(k == FB_CLEAR_ALL);
+}
+
+// Rotation is absolute rather than a toggle, so a row of channels can be muted
+// by feel without checking each one's state first.
+TEST_CASE(the_encoder_mutes_one_way_and_unmutes_the_other_in_mute_mode)
+{
+  Fixture f;
+  fixture_init(&f);
+
+  fixture_hold(&f, ctrl_btn(&f, SHIFT_STATE_MUT), MS(150));
+  fixture_release(&f, ctrl_btn(&f, SHIFT_STATE_MUT));
+
+  fixture_encoder(&f, f.ux_setup->channels[3].encoder, -1);
+  CHECK(f.ui_state.muted[3]);
+  fixture_encoder(&f, f.ux_setup->channels[3].encoder, -1); // still muted
+  CHECK(f.ui_state.muted[3]);
+
+  fixture_encoder(&f, f.ux_setup->channels[3].encoder, 1);
+  CHECK(!f.ui_state.muted[3]);
+  fixture_encoder(&f, f.ux_setup->channels[3].encoder, 1);
+  CHECK(!f.ui_state.muted[3]);
 }
 
 int main(void)
@@ -169,6 +220,8 @@ int main(void)
   RUN_TEST(a_scene_button_bounce_does_not_trigger_momentary_activation);
   RUN_TEST(turning_an_encoder_edits_the_selected_param_of_the_active_scene);
   RUN_TEST(encoder_in_sys_mode_steps_the_shape_mode);
-  RUN_TEST(long_press_resets_the_param_only_when_the_encoder_was_not_turned);
+  RUN_TEST(pressing_the_encoder_clears_the_param_only_when_it_was_not_turned);
+  RUN_TEST(a_tap_clears_the_param_in_one_scene_and_a_hold_clears_it_in_all);
+  RUN_TEST(the_encoder_mutes_one_way_and_unmutes_the_other_in_mute_mode);
   return TESTKIT_SUMMARY();
 }

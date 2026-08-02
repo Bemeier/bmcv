@@ -10,10 +10,6 @@
 
 <header>
   <h1>BMCV <span class="sub">simulator</span></h1>
-  <p class="tagline">
-    The firmware's own engine, compiled to WebAssembly. Panel geometry is
-    generated from the hardware's KiCad output.
-  </p>
 </header>
 
 <main>
@@ -23,7 +19,7 @@
     <p class="help">
       Drag an encoder's <b>ring</b> to turn it, or use the scroll wheel.
       Click its <b>centre</b> to push. Hold <kbd>Shift</kbd> while turning for
-      press-and-turn. Buttons and the slider respond to click and drag.
+      press-and-turn.
     </p>
   </section>
 
@@ -33,7 +29,8 @@
       <div class="readout"><span class="label">mode</span><span id="r-shift" class="value">—</span></div>
       <div class="readout"><span class="label">param</span><span id="r-param" class="value">—</span></div>
       <div class="readout"><span class="label">scene</span><span id="r-scene" class="value">—</span></div>
-      <div class="readout"><span class="label">bpm</span><span id="r-bpm" class="value">—</span></div>
+      <div class="readout"><span class="label">bpm in</span><span id="r-bpm-in" class="value">—</span></div>
+      <div class="readout"><span class="label">bpm run</span><span id="r-bpm" class="value">—</span></div>
     </div>
 
     <div class="panel-box">

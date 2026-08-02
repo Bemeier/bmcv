@@ -128,9 +128,8 @@ kbd {
 /* The input scopes are one canvas on a 2x2 grid, exactly like the output
    scopes, with the controls overlaid on the cells rather than wrapped in boxes
    of their own. */
-/* Half the width of the output scope, so its 2x2 cells come out exactly the
-   size of that one's 4x2 cells - and never narrower than that, whatever column
-   it lands in. */
+/* Its height is matched to the output scope's in scope.js, so the two boxes end
+   level whatever widths the grid gives them. */
 .scope-stack { position: relative; max-width: 550px; min-width: 300px; }
 .scope-stack canvas {
   width: 100%; display: block; border-radius: 6px; background: #101216;
@@ -148,9 +147,11 @@ kbd {
 }
 .in-cell > * { pointer-events: auto; }
 .in-cell .spacer { flex: 1; pointer-events: none; }
+/* One row, not a column: the clock cell carries a bpm box as well as a pulse
+   button, and stacking them cost a line of the cell for nothing. */
 .in-ctl {
-  display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-end;
-  gap: .25rem; pointer-events: none;
+  display: flex; flex-flow: row wrap; justify-content: flex-end; align-items: flex-end;
+  gap: .25rem .35rem; pointer-events: none;
 }
 .in-ctl > * { pointer-events: auto; }
 .in-ctl button { padding: .05rem .4rem; font-size: .7rem; opacity: .85; }

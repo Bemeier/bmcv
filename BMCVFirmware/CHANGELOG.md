@@ -1,5 +1,130 @@
 # Changelog
 
+## MOD freed, output clamp, PWM
+
+`CH_PARAM_MOD` meant two unrelated things: a continuous phase warp in
+`SHAPE_LFO`, and a *discrete pattern-length index* in the three stepped modes.
+That one overload is what forced `val_neighbour` stepping into the parameter
+editor, a mid-cycle latch in the engine, and per-scene crossfading of a value
+that cannot meaningfully be crossfaded - there is nothing between 8 steps and
+12, so any blend of two scenes landed on a length neither of them asked for.
+
+### Changed
+
+- **Pattern length is a per-channel setting** (`ChannelConfig.sr_length_idx`),
+  edited by the channel encoders on the **STA** page. Dark and inert on channels
+  that are not in a stepped mode, since there it would do nothing. The engine's
+  cycle-boundary latch stays, now latching the setting rather than a value
+  derived from MOD.
+- **`CH_PARAM_MOD` is continuous again in every mode**, like AMP and OFS, and is
+  passed to `stepped_random()` as a second shaping parameter. Its mapping there
+  is provisional - a monotonic skew of where the step boundaries fall, which is
+  a swing and keeps the loop closing seamlessly - pending a design for what it
+  should really do. It does nothing in PWM yet.
+- **AMP is the peak swing, not half of it.** A channel at full amplitude now
+  covers the whole ±10V the converter can reach on its own; it used to top out
+  at ±5V unless an offset or cross-modulation pushed it further, which left the
+  wider output clamps unreachable from the oscillator alone. Every level in a
+  stored patch doubles - which is moot, since the record version changed anyway.
+- **Per-channel output clamp** on the **SAV** page: ±10V, ±5V, 0..10V, 0..5V.
+  Applied after cross-modulation, so it bounds what actually leaves the module,
+  and it clamps rather than rescales - a channel set to 0..5V does not quietly
+  halve everything already dialled in. Not per scene and not touched by a
+  channel clear: it describes the rig, not the patch.
+- **New shape mode, `SHAPE_PWM`**: a square whose duty follows SHP, kept off
+  both end stops so the pulse never disappears. Appended to the enum, so saved
+  shape modes keep meaning what they did.
+- **A long-press channel clear now clears the whole channel** - MON routing and
+  cross-modulation mode, QNT mode and trigger source, shape mode and pattern
+  length, on top of every scene's parameters. A channel that reads as cleared
+  while an input is still modulating it was a half-state. The output clamp is
+  the deliberate exception.
+- MUT shows green for passing as well as purple for gated: on the page whose
+  subject is mute, "not muted" is a state too, and a dark ring read as neither.
+- `INPUT_AMP_MULT` moves from magenta to cyan - at this brightness magenta is a
+  hair from the purple that means "off" on the same page.
+- `channel_reset` no longer loops the scenes itself; `channel_reset_param`
+  already does, since it started honouring `scene < 0`.
+- `sr_length_index_from_mod()` and the generated `sr_length_param[]` table are
+  gone with the parameter overload that needed them.
+
+### Web simulator
+
+- The input scope's height is taken from the output scope rather than from an
+  aspect ratio of its own width, so the two boxes end level whatever widths the
+  grid gives them, and its cells carry the same ±10V markers.
+- The clock cell's pulse button and bpm box share a row.
+
+### FRAM
+
+`ChannelConfig` gained two bytes, so the record length changed and
+`CONFIG_STATE_VERSION` goes 2 -> 3. Presets written by an older build are
+rejected on load, which is the existing first-boot path.
+
+## LED language: one fact per LED
+
+The panel had two vocabularies fighting over the same 21 LEDs. Purple meant
+"selectable" *and* "off" *and* "muted"; a candidate pulse at 50% duty sat on top
+of whatever state colour was underneath, so half the time an element showed the
+wrong thing; and a channel's ring showed its output level in every mode, under
+whatever that mode was editing. The rules are now stated once, in the README and
+in `color_presets.h`, and the renderer follows them.
+
+### Changed
+
+- **A shift mode's channel LEDs show that mode's own setting, and nothing else.**
+  New `ChannelBaseLayer` in the mode table, alongside the `SceneBaseLayer` that
+  already existed. Output level appears in one arm, selected only by no-mode; a
+  mode with no per-channel setting leaves the ring dark rather than falling back
+  to the level. `render_channel_edit` shrank to the one case that is genuinely
+  transient - the selected parameter, with no mode active.
+- **White is the whole vocabulary of assignment.** A pickable element keeps its
+  own colour and flashes white for 200ms every 1.6s (`blink_mark`); once a
+  source is held, valid destinations are steady white with the flash inverted
+  into a dropout, the source is steady purple, and **everything else goes
+  dark**. Previously a non-target kept showing its state and read as pressable.
+  In MON that means the other seven channels no longer sit there previewing
+  their outputs while an input is being routed.
+- **Setting-state hues are shared across pages** (`HUE_STATE_*`): index 0 of
+  every settings enum - disabled, default, LFO - is purple, cyan is continuous,
+  yellow is triggered or clocked, and so on. Each mode used to pick its own
+  four colours, so "off" was red on one page and green on another.
+- CPY and CLR each have one tint - blue for copy, purple for clear - across
+  their channels and scene buttons, since on those pages every element is the
+  same act.
+- Confirmations: clearing is purple rather than red, loading is cyan. Red is
+  errors only.
+- **MUT**: rotating is absolute - right unmutes, left mutes - so a row can be
+  muted by feel. The press is still a toggle.
+- **No mode**: a press on the encoder clears the selected parameter in the
+  active scene, and a hold clears it in every scene; both flash purple, longer
+  for the wider one. It was a long press only, silently, and only ever touched
+  the active scene. `channel_reset_param` now honours `scene < 0` as its header
+  had claimed all along.
+
+### Fixed
+
+- **Leaving a shift mode flashed every encoder red.** Mode entry armed the
+  transient value display on all eight channels; on the way out to no-mode that
+  display is the frequency parameter, whose hue is zero - red - until the
+  encoder has been turned at least once. The reveal is gone, because a mode's
+  setting is now shown for as long as the mode is active and there is nothing
+  left to reveal.
+- `web/frontend-check.mjs` checked element ids against a hand-written list of
+  what `index.html` contains. It reads the page now.
+
+### Web simulator
+
+- BPM is two readouts: what the clock input measures, and what the oscillators
+  are actually running against. They differ whenever the clock stops - the
+  engine free-runs at the last tempo - and only the second was shown.
+- The channel table shows the phase *offset* that was dialled in rather than the
+  live phase, which is already on the scope and moving, plus each channel's
+  waveshape mode. Both names and values come from the firmware
+  (`BMCV_EFF_PHASE_OFS`, `bmcv_sim_shape_mode_name`).
+- Bigger grab ring on the encoders; header tagline and the redundant sentence
+  about buttons removed.
+
 ## Frontend split
 
 `web/main.js` was 926 lines doing wasm binding, base64 `localStorage`, SVG panel

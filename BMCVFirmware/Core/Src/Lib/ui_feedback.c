@@ -8,6 +8,7 @@ UiColor ui_feedback_color(FeedbackKind kind)
   switch (kind)
   {
   case FB_CLEAR:
+  case FB_CLEAR_ALL:
     return UI_COL_CONFIRM_CLEAR;
   case FB_LOAD:
     return UI_COL_CONFIRM_LOAD;
@@ -18,6 +19,10 @@ UiColor ui_feedback_color(FeedbackKind kind)
     return UI_COL_CONFIRM_WRITE;
   }
 }
+
+// How long a kind stays up. A property of the kind rather than of the caller,
+// so the same act reports back with the same timing wherever it is triggered.
+static uint32_t fb_duration(FeedbackKind kind) { return kind == FB_CLEAR_ALL ? UI_FB_DURATION_LONG : UI_FB_DURATION; }
 
 void ui_feedback_emit(UiState* ui, FeedbackKind kind, TargetKind target_kind, int8_t id)
 {
@@ -30,7 +35,7 @@ void ui_feedback_emit(UiState* ui, FeedbackKind kind, TargetKind target_kind, in
     // Re-flashing the same element restarts it rather than filling a slot.
     if (s->remaining > 0 && s->kind == kind && s->target_kind == target_kind && s->id == id)
     {
-      s->remaining = UI_FB_DURATION;
+      s->remaining = fb_duration(kind);
       return;
     }
 
@@ -49,7 +54,7 @@ void ui_feedback_emit(UiState* ui, FeedbackKind kind, TargetKind target_kind, in
   victim->kind        = kind;
   victim->target_kind = target_kind;
   victim->id          = id;
-  victim->remaining   = UI_FB_DURATION;
+  victim->remaining   = fb_duration(kind);
 }
 
 void ui_feedback_tick(UiState* ui, uint32_t dt)

@@ -16,14 +16,15 @@ typedef struct
 
 typedef struct
 {
-  float freq_hz;    // oscillator rate in Hz
-  float freq_ratio; // multiple of the beat rate that produced it
-  float phase;      // 0..1, after the phase-shift parameter
-  float shape;      // -1..1
-  float mod;        // -1..1
-  float amp;        // peak swing, DAC units
-  float offset;     // DC offset, DAC units
-  int16_t gcd;      // cycle length in beats the phase locks to, 0 if free
+  float freq_hz;      // oscillator rate in Hz
+  float freq_ratio;   // multiple of the beat rate that produced it
+  float phase;        // 0..1, after the phase-shift parameter
+  float phase_offset; // the phase-shift parameter itself, in turns
+  float shape;        // -1..1
+  float mod;          // -1..1
+  float amp;          // peak swing, DAC units
+  float offset;       // DC offset, DAC units
+  int16_t gcd;        // cycle length in beats the phase locks to, 0 if free
 } ChannelEffective;
 
 // Signal path only. Interaction and view state live in UiState (ui_state.h);

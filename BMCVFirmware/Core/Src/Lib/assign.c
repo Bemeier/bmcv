@@ -40,11 +40,34 @@ void assign_trig_arm_channel(int8_t c, UxState* state)
   state->engine_config->channel_state[c].quantize_mode = QUANTIZE_TRIG_SRC;
 }
 
+// A tap clears the scene in front of you; a hold clears the whole channel.
+//
+// "Whole" means the per-channel settings too - what MON routed into it, what
+// QNT samples it, its shape mode and pattern length - and not just its
+// parameters in every scene. Those settings are as much part of a channel as
+// its numbers are, and a channel that reads as cleared while still being
+// modulated by an input is the confusing half-state this closes.
+//
+// The output clamp is the exception, deliberately: it describes what the module
+// is patched into rather than what the patch is, and having it survive is the
+// whole reason it is per channel and not per scene.
 void clear_channel(int8_t c, int8_t all_scenes, UxState* state)
 {
   if (!channel_ok(c))
     return;
+
   channel_reset(c, state->engine_state, state->engine_config, all_scenes ? -1 : state->engine_state->active_scene);
+
+  if (!all_scenes)
+    return;
+
+  ChannelConfig* ch  = &state->engine_config->channel_state[c];
+  ch->src_input      = -1;
+  ch->src_trig       = -1;
+  ch->input_amp_mode = INPUT_AMP_DISABLED;
+  ch->quantize_mode  = QUANTIZE_DISABLED;
+  ch->shape_mode     = SHAPE_LFO;
+  ch->sr_length_idx  = 0;
 }
 
 void clear_scene(int8_t s, UxState* state)

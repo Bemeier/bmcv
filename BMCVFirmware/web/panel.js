@@ -195,8 +195,9 @@ for (const e of spec.encoders) {
     cx: x, cy: y, r: ENC_R * 0.95, fill: '#000', 'fill-opacity': 0, 'pointer-events': 'none',
   }, g), 'lamp', 0.85);
 
-  // Grab area a little wider than the body, so the knob is easy to catch.
-  const ring = el('circle', { cx: x, cy: y, r: ENC_R + 0.8, fill: 'transparent', class: 'enc-ring' }, g);
+  // Grab area well wider than the body: the ring is the control you turn, and
+  // the body itself is small enough that hitting it takes aim otherwise.
+  const ring = el('circle', { cx: x, cy: y, r: ENC_R + 2.4, fill: 'transparent', class: 'enc-ring' }, g);
 
   // Four spokes, not one: a single mark reads like an absolute pointer, and
   // these are endless relative encoders with no meaningful zero.

@@ -70,18 +70,19 @@ static inline int sr_source_slot(int slot, float hold_probability)
   return slot;
 }
 
-int sr_length_index_from_mod(float mod)
-{
-  float length_pos = fclamp(0.5f * (mod + 1.0f), 0.0f, 1.0f);
-  return (int) (length_pos * (float) (SR_LENGTH_COUNT - 1) + 0.5f);
-}
-
 int sr_length_for_index(int length_idx) { return sr_lengths[iclamp(length_idx, 0, SR_LENGTH_COUNT - 1)]; }
 
-float stepped_random(float phase, float shape, int length_idx, float hold)
+float stepped_random(float phase, float shape, float mod, int length_idx, float hold)
 {
   length_idx = iclamp(length_idx, 0, SR_LENGTH_COUNT - 1);
   int length = sr_lengths[length_idx];
+
+  // MOD warps where in the cycle the step boundaries land - a swing, in effect.
+  // The warp is monotonic and fixes both endpoints, so the lattice is still
+  // read once per cycle in order and the loop still closes seamlessly; only the
+  // timing of the steps changes, never the set of values. See the header: this
+  // mapping is provisional.
+  phase = phase_mod(fclamp(phase, 0.0f, 1.0f), mod);
 
   // Morph position. One full turn across the knob, matching the way the
   // parameter itself wraps at its extremes.
@@ -89,7 +90,7 @@ float stepped_random(float phase, float shape, int length_idx, float hold)
 
   float hold_probability = SR_HOLD_PROBABILITY * fclamp((float) (length - 2) / SR_HOLD_FADE_IN_STEPS, 0.0f, 1.0f);
 
-  float x  = fclamp(phase, 0.0f, 1.0f) * (float) length;
+  float x  = phase * (float) length;
   int step = (int) x;
   if (step >= length)
   {

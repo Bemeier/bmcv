@@ -88,10 +88,29 @@ TEST_CASE(each_action_class_has_its_own_colour)
   UiColor clear = ui_feedback_color(FB_CLEAR);
   UiColor load  = ui_feedback_color(FB_LOAD);
 
+  // Red is now errors only, and purple is clearing rather than "selectable".
   CHECK(write.h != clear.h);
   CHECK(load.h != write.h && load.h != clear.h);
+  CHECK(clear.h != ui_feedback_color(FB_ERROR).h);
   // Brightness discipline: confirmations never exceed VAL_MED.
   CHECK(write.v <= VAL_MED && clear.v <= VAL_MED && load.v <= VAL_MED);
+}
+
+// Clearing one scene and clearing every scene are the same act, so they wear
+// the same colour and are told apart by how long the flash lasts.
+TEST_CASE(clearing_everywhere_flashes_for_longer_than_clearing_here)
+{
+  Fixture f;
+  fixture_init(&f);
+
+  ui_feedback_emit(&f.ui_state, FB_CLEAR, TGT_CHANNEL, 0);
+  ui_feedback_emit(&f.ui_state, FB_CLEAR_ALL, TGT_CHANNEL, 1);
+
+  CHECK(ui_feedback_color(FB_CLEAR).h == ui_feedback_color(FB_CLEAR_ALL).h);
+
+  ui_feedback_tick(&f.ui_state, UI_FB_DURATION + MS(1));
+  CHECK(!ui_feedback_active(&f.ui_state, TGT_CHANNEL, 0, NULL));
+  CHECK(ui_feedback_active(&f.ui_state, TGT_CHANNEL, 1, NULL));
 }
 
 // Committing an action must produce feedback without the call site having to
@@ -132,6 +151,7 @@ int main(void)
   RUN_TEST(re_emitting_the_same_flash_restarts_it_without_consuming_a_slot);
   RUN_TEST(overflowing_the_queue_keeps_the_most_recent_flash);
   RUN_TEST(each_action_class_has_its_own_colour);
+  RUN_TEST(clearing_everywhere_flashes_for_longer_than_clearing_here);
   RUN_TEST(committing_a_copy_flashes_the_destination);
   RUN_TEST(clearing_flashes_in_the_destructive_colour);
   return TESTKIT_SUMMARY();

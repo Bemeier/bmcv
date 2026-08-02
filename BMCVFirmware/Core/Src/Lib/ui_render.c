@@ -5,6 +5,7 @@
 #include "helpers.h"
 #include "hw_setup.h"
 #include "led_fb.h"
+#include "stepped_random_table.h" // SR_LENGTH_COUNT
 #include "ui_feedback.h"
 #include "ui_input.h"
 #include "ui_mode.h"
@@ -13,32 +14,67 @@
 #include "ux_state.h"
 #include <stdint.h>
 
-// Value colours for the transient display. Moved here from channel.c: they
-// are presentation, and one renderer now shows all of them.
-static const uint8_t quantize_mode_color[QUANTIZE_MODE_COUNT]   = {HUE_RED, HUE_MAGENTA, HUE_CYAN};
-static const uint8_t input_amp_mode_color[INPUT_AMP_MODE_COUNT] = {HUE_RED, HUE_GREEN, HUE_YELLOW};
-static const uint8_t shape_mode_color[SHAPE_MODE_COUNT]         = {HUE_GREEN, HUE_MAGENTA, HUE_BLUE, HUE_CYAN};
-static const uint8_t input_mode_color[INPUT_MODE_COUNT]         = {HUE_GREEN, HUE_RED, HUE_CYAN, HUE_MAGENTA};
+// Which hue each value of a per-channel or per-input setting reads as. The
+// concept, not the mode, picks the hue - see the HUE_STATE_* table in
+// color_presets.h - so index 0 is purple in every one of these, and "clocked"
+// looks the same on the SYS page as it does on QNT.
+static const uint8_t quantize_mode_color[QUANTIZE_MODE_COUNT]   = {HUE_STATE_DEFAULT, HUE_STATE_LEVEL, HUE_STATE_EVENT};
+static const uint8_t input_amp_mode_color[INPUT_AMP_MODE_COUNT] = {HUE_STATE_DEFAULT, HUE_STATE_MIX, HUE_STATE_MULT};
+// LFO, then the stepped modes as a ramp from continuous to fully stepped.
+static const uint8_t shape_mode_color[SHAPE_MODE_COUNT] = {HUE_STATE_DEFAULT, HUE_STATE_LEVEL, HUE_STATE_MIX, HUE_STATE_EVENT};
+static const uint8_t input_mode_color[INPUT_MODE_COUNT] = {HUE_STATE_DEFAULT, HUE_STATE_EVENT, HUE_STATE_RESET, HUE_STATE_LEVEL};
+
+// The output clamp is two facts - polarity and range - so it uses two axes:
+// purple for bipolar and green for unipolar, dim for the half range. The one
+// place brightness carries meaning in a base layer.
+static const UiColor clamp_mode_color[CLAMP_MODE_COUNT] = {
+    [CLAMP_BI_10]  = {HUE_PURPLE, SAT_HIG, VAL_MED},
+    [CLAMP_BI_5]   = {HUE_PURPLE, SAT_HIG, VAL_LOW},
+    [CLAMP_UNI_10] = {HUE_GREEN, SAT_HIG, VAL_MED},
+    [CLAMP_UNI_5]  = {HUE_GREEN, SAT_HIG, VAL_LOW},
+};
+
+// Pattern length is a ramp of twelve values, not a handful of named modes, so
+// it reads as a position on the colour wheel: one turn across the whole set,
+// starting from the purple that every other setting's first value wears.
+static uint8_t sr_length_hue(int8_t idx) { return (uint8_t) (HUE_PURPLE + iclamp(idx, 0, SR_LENGTH_COUNT - 1) * (256 / SR_LENGTH_COUNT)); }
 
 static void set(UxState* s, int16_t led, UiColor c) { led_set_hsv(s, led, c.h, c.s, c.v); }
+
+// One setting value, at the one brightness every base layer uses.
+static void set_state(UxState* s, int16_t led, uint8_t hue) { led_set_hsv(s, led, hue, SAT_HIG, VAL_LOW); }
 
 /* ---- layer 1: context ------------------------------------------------- */
 
 void ui_render_context(UxState* state, int16_t led, TargetKind kind, int8_t id)
 {
+  // Nothing in this mode can be picked, so the base layer is the whole story.
+  if (ui_mode(state->ui->shift_state)->action == ACT_NONE)
+    return;
+
   if (ui_sel_is_src(state->ui, kind, id))
   {
     set(state, led, UI_COL_SOURCE);
     return;
   }
 
-  // Pulses over the base layer rather than to black: in the gaps the element
-  // still shows its own state, so a muted channel stays recognisably muted
-  // and a live one still shows its level while you pick a target.
-  if (state->ui->blink_fast && ui_sel_is_candidate(state, kind, id))
+  if (ui_sel_pending(state->ui))
   {
-    set(state, led, UI_COL_CANDIDATE);
+    // Something is held and is looking for somewhere to go. Only the places it
+    // can go light, and they light white; everything else goes dark, because an
+    // element still showing its own state reads as pressable when it is not.
+    if (!ui_sel_is_candidate(state, kind, id))
+      set(state, led, UI_COL_DARK);
+    else
+      set(state, led, state->ui->blink_mark ? UI_COL_DARK : UI_COL_TARGET);
+    return;
   }
+
+  // Nothing held yet: the element keeps showing its own state, and only marks
+  // itself as pickable - a brief white flash over the top rather than a colour
+  // that replaces what is underneath.
+  if (state->ui->blink_mark && ui_sel_is_candidate(state, kind, id))
+    set(state, led, UI_COL_MARK);
 }
 
 /* ---- layer 3: confirmation -------------------------------------------- */
@@ -57,49 +93,97 @@ void ui_render_feedback(UxState* state, int16_t led, TargetKind kind, int8_t id)
 
 /* ---- layer 2: transient value display ---------------------------------- */
 
-static void render_channel_edit(UxState* s, const ChannelSetup* ch)
+// Only no-mode has anything transient to show: a shift mode's channel LED shows
+// that mode's setting permanently, so there is nothing to reveal on touch. The
+// selected parameter is the exception - it is a number, not a mode, and the LED
+// is needed for the output level the rest of the time.
+static void render_channel_param_edit(UxState* s, const ChannelSetup* ch)
 {
+  if (ui_mode(s->ui->shift_state)->channel_enc_target != ENC_PARAM)
+    return;
   if (s->ui->channels_edit_hold[ch->id] == 0)
     return;
 
   const ChannelConfig* cfg = &s->engine_config->channel_state[ch->id];
 
-  switch (ui_mode(s->ui->shift_state)->channel_enc_target)
-  {
-  case ENC_SHAPE:
-    led_set_hsv(s, ch->led, shape_mode_color[cfg->shape_mode], SAT_HIG, VAL_LOW);
-    break;
-  case ENC_QUANT:
-    led_set_hsv(s, ch->led, quantize_mode_color[cfg->quantize_mode], SAT_HIG, VAL_LOW);
-    break;
-  case ENC_AMPMODE:
-    led_set_hsv(s, ch->led, input_amp_mode_color[cfg->input_amp_mode], SAT_HIG, VAL_LOW);
-    break;
-  case ENC_PARAM:
-    // Frequency is a ratio, not a level, so it reads as a coded hue rather
-    // than a bipolar bar.
-    if (s->ui->selected_param == CH_PARAM_FRQ)
-      led_set_hsv(s, ch->led, s->ui->channels_edit_hue[ch->id], SAT_MAX, s->ui->blink_fast * VAL_MED);
-    else
-      led_set_adcr(s, ch->led, cfg->params[s->engine_state->active_scene][s->ui->selected_param]);
-    break;
-  default:
-    break;
-  }
+  // Frequency is a ratio, not a level, so it reads as a coded hue rather than
+  // a bipolar bar.
+  if (s->ui->selected_param == CH_PARAM_FRQ)
+    led_set_hsv(s, ch->led, s->ui->channels_edit_hue[ch->id], SAT_MAX, s->ui->blink_fast * VAL_MED);
+  else
+    led_set_adcr(s, ch->led, cfg->params[s->engine_state->active_scene][s->ui->selected_param]);
 }
 
 /* ---- per element ------------------------------------------------------- */
 
+// Layer 0 for a channel. Which of these runs is the mode descriptor's call.
+//
+// Output level appears in exactly one arm, and only no-mode selects it: in a
+// shift mode the encoder ring is showing what that mode edits, and nothing
+// else. Two facts on one LED - "what this channel is putting out" underneath
+// "what this page does to it" - is what made the shift pages hard to read.
+static void render_channel_base(UxState* s, const ChannelSetup* ch, const UiModeDesc* m)
+{
+  const ChannelConfig* cfg = &s->engine_config->channel_state[ch->id];
+
+  switch (m->channel_base)
+  {
+  case CHBASE_OUTPUT:
+    if (s->ui->muted[ch->id])
+      set(s, ch->led, UI_COL_MUTED);
+    else
+      led_set_dac(s, ch->led, s->engine_state->channels_output_level[ch->id]);
+    break;
+
+  case CHBASE_SHAPE:
+    set_state(s, ch->led, shape_mode_color[cfg->shape_mode]);
+    break;
+
+  case CHBASE_QUANTIZE:
+    set_state(s, ch->led, quantize_mode_color[cfg->quantize_mode]);
+    break;
+
+  case CHBASE_AMPMODE:
+    set_state(s, ch->led, input_amp_mode_color[cfg->input_amp_mode]);
+    break;
+
+  case CHBASE_MUTE:
+    // Both states are lit here: on the page whose subject is mute, "passing"
+    // is as much a state as "gated" and a dark ring would read as neither.
+    set(s, ch->led, s->ui->muted[ch->id] ? UI_COL_MUTED : UI_COL_UNMUTED);
+    break;
+
+  case CHBASE_SR_LENGTH:
+    // Dark where it would do nothing: pattern length is a stepped-mode setting,
+    // and the encoder is inert on the other channels for the same reason.
+    if (shape_mode_is_stepped(cfg->shape_mode))
+      set_state(s, ch->led, sr_length_hue(cfg->sr_length_idx));
+    else
+      set(s, ch->led, UI_COL_DARK);
+    break;
+
+  case CHBASE_CLAMP:
+    set(s, ch->led, clamp_mode_color[iclamp(cfg->clamp_mode, 0, CLAMP_MODE_COUNT - 1)]);
+    break;
+
+  case CHBASE_TINT:
+    set_state(s, ch->led, m->tint_hue);
+    break;
+
+  case CHBASE_OFF:
+  default:
+    set(s, ch->led, UI_COL_DARK);
+    break;
+  }
+}
+
 static void render_channel(UxState* s, const ChannelSetup* ch)
 {
-  // 0: base. Always writes.
-  if (s->ui->muted[ch->id])
-    set(s, ch->led, UI_COL_MUTED);
-  else
-    led_set_dac(s, ch->led, s->engine_state->channels_output_level[ch->id]);
+  const UiModeDesc* m = ui_mode(s->ui->shift_state);
 
+  render_channel_base(s, ch, m);
   ui_render_context(s, ch->led, TGT_CHANNEL, ch->id);
-  render_channel_edit(s, ch);
+  render_channel_param_edit(s, ch);
   ui_render_feedback(s, ch->led, TGT_CHANNEL, ch->id);
 }
 
@@ -117,7 +201,11 @@ static void render_scene_base(UxState* s, const SceneSetup* scene, const UiModeD
     break;
 
   case SCB_INPUT_MODE:
-    led_set_hsv(s, scene->led, input_mode_color[s->engine_config->input_mode[scene->id]], SAT_HIG, VAL_LOW);
+    set_state(s, scene->led, input_mode_color[s->engine_config->input_mode[scene->id]]);
+    break;
+
+  case SCB_MODE_TINT:
+    set_state(s, scene->led, m->tint_hue);
     break;
 
   case SCB_PRESET:

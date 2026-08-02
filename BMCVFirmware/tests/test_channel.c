@@ -25,12 +25,41 @@ TEST_CASE(amplitude_bounds_the_output_around_the_offset)
   fixture_set_param(&f, 0, 0, CH_PARAM_FRQ, 0); // multiplier 1x
   Clock_Init(&f.engine_state.clock);
 
+  // AMP is the peak: the swing is the parameter, not half of it.
   for (int i = 0; i < 50; i++)
   {
     fixture_tick(&f, 20000);
     int16_t v = f.engine_state.channels_output_level[0];
-    CHECK(v >= -10001 && v <= 10001);
+    CHECK(v >= -20001 && v <= 20001);
   }
+}
+
+// Full scale has to reach the ends of the converter's range on its own, with no
+// offset and nothing modulating it - otherwise the wider output clamps are
+// unreachable from the oscillator.
+TEST_CASE(full_amplitude_alone_covers_the_whole_bipolar_range)
+{
+  Fixture f;
+  fixture_init(&f);
+  fixture_set_param(&f, 0, 0, CH_PARAM_OFS, 0);
+  fixture_set_param(&f, 0, 0, CH_PARAM_AMP, INT16_MAX);
+  fixture_set_param(&f, 0, 0, CH_PARAM_FRQ, 0);
+  Clock_Init(&f.engine_state.clock);
+
+  int16_t hi = INT16_MIN, lo = INT16_MAX;
+  for (int i = 0; i < 200; i++)
+  {
+    fixture_tick(&f, 5000);
+    int16_t v = f.engine_state.channels_output_level[0];
+    if (v > hi)
+      hi = v;
+    if (v < lo)
+      lo = v;
+  }
+
+  // Within a percent of +/-10V at both ends.
+  CHECK(hi > DAC_10V - DAC_10V / 100);
+  CHECK(lo < -(DAC_10V - DAC_10V / 100));
 }
 
 TEST_CASE(input_add_mode_adds_the_raw_input_value)
@@ -96,12 +125,12 @@ TEST_CASE(phase_advances_by_frequency_times_dt_without_pll_lock)
 // and jumps the output. So it is held until the cycle wraps - except while the
 // encoder is being turned, where instant feedback matters more.
 
-static void set_stepped_channel(Fixture* f, int16_t mod_param)
+static void set_stepped_channel(Fixture* f, int8_t length_idx)
 {
-  f->engine_config.channel_state[0].shape_mode = SHAPE_STEPPED_HARD;
+  f->engine_config.channel_state[0].shape_mode    = SHAPE_STEPPED_HARD;
+  f->engine_config.channel_state[0].sr_length_idx = length_idx;
   fixture_set_param(f, 0, 0, CH_PARAM_FRQ, 0); // 1x the beat
   fixture_set_param(f, 0, 0, CH_PARAM_AMP, 20000);
-  fixture_set_param(f, 0, 0, CH_PARAM_MOD, mod_param);
 }
 
 TEST_CASE(pattern_length_is_latched_until_the_cycle_wraps)
@@ -109,7 +138,7 @@ TEST_CASE(pattern_length_is_latched_until_the_cycle_wraps)
   Fixture f;
   fixture_init(&f);
   Clock_Init(&f.engine_state.clock);
-  set_stepped_channel(&f, sr_length_param[0]); // shortest pattern
+  set_stepped_channel(&f, 0); // shortest pattern
   fixture_tick(&f, 1000);
   int8_t latched = f.engine_state.channels_length_idx[0];
   CHECK(latched == 0);
@@ -118,7 +147,7 @@ TEST_CASE(pattern_length_is_latched_until_the_cycle_wraps)
   for (int i = 0; i < 40; i++)
     fixture_tick(&f, 20000); // 0.8s, but phase only reaches ~0.8 at 1Hz
 
-  fixture_set_param(&f, 0, 0, CH_PARAM_MOD, sr_length_param[SR_LENGTH_COUNT - 1]);
+  f.engine_config.channel_state[0].sr_length_idx = SR_LENGTH_COUNT - 1;
   fixture_tick(&f, 1000);
 
   // still mid-cycle, so the length must not have moved yet
@@ -131,12 +160,12 @@ TEST_CASE(pattern_length_updates_once_the_cycle_wraps)
   Fixture f;
   fixture_init(&f);
   Clock_Init(&f.engine_state.clock);
-  set_stepped_channel(&f, sr_length_param[0]);
+  set_stepped_channel(&f, 0);
   fixture_tick(&f, 1000);
   for (int i = 0; i < 40; i++)
     fixture_tick(&f, 20000);
 
-  fixture_set_param(&f, 0, 0, CH_PARAM_MOD, sr_length_param[SR_LENGTH_COUNT - 1]);
+  f.engine_config.channel_state[0].sr_length_idx = SR_LENGTH_COUNT - 1;
   // run past the wrap
   for (int i = 0; i < 80; i++)
     fixture_tick(&f, 20000);
@@ -149,25 +178,112 @@ TEST_CASE(pattern_length_applies_immediately_while_the_encoder_is_turning)
   Fixture f;
   fixture_init(&f);
   Clock_Init(&f.engine_state.clock);
-  set_stepped_channel(&f, sr_length_param[0]);
+  set_stepped_channel(&f, 0);
   fixture_tick(&f, 1000);
   for (int i = 0; i < 40; i++)
     fixture_tick(&f, 20000);
   CHECK(f.engine_state.channels_length_idx[0] == 0);
 
-  // mark the channel as just-edited, the way ui_channel_param() does
-  f.engine_state.channels_last_delta[0] = f.hw_state.time;
-  fixture_set_param(&f, 0, 0, CH_PARAM_MOD, sr_length_param[SR_LENGTH_COUNT - 1]);
+  // mark the channel as just-edited, the way the STA-page encoder does
+  f.engine_state.channels_last_delta[0]          = f.hw_state.time;
+  f.engine_config.channel_state[0].sr_length_idx = SR_LENGTH_COUNT - 1;
   fixture_tick(&f, 1000);
 
   CHECK(f.engine_state.channels_length_idx[0] == SR_LENGTH_COUNT - 1);
   CHECK(f.engine_state.channels_shared_phase[0] < 1.0f); // proved it did not wait for a wrap
 }
 
+// ---- output clamp ----------------------------------------------------------
+
+static int16_t peak_over_a_cycle(Fixture* f, int8_t clamp_mode, int16_t* lowest)
+{
+  f->engine_config.channel_state[0].clamp_mode = clamp_mode;
+  int16_t hi = INT16_MIN, lo = INT16_MAX;
+  for (int i = 0; i < 200; i++)
+  {
+    fixture_tick(f, 5000);
+    int16_t v = f->engine_state.channels_output_level[0];
+    if (v > hi)
+      hi = v;
+    if (v < lo)
+      lo = v;
+  }
+  if (lowest)
+    *lowest = lo;
+  return hi;
+}
+
+// A clamp, not a scaling: what was dialled in still means what it said, and the
+// swing is cut off at the ends.
+TEST_CASE(the_output_clamp_bounds_the_swing_without_rescaling_it)
+{
+  Fixture f;
+  fixture_init(&f);
+  Clock_Init(&f.engine_state.clock);
+  // Offset as well as amplitude, so the unclamped swing runs past the top of
+  // the range at one end and below zero at the other.
+  fixture_set_param(&f, 0, 0, CH_PARAM_OFS, 8000);
+  fixture_set_param(&f, 0, 0, CH_PARAM_AMP, INT16_MAX);
+  fixture_set_param(&f, 0, 0, CH_PARAM_FRQ, 0);
+
+  int16_t lo = 0;
+  int16_t hi = peak_over_a_cycle(&f, CLAMP_BI_10, &lo);
+  CHECK(hi > DAC_5V && lo < 0);
+
+  hi = peak_over_a_cycle(&f, CLAMP_BI_5, &lo);
+  CHECK(hi <= DAC_5V && lo >= -DAC_5V);
+  CHECK(hi > DAC_5V / 2); // clipped at 5V, not squeezed into it
+
+  hi = peak_over_a_cycle(&f, CLAMP_UNI_10, &lo);
+  CHECK(lo == 0 && hi > DAC_5V);
+
+  hi = peak_over_a_cycle(&f, CLAMP_UNI_5, &lo);
+  CHECK(lo == 0 && hi <= DAC_5V);
+}
+
+// ---- pwm -------------------------------------------------------------------
+
+TEST_CASE(pwm_is_a_square_whose_duty_follows_the_shape_parameter)
+{
+  Fixture f;
+  fixture_init(&f);
+  Clock_Init(&f.engine_state.clock);
+  f.engine_config.channel_state[0].shape_mode = SHAPE_PWM;
+  fixture_set_param(&f, 0, 0, CH_PARAM_AMP, 20000);
+  fixture_set_param(&f, 0, 0, CH_PARAM_FRQ, 0); // 1x the beat, so one cycle is 1s
+
+  int high_at[3]          = {0};
+  const int16_t shapes[3] = {-30000, 0, 30000};
+
+  for (int s = 0; s < 3; s++)
+  {
+    Fixture g;
+    fixture_init(&g);
+    Clock_Init(&g.engine_state.clock);
+    g.engine_config.channel_state[0].shape_mode = SHAPE_PWM;
+    fixture_set_param(&g, 0, 0, CH_PARAM_AMP, 20000);
+    fixture_set_param(&g, 0, 0, CH_PARAM_FRQ, 0);
+    fixture_set_param(&g, 0, 0, CH_PARAM_SHP, shapes[s]);
+
+    for (int i = 0; i < 500; i++)
+    {
+      fixture_tick(&g, 2000); // 1s in total: exactly one cycle
+      int16_t v = g.engine_state.channels_output_level[0];
+      CHECK(v == 20000 || v == -20000); // two levels only - it is a square
+      if (v > 0)
+        high_at[s]++;
+    }
+  }
+
+  CHECK(high_at[0] < high_at[1] && high_at[1] < high_at[2]);
+  CHECK(high_at[1] > 200 && high_at[1] < 300); // ~50% at the centre
+}
+
 int main(void)
 {
   RUN_TEST(zero_amplitude_channel_outputs_the_offset);
   RUN_TEST(amplitude_bounds_the_output_around_the_offset);
+  RUN_TEST(full_amplitude_alone_covers_the_whole_bipolar_range);
   RUN_TEST(input_add_mode_adds_the_raw_input_value);
   RUN_TEST(input_mult_mode_zero_input_zeroes_the_output);
   RUN_TEST(continuous_quantize_matches_quantize_value);
@@ -175,5 +291,7 @@ int main(void)
   RUN_TEST(pattern_length_is_latched_until_the_cycle_wraps);
   RUN_TEST(pattern_length_updates_once_the_cycle_wraps);
   RUN_TEST(pattern_length_applies_immediately_while_the_encoder_is_turning);
+  RUN_TEST(the_output_clamp_bounds_the_swing_without_rescaling_it);
+  RUN_TEST(pwm_is_a_square_whose_duty_follows_the_shape_parameter);
   return TESTKIT_SUMMARY();
 }

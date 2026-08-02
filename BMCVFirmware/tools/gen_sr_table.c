@@ -1,7 +1,7 @@
 // Generates the stepped_random slot table. Run once; output is pasted into
 // Core/Inc/Lib/stepped_random_table.h.
-#include <stdint.h>
 #include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 
 #define SR_MAX_LENGTH 64
@@ -92,23 +92,6 @@ static void gen_normalisation(void)
     printf("%s%d", i ? ", " : "", sr_lengths[i]);
   printf("};\n\n");
 
-  // Canonical CH_PARAM_MOD value for each length, so the encoder can step
-  // straight from one division to the next via val_neighbour() instead of
-  // grinding through ~22 detents of dead travel. Ascending, as val_neighbour
-  // requires. Feeding one of these back through sr_length_index_from_mod()
-  // returns exactly its own index.
-  printf("// Canonical CH_PARAM_MOD value per length, for val_neighbour() stepping.\n");
-  printf("static const int16_t sr_length_param[SR_LENGTH_COUNT] = {");
-  for (int i = 0; i < SR_LENGTH_COUNT; i++)
-  {
-    float pos = (float) i / (float) (SR_LENGTH_COUNT - 1);
-    long p    = lroundf((2.0f * pos - 1.0f) * 32767.0f);
-    if (p < -32768) p = -32768;
-    if (p > 32767) p = 32767;
-    printf("%s%ld", i ? ", " : "", p);
-  }
-  printf("};\n\n");
-
   float gain[SR_LENGTH_COUNT][SR_NORM_BINS], offset[SR_LENGTH_COUNT][SR_NORM_BINS];
 
   for (int li = 0; li < SR_LENGTH_COUNT; li++)
@@ -123,8 +106,10 @@ static void gen_normalisation(void)
       for (int i = 0; i < length; i++)
       {
         float v = slot_value(source_slot(i, hold_probability), morph);
-        if (v < lo) lo = v;
-        if (v > hi) hi = v;
+        if (v < lo)
+          lo = v;
+        if (v > hi)
+          hi = v;
       }
       float span = hi - lo;
 
@@ -144,12 +129,14 @@ static void gen_normalisation(void)
       if (hi > anchor)
       {
         float limit = (1.0f - anchor) / (hi - anchor);
-        if (limit < g) g = limit;
+        if (limit < g)
+          g = limit;
       }
       if (lo < anchor)
       {
         float limit = (1.0f + anchor) / (anchor - lo);
-        if (limit < g) g = limit;
+        if (limit < g)
+          g = limit;
       }
       if (g < 1.0f)
         g = 1.0f;

@@ -120,12 +120,13 @@ const el = id => {
   return byId.get(id);
 };
 
-// The ids index.html actually provides. Asking for one that is not here is a
-// failure, because it means the page would hand the module a null.
-const PAGE_IDS = [
-  'panel', 'hint', 'scope', 'inscope', 'in-overlay', 'params',
-  'r-shift', 'r-param', 'r-scene', 'r-bpm', 'status', 'reset', 'reset-fram',
-];
+// The ids index.html actually provides, read out of the page rather than
+// listed here: a hand-kept copy of the list is one more thing that can drift,
+// and drifting the other way - an id in the list that the page no longer has -
+// is exactly what this check exists to catch. Asking for an id the page does
+// not provide is a failure, because the module would be handed a null.
+const PAGE_IDS = [...readFileSync(new URL('index.html', import.meta.url), 'utf8')
+  .matchAll(/\bid="([^"]+)"/g)].map(m => m[1]);
 const missingIds = [];
 
 globalThis.document = {
@@ -185,7 +186,7 @@ check(missingIds.length === 0,
 
 /* ---- and it is wired to the engine ---------------------------------------- */
 
-const { sim, SHIFT_NAMES } = await import('./sim.js');
+const { sim, SHAPE_NAMES, SHIFT_NAMES } = await import('./sim.js');
 const { spec } = await import('./spec.js');
 const { drawScopes } = await import('./scope.js');
 const { drawLeds } = await import('./leds.js');
@@ -194,6 +195,7 @@ const { runTicks } = await import('./inputs.js');
 
 check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec loaded through fetch');
 check(SHIFT_NAMES[0] === 'STA' && SHIFT_NAMES.at(-1) === '---', `shift names came from the firmware (${SHIFT_NAMES.join(',')})`);
+check(SHAPE_NAMES.length > 1 && SHAPE_NAMES[0] === 'LFO', `shape names came from the firmware (${SHAPE_NAMES.join(',')})`);
 
 // The panel binds a handler to every control. If a selector or an id had gone
 // wrong in the split, this is where the count would drop.

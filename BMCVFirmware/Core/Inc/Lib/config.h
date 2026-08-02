@@ -38,13 +38,28 @@ typedef enum
   SHAPE_STEPPED_SMOOTH, // random steps, fully eased between values
   SHAPE_STEPPED_SEMI,   // random steps, half held then eased
   SHAPE_STEPPED_HARD,   // random steps, mostly held with a quick eased edge
+  SHAPE_PWM,            // square; CH_PARAM_SHP is the pulse width
   SHAPE_MODE_COUNT,
 } ChannelShapeMode;
 
-// In the stepped modes CH_PARAM_MOD selects a pattern length from a discrete
-// set; in SHAPE_LFO it is a continuous phase warp. The edit behaviour and the
-// latching below both differ accordingly.
+// The stepped modes read their pattern length from ChannelConfig.sr_length_idx
+// rather than from a scene parameter, so this is what says whether that setting
+// means anything for a given channel.
 static inline int shape_mode_is_stepped(int8_t mode) { return mode >= SHAPE_STEPPED_SMOOTH && mode <= SHAPE_STEPPED_HARD; }
+
+// What the output stage clamps a channel to. A range, not a scaling: the
+// parameters still mean what they say and the ends of the swing are cut off.
+//
+// Bipolar first, and the widest first, so a zeroed config is the full range -
+// which is what every channel did before this existed.
+typedef enum
+{
+  CLAMP_BI_10,  // +/-10V, the converter's whole range
+  CLAMP_BI_5,   // +/-5V
+  CLAMP_UNI_10, // 0..10V
+  CLAMP_UNI_5,  // 0..5V
+  CLAMP_MODE_COUNT,
+} ChannelClampMode;
 
 typedef enum
 {
@@ -89,6 +104,18 @@ typedef struct __attribute__((packed))
   ChannelInputAmpMode input_amp_mode;
   ChannelQuantizeMode quantize_mode;
   int16_t params[N_SCENES][CH_PARAM_COUNT];
+
+  // Per channel rather than per scene, both of them deliberately.
+  //
+  // Pattern length is an index into a curated set of whole steps per cycle -
+  // there is nothing between 8 steps and 12, so a value that gets crossfaded
+  // between scenes is meaningless. It was CH_PARAM_MOD, which cost that
+  // parameter its continuity in three of the five shape modes.
+  //
+  // The clamp is what the module is patched into, not part of the patch: an
+  // output feeding a 0..5V input should stay in that range as the scenes move.
+  int8_t sr_length_idx;
+  int8_t clamp_mode; // ChannelClampMode
 } ChannelConfig;
 
 typedef struct __attribute__((packed))

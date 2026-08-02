@@ -200,6 +200,7 @@ static void capture(BmcvSim* s)
     out[BMCV_EFF_AMP_V]      = sim_dac_to_volts((int16_t) e->amp);
     out[BMCV_EFF_OFFSET_V]   = sim_dac_to_volts((int16_t) e->offset);
     out[BMCV_EFF_GCD]        = (float) e->gcd;
+    out[BMCV_EFF_PHASE_OFS]  = e->phase_offset;
   }
 
   s->scope_head = (head + 1) & (BMCV_SIM_SCOPE_LEN - 1);
@@ -266,6 +267,7 @@ float bmcv_sim_dac_fps(const BmcvSim* s) { return s->m.engine_state.dac_fps; }
 int32_t bmcv_sim_selected_param(const BmcvSim* s) { return s->m.ui_state.selected_param; }
 int32_t bmcv_sim_active_scene(const BmcvSim* s) { return s->m.engine_state.active_scene; }
 float bmcv_sim_bpm(const BmcvSim* s) { return s->m.engine_state.clock.bpm; }
+float bmcv_sim_active_bpm(const BmcvSim* s) { return s->m.engine_state.clock.beat_freq_smooth * 60.0f; }
 int32_t bmcv_sim_have_beat(const BmcvSim* s) { return s->m.engine_state.clock.have_beat ? 1 : 0; }
 int32_t bmcv_sim_error_flags(const BmcvSim* s) { return s->m.engine_state.error_flags; }
 
@@ -291,6 +293,27 @@ int32_t bmcv_sim_channel_param(const BmcvSim* s, int32_t channel, int32_t param)
   if (scene < 0 || scene >= N_SCENES)
     return 0;
   return s->m.engine_config.channel_state[channel].params[scene][param];
+}
+
+// One name per shape mode, read with the same index. Appending a mode without
+// naming it fails here rather than showing a blank cell in a host's table.
+// Unsized on purpose: with the length written out, a mode added without a name
+// here would leave a NULL in the table and the assert below would still pass.
+static const char* const shape_mode_names[] = {"LFO", "SMOOTH", "SEMI", "HARD", "PWM"};
+_Static_assert(sizeof shape_mode_names / sizeof shape_mode_names[0] == SHAPE_MODE_COUNT, "one name per shape mode");
+
+int32_t bmcv_sim_channel_shape_mode(const BmcvSim* s, int32_t channel)
+{
+  if (channel < 0 || channel >= N_CHANNELS)
+    return 0;
+  return s->m.engine_config.channel_state[channel].shape_mode;
+}
+
+const char* bmcv_sim_shape_mode_name(int32_t mode)
+{
+  if (mode < 0 || mode >= SHAPE_MODE_COUNT)
+    return NULL;
+  return shape_mode_names[mode];
 }
 
 /* ---- persistence -------------------------------------------------------- */

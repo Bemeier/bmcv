@@ -16,12 +16,18 @@ typedef enum
 {
   FB_WRITE, // copy, save, assign
   FB_CLEAR,
+  FB_CLEAR_ALL, // the same, but across every scene - held longer to say so
   FB_LOAD,
   FB_ERROR,
 } FeedbackKind;
 
 #define UI_FB_SLOTS 4
 #define UI_FB_DURATION MS(400)
+
+// The wider gesture gets the longer flash: duration is the only thing that
+// separates "cleared here" from "cleared everywhere", since both are the same
+// act and so wear the same colour.
+#define UI_FB_DURATION_LONG MS(900)
 
 typedef struct
 {

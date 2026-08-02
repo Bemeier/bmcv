@@ -71,6 +71,7 @@ void engine_tick(UxState* state, uint32_t now_us, uint8_t input_dirty)
 
   state->ui->blink_fast = (now_us % FAST_BLINK_PERIOD) < (FAST_BLINK_PERIOD / 2);
   state->ui->blink_slow = (now_us % SLOW_BLINK_PERIOD) < (SLOW_BLINK_PERIOD / 2);
+  state->ui->blink_mark = (now_us % MARK_BLINK_PERIOD) < MARK_BLINK_ON;
 
   scene_compute_contribution(state->engine_state, state->engine_config, state->hw_state->slider_state, state->ui->momentary_scene);
 

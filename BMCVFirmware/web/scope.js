@@ -15,30 +15,34 @@ const ctx = scopeCanvas.getContext('2d');
 const inCanvas = document.getElementById('inscope');
 const inCtx = inCanvas.getContext('2d');
 
-// The output scope is 4x2 cells at this aspect; the input canvas is half its
-// width (see the stylesheet), so this aspect makes its 2x2 cells exactly the
-// same size in pixels.
+// The output scope is 4x2 cells at this aspect. The input canvas takes its
+// height from the output scope instead of from an aspect of its own, so the two
+// boxes end level however wide the grid makes each of them.
 const OUT_ASPECT = 0.44;
-const IN_ASPECT = 0.88;
 
 const dpr = () => window.devicePixelRatio || 1;
 
 // Match the backing store to the element's real on-screen size. The canvas used
 // to be a fixed 1000x440 stretched to whatever width the layout gave it, which
 // on a wide or HiDPI display meant visibly upscaled, soft pixels.
-function fitCanvas(canvas, aspect) {
+//
+// The width always comes from the layout; the height is either an aspect of
+// that width or an explicit number of CSS pixels. Returns the CSS height it
+// settled on, so one canvas can be sized from another.
+function fitCanvas(canvas, { aspect, cssHeight }) {
   const rect = canvas.getBoundingClientRect();
-  if (!rect.width) return false;
+  if (!rect.width) return 0;
 
   const k = dpr();
+  const cssH = Math.round(cssHeight ?? rect.width * aspect);
   const w = Math.round(rect.width * k);
-  const h = Math.round(rect.width * k * aspect);
+  const h = Math.round(cssH * k);
   if (canvas.width !== w || canvas.height !== h) {
     canvas.width = w;
     canvas.height = h;
-    canvas.style.height = `${Math.round(rect.width * aspect)}px`;
+    canvas.style.height = `${cssH}px`;
   }
-  return true;
+  return cssH;
 }
 
 // One cell: voltage grid, then the trace, then a border. `data` is the whole
@@ -81,16 +85,19 @@ function drawCell(c, { x0, y0, cw, ch, data, lane, head, vRange, pad, label }) {
   }
   c.stroke();
 
+  // The range markers go on every cell - a trace means nothing without the
+  // scale it is drawn against - and only the lane name is optional.
+  const fs = Math.max(9, Math.round(5.5 * k));
+  c.font = `${fs}px ui-monospace, monospace`;
+  c.textBaseline = 'middle';
   if (label) {
-    const fs = Math.max(9, Math.round(5.5 * k));
-    c.font = `${fs}px ui-monospace, monospace`;
-    c.textBaseline = 'middle';
     c.fillStyle = '#8b929d';
     c.fillText(label, x0 + fs * 0.6, y0 + pad + fs);
-    c.fillStyle = '#5a616b';
-    c.fillText('+10', x0 + cw - fs * 2.6, mid - 10 * vScale + fs * 0.8);
-    c.fillText('-10', x0 + cw - fs * 2.6, mid + 10 * vScale - fs * 0.8);
   }
+  c.fillStyle = '#5a616b';
+  const mark = `${vRange}`;
+  c.fillText(`+${mark}`, x0 + cw - fs * (mark.length + 1.6), mid - vRange * vScale + fs * 0.8);
+  c.fillText(`-${mark}`, x0 + cw - fs * (mark.length + 1.6), mid + vRange * vScale - fs * 0.8);
   c.restore();
 
   c.strokeStyle = '#242931';
@@ -144,8 +151,8 @@ export function drawScopes() {
 // input scope used to - is a cost for nothing: the size only changes when the
 // window does.
 const fitAll = () => {
-  fitCanvas(scopeCanvas, OUT_ASPECT);
-  fitCanvas(inCanvas, IN_ASPECT);
+  const outH = fitCanvas(scopeCanvas, { aspect: OUT_ASPECT });
+  fitCanvas(inCanvas, { cssHeight: outH || inCanvas.getBoundingClientRect().width * 0.88 });
 };
 new ResizeObserver(fitAll).observe(scopeCanvas.parentElement);
 new ResizeObserver(fitAll).observe(inCanvas.parentElement);

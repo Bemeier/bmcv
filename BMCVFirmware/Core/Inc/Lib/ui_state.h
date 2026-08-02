@@ -16,6 +16,13 @@
 #define FAST_BLINK_PERIOD 300000
 #define SLOW_BLINK_PERIOD 800000
 
+// The assignment marker is not a blink but a mark: mostly off, with a short
+// flash on a long period. That is what lets an element keep showing its own
+// state and still say "you can pick me" - a 50% duty blink cannot, because for
+// half the time the element is showing the wrong thing.
+#define MARK_BLINK_PERIOD 1600000
+#define MARK_BLINK_ON 200000
+
 // How long an element keeps showing the value being edited before decaying
 // back to its base state.
 #define UI_EDIT_DISPLAY MS(1000)
@@ -57,28 +64,24 @@ typedef struct UiState
 
   uint8_t blink_slow;
   uint8_t blink_fast;
+  uint8_t blink_mark; // short, on a long period; see MARK_BLINK_ON
 
   UiInput in;
 } UiState;
 
 // Arm the transient value display on one channel: for UI_EDIT_DISPLAY it shows
-// whatever the current mode's encoder edits instead of its base state. Handlers
-// write it, the renderer reads it. A helper rather than the bare assignment it
-// replaces, which appeared at five call sites with no bounds check.
+// the parameter being edited instead of its output level. Handlers write it,
+// the renderer reads it.
+//
+// Only no-mode needs this. A shift mode's channel LEDs show that mode's setting
+// permanently (ChannelBaseLayer), so there is nothing there to reveal and then
+// decay back from - and the "reveal everything on mode entry" that used to be
+// here is what flashed every encoder red on the way out of a mode, because an
+// untouched channel's frequency hue is still zero.
 static inline void ui_show_channel_edit(UiState* ui, uint8_t channel)
 {
   if (channel < N_CHANNELS)
     ui->channels_edit_hold[channel] = UI_EDIT_DISPLAY;
-}
-
-// Every channel at once. Used on shift-mode entry, so the mode's per-channel
-// state is legible at a glance before decaying back to the output level.
-static inline void ui_show_all_channel_edits(UiState* ui)
-{
-  for (uint8_t c = 0; c < N_CHANNELS; c++)
-  {
-    ui->channels_edit_hold[c] = UI_EDIT_DISPLAY;
-  }
 }
 
 #endif /* INC_LIB_UI_STATE_H_ */

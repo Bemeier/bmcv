@@ -1,6 +1,7 @@
 #include "config_validate.h"
 #include "helpers.h"
 #include "hw_setup.h"
+#include "stepped_random_table.h" // SR_LENGTH_COUNT
 
 // -1 is the established "unassigned" sentinel for routing fields, and the
 // consumers in channel.c already guard on >= 0. So anything out of range
@@ -51,6 +52,9 @@ void config_validate(EngineConfig* cfg)
     ch->shape_mode     = (int8_t) iclamp(ch->shape_mode, 0, SHAPE_MODE_COUNT - 1);
     ch->quantize_mode  = (ChannelQuantizeMode) iclamp(ch->quantize_mode, 0, QUANTIZE_MODE_COUNT - 1);
     ch->input_amp_mode = (ChannelInputAmpMode) iclamp(ch->input_amp_mode, 0, INPUT_AMP_MODE_COUNT - 1);
+
+    ch->sr_length_idx = (int8_t) iclamp(ch->sr_length_idx, 0, SR_LENGTH_COUNT - 1);
+    ch->clamp_mode    = (int8_t) iclamp(ch->clamp_mode, 0, CLAMP_MODE_COUNT - 1);
 
     ch->src_input = valid_source_or_unassigned(ch->src_input, N_INPUTS);
     ch->src_trig  = valid_source_or_unassigned(ch->src_trig, N_INPUTS + N_CHANNELS);

@@ -48,10 +48,6 @@ static const float sr_slot_gate[SR_MAX_LENGTH] = {
 
 static const uint8_t sr_lengths[SR_LENGTH_COUNT] = {3, 4, 5, 6, 7, 8, 12, 16, 24, 32, 48, 64};
 
-// Canonical CH_PARAM_MOD value per length, for val_neighbour() stepping.
-static const int16_t sr_length_param[SR_LENGTH_COUNT] = {-32767, -26809, -20852, -14894, -8936, -2979,
-                                                         2979,   8936,   14894,  20852,  26809, 32767};
-
 static const float sr_norm_gain[SR_LENGTH_COUNT][SR_NORM_BINS] = {
     {1.459581f, 1.724108f, 2.080203f, 1.966385f, 1.665861f, 1.454895f, 1.298644f, 1.178267f, 1.052849f, 1.000000f,  1.000000f,  1.000000f,
      1.000000f, 1.000000f, 1.000000f, 1.053480f, 1.280466f, 1.525556f, 1.646302f, 1.787805f, 1.955921f, 1.909958f,  1.553364f,  1.308975f,

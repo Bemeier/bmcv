@@ -38,11 +38,34 @@ typedef enum
 typedef enum
 {
   ENC_NONE = 0,
-  ENC_PARAM,   // the selected scene parameter
-  ENC_SHAPE,   // waveshape mode
-  ENC_QUANT,   // quantize mode
-  ENC_AMPMODE, // input cross-modulation mode
+  ENC_PARAM,     // the selected scene parameter
+  ENC_SHAPE,     // waveshape mode
+  ENC_QUANT,     // quantize mode
+  ENC_AMPMODE,   // input cross-modulation mode
+  ENC_MUTE,      // right unmutes, left mutes
+  ENC_SR_LENGTH, // stepped-random pattern length
+  ENC_CLAMP,     // output range limit
 } EncoderTarget;
+
+// What a channel's LED shows before the context and confirmation layers go over
+// the top - layer 0, as data, exactly as SceneBaseLayer does for scene buttons.
+//
+// In a shift mode this is the mode's own setting and nothing else. The output
+// level is only shown when no mode is active: mixing the two meant a channel's
+// colour on, say, the MON page was partly "what this channel is putting out"
+// and partly "what this input does to it", which is two facts in one LED.
+typedef enum
+{
+  CHBASE_OFF = 0, // this mode has no per-channel setting
+  CHBASE_OUTPUT,  // live output level, with mute showing through
+  CHBASE_SHAPE,
+  CHBASE_QUANTIZE,
+  CHBASE_AMPMODE,
+  CHBASE_MUTE,
+  CHBASE_SR_LENGTH,
+  CHBASE_CLAMP,
+  CHBASE_TINT, // the mode's own colour; see tint_hue
+} ChannelBaseLayer;
 
 // What a channel button does. CHB_SELECT hands the press to the selection
 // model; the others are direct.
@@ -72,6 +95,7 @@ typedef enum
   SCB_INPUT_LEVEL,   // live CV on the matching input jack
   SCB_INPUT_MODE,    // that input's configured role, as a hue
   SCB_PRESET,        // armed slot, turning red once the hold will store
+  SCB_MODE_TINT,     // the mode's own colour; see tint_hue
 } SceneBaseLayer;
 
 // Which end of the crossfader a mode's scene buttons wire, and which end the
@@ -113,7 +137,14 @@ typedef struct
   ChannelButtonAction channel_btn_action;
   SceneButtonAction scene_btn_action;
 
+  ChannelBaseLayer channel_base;
   SceneBaseLayer scene_btn_base;
+
+  // The colour CHBASE_TINT and SCB_MODE_TINT paint. A mode whose buttons are
+  // all one kind of act - copy, clear - says what that act is with one hue
+  // rather than with per-element state nobody is reading at that moment.
+  uint8_t tint_hue;
+
   CrossfadeEnd xfade_end;
 } UiModeDesc;
 

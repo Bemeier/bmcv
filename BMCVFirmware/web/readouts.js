@@ -6,7 +6,7 @@
 // whenever the crossfader is anywhere but an end stop.
 
 import { PARAM_NAMES } from './spec.js';
-import { sim, EFF, N_CH, SHIFT_NAMES } from './sim.js';
+import { sim, EFF, N_CH, SHAPE_NAMES, SHIFT_NAMES } from './sim.js';
 
 // The frequency parameter is a ratio against the beat rate, dialled in as
 // musical fractions, so show it that way rather than as 0.333.
@@ -25,12 +25,15 @@ function ratioText(r) {
   return r.toFixed(2);
 }
 
+// The live phase is already on the scope, moving; what is not visible anywhere
+// else is the phase *offset* that was dialled in, so that is the column.
 const EFF_COLS = [
+  ['mode', (_c, ch) => SHAPE_NAMES[sim.shapeMode(ch)] ?? '—'],
   ['freq', c => c[EFF.FREQ_HZ] >= 10 ? c[EFF.FREQ_HZ].toFixed(1) : c[EFF.FREQ_HZ].toFixed(3)],
   ['ratio', c => ratioText(c[EFF.FREQ_RATIO])],
   ['shape', c => c[EFF.SHAPE].toFixed(2)],
   ['mod', c => c[EFF.MOD].toFixed(2)],
-  ['phase', c => c[EFF.PHASE].toFixed(3)],
+  ['phs', c => c[EFF.PHASE_OFS].toFixed(3)],
   ['amp', c => c[EFF.AMP_V].toFixed(2)],
   ['ofs', c => c[EFF.OFFSET_V].toFixed(2)],
 ];
@@ -46,6 +49,7 @@ const rShift = document.getElementById('r-shift');
 const rParam = document.getElementById('r-param');
 const rScene = document.getElementById('r-scene');
 const rBpm = document.getElementById('r-bpm');
+const rBpmIn = document.getElementById('r-bpm-in');
 
 // Only touch the DOM when the text actually differs: this table is the single
 // largest source of DOM churn on the page.
@@ -55,14 +59,18 @@ export function drawReadouts() {
   setText(rShift, SHIFT_NAMES[sim.shiftState()] ?? '—');
   setText(rParam, PARAM_NAMES[sim.selectedParam()] ?? '—');
   setText(rScene, String(sim.activeScene()));
-  setText(rBpm, sim.bpm().toFixed(1));
+  // Detected is what the clock jack is doing right now and reads as nothing
+  // when there is no clock; running is what the oscillators are locked to,
+  // which free-runs at the last tempo after the pulses stop.
+  setText(rBpmIn, sim.haveBeat() ? sim.bpm().toFixed(1) : '—');
+  setText(rBpm, sim.activeBpm().toFixed(1));
 
   const outs = sim.outputs();
   const eff = sim.effective();
   for (let c = 0; c < N_CH; c++) {
     const cells = paramRows[c].children;
     const row = eff.subarray(c * EFF.COUNT, (c + 1) * EFF.COUNT);
-    for (let i = 0; i < EFF_COLS.length; i++) setText(cells[i + 1], EFF_COLS[i][1](row));
+    for (let i = 0; i < EFF_COLS.length; i++) setText(cells[i + 1], EFF_COLS[i][1](row, c));
     setText(cells[EFF_COLS.length + 1], outs[c].toFixed(2));
     paramRows[c].classList.toggle('muted-row', !!sim.muted(c));
   }

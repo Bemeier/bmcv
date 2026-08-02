@@ -39,6 +39,25 @@
 
 static const float k_sync = 0.075f;
 
+// The output stage's range limit. A clamp rather than a scaling: the parameters
+// keep meaning what they say and the swing is cut off at the ends, so setting a
+// channel to 0..5V does not quietly halve everything already dialled in.
+static float clamp_output(float value, int8_t mode)
+{
+  switch (mode)
+  {
+  case CLAMP_BI_5:
+    return fclamp(value, -(float) DAC_5V, (float) DAC_5V);
+  case CLAMP_UNI_10:
+    return fclamp(value, 0.0f, (float) INT16_MAX);
+  case CLAMP_UNI_5:
+    return fclamp(value, 0.0f, (float) DAC_5V);
+  case CLAMP_BI_10:
+  default:
+    return fclamp(value, (float) INT16_MIN, (float) INT16_MAX);
+  }
+}
+
 void channel_init(uint8_t ch, EngineState* es)
 {
   es->channels_shared_phase[ch]     = 0;
@@ -54,29 +73,32 @@ void channel_reset_phase(uint8_t ch, EngineState* es)
   es->channels_phase_correction[ch] = 0;
 }
 
+// scene < 0 means every scene, as the header has always said - it used to be
+// rejected along with the out-of-range values, so the one caller that wanted
+// "everywhere" had to loop for itself.
 void channel_reset_param(uint8_t ch, EngineConfig* cfg, int8_t scene, int8_t param)
 {
-  if (scene < 0 || scene >= N_SCENES || param < 0 || param >= CH_PARAM_COUNT)
+  if (ch >= N_CHANNELS || scene >= N_SCENES || param < 0 || param >= CH_PARAM_COUNT)
     return;
-
-  // Frequency is a ratio: its neutral value is "one beat", which is -255 in
-  // the multiplier table, not zero.
-  cfg->channel_state[ch].params[scene][param] = (param == CH_PARAM_FRQ) ? -255 : 0;
-}
-
-void channel_reset(uint8_t ch, EngineState* es, EngineConfig* cfg, int8_t scene)
-{
-  channel_init(ch, es);
 
   for (uint8_t s = 0; s < N_SCENES; s++)
   {
     if (scene >= 0 && s != (uint8_t) scene)
       continue;
 
-    for (uint8_t p = 0; p < CH_PARAM_COUNT; p++)
-    {
-      channel_reset_param(ch, cfg, (int8_t) s, (int8_t) p);
-    }
+    // Frequency is a ratio: its neutral value is "one beat", which is -255 in
+    // the multiplier table, not zero.
+    cfg->channel_state[ch].params[s][param] = (param == CH_PARAM_FRQ) ? -255 : 0;
+  }
+}
+
+void channel_reset(uint8_t ch, EngineState* es, EngineConfig* cfg, int8_t scene)
+{
+  channel_init(ch, es);
+
+  for (uint8_t p = 0; p < CH_PARAM_COUNT; p++)
+  {
+    channel_reset_param(ch, cfg, scene, (int8_t) p);
   }
 }
 
@@ -102,9 +124,15 @@ void channel_compute(uint8_t ch, EngineState* es, const EngineConfig* cfg, const
 
   float freq_param = avg[CH_PARAM_FRQ] / (float) N_FREQ_SCALE;
   float offset     = (float) avg[CH_PARAM_OFS];
-  float amp        = (float) avg[CH_PARAM_AMP] * 0.5f;
-  float shape      = (float) avg[CH_PARAM_SHP] / INT16_MAX;
-  float phs        = (float) avg[CH_PARAM_PHS] / INT16_MAX;
+
+  // Peak, not half of it. AMP at full scale swings the whole +/-10V the
+  // converter can reach, so the range a channel can cover is the range the
+  // module has - it used to top out at +/-5V unless offset or cross-modulation
+  // pushed it further, which made the wider output clamps unreachable from the
+  // oscillator alone.
+  float amp   = (float) avg[CH_PARAM_AMP];
+  float shape = (float) avg[CH_PARAM_SHP] / INT16_MAX;
+  float phs   = (float) avg[CH_PARAM_PHS] / INT16_MAX;
 
   float freq_multiplier = freq_param >= 0 ? freq_param + 1.0f : -1.0f / (freq_param - 1.0f);
   float freq            = es->clock.beat_freq_smooth * freq_multiplier;
@@ -160,19 +188,24 @@ void channel_compute(uint8_t ch, EngineState* es, const EngineConfig* cfg, const
 
   if (*latched_idx < 0 || wrapped || editing)
   {
-    *latched_idx = (int8_t) sr_length_index_from_mod(mod);
+    *latched_idx = (int8_t) iclamp(chcfg->sr_length_idx, 0, SR_LENGTH_COUNT - 1);
   }
 
   switch (chcfg->shape_mode)
   {
   case SHAPE_STEPPED_SMOOTH:
-    raw = stepped_random(phase, shape, *latched_idx, SR_HOLD_SMOOTH);
+    raw = stepped_random(phase, shape, mod, *latched_idx, SR_HOLD_SMOOTH);
     break;
   case SHAPE_STEPPED_SEMI:
-    raw = stepped_random(phase, shape, *latched_idx, SR_HOLD_SEMI);
+    raw = stepped_random(phase, shape, mod, *latched_idx, SR_HOLD_SEMI);
     break;
   case SHAPE_STEPPED_HARD:
-    raw = stepped_random(phase, shape, *latched_idx, SR_HOLD_HARD);
+    raw = stepped_random(phase, shape, mod, *latched_idx, SR_HOLD_HARD);
+    break;
+  case SHAPE_PWM:
+    // SHP is the pulse width, kept off both end stops so the pulse never
+    // disappears entirely. MOD is not wired in here yet.
+    raw = (phase < fclamp(0.5f + shape * 0.48f, 0.02f, 0.98f)) ? 1.0f : -1.0f;
     break;
   case SHAPE_LFO:
   default:
@@ -186,6 +219,7 @@ void channel_compute(uint8_t ch, EngineState* es, const EngineConfig* cfg, const
   eff->freq_hz          = freq;
   eff->freq_ratio       = freq_multiplier;
   eff->phase            = phase;
+  eff->phase_offset     = phs;
   eff->shape            = shape;
   eff->mod              = mod;
   eff->amp              = amp;
@@ -205,10 +239,8 @@ void channel_compute(uint8_t ch, EngineState* es, const EngineConfig* cfg, const
     }
   }
 
-  if (value > INT16_MAX)
-    value = INT16_MAX;
-  else if (value < INT16_MIN)
-    value = INT16_MIN;
+  // Last, so it bounds the cross-modulated result and not just the oscillator.
+  value = clamp_output(value, chcfg->clamp_mode);
 
   switch (chcfg->quantize_mode)
   {

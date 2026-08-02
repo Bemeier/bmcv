@@ -5,6 +5,7 @@
 #include "helpers.h"
 #include "hw_setup.h"
 #include "stepped_random_table.h"
+#include "ui_feedback.h"
 #include "ui_input.h"
 #include "ui_mode.h"
 #include "ui_select.h"
@@ -120,14 +121,6 @@ static void ui_channel_param(const ChannelSetup* ch, UxState* state)
     value                                = val_neighbour(value, delta, quantized_multipliers, N_FREQ_MULTIPLIERS, &idx);
     state->ui->channels_edit_hue[ch->id] = quantized_multipliers_colors[idx];
   }
-  else if (param == CH_PARAM_MOD && shape_mode_is_stepped(chcfg->shape_mode))
-  {
-    // In the stepped modes MOD picks a pattern length from a discrete set, so
-    // step straight to the next one. Treating it as a continuous parameter
-    // meant ~22 detents of dead travel between divisions.
-    size_t idx = 0;
-    value      = val_neighbour(value, delta, sr_length_param, SR_LENGTH_COUNT, &idx);
-  }
   else
   {
     value += delta * 256;
@@ -171,16 +164,20 @@ void ui_channel_update(const ChannelSetup* ch, UxState* state)
 
   case CHB_RESET_PARAM:
   {
-    // Only a long press that spanned no encoder movement resets the param -
+    // Only a press that spanned no encoder movement resets the param -
     // otherwise holding the button as a fine-adjust modifier would wipe the
     // value the user was just adjusting.
     uint32_t since_edit = state->hw_state->time - state->engine_state->channels_last_delta[ch->id];
-    if (long_pressed && btn_held(&state->ui->in, ch->button) < since_edit)
-    {
-      channel_reset_param(ch->id, state->engine_config, state->engine_state->active_scene, state->ui->selected_param);
-      return;
-    }
-    break;
+    if (!pressed || btn_held(&state->ui->in, ch->button) >= since_edit)
+      break;
+
+    // A tap clears the parameter in the active scene; holding clears it in
+    // every scene. The two are the same act on different scope, so they flash
+    // the same colour and differ in how long it lasts.
+    int8_t scene = long_pressed ? -1 : state->engine_state->active_scene;
+    channel_reset_param(ch->id, state->engine_config, scene, state->ui->selected_param);
+    ui_feedback_emit(state->ui, long_pressed ? FB_CLEAR_ALL : FB_CLEAR, TGT_CHANNEL, ch->id);
+    return;
   }
 
   default:
@@ -212,6 +209,32 @@ void ui_channel_update(const ChannelSetup* ch, UxState* state)
     if (pressing)
       break; // the button is picking a source, not modifying the encoder
     chcfg->input_amp_mode = (ChannelInputAmpMode) cycle_mode(state, ch->id, chcfg->input_amp_mode, delta, INPUT_AMP_MODE_COUNT);
+    break;
+
+  case ENC_MUTE:
+    // Absolute rather than a toggle: right is always unmute and left is always
+    // mute, so a row of channels can be muted by feel without checking each
+    // one's state first. The button stays a toggle.
+    state->ui->muted[ch->id] = delta < 0;
+    break;
+
+  case ENC_SR_LENGTH:
+    // Only the stepped modes have a pattern length, and the LED is dark on the
+    // channels where it would do nothing - so the encoder does nothing there
+    // too, rather than silently moving a setting with no visible effect.
+    if (!shape_mode_is_stepped(chcfg->shape_mode))
+      break;
+    // Clamped, not wrapped: this is a ramp from 3 steps to 64, and rolling off
+    // one end into the other is not a move anyone means to make.
+    chcfg->sr_length_idx = (int8_t) iclamp(chcfg->sr_length_idx + iclamp(delta, -1, 1), 0, SR_LENGTH_COUNT - 1);
+    // The engine latches pattern length at the cycle wrap unless the user is
+    // actively turning this channel - which is what this records.
+    ux_note_channel_edit(state, ch->id);
+    ui_show_channel_edit(state->ui, ch->id);
+    break;
+
+  case ENC_CLAMP:
+    chcfg->clamp_mode = (int8_t) cycle_mode(state, ch->id, chcfg->clamp_mode, delta, CLAMP_MODE_COUNT);
     break;
 
   default:
