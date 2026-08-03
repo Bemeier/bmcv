@@ -26,7 +26,6 @@ list(TRANSFORM BMCV_CORE_SOURCES PREPEND ${BMCV_LIB_SRC}/)
 
 add_library(bmcv_core STATIC
   ${BMCV_CORE_SOURCES}
-  fakes/fake_drivers.c
 )
 target_include_directories(bmcv_core PUBLIC ${BMCV_LIB_INC})
 target_link_libraries(bmcv_core PUBLIC m)

@@ -76,15 +76,13 @@ struct BMCV : Module
 	{
 		config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
 
-		const HwSetup* hw = HwSetup_Get();
-
-		for (int c = 0; c < N_CHANNELS; c++)
+		for (int e = 0; e < N_ENCODERS; e++)
 		{
-			int e = hw->channel_encoder_idx[c];
 			// Endless: the value is a detent count, not a position, so the range
 			// only has to be wider than anyone will ever drag. int16 is what the
 			// firmware reads it as.
-			configParam(ENCODER_PARAM + e, -32768.f, 32767.f, 0.f, string::f("Channel %d encoder", c));
+			configParam(ENCODER_PARAM + e, -32768.f, 32767.f, 0.f,
+			            string::f("Channel %d encoder", panel_encoder[e].channel));
 			ParamQuantity* pq = getParamQuantity(ENCODER_PARAM + e);
 			pq->snapEnabled = true;
 			pq->smoothEnabled = false;
@@ -131,7 +129,7 @@ struct BMCV : Module
 	void boot()
 	{
 		std::memset(&sample, 0, sizeof(sample));
-		sample.slider_raw = SLIDER_MIN_VALUE;
+		sim_input_slider(&sample, 0.f);
 		sim_trig_reset(&trig);
 		// Started at the host's clock rather than at zero. A patch that has been
 		// open for a minute and then resets this module would otherwise hand the
@@ -174,20 +172,14 @@ struct BMCV : Module
 		// 1ms trigger must not be lost because the tick landed either side of it.
 		for (int i = 0; i < N_INPUTS; i++)
 		{
-			uint8_t ch = hw->input_adc_idx[i];
-			int16_t raw = sim_volts_to_adc(inputs[CV_INPUT + i].getVoltage());
-			sample.cv_raw[ch] = raw;
-			sim_trig_sample(&trig, ch, raw);
+			sim_input_cv(&sample, &trig, hw, (uint8_t) i, inputs[CV_INPUT + i].getVoltage());
 		}
 
 		if (sim_tickdiv_step(&tickDiv))
 		{
 			readControls();
 
-			for (uint8_t ch = 0; ch < N_INPUTS; ch++)
-			{
-				sample.cv_trig[ch] = sim_trig_take(&trig, ch);
-			}
+			sim_input_take_trigs(&sample, &trig);
 
 			bmcv_instance_tick(&m, &sample, tickDiv.now_us);
 
@@ -241,8 +233,7 @@ struct BMCV : Module
 		// The parameter is where the handle sits from the left. Scene A anchors
 		// at SLIDER_MAX_VALUE and is the left-hand end of the panel, so the
 		// leftmost position is full scale and the two run opposite ways.
-		float pos = 1.f - clamp(params[SLIDER_PARAM].getValue(), 0.f, 1.f);
-		sample.slider_raw = (uint16_t) (SLIDER_MIN_VALUE + pos * (float) (SLIDER_MAX_VALUE - SLIDER_MIN_VALUE) + 0.5f);
+		sim_input_slider(&sample, 1.f - params[SLIDER_PARAM].getValue());
 	}
 
 	int16_t encoderParam(int e) { return (int16_t) (int) std::lround(params[ENCODER_PARAM + e].getValue()); }
@@ -343,8 +334,6 @@ struct BMCVWidget : ModuleWidget
 			addChild(createWidgetCentered<ScrewSilver>(artPos(panel_mount_pos[i])));
 		}
 
-		const HwSetup* hw = HwSetup_Get();
-
 		// Rack's own jack, and Rack's own cable behaviour with it. The board's
 		// jacks are on a 10mm pitch and a PJ301M is 8.03mm, so the part that
 		// every other module in the rack uses is also the one that fits.
@@ -364,15 +353,13 @@ struct BMCVWidget : ModuleWidget
 		for (int e = 0; e < N_ENCODERS; e++)
 		{
 			Vec pos = panelPos(panel_encoder_pos[e]);
-			int c = channelOfEncoder(hw, e);
-			int push = hw->channel_button_idx[c];
+			int push = panel_encoder[e].push_button;
 
-			addChild(createLightCentered<EncoderLight>(pos, module, BMCV::LED_LIGHT + hw->channel_led_idx[c] * 3));
+			addChild(createLightCentered<EncoderLight>(pos, module, BMCV::LED_LIGHT + panel_encoder[e].led * 3));
 
 			EncoderRing* ring = createParamCentered<EncoderRing>(pos, module, BMCV::ENCODER_PARAM + e);
 			ring->pushParamId = BMCV::BUTTON_PARAM + push;
 			addParam(ring);
-
 
 			EncoderCap* cap = createParamCentered<EncoderCap>(pos, module, BMCV::BUTTON_PARAM + push);
 			cap->ring = ring; // so the wheel works over the middle of the knob too
@@ -385,10 +372,12 @@ struct BMCVWidget : ModuleWidget
 		// board and are a TL1105 here, which is the part that is on it.
 		for (int b = 0; b < N_BUTTONS; b++)
 		{
-			int led = ledOfButton(b);
-			bool tactile = isTactile(b);
-			if (led < 0 && !tactile)
-				continue; // an encoder push, placed with its encoder above
+			PanelButtonKind kind = panel_button_kind[b];
+			if (kind == PANEL_BTN_ENCODER_PUSH)
+				continue; // placed with its encoder above
+
+			bool tactile = kind == PANEL_BTN_TACTILE;
+			int led = panel_button_led[b];
 			Vec pos = panelPos(panel_button_pos[b]);
 
 			if (tactile)
@@ -415,57 +404,6 @@ struct BMCVWidget : ModuleWidget
 		addParam(createParamCentered<BmcvCrossfader>(panelPos(panel_slider_pos), module, BMCV::SLIDER_PARAM));
 	}
 
-	static int channelOfEncoder(const HwSetup* hw, int e)
-	{
-		for (int c = 0; c < N_CHANNELS; c++)
-		{
-			if (hw->channel_encoder_idx[c] == e)
-				return c;
-		}
-		return 0;
-	}
-
-	// An encoder push shares its designator with the encoder above it, which is
-	// how the generated table records the pairing.
-	static bool isEncoderPush(int b)
-	{
-		const HwSetup* hw = HwSetup_Get();
-		for (int c = 0; c < N_CHANNELS; c++)
-		{
-			if (hw->channel_button_idx[c] == b)
-				return true;
-		}
-		return false;
-	}
-
-	static bool isTactile(int b)
-	{
-		const HwSetup* hw = HwSetup_Get();
-		for (int i = 0; i < N_CTRL_BUTTONS; i++)
-		{
-			if (hw->ctrl_button_idx[i] == b)
-				return hw->ctrl_button_led_idx[i] < 0;
-		}
-		return false;
-	}
-
-	static int ledOfButton(int b)
-	{
-		if (isEncoderPush(b))
-			return -1;
-		const HwSetup* hw = HwSetup_Get();
-		for (int i = 0; i < N_CTRL_BUTTONS; i++)
-		{
-			if (hw->ctrl_button_idx[i] == b)
-				return hw->ctrl_button_led_idx[i];
-		}
-		for (int s = 0; s < N_SCENES; s++)
-		{
-			if (hw->scene_button_idx[s] == b)
-				return hw->scene_button_led_idx[s];
-		}
-		return -1;
-	}
 };
 
 Model* modelBMCV = createModel<BMCV, BMCVWidget>("BMCV");

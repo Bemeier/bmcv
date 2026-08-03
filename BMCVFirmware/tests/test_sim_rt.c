@@ -286,8 +286,87 @@ TEST_CASE(fire_produces_a_trigger_without_a_voltage)
   CHECK(sim_trig_take(&t, 1) == 0);
 }
 
+/* ---- filling an InputSample --------------------------------------------- */
+
+// The one rule these helpers exist to keep: a host counts jacks the way the
+// panel does, InputSample counts converter channels, and hw_setup maps one to
+// the other. Getting it backwards routes the clock into a modulation input.
+TEST_CASE(a_jack_lands_on_its_converter_channel)
+{
+  const HwSetup* hw = HwSetup_Get();
+  InputSample s     = {0};
+  SimTrigLatch t;
+  sim_trig_reset(&t);
+
+  sim_input_cv(&s, &t, hw, 0, 5.0f);
+
+  uint8_t ch = hw->input_adc_idx[0];
+  CHECK(s.cv_raw[ch] == sim_volts_to_adc(5.0f));
+  // ...and nowhere else.
+  for (uint8_t i = 0; i < N_INPUTS; i++)
+  {
+    if (i != ch)
+      CHECK(s.cv_raw[i] == 0);
+  }
+}
+
+TEST_CASE(an_out_of_range_jack_writes_nothing)
+{
+  const HwSetup* hw = HwSetup_Get();
+  InputSample s     = {0};
+  SimTrigLatch t;
+  sim_trig_reset(&t);
+
+  sim_input_cv(&s, &t, hw, N_INPUTS, 5.0f);
+  for (uint8_t i = 0; i < N_INPUTS; i++)
+  {
+    CHECK(s.cv_raw[i] == 0);
+  }
+}
+
+TEST_CASE(taking_trigs_drains_the_latch_into_the_sample)
+{
+  const HwSetup* hw = HwSetup_Get();
+  InputSample s     = {0};
+  SimTrigLatch t;
+  sim_trig_reset(&t);
+
+  uint8_t ch = hw->input_adc_idx[2];
+  sim_input_cv(&s, &t, hw, 2, 0.0f);
+  sim_input_cv(&s, &t, hw, 2, 5.0f); // rising edge
+
+  sim_input_take_trigs(&s, &t);
+  CHECK(s.cv_trig[ch] == 1);
+
+  // Drained: a second tick with no new edge sees nothing.
+  sim_input_take_trigs(&s, &t);
+  CHECK(s.cv_trig[ch] == 0);
+}
+
+TEST_CASE(the_slider_spans_its_raw_range_and_clamps)
+{
+  InputSample s = {0};
+
+  sim_input_slider(&s, 0.0f);
+  CHECK(s.slider_raw == SLIDER_MIN_VALUE);
+  sim_input_slider(&s, 1.0f);
+  CHECK(s.slider_raw == SLIDER_MAX_VALUE);
+
+  sim_input_slider(&s, 0.5f);
+  CHECK(s.slider_raw > SLIDER_MIN_VALUE && s.slider_raw < SLIDER_MAX_VALUE);
+
+  sim_input_slider(&s, -1.0f);
+  CHECK(s.slider_raw == SLIDER_MIN_VALUE);
+  sim_input_slider(&s, 2.0f);
+  CHECK(s.slider_raw == SLIDER_MAX_VALUE);
+}
+
 int main(void)
 {
+  RUN_TEST(a_jack_lands_on_its_converter_channel);
+  RUN_TEST(an_out_of_range_jack_writes_nothing);
+  RUN_TEST(taking_trigs_drains_the_latch_into_the_sample);
+  RUN_TEST(the_slider_spans_its_raw_range_and_clamps);
   RUN_TEST(dac_counts_map_to_volts);
   RUN_TEST(volts_map_to_adc_counts_and_clamp);
   RUN_TEST(volt_round_trips_stay_within_one_count);

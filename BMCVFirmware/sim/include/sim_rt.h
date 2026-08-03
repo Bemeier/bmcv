@@ -2,11 +2,12 @@
 #define BMCV_SIM_RT_H_
 
 #include "hw_setup.h"
+#include "input_fold.h"
 #include <stdint.h>
 
 // Host-side runtime glue: unit conversion, tick decimation and gate edge
 // latching. Deliberately free of any host's types - no Emscripten, no VCV
-// Rack - so the wasm build, the CLI and (later) the Rack plugin share one
+// Rack - so the wasm build, the CLI and the Rack plugin share one
 // implementation of the fiddly parts, and so all of it is unit-testable
 // without a host at all.
 
@@ -106,5 +107,25 @@ uint8_t sim_trig_take(SimTrigLatch* t, uint8_t channel);
 // Force a one-shot edge, for a UI button or a script that wants a trigger
 // without synthesising a voltage ramp.
 void sim_trig_fire(SimTrigLatch* t, uint8_t channel);
+
+/* ---- filling an InputSample --------------------------------------------- */
+//
+// A host thinks in panel jacks and volts; InputSample is indexed by *converter
+// channel* and counted in ADC units. These three do that translation, so no
+// host has to remember which way round hw_setup->input_adc_idx goes - getting
+// it backwards routes the clock into a modulation input and is invisible until
+// something refuses to sync.
+
+// One input jack, in volts. Latches the gate edge too, so call it as often as
+// the host has samples rather than once per control tick.
+void sim_input_cv(InputSample* s, SimTrigLatch* t, const HwSetup* hw, uint8_t jack, float volts);
+
+// Drain the latched edges into the sample. Once per control tick, immediately
+// before handing it to the engine.
+void sim_input_take_trigs(InputSample* s, SimTrigLatch* t);
+
+// The crossfader, as a fraction of its travel. 0 is the bottom of the raw
+// range, which is the end of the panel scene B anchors to.
+void sim_input_slider(InputSample* s, float pos01);
 
 #endif /* BMCV_SIM_RT_H_ */

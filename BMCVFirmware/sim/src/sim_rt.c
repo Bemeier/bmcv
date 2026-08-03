@@ -86,3 +86,34 @@ void sim_trig_fire(SimTrigLatch* t, uint8_t channel)
   if (channel < N_INPUTS)
     t->pending[channel] = 1;
 }
+
+/* ---- filling an InputSample --------------------------------------------- */
+
+void sim_input_cv(InputSample* s, SimTrigLatch* t, const HwSetup* hw, uint8_t jack, float volts)
+{
+  if (jack >= N_INPUTS)
+    return;
+
+  uint8_t ch  = hw->input_adc_idx[jack];
+  int16_t raw = sim_volts_to_adc(volts);
+
+  s->cv_raw[ch] = raw;
+  sim_trig_sample(t, ch, raw);
+}
+
+void sim_input_take_trigs(InputSample* s, SimTrigLatch* t)
+{
+  for (uint8_t ch = 0; ch < N_INPUTS; ch++)
+  {
+    s->cv_trig[ch] = sim_trig_take(t, ch);
+  }
+}
+
+void sim_input_slider(InputSample* s, float pos01)
+{
+  if (pos01 < 0.0f)
+    pos01 = 0.0f;
+  if (pos01 > 1.0f)
+    pos01 = 1.0f;
+  s->slider_raw = (uint16_t) (SLIDER_MIN_VALUE + pos01 * (float) (SLIDER_MAX_VALUE - SLIDER_MIN_VALUE) + 0.5f);
+}

@@ -27,8 +27,8 @@ CORE_NAMES := $(shell sed -n '/^set(BMCV_CORE_SOURCES/,/^)/p' \
 # it here is enough.
 CORE_SOURCES := $(addprefix $(BMCV_ROOT)/Core/Src/Lib/,$(CORE_NAMES)) \
                 $(BMCV_ROOT)/sim/src/sim_rt.c \
-                $(BMCV_ROOT)/sim/src/slot_store.c \
-                $(BMCV_ROOT)/tests/fakes/fake_drivers.c
+                $(BMCV_ROOT)/sim/src/slot_store.c
+
 CORE_OBJECTS := $(patsubst %, build/ext/%.o, $(notdir $(CORE_SOURCES)))
 OBJECTS := $(CORE_OBJECTS)
 

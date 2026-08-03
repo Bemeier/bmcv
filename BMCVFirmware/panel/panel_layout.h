@@ -206,6 +206,82 @@ static const char* const panel_button_mode[24] =
   "MUT", // 23 SW16
 };
 
+// What sits behind each button, so a host does not have to walk the
+// HwSetup index tables to find out. -1 where there is no LED.
+typedef enum { PANEL_BTN_ENCODER_PUSH, PANEL_BTN_RGB_SWITCH, PANEL_BTN_TACTILE } PanelButtonKind;
+
+static const PanelButtonKind panel_button_kind[24] =
+{
+  PANEL_BTN_ENCODER_PUSH, //  0 U6
+  PANEL_BTN_ENCODER_PUSH, //  1 U1
+  PANEL_BTN_ENCODER_PUSH, //  2 U2
+  PANEL_BTN_ENCODER_PUSH, //  3 U3
+  PANEL_BTN_ENCODER_PUSH, //  4 U5
+  PANEL_BTN_ENCODER_PUSH, //  5 U4
+  PANEL_BTN_ENCODER_PUSH, //  6 U7
+  PANEL_BTN_ENCODER_PUSH, //  7 U8
+  PANEL_BTN_RGB_SWITCH, //  8 SW2
+  PANEL_BTN_RGB_SWITCH, //  9 SW8
+  PANEL_BTN_RGB_SWITCH, // 10 SW1
+  PANEL_BTN_RGB_SWITCH, // 11 SW7
+  PANEL_BTN_RGB_SWITCH, // 12 SW3
+  PANEL_BTN_RGB_SWITCH, // 13 SW9
+  PANEL_BTN_RGB_SWITCH, // 14 SW10
+  PANEL_BTN_RGB_SWITCH, // 15 SW4
+  PANEL_BTN_RGB_SWITCH, // 16 SW5
+  PANEL_BTN_RGB_SWITCH, // 17 SW6
+  PANEL_BTN_RGB_SWITCH, // 18 SW11
+  PANEL_BTN_RGB_SWITCH, // 19 SW12
+  PANEL_BTN_RGB_SWITCH, // 20 SW13
+  PANEL_BTN_TACTILE, // 21 SW14
+  PANEL_BTN_TACTILE, // 22 SW15
+  PANEL_BTN_TACTILE, // 23 SW16
+};
+
+static const int8_t panel_button_led[24] =
+{
+  6, //  0 U6
+  5, //  1 U1
+  4, //  2 U2
+  3, //  3 U3
+  7, //  4 U5
+  2, //  5 U4
+  1, //  6 U7
+  0, //  7 U8
+  9, //  8 SW2
+  19, //  9 SW8
+  8, // 10 SW1
+  20, // 11 SW7
+  10, // 12 SW3
+  18, // 13 SW9
+  17, // 14 SW10
+  11, // 15 SW4
+  12, // 16 SW5
+  13, // 17 SW6
+  16, // 18 SW11
+  15, // 19 SW12
+  14, // 20 SW13
+  -1, // 21 SW14
+  -1, // 22 SW15
+  -1, // 23 SW16
+};
+
+// Each encoder's other two halves: the button under the same finger and
+// the WS2811 behind it, plus the channel it drives.
+typedef struct { int8_t push_button, led, channel; } PanelEncoder;
+
+static const PanelEncoder panel_encoder[8] =
+{
+  {5, 2, 5}, // 0 U4
+  {3, 3, 4}, // 1 U3
+  {2, 4, 1}, // 2 U2
+  {1, 5, 0}, // 3 U1
+  {4, 7, 2}, // 4 U5
+  {0, 6, 3}, // 5 U6
+  {6, 1, 7}, // 6 U7
+  {7, 0, 6}, // 7 U8
+};
+
 // The four M3 slots, in artwork space like PANEL_ART_* above - they are
 // outside the board, so board coordinates cannot express them.
 static const PanelPoint panel_mount_pos[4] =

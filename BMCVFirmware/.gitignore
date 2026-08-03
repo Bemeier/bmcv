@@ -6,6 +6,7 @@ build
 .cache
 toolchain.cmake
 local.cmake
+local.just
 build.ninja
 CMakeLists.txt.user
 CMakeCache.txt

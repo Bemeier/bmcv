@@ -56,9 +56,7 @@ static void sim_boot(BmcvSim* s)
 
   bmcv_instance_init(&s->m, &s->io, 0);
 
-  // Start at the bottom of slider travel rather than 0, which is below
-  // SLIDER_MIN_VALUE and would clamp anyway.
-  s->sample.slider_raw = SLIDER_MIN_VALUE;
+  sim_input_slider(&s->sample, 0.0f);
 }
 
 BmcvSim* bmcv_sim_create(void)
@@ -109,24 +107,14 @@ void bmcv_sim_set_slider01(BmcvSim* s, float pos01)
 {
   if (!s)
     return;
-  if (pos01 < 0.0f)
-    pos01 = 0.0f;
-  if (pos01 > 1.0f)
-    pos01 = 1.0f;
-  s->sample.slider_raw = (uint16_t) (SLIDER_MIN_VALUE + pos01 * (float) (SLIDER_MAX_VALUE - SLIDER_MIN_VALUE) + 0.5f);
+  sim_input_slider(&s->sample, pos01);
 }
 
 void bmcv_sim_set_cv(BmcvSim* s, int32_t input, float volts)
 {
   if (!s || input < 0 || input >= N_INPUTS)
     return;
-
-  // The API speaks in jacks; InputSample speaks in converter channels.
-  uint8_t ch  = s->m.hw_setup->input_adc_idx[input];
-  int16_t raw = sim_volts_to_adc(volts);
-
-  s->sample.cv_raw[ch] = raw;
-  sim_trig_sample(&s->trig, ch, raw);
+  sim_input_cv(&s->sample, &s->trig, s->m.hw_setup, (uint8_t) input, volts);
 }
 
 void bmcv_sim_fire_gate(BmcvSim* s, int32_t input)
@@ -199,10 +187,7 @@ void bmcv_sim_run(BmcvSim* s, int32_t dt_us, int32_t n_ticks)
   {
     // Gate edges are consumed once per tick, whatever rate the host sampled
     // CV at, so a pulse between ticks still lands.
-    for (uint8_t ch = 0; ch < N_INPUTS; ch++)
-    {
-      s->sample.cv_trig[ch] = sim_trig_take(&s->trig, ch);
-    }
+    sim_input_take_trigs(&s->sample, &s->trig);
 
     s->now_us += dt_us;
     bmcv_instance_tick(&s->m, &s->sample, s->now_us);

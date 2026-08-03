@@ -706,6 +706,23 @@ def render_header(spec):
     rows = [f'  "{button_legends(b)[1]}", // {b["index"]:2d} {b["designator"]}' for b in spec["buttons"]]
     lines.append(arr(f'char* const panel_button_mode[{len(spec["buttons"])}] =', rows))
 
+    lines.append("// What sits behind each button, so a host does not have to walk the")
+    lines.append("// HwSetup index tables to find out. -1 where there is no LED.")
+    lines.append("typedef enum { PANEL_BTN_ENCODER_PUSH, PANEL_BTN_RGB_SWITCH, PANEL_BTN_TACTILE } PanelButtonKind;")
+    lines.append("")
+    kinds = {"encoder_push": "PANEL_BTN_ENCODER_PUSH", "rgb_switch": "PANEL_BTN_RGB_SWITCH", "tactile": "PANEL_BTN_TACTILE"}
+    rows = [f'  {kinds[b["kind"]]}, // {b["index"]:2d} {b["designator"]}' for b in spec["buttons"]]
+    lines.append(arr(f'PanelButtonKind panel_button_kind[{len(spec["buttons"])}] =', rows))
+    rows = [f'  {b["led"] if b["led"] is not None else -1}, // {b["index"]:2d} {b["designator"]}' for b in spec["buttons"]]
+    lines.append(arr(f'int8_t panel_button_led[{len(spec["buttons"])}] =', rows))
+
+    lines.append("// Each encoder's other two halves: the button under the same finger and")
+    lines.append("// the WS2811 behind it, plus the channel it drives.")
+    rows = [f'  {{{e["push_button"]}, {e["led"]}, {e["channel"]}}}, // {e["index"]} {e["designator"]}' for e in encs]
+    lines.append("typedef struct { int8_t push_button, led, channel; } PanelEncoder;")
+    lines.append("")
+    lines.append(arr(f'PanelEncoder panel_encoder[{len(encs)}] =', rows))
+
     lines.append("// The four M3 slots, in artwork space like PANEL_ART_* above - they are")
     lines.append("// outside the board, so board coordinates cannot express them.")
     slots = spec["mounting_slots"]["positions"]

@@ -127,6 +127,32 @@ const scope = f32(F.scope(sim), 8 * 4096);
 check(head > 0, 'scope head advanced');
 check(scope.slice(0, 4096).some(v => v !== 0), 'scope captured channel 0');
 
+/* ---- the LED curve is one curve ----------------------------------------- */
+
+// web/leds.js and sim/include/led_color.h turn framebuffer bytes into a colour
+// the same way, so that the browser and the VCV Rack module show the same
+// module. Nothing links them, so this reads the C constants out of the header
+// and compares. Two frontends that disagree about brightness is the kind of
+// difference nobody notices until they are side by side.
+{
+  const header = readFileSync(join(here, '..', 'sim', 'include', 'led_color.h'), 'utf8');
+  const define = name => {
+    const m = header.match(new RegExp(`^#define ${name}\\s+(\\S+)`, 'm'));
+    return m ? m[1] : null;
+  };
+  const js = readFileSync(join(here, 'leds.js'), 'utf8');
+  const jsConst = name => {
+    const m = js.match(new RegExp(`^const ${name} = ([0-9.]+)`, 'm'));
+    return m ? m[1] : null;
+  };
+
+  // The header says VAL_MED rather than a number, which is the point - it is
+  // the renderer's own brightness cap, not a value picked for the screen.
+  check(define('LED_FULL_VALUE') === 'VAL_MED', 'led_color.h caps at VAL_MED');
+  check(jsConst('LED_FULL') === '32', 'web/leds.js agrees (VAL_MED is 32)');
+  check(define('LED_GAMMA') === `${jsConst('LED_GAMMA')}f`, 'both use the same gamma');
+}
+
 /* ---- a hold latches a shift mode ---------------------------------------- */
 
 const qnt = spec.buttons.find(b => b.roles.ctrl_name === 'QNT');

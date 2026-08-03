@@ -1,12 +1,8 @@
 # The repo root's .clangd forces -std=c2x, which is right for the firmware and
-# an error for the C++ here. Rack's own headers are outside the repo and their
-# location is per-machine, so add yours to the Add: list below if you want
-# rack.hpp to resolve - e.g. -I/home/you/Rack-SDK/include.
+# an error for the C++ here.
+#
+# Everything else - the Rack SDK's include paths above all - comes from
+# vcv/compile_commands.json, which `just vcv-compdb` generates and .gitignore
+# excludes. Those paths are per-machine and do not belong in a tracked file.
 CompileFlags:
   Remove: [-std=c2x]
-  Add:
-    - -xc++
-    - -std=c++11
-    - -I../Core/Inc/Lib
-    - -I../sim/include
-    - -I../panel

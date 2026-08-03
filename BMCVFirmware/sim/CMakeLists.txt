@@ -27,9 +27,6 @@ add_library(bmcv_sim STATIC
   src/bmcv_sim.c
   src/sim_rt.c
   src/slot_store.c
-  # Nothing in the core calls a driver any more - the DAC write moved into
-  # bmcv.c - so this is here only to satisfy anything that creeps back in.
-  ${BMCV_ROOT}/tests/fakes/fake_drivers.c
 )
 target_include_directories(bmcv_sim PUBLIC ${BMCV_LIB_INC} ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(bmcv_sim PUBLIC m)

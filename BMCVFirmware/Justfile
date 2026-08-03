@@ -1,3 +1,11 @@
+# Anything machine-specific goes in local.just, which is not checked in - the
+# same arrangement CMakeLists.txt has with local.cmake. Override a variable
+# there rather than editing this file:
+#
+#   RACK_SDK := "/opt/Rack-SDK"
+#   RACK_WIN_DIR := "/mnt/c/Users/someone/AppData/Local/Rack2"
+import? 'local.just'
+
 configure:
   rm -Rf build && cmake -B build -G Ninja
 
@@ -84,7 +92,9 @@ web-check: wasm
 # VCV Rack plugin. Same core as the firmware, compiled straight out of
 # Core/Src/Lib - see vcv/Makefile.
 RACK_SDK := env_var_or_default("RACK_DIR", env_var("HOME") / "Rack-SDK")
-RACK_SDK_VERSION := "2.6.6"
+# The SDK to fetch. A plugin built against 2.x loads in any later 2.x, so this
+# only needs raising to reach a new API.
+RACK_SDK_VERSION := env_var_or_default("RACK_SDK_VERSION", "2.6.6")
 RACK_PLUGIN_DIR := env_var_or_default("XDG_DATA_HOME", env_var("HOME") / ".local/share") / "Rack2/plugins-lin-x64"
 
 vcv-sdk:
@@ -99,6 +109,12 @@ vcv:
 
 vcv-clean:
 	RACK_DIR="{{RACK_SDK}}" make -C vcv clean
+
+# clangd needs the Rack SDK's include paths, which live outside the repo and
+# differ per machine. Asking make for them keeps them out of a checked-in file
+# - vcv/compile_commands.json is generated and ignored, like the CMake ones.
+vcv-compdb:
+	RACK_DIR="{{RACK_SDK}}" python3 tools/gen_compdb.py --dir vcv --out vcv/compile_commands.json
 
 # Unpacked into Rack's plugin directory rather than through `make install`,
 # which builds a zstd-compressed .vcvplugin for distribution. Rack loads either.
@@ -130,13 +146,18 @@ vcv-win:
 vcv-win-clean:
 	RACK_DIR="{{RACK_SDK_WIN}}" make -C vcv clean
 
-# Straight into the Windows-side Rack over /mnt/c. Set RACK_WIN_DIR if you have
-# more than one Windows user with Rack installed. Restart Rack afterwards - it
-# only scans for plugins at startup.
+# Straight into the Windows-side Rack over /mnt/c, which is the point of the
+# cross build: Rack runs on Windows, the checkout lives in WSL. The default
+# guesses the one Windows user that has Rack installed; set RACK_WIN_DIR in
+# local.just if that guess is wrong. Restart Rack afterwards - it only scans
+# for plugins at startup.
+RACK_WIN_DIR := env_var_or_default("RACK_WIN_DIR", "")
+
 vcv-win-install: vcv-win
 	bash -c 'set -e; \
-	  r="${RACK_WIN_DIR:-$(echo /mnt/c/Users/*/AppData/Local/Rack2 | cut -d" " -f1)}"; \
-	  [ -d "$r" ] || { echo "no Windows Rack2 directory found; set RACK_WIN_DIR" >&2; exit 1; }; \
+	  r="{{RACK_WIN_DIR}}"; \
+	  [ -n "$r" ] || r=$(echo /mnt/c/Users/*/AppData/Local/Rack2 | cut -d" " -f1); \
+	  [ -d "$r" ] || { echo "no Windows Rack2 directory found; set RACK_WIN_DIR in local.just" >&2; exit 1; }; \
 	  d="$r/plugins-win-x64/BMCV"; mkdir -p "$d"; \
 	  cp vcv/plugin.dll "$d/" 2>/dev/null || { \
 	    echo "could not replace $d/plugin.dll." >&2; \
@@ -144,6 +165,26 @@ vcv-win-install: vcv-win
 	    exit 1; }; \
 	  cp vcv/plugin.json "$d/" && cp -r vcv/res "$d/" && \
 	  echo "installed to $d"'
+
+# The screenshots in docs/. Needs a Chrome or Chromium; under WSL that is the
+# Windows one, so put its path in local.just:
+#   CHROME := "/mnt/c/Program Files/Google/Chrome/Application/chrome.exe"
+CHROME := env_var_or_default("CHROME", "chromium")
+
+docs-shots PORT="8123": wasm
+	bash -c 'set -e; \
+	  python3 -m http.server {{PORT}} --directory web >/dev/null 2>&1 & \
+	  srv=$!; trap "kill $srv" EXIT; sleep 2; \
+	  mkdir -p docs/images; \
+	  tmp=$(mktemp -d); \
+	  "{{CHROME}}" --headless --disable-gpu --hide-scrollbars \
+	    --window-size=1500,1000 --virtual-time-budget=6000 \
+	    --screenshot="$(command -v wslpath >/dev/null && wslpath -w "$tmp/shot.png" || echo "$tmp/shot.png")" \
+	    "http://localhost:{{PORT}}/" >/dev/null 2>&1; \
+	  cp "$tmp/shot.png" docs/images/web-overview.png; \
+	  rm -rf "$tmp"'
+	ffmpeg -loglevel error -i docs/images/web-overview.png -vf "crop=364:560:22:76" -y docs/images/web-panel.png
+	@echo "wrote docs/images/web-overview.png, docs/images/web-panel.png"
 
 # Everything that can be checked without hardware or a browser.
 check: test flows wasm-check web-check
