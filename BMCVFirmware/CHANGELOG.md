@@ -1,5 +1,100 @@
 # Changelog
 
+## A VCV Rack module, running the firmware
+
+### Added
+
+- **`vcv/` — BMCV as a Rack 2 plugin.** The core is compiled straight out of
+  `Core/Src/Lib` from the same list the ARM build, `tests/` and `sim/` use, so
+  there is no copy to drift. The module allocates one `BmcvInstance`, samples
+  Rack's ports into an `InputSample` every audio frame, ticks the engine on a
+  divider at 4kHz and reads `channels_gated_level[]` and `leds[]` back out.
+  There is no DSP in the plugin and there must never be any. `just vcv-sdk`,
+  `just vcv`, `just vcv-install`.
+- **A Windows build, cross-compiled with MinGW-w64** (`just vcv-win-sdk`,
+  `just vcv-win-install`), because Rack running on Windows against a checkout
+  in WSL cannot load a `.so`. It links libgcc statically as well as libstdc++ -
+  Rack's own `plugin.mk` does only the latter, which leaves the DLL importing
+  a MinGW runtime file that exists on the build machine and nowhere else.
+- **The panel is the real artwork, and the parts are Rack's own.** `just panel`
+  emits `vcv/res/BMCV.png` and `vcv/res/BMCV.svg`. Rack derives module width
+  from the panel SVG and only lands on the rail grid at a whole number of HP,
+  so that one is 81.28mm rather than the 81.0mm the artwork was exported for -
+  the 0.28mm gets its own width and offset instead of moving everything else,
+  and the image is placed by its board origin so every cutout still lands on
+  the control that sits in it. Rack's SVG renderer cannot embed a raster, so
+  the SVG is a plain rectangle of the artwork's background colour and the
+  plugin draws the image over it - which also means a missing artwork file
+  degrades to a blank panel rather than a black one.
+
+  Jacks are `PJ301M`, the lit switches are `VCVLightBezel` with an RGB light
+  filling the cap, the three centre tactiles are `TL1105` and the corners have
+  Rack's screws: every one of those is both the native part and a fair match
+  for what is on the board, and drawing our own versions of them would only
+  look like a module that could not be bothered. What is left is what Rack has
+  no part for - an endless encoder and a horizontal fader - and those follow
+  web/panel.js down to the palette, so the two frontends are one module rather
+  than two designs of it.
+
+  `panel_layout.h` gained `PANEL_VCV_*`, `PANEL_ART_*`, the mounting slots and
+  the legend tables the widgets and tooltips read.
+- **`sim/src/slot_store.c`** — the eight preset slots in memory, factored out
+  of `bmcv_sim.c` and now shared with the Rack plugin. Saving a patch writes the
+  live config into the autosave slot first, so a reopened patch comes back where
+  it was left rather than up to two seconds behind.
+- **`sim_tickdiv_reconfig()`** — change the host's sample rate without moving
+  the engine's clock. Elapsed time is an unsigned difference, so a timestamp
+  that steps back one second is a 71 minute step forward, and every oscillator
+  phase and the clock's tempo estimate go with it.
+
+### Fixed
+
+- **HUE_YELLOW was chartreuse.** `led_set_hsv()` divides the wheel into six
+  regions of 43, so a hue is pure at a multiple of 43 and a blend in between.
+  65 sat two thirds of the way from yellow to green and came out
+  `(0.48, 1.00, 0.00)` - and it was only 15 from `HUE_GREEN`, so SHP and AMP
+  were nearly the same colour. 43 is yellow. This is the hardware's colour too,
+  not only the simulators'.
+- **A lit LED washed out to white in Rack.** Rack composites its light layer
+  *additively*, which is right over the dark panels its own modules wear and
+  wrong over this one: adding a 30%-bright red to a light grey panel gives
+  white-pink. The colour now goes down in the base layer, alpha-blended at the
+  level `led_color_of()` computed and at web/leds.js's own opacities, so the
+  two frontends agree; the light layer carries only the bloom around the part.
+  An unlinked module - the module browser's preview - draws dark rather than at
+  Rack's default full brightness, because twenty-one lights at once is not what
+  a BMCV at rest looks like.
+- **A fresh Rack module came up on heap noise.** `SlotStore` is a plain member
+  of a `Module`, and a `Module` is allocated with `new`, so `occupied[]` held
+  whatever was in that memory: every slot reported itself full,
+  `bmcv_instance_init()` "loaded" the autosave slot, and the module booted with
+  a -23131 offset, both scenes set to the same one and encoders that moved
+  nothing. `slot_store_init()` clears the store rather than trusting its caller
+  to have zeroed it - the simulator calloc'd its way past this and never saw it.
+- **`config_defaults()` now zeroes the config it fills.** It only ever set the
+  handful of fields that are not zero, which was invisible because every caller
+  in the firmware passed a zeroed struct - `bmcv_instance_init()` memsets the
+  instance. The first host to build one on the stack got a module with a
+  -30639 offset and a 0.004Hz oscillator.
+
+### Changed
+
+- **A shift mode takes 350ms to latch, not 150ms.** `UI_T_HOLD`'s only consumer
+  is shift-mode entry, and 150ms was short enough to latch a mode when a
+  parameter tap was meant. It also widens the tap window by the same amount,
+  which *shrinks* the gap between a tap and the `UI_T_LONG` actions rather than
+  opening a new one. The tests and flows that hold a button now say
+  `UI_T_HOLD + …` instead of a number that happened to clear it.
+- The three centre tactiles are drawn at the size of the part. SW14-16 are 7mm
+  against 6mm for the lit switches, and a `TL1105` at its native 5.2mm made the
+  bigger switch on the board the smaller one on the panel.
+- The scroll wheel turns an encoder over its centre cap as well as its ring.
+  The cap is a good half of the knob and a wheel that did nothing there read as
+  a dead spot - web/panel.js binds both for the same reason.
+- `hw_setup.h` uses `static_assert` and `helpers.h` spells out one `void*`
+  cast, so the firmware's headers can be read from C++. Both are C23 already;
+  neither changes what the firmware compiles to.
+
 ## Clearing looks like clearing
 
 ### Changed

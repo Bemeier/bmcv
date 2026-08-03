@@ -187,7 +187,8 @@ TEST_CASE(two_instances_do_not_share_input_or_ui_state)
   sa.encoder_pos[0]   = 17;
 
   // Long enough for the QNT hold to cross UI_T_HOLD and latch the mode.
-  for (uint32_t i = 1; i <= 200; i++)
+  // Against the constant, not a number that happened to clear it once.
+  for (uint32_t i = 1; i <= UI_T_HOLD / MS(1) + 50; i++)
   {
     tick(&a, &sa, MS(i));
     tick(&b, &sb, MS(i));
@@ -241,7 +242,7 @@ TEST_CASE(two_instances_do_not_share_the_led_framebuffer)
 
   sa.button_down[a.ux_setup->ctrl_buttons[SHIFT_STATE_QNT].button] = 1;
 
-  for (uint32_t i = 1; i <= 200; i++)
+  for (uint32_t i = 1; i <= UI_T_HOLD / MS(1) + 50; i++)
   {
     tick(&a, &sa, MS(i));
     tick(&b, &sb, MS(i));

@@ -2,6 +2,7 @@
 #include "helpers.h"
 #include "hw_setup.h"
 #include "stepped_random_table.h" // SR_LENGTH_COUNT
+#include <string.h>
 
 // -1 is the established "unassigned" sentinel for routing fields, and the
 // consumers in channel.c already guard on >= 0. So anything out of range
@@ -14,6 +15,14 @@ static inline int8_t valid_source_or_unassigned(int8_t value, int8_t count) { re
 // testable on its own.
 void config_defaults(EngineConfig* cfg)
 {
+  // Zeroed first, so this really does produce a whole default config rather
+  // than the handful of non-zero fields below on top of whatever was there.
+  // Every caller in the firmware happened to pass a zeroed struct already -
+  // bmcv_instance_init() memsets the instance - which made the difference
+  // invisible until a host built one on the stack and got a module with a
+  // -30639 offset.
+  memset(cfg, 0, sizeof(*cfg));
+
   cfg->input_mode[0] = INPUT_CLOCK;
   cfg->input_mode[1] = INPUT_RESET;
   cfg->input_mode[2] = INPUT_DEFAULT;

@@ -140,6 +140,36 @@ TEST_CASE(no_drift_over_ten_minutes_at_48k)
   CHECK(d.now_us == 600000000u); // exact at this rate
 }
 
+// A host that switches sample rate mid-patch must not hand the engine a
+// timestamp that goes backwards. dt is an unsigned difference, so one second
+// backwards reads as 71 minutes forwards, and every phase goes with it.
+TEST_CASE(changing_sample_rate_does_not_move_the_clock_backwards)
+{
+  SimTickDiv d;
+  sim_tickdiv_config(&d, 48000.0f, 4000.0f);
+
+  for (int i = 0; i < 48000 * 3; i++) // three seconds at 48k
+  {
+    sim_tickdiv_step(&d);
+  }
+  uint32_t before = d.now_us;
+  CHECK(before == 3000000u);
+
+  sim_tickdiv_reconfig(&d, 44100.0f, 4000.0f);
+  CHECK(d.now_us == before);
+  CHECK(d.divider == 11); // and it really did reconfigure
+
+  // The next tick steps forward by one control period, not by 71 minutes.
+  uint32_t total = 0;
+  for (int i = 0; i < 11; i++)
+  {
+    if (sim_tickdiv_step(&d))
+      total = d.dt_us;
+  }
+  CHECK(d.now_us > before);
+  CHECK(total > 240 && total < 260);
+}
+
 /* ---- gate latching ------------------------------------------------------ */
 
 TEST_CASE(a_gate_shorter_than_a_tick_is_still_seen)
@@ -266,6 +296,7 @@ int main(void)
   RUN_TEST(dt_us_sums_to_now_us);
   RUN_TEST(no_drift_over_ten_minutes_at_44k1);
   RUN_TEST(no_drift_over_ten_minutes_at_48k);
+  RUN_TEST(changing_sample_rate_does_not_move_the_clock_backwards);
   RUN_TEST(a_gate_shorter_than_a_tick_is_still_seen);
   RUN_TEST(a_held_gate_triggers_once);
   RUN_TEST(hysteresis_rejects_a_noisy_gate);

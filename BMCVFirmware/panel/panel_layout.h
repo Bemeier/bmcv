@@ -12,6 +12,21 @@ typedef struct { float x, y; } PanelPoint;
 #define PANEL_BOARD_H_MM 108.0f
 #define PANEL_HP 16
 
+// The VCV Rack panel: a whole number of HP wide, so the module lands on
+// the rail grid. Add the offset to any position above to get panel space.
+#define PANEL_VCV_W_MM 81.28f
+#define PANEL_VCV_H_MM 128.5f
+#define PANEL_VCV_OFF_X_MM 0.64f
+#define PANEL_VCV_OFF_Y_MM 10.25f
+
+// The exported panel artwork covers the whole panel it was drawn for, not
+// just the board, so laying it over a panel of a different width means
+// placing it by its own board origin rather than by its corner.
+#define PANEL_ART_W_MM 81.0f
+#define PANEL_ART_H_MM 128.5f
+#define PANEL_ART_OFF_X_MM 0.5f
+#define PANEL_ART_OFF_Y_MM 10.25f
+
 static const PanelPoint panel_button_pos[24] =
 {
   {25.500f, 56.000f}, //  0 U6
@@ -99,5 +114,106 @@ static const PanelPoint panel_input_pos[4] =
 
 static const PanelPoint panel_slider_pos = {40.000f, 80.000f};
 #define PANEL_SLIDER_TRAVEL_MM 49.0f
+
+// What each button does, for a host's tooltips. Same text the web
+// frontend puts in its hover hint, from the same roles.
+static const char* const panel_button_label[24] =
+{
+  "U6 - ch3 push", //  0
+  "U1 - ch0 push", //  1
+  "U2 - ch1 push", //  2
+  "U3 - ch4 push", //  3
+  "U5 - ch2 push", //  4
+  "U4 - ch5 push", //  5
+  "U7 - ch7 push", //  6
+  "U8 - ch6 push", //  7
+  "SW2 - SHP / SYS / D#", //  8
+  "SW8 - scene 1 / D", //  9
+  "SW1 - FRQ / STA / C#", // 10
+  "SW7 - scene 0 / C", // 11
+  "SW3 - MOD / QNT", // 12
+  "SW9 - scene 2 / E", // 13
+  "SW10 - scene 3 / F", // 14
+  "SW4 - PHS / MON / F#", // 15
+  "SW5 - AMP / SAV / G#", // 16
+  "SW6 - OFS / STB / A#", // 17
+  "SW11 - scene 4 / G", // 18
+  "SW12 - scene 5 / A", // 19
+  "SW13 - scene 6 / B", // 20
+  "SW14 - CLR", // 21
+  "SW15 - CPY", // 22
+  "SW16 - MUT", // 23
+};
+
+// The legends printed beside a switch: the parameter it selects above it,
+// the shift mode it latches below. A host that lights the cap draws these
+// itself rather than taking them from its panel image, so that they follow
+// hw_setup.c if a button is ever reassigned. Empty where there is no such
+// role - scene buttons carry neither.
+static const char* const panel_button_param[24] =
+{
+  "", //  0 U6
+  "", //  1 U1
+  "", //  2 U2
+  "", //  3 U3
+  "", //  4 U5
+  "", //  5 U4
+  "", //  6 U7
+  "", //  7 U8
+  "SHP", //  8 SW2
+  "", //  9 SW8
+  "FRQ", // 10 SW1
+  "", // 11 SW7
+  "MOD", // 12 SW3
+  "", // 13 SW9
+  "", // 14 SW10
+  "PHS", // 15 SW4
+  "AMP", // 16 SW5
+  "OFS", // 17 SW6
+  "", // 18 SW11
+  "", // 19 SW12
+  "", // 20 SW13
+  "", // 21 SW14
+  "", // 22 SW15
+  "", // 23 SW16
+};
+
+static const char* const panel_button_mode[24] =
+{
+  "", //  0 U6
+  "", //  1 U1
+  "", //  2 U2
+  "", //  3 U3
+  "", //  4 U5
+  "", //  5 U4
+  "", //  6 U7
+  "", //  7 U8
+  "SYS", //  8 SW2
+  "", //  9 SW8
+  "STA", // 10 SW1
+  "", // 11 SW7
+  "QNT", // 12 SW3
+  "", // 13 SW9
+  "", // 14 SW10
+  "MON", // 15 SW4
+  "SAV", // 16 SW5
+  "STB", // 17 SW6
+  "", // 18 SW11
+  "", // 19 SW12
+  "", // 20 SW13
+  "CLR", // 21 SW14
+  "CPY", // 22 SW15
+  "MUT", // 23 SW16
+};
+
+// The four M3 slots, in artwork space like PANEL_ART_* above - they are
+// outside the board, so board coordinates cannot express them.
+static const PanelPoint panel_mount_pos[4] =
+{
+  {7.450f, 2.960f},
+  {73.470f, 2.960f},
+  {7.450f, 125.450f},
+  {73.470f, 125.450f},
+};
 
 #endif /* BMCV_PANEL_LAYOUT_H_ */

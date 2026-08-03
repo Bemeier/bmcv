@@ -36,3 +36,13 @@ __pycache__
 # a recipe that every consumer already runs first.
 web/bmcv.js
 web/bmcv.wasm
+
+# `just vcv` output. The plugin's own Makefile has to be exempted from the
+# blanket `Makefile` rule above, which is there for in-source CMake builds.
+!vcv/Makefile
+vcv/plugin.so
+vcv/plugin.dll
+vcv/dist/
+# A Rack SDK or a Rack install unpacked here for convenience. `just vcv-sdk`
+# puts one outside the repo; this is for anyone who keeps theirs alongside.
+vcv/rack/

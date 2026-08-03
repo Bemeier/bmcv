@@ -21,6 +21,38 @@
 - [x] UX: A shift mode's channel LEDs show that mode's setting, never the output
 - [ ] UX: Tune UI_EDIT_DISPLAY / UI_FB_DURATION / MARK_BLINK_ON / UI_HELD_DIP on hardware
 
+## Left over from the virtual BMCV
+
+The simulator, the web frontend and the VCV Rack module all run this repo's
+core. Three things in `panel/overrides.json` are still inferred rather than
+measured, and one thing is only cosmetic but is the first thing anyone judges:
+
+- [ ] Confirm the input jack -> ADC index order on hardware: patch DC into one
+      jack at a time and watch `HwState.input_state[]`. Static analysis cannot
+      settle the `ADDR` phase; the panel's reading order picked between the two.
+- [ ] Measure the RV13 wiper stroke. `travel_mm` is 49.0, inferred from the slot
+      drawn in `web/bmcv_panel.png` rather than from the part.
+- [ ] LED gamma. `led_fb.c` drives real WS2812s and both frontends approximate
+      them with `LED_FULL_VALUE`/`LED_GAMMA` (`sim/include/led_color.h`, mirrored
+      in `web/leds.js`). Neither has been held next to a real module.
+- [ ] Read `dac_fps`/`engine_fps` off hardware and set the hosts' control rate
+      to what the board really achieves. 4kHz is an estimate.
+
+## Building
+
+    just build            # ARM firmware        just flash
+    just check            # everything host-side: tests, golden flows, wasm, web
+    just web              # the browser simulator
+    just vcv-sdk          # fetch the Rack SDK, once
+    just vcv-install      # build the Rack plugin into ~/.local/share/Rack2
+
+    # Rack running on Windows while you build in WSL. Needs the cross-compiler
+    # once: sudo apt install gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64
+    just vcv-win-sdk      # fetch the Windows Rack SDK, once
+    just vcv-win-install  # cross-build plugin.dll into %LOCALAPPDATA%\Rack2
+
+    just panel            # regenerate the panel spec from the hardware repo
+
 # LED language
 
 One fact per LED, and the same colour for the same idea on every page.

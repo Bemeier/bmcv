@@ -14,6 +14,7 @@
 #include "testkit.h"
 #include "ux_setup.h"
 #include <math.h>
+#include <string.h>
 
 #define TOL_MM 1.0f
 
@@ -162,8 +163,100 @@ TEST_CASE(everything_is_on_the_board)
   CHECK(panel_slider_pos.y >= 0.0f && panel_slider_pos.y <= PANEL_BOARD_H_MM);
 }
 
+// Rack sizes a module from its panel SVG and only lands it on the rail grid
+// at a whole number of HP. The board is 80mm and 16HP is 81.28, so the VCV
+// panel is deliberately 0.28mm wider than the artwork the module is milled to
+// and everything on it shifts by half of that.
+#define HP_MM 5.08f
+
+TEST_CASE(the_vcv_panel_is_a_whole_number_of_hp)
+{
+  CHECK(fabsf(PANEL_VCV_W_MM - PANEL_HP * HP_MM) < 0.001f);
+  // Every Eurorack panel is this tall. Rack rejects anything else.
+  CHECK(fabsf(PANEL_VCV_H_MM - 128.5f) < 0.001f);
+}
+
+TEST_CASE(the_board_is_centred_in_the_vcv_panel)
+{
+  CHECK(fabsf(PANEL_VCV_OFF_X_MM * 2.0f - (PANEL_VCV_W_MM - PANEL_BOARD_W_MM)) < 0.001f);
+  CHECK(fabsf(PANEL_VCV_OFF_Y_MM * 2.0f - (PANEL_VCV_H_MM - PANEL_BOARD_H_MM)) < 0.001f);
+}
+
+// Same check as everything_is_on_the_board, in the coordinates the Rack widget
+// actually places things at. The margin is what a control needs around it: the
+// largest is the encoder, 12mm across.
+TEST_CASE(everything_fits_inside_the_vcv_panel)
+{
+  const float margin              = 6.0f;
+  const PanelPoint* groups[]      = {panel_button_pos, panel_led_pos, panel_encoder_pos, panel_output_pos, panel_input_pos};
+  const uint8_t counts[]          = {N_BUTTONS, LED_COUNT, N_ENCODERS, N_CHANNELS, N_INPUTS};
+
+  for (uint8_t g = 0; g < 5; g++)
+  {
+    for (uint8_t i = 0; i < counts[g]; i++)
+    {
+      float x = groups[g][i].x + PANEL_VCV_OFF_X_MM;
+      float y = groups[g][i].y + PANEL_VCV_OFF_Y_MM;
+      CHECK(x - margin >= 0.0f && x + margin <= PANEL_VCV_W_MM);
+      CHECK(y - margin >= 0.0f && y + margin <= PANEL_VCV_H_MM);
+    }
+  }
+
+  // The crossfader is the one control wider than the margin above.
+  float sx = panel_slider_pos.x + PANEL_VCV_OFF_X_MM;
+  float sy = panel_slider_pos.y + PANEL_VCV_OFF_Y_MM;
+  CHECK(sx - PANEL_SLIDER_TRAVEL_MM / 2.0f >= 0.0f);
+  CHECK(sx + PANEL_SLIDER_TRAVEL_MM / 2.0f <= PANEL_VCV_W_MM);
+  CHECK(sy >= 0.0f && sy <= PANEL_VCV_H_MM);
+}
+
+// The tooltip text a host shows. Generated from the same roles the web
+// frontend's hover hint uses, so an empty one means a button fell out of every
+// index table.
+TEST_CASE(every_button_has_a_label)
+{
+  for (uint8_t b = 0; b < N_BUTTONS; b++)
+  {
+    CHECK(panel_button_label[b] != NULL);
+    CHECK(panel_button_label[b][0] != '\0');
+    // "SW1 - ..." : a designator, then what it does. A label that is only a
+    // designator means no role was found for it.
+    CHECK(strchr(panel_button_label[b], '-') != NULL);
+  }
+}
+
+// The legends a host prints beside a switch. Six parameters and nine shift
+// modes is what hw_setup.c declares, so a table that has drifted - or a
+// role that stopped resolving - shows up as a different count here.
+TEST_CASE(the_panel_legends_match_the_ctrl_tables)
+{
+  uint8_t params = 0, modes = 0;
+  for (uint8_t b = 0; b < N_BUTTONS; b++)
+  {
+    if (panel_button_param[b][0])
+      params++;
+    if (panel_button_mode[b][0])
+      modes++;
+  }
+  CHECK(params == 6); // FRQ SHP MOD PHS AMP OFS
+  CHECK(modes == N_CTRL_BUTTONS);
+
+  // Every button with a parameter legend must also have a mode legend: the
+  // parameter selector is the first six of the same nine ctrl buttons.
+  for (uint8_t b = 0; b < N_BUTTONS; b++)
+  {
+    if (panel_button_param[b][0])
+      CHECK(panel_button_mode[b][0] != '\0');
+  }
+}
+
 int main(void)
 {
+  RUN_TEST(the_panel_legends_match_the_ctrl_tables);
+  RUN_TEST(the_vcv_panel_is_a_whole_number_of_hp);
+  RUN_TEST(the_board_is_centred_in_the_vcv_panel);
+  RUN_TEST(everything_fits_inside_the_vcv_panel);
+  RUN_TEST(every_button_has_a_label);
   RUN_TEST(channel_button_led_encoder_are_colocated);
   RUN_TEST(scene_button_and_led_are_colocated);
   RUN_TEST(ctrl_button_and_led_are_colocated);

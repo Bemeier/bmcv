@@ -5,7 +5,12 @@
 
 #define HUE_RED 252
 #define HUE_ORANGE 30
-#define HUE_YELLOW 65
+// 43, not 65. led_set_hsv() splits the wheel into six regions of 43, so a hue
+// is pure at a multiple of 43 and a blend in between: 65 sits two thirds of the
+// way from yellow to green and comes out (0.48, 1.00, 0.00) - chartreuse. It
+// was also only 15 from HUE_GREEN, so the SHP and AMP buttons were nearly the
+// same colour.
+#define HUE_YELLOW 43
 #define HUE_GREEN 80
 #define HUE_CYAN 120
 #define HUE_BLUE 160

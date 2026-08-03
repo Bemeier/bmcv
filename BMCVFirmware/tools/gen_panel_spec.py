@@ -19,6 +19,7 @@ import collections
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 
@@ -273,6 +274,9 @@ SEMITONE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B
 # not parameters.
 PARAM_NAMES = ["FRQ", "SHP", "MOD", "PHS", "AMP", "OFS"]
 
+# One Eurorack horizontal pitch. Only VCV Rack cares - see panel["hp_width_mm"].
+HP_MM = 5.08
+
 
 def nearest(pos, xy, candidates, tol=1.0):
     """The candidate designator co-located with xy. Every WS2811 sits directly
@@ -446,6 +450,18 @@ def build(pcb_board, pos, extents, net, hw_dump, overrides):
         round((panel["height_mm"] - board["height_mm"]) / 2, 3),
     ]
 
+    # A second width for VCV Rack, which derives module width from the panel
+    # SVG and only lands on the rail grid at a whole number of HP. width_mm is
+    # 81.0 to match the drill drawing in web/bmcv_panel.png; 16HP is 81.28.
+    # The 0.28mm is the panel overhang either side of a real module and matters
+    # to nothing but Rack, so it gets its own width and offset rather than
+    # moving everything else off the artwork.
+    panel["hp_width_mm"] = round(panel["hp"] * HP_MM, 3)
+    panel["hp_board_offset_mm"] = [
+        round((panel["hp_width_mm"] - board["width_mm"]) / 2, 3),
+        round((panel["height_mm"] - board["height_mm"]) / 2, 3),
+    ]
+
     # Slider: the axis and body come from the footprint, so only the wiper
     # travel is an assumption.
     slider = dict(overrides["slider"])
@@ -474,6 +490,7 @@ def build(pcb_board, pos, extents, net, hw_dump, overrides):
         "slider": slider,
         "outputs": outputs,
         "inputs": inputs,
+        "mounting_slots": overrides["mounting_slots_mm"],
     }
 
 
@@ -482,12 +499,54 @@ def build(pcb_board, pos, extents, net, hw_dump, overrides):
 # --------------------------------------------------------------------------
 
 
-def render_svg(spec):
+def button_faces(b):
+    """The two lines of text printed on a switch cap: what it does with no
+    shift mode running, and its semitone in the quantizer."""
+    r = b["roles"]
+    top = r.get("ctrl_name") or (f'S{r["scene"]}' if "scene" in r else "")
+    return top, r.get("semitone_name", "")
+
+
+def button_legends(b):
+    """What is printed *beside* a switch on the panel: the parameter it selects
+    above it, the shift mode it latches below.
+
+    Not the same two strings as button_faces(). Scene numbers and semitone
+    names are deliberately absent - a 6mm cap has no room beside it for a
+    second row of legends, and the layout already says which button is which
+    scene. web/panel.js makes the same choice, from the same roles."""
+    r = b["roles"]
+    return r.get("param_name", ""), r.get("ctrl_name", "")
+
+
+# Sampled from web/bmcv_panel.png. The VCV backdrop wears it so that a missing
+# or unloadable artwork file degrades to a blank panel of the right colour
+# rather than to a black rectangle with controls floating on it.
+ART_BG = "#d7d4d3"
+
+
+def render_svg(spec, width_key="width_mm", offset_key="board_offset_mm", live_controls=False):
     """A plain, functional panel: correct geometry, no artwork pass. It exists
-    so the layout can be eyeballed and so the web sim has a base to draw over."""
-    pw = spec["panel"]["width_mm"]
+    so the layout can be eyeballed and so the web sim has a base to draw over.
+
+    The width and the offset that centres the board in it are keys rather than
+    fixed, because VCV Rack needs the same panel 0.28mm wider - see build().
+
+    live_controls says the consumer draws everything itself. VCV Rack does: it
+    lays the real panel artwork over this and then draws live controls on top,
+    the way web/panel.js does, so all this has to carry is the panel rectangle
+    that tells Rack how many HP the module is."""
+    pw = spec["panel"][width_key]
     ph = spec["panel"]["height_mm"]
-    ox, oy = spec["panel"]["board_offset_mm"]
+    ox, oy = spec["panel"][offset_key]
+
+    if live_controls:
+        return (
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="{pw}mm" height="{ph}mm" '
+            f'viewBox="0 0 {pw} {ph}">\n'
+            f'<rect fill="{ART_BG}" x="0" y="0" width="{pw}" height="{ph}"/>\n'
+            "</svg>\n"
+        )
 
     def px(p):
         return p[0] + ox, p[1] + oy
@@ -538,9 +597,7 @@ def render_svg(spec):
         x, y = px(b["pos_mm"])
         if b["kind"] == "rgb_switch":
             out.append(f'<rect class="sw" x="{x - 4.5:.3f}" y="{y - 4.5:.3f}" width="9" height="9" rx="1.4"/>')
-            r = b["roles"]
-            top = r.get("ctrl_name") or (f'S{r["scene"]}' if "scene" in r else "")
-            bot = r.get("semitone_name", "")
+            top, bot = button_faces(b)
             if top:
                 out.append(f'<text class="lbl" x="{x:.3f}" y="{y - 1.4:.3f}">{top}</text>')
             if bot:
@@ -556,6 +613,23 @@ def render_svg(spec):
 # --------------------------------------------------------------------------
 # C header
 # --------------------------------------------------------------------------
+
+
+def button_label(b):
+    """One line saying everything a button does, across every page. The same
+    text web/panel.js puts in its hover hint - one derivation, two frontends."""
+    r, bits = b["roles"], []
+    if "param_name" in r:
+        bits.append(f'{r["param_name"]} / {r["ctrl_name"]}')
+    elif "ctrl_name" in r:
+        bits.append(r["ctrl_name"])
+    if "scene" in r:
+        bits.append(f'scene {r["scene"]}')
+    if "semitone_name" in r:
+        bits.append(r["semitone_name"])
+    if "channel" in r:
+        bits.append(f'ch{r["channel"]} push')
+    return f'{b["designator"]} - {" / ".join(bits) or "button " + str(b["index"])}'
 
 
 def render_header(spec):
@@ -577,6 +651,21 @@ def render_header(spec):
         f'#define PANEL_BOARD_W_MM {spec["board"]["width_mm"]}f',
         f'#define PANEL_BOARD_H_MM {spec["board"]["height_mm"]}f',
         f'#define PANEL_HP {spec["panel"]["hp"]}',
+        "",
+        "// The VCV Rack panel: a whole number of HP wide, so the module lands on",
+        "// the rail grid. Add the offset to any position above to get panel space.",
+        f'#define PANEL_VCV_W_MM {spec["panel"]["hp_width_mm"]}f',
+        f'#define PANEL_VCV_H_MM {spec["panel"]["height_mm"]}f',
+        f'#define PANEL_VCV_OFF_X_MM {spec["panel"]["hp_board_offset_mm"][0]}f',
+        f'#define PANEL_VCV_OFF_Y_MM {spec["panel"]["hp_board_offset_mm"][1]}f',
+        "",
+        "// The exported panel artwork covers the whole panel it was drawn for, not",
+        "// just the board, so laying it over a panel of a different width means",
+        "// placing it by its own board origin rather than by its corner.",
+        f'#define PANEL_ART_W_MM {spec["panel"]["width_mm"]}f',
+        f'#define PANEL_ART_H_MM {spec["panel"]["height_mm"]}f',
+        f'#define PANEL_ART_OFF_X_MM {spec["panel"]["board_offset_mm"][0]}f',
+        f'#define PANEL_ART_OFF_Y_MM {spec["panel"]["board_offset_mm"][1]}f',
         "",
     ]
 
@@ -601,6 +690,28 @@ def render_header(spec):
     lines.append(f'static const PanelPoint panel_slider_pos = {{{s["pos_mm"][0]:.3f}f, {s["pos_mm"][1]:.3f}f}};')
     lines.append(f'#define PANEL_SLIDER_TRAVEL_MM {s["travel_mm"]}f')
     lines.append("")
+
+    lines.append("// What each button does, for a host's tooltips. Same text the web")
+    lines.append("// frontend puts in its hover hint, from the same roles.")
+    rows = [f'  "{button_label(b)}", // {b["index"]:2d}' for b in spec["buttons"]]
+    lines.append(arr(f'char* const panel_button_label[{len(spec["buttons"])}] =', rows))
+
+    lines.append("// The legends printed beside a switch: the parameter it selects above it,")
+    lines.append("// the shift mode it latches below. A host that lights the cap draws these")
+    lines.append("// itself rather than taking them from its panel image, so that they follow")
+    lines.append("// hw_setup.c if a button is ever reassigned. Empty where there is no such")
+    lines.append("// role - scene buttons carry neither.")
+    rows = [f'  "{button_legends(b)[0]}", // {b["index"]:2d} {b["designator"]}' for b in spec["buttons"]]
+    lines.append(arr(f'char* const panel_button_param[{len(spec["buttons"])}] =', rows))
+    rows = [f'  "{button_legends(b)[1]}", // {b["index"]:2d} {b["designator"]}' for b in spec["buttons"]]
+    lines.append(arr(f'char* const panel_button_mode[{len(spec["buttons"])}] =', rows))
+
+    lines.append("// The four M3 slots, in artwork space like PANEL_ART_* above - they are")
+    lines.append("// outside the board, so board coordinates cannot express them.")
+    slots = spec["mounting_slots"]["positions"]
+    rows = [f'  {{{p[0]:.3f}f, {p[1]:.3f}f}},' for p in slots]
+    lines.append(arr(f"PanelPoint panel_mount_pos[{len(slots)}] =", rows))
+
     lines.append("#endif /* BMCV_PANEL_LAYOUT_H_ */")
     return "\n".join(lines) + "\n"
 
@@ -640,13 +751,24 @@ def main():
     out = args.out_dir
     os.makedirs(os.path.join(out, "panel"), exist_ok=True)
     os.makedirs(os.path.join(out, "web"), exist_ok=True)
+    os.makedirs(os.path.join(out, "vcv", "res"), exist_ok=True)
 
-    written = []
+    # The panel artwork is a raster export from the hardware side, not
+    # something derived here. Rack's SVG renderer cannot embed one, so the
+    # plugin draws it directly and needs its own copy next to the panel.
+    art_src = os.path.join(out, "web", "bmcv_panel.png")
+    art_dst = os.path.join(out, "vcv", "res", "BMCV.png")
+    shutil.copyfile(art_src, art_dst)
+
+    written = [os.path.relpath(art_dst, root)]
     for path, data in (
         (os.path.join(out, "panel", "bmcv_panel.json"), json.dumps(spec, indent=2) + "\n"),
         (os.path.join(out, "web", "panel.json"), json.dumps(spec, separators=(",", ":")) + "\n"),
         (os.path.join(out, "panel", "bmcv_panel.svg"), render_svg(spec)),
         (os.path.join(out, "panel", "panel_layout.h"), render_header(spec)),
+        # Same panel, one HP-exact width wider, because Rack sizes the module
+        # from this file.
+        (os.path.join(out, "vcv", "res", "BMCV.svg"), render_svg(spec, "hp_width_mm", "hp_board_offset_mm", live_controls=True)),
     ):
         with open(path, "w") as fh:
             fh.write(data)

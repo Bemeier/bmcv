@@ -28,6 +28,19 @@ void sim_tickdiv_config(SimTickDiv* d, float sample_rate_hz, float control_rate_
     d->dt_q32 = 1;
 }
 
+void sim_tickdiv_reconfig(SimTickDiv* d, float sample_rate_hz, float control_rate_hz)
+{
+  uint64_t us_q32 = d->us_q32;
+  uint32_t now_us = d->now_us;
+
+  sim_tickdiv_config(d, sample_rate_hz, control_rate_hz);
+
+  d->us_q32 = us_q32;
+  d->now_us = now_us;
+  // counter deliberately starts over: the new divider counts whole frames of a
+  // different length, so a partial count from the old one means nothing.
+}
+
 uint8_t sim_tickdiv_step(SimTickDiv* d)
 {
   d->counter++;

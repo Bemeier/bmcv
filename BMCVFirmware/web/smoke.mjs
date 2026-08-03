@@ -131,7 +131,10 @@ check(scope.slice(0, 4096).some(v => v !== 0), 'scope captured channel 0');
 
 const qnt = spec.buttons.find(b => b.roles.ctrl_name === 'QNT');
 F.set_button(sim, qnt.index, 1);
-F.run(sim, 250, 1200); // 300ms, well past UI_T_HOLD
+// 600ms. UI_T_HOLD is not exported, so this is a duration long enough that
+// no plausible value of it fails - 300ms used to say "well past UI_T_HOLD"
+// and stopped being true the moment the threshold moved.
+F.run(sim, 250, 2400);
 check(F.shift_state(sim) === 2, 'holding QNT latches QNT mode');
 F.set_button(sim, qnt.index, 0);
 F.run(sim, 250, 200);

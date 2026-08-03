@@ -29,7 +29,12 @@
 // scattered `released_t > MS(10)` checks were really asking for, so the test
 // belongs here rather than at every call site.
 #define UI_T_DEBOUNCE MS(10)
-#define UI_T_HOLD MS(150)
+// Long enough that a deliberate press is needed to reach it. Its only consumer
+// is shift-mode entry (ctrl_button.c), and 150ms was short enough to latch a
+// mode when you meant to tap a parameter. Raising it also widens the tap
+// window by the same amount, which shrinks the gap between "tap" and the
+// UI_T_LONG actions rather than opening a new one.
+#define UI_T_HOLD MS(350)
 #define UI_T_LONG MS(500)
 #define UI_T_VLONG MS(1000)
 

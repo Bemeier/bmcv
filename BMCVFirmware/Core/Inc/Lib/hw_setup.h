@@ -16,7 +16,10 @@
 // same number and a handful of tables are indexed by either. Channel-indexed
 // arrays should say N_CHANNELS; this keeps the identity from silently breaking
 // if a future board ever has a spare encoder.
-_Static_assert(N_ENCODERS == N_CHANNELS, "one encoder per channel");
+// static_assert rather than _Static_assert because this header is also read by
+// C++ (the VCV Rack plugin), where the underscored spelling does not exist.
+// C23 has both.
+static_assert(N_ENCODERS == N_CHANNELS, "one encoder per channel");
 
 // A channel's sample & hold can be triggered by an input jack or by another
 // channel's output, so src_trig indexes a composite space: the N_INPUTS jacks

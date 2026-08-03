@@ -212,7 +212,9 @@ static inline int16_t quantize_value(int16_t input, uint16_t scale_mask)
 
 static inline uint32_t crc32(const void* data, size_t len)
 {
-  const uint8_t* p = data;
+  // Cast spelled out: implicit from void* is fine in C, but this header is
+  // also read by the C++ side of the VCV Rack plugin.
+  const uint8_t* p = (const uint8_t*) data;
   uint32_t crc     = 0xFFFFFFFF;
 
   while (len--)

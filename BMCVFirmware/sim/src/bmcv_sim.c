@@ -8,6 +8,7 @@
 #include "input_fold.h"
 #include "instance.h"
 #include "presets.h"
+#include "slot_store.h"
 #include "sim_rt.h"
 #include "ui_mode.h"
 #include "ui_state.h"
@@ -24,14 +25,6 @@ _Static_assert(BMCV_SIM_BUTTONS == N_BUTTONS, "button count");
 _Static_assert(BMCV_SIM_ENCODERS == N_ENCODERS, "encoder count");
 _Static_assert(BMCV_SIM_LEDS == LED_COUNT, "led count");
 
-// Preset storage. On the module this is FRAM; here it is just memory the host
-// can serialise. Records keep the same layout, so a blob is interchangeable.
-typedef struct
-{
-  EngineConfig slots[FRAM_CONFIG_SLOTS];
-  uint8_t occupied[FRAM_CONFIG_SLOTS];
-} SimStorage;
-
 struct BmcvSim
 {
   BmcvInstance m;
@@ -39,7 +32,7 @@ struct BmcvSim
   InputSample sample;
   SimTrigLatch trig;
 
-  SimStorage storage;
+  SlotStore storage;
   PresetIo io;
 
   uint32_t now_us;
@@ -53,30 +46,9 @@ struct BmcvSim
   uint32_t scope_head;
 };
 
-static int8_t sim_store(void* user, const EngineConfig* cfg, int8_t slot)
-{
-  SimStorage* st = (SimStorage*) user;
-  if (slot < 0 || slot >= FRAM_CONFIG_SLOTS)
-    return 0;
-  st->slots[slot]    = *cfg;
-  st->occupied[slot] = 1;
-  return 1;
-}
-
-static int8_t sim_load(void* user, EngineConfig* cfg, int8_t slot)
-{
-  SimStorage* st = (SimStorage*) user;
-  if (slot < 0 || slot >= FRAM_CONFIG_SLOTS || !st->occupied[slot])
-    return 0;
-  *cfg = st->slots[slot];
-  return 1;
-}
-
 static void sim_boot(BmcvSim* s)
 {
-  s->io.store = sim_store;
-  s->io.load  = sim_load;
-  s->io.user  = &s->storage;
+  slot_store_init(&s->storage, &s->io);
 
   s->now_us = 0;
   memset(&s->sample, 0, sizeof(s->sample));
@@ -105,7 +77,7 @@ void bmcv_sim_reset(BmcvSim* s, int32_t wipe_storage)
   if (!s)
     return;
   if (wipe_storage)
-    memset(&s->storage, 0, sizeof(s->storage));
+    slot_store_clear(&s->storage);
 
   memset(s->scope, 0, sizeof(s->scope));
   memset(s->input_scope, 0, sizeof(s->input_scope));
@@ -318,14 +290,14 @@ const char* bmcv_sim_shape_mode_name(int32_t mode)
 
 /* ---- persistence -------------------------------------------------------- */
 
-int32_t bmcv_sim_storage_size(void) { return (int32_t) sizeof(SimStorage); }
+int32_t bmcv_sim_storage_size(void) { return (int32_t) sizeof(SlotStore); }
 
-void bmcv_sim_storage_get(const BmcvSim* s, void* dst) { memcpy(dst, &s->storage, sizeof(SimStorage)); }
+void bmcv_sim_storage_get(const BmcvSim* s, void* dst) { memcpy(dst, &s->storage, sizeof(SlotStore)); }
 
 int32_t bmcv_sim_storage_set(BmcvSim* s, const void* src, int32_t len)
 {
-  if (len != (int32_t) sizeof(SimStorage))
+  if (len != (int32_t) sizeof(SlotStore))
     return 0;
-  memcpy(&s->storage, src, sizeof(SimStorage));
+  memcpy(&s->storage, src, sizeof(SlotStore));
   return 1;
 }

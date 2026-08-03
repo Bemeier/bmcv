@@ -26,6 +26,7 @@ add_library(bmcv_sim STATIC
   ${BMCV_CORE_SOURCES}
   src/bmcv_sim.c
   src/sim_rt.c
+  src/slot_store.c
   # Nothing in the core calls a driver any more - the DAC write moved into
   # bmcv.c - so this is here only to satisfy anything that creeps back in.
   ${BMCV_ROOT}/tests/fakes/fake_drivers.c

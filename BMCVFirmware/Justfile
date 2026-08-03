@@ -81,6 +81,70 @@ wasm-check: wasm
 web-check: wasm
 	node web/frontend-check.mjs
 
+# VCV Rack plugin. Same core as the firmware, compiled straight out of
+# Core/Src/Lib - see vcv/Makefile.
+RACK_SDK := env_var_or_default("RACK_DIR", env_var("HOME") / "Rack-SDK")
+RACK_SDK_VERSION := "2.6.6"
+RACK_PLUGIN_DIR := env_var_or_default("XDG_DATA_HOME", env_var("HOME") / ".local/share") / "Rack2/plugins-lin-x64"
+
+vcv-sdk:
+	bash -c 'set -e; d="{{RACK_SDK}}"; [ -d "$d" ] && exit 0; \
+	  mkdir -p "$(dirname "$d")" && cd "$(dirname "$d")" && \
+	  curl -fL -o rack-sdk.zip "https://vcvrack.com/downloads/Rack-SDK-{{RACK_SDK_VERSION}}-lin-x64.zip" && \
+	  unzip -q -o rack-sdk.zip && rm rack-sdk.zip'
+	@echo "Rack SDK at {{RACK_SDK}}"
+
+vcv:
+	RACK_DIR="{{RACK_SDK}}" make -C vcv -j
+
+vcv-clean:
+	RACK_DIR="{{RACK_SDK}}" make -C vcv clean
+
+# Unpacked into Rack's plugin directory rather than through `make install`,
+# which builds a zstd-compressed .vcvplugin for distribution. Rack loads either.
+vcv-install: vcv
+	mkdir -p "{{RACK_PLUGIN_DIR}}/BMCV"
+	cp vcv/plugin.so vcv/plugin.json "{{RACK_PLUGIN_DIR}}/BMCV/"
+	cp -r vcv/res "{{RACK_PLUGIN_DIR}}/BMCV/"
+	@echo "installed to {{RACK_PLUGIN_DIR}}/BMCV"
+
+# Windows build, cross-compiled from here with MinGW-w64. Rack for Windows
+# loads a plugin.dll and will not look at a .so, so a WSL setup needs this
+# rather than the native build above. Needs the mingw-w64 toolchain:
+#   sudo apt install gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64
+RACK_SDK_WIN := env_var_or_default("RACK_DIR_WIN", env_var("HOME") / "Rack-SDK-win")
+
+vcv-win-sdk:
+	bash -c 'set -e; d="{{RACK_SDK_WIN}}"; [ -d "$d" ] && exit 0; \
+	  t=$(mktemp -d) && cd "$t" && \
+	  curl -fL -o rack-sdk.zip "https://vcvrack.com/downloads/Rack-SDK-{{RACK_SDK_VERSION}}-win-x64.zip" && \
+	  unzip -q rack-sdk.zip && mv Rack-SDK "$d" && rm -rf "$t"'
+	@echo "Windows Rack SDK at {{RACK_SDK_WIN}}"
+
+vcv-win:
+	RACK_DIR="{{RACK_SDK_WIN}}" \
+	CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++ \
+	STRIP=x86_64-w64-mingw32-strip \
+	make -C vcv -j
+
+vcv-win-clean:
+	RACK_DIR="{{RACK_SDK_WIN}}" make -C vcv clean
+
+# Straight into the Windows-side Rack over /mnt/c. Set RACK_WIN_DIR if you have
+# more than one Windows user with Rack installed. Restart Rack afterwards - it
+# only scans for plugins at startup.
+vcv-win-install: vcv-win
+	bash -c 'set -e; \
+	  r="${RACK_WIN_DIR:-$(echo /mnt/c/Users/*/AppData/Local/Rack2 | cut -d" " -f1)}"; \
+	  [ -d "$r" ] || { echo "no Windows Rack2 directory found; set RACK_WIN_DIR" >&2; exit 1; }; \
+	  d="$r/plugins-win-x64/BMCV"; mkdir -p "$d"; \
+	  cp vcv/plugin.dll "$d/" 2>/dev/null || { \
+	    echo "could not replace $d/plugin.dll." >&2; \
+	    echo "Windows holds a loaded DLL open - close VCV Rack and run this again." >&2; \
+	    exit 1; }; \
+	  cp vcv/plugin.json "$d/" && cp -r vcv/res "$d/" && \
+	  echo "installed to $d"'
+
 # Everything that can be checked without hardware or a browser.
 check: test flows wasm-check web-check
 

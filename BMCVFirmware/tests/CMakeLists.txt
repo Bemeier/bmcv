@@ -68,6 +68,10 @@ bmcv_add_test(test_instance)
 # it is shared by every host, so a regression would be everywhere at once.
 bmcv_add_test(test_sim_rt)
 target_sources(test_sim_rt PRIVATE ${BMCV_ROOT}/sim/src/sim_rt.c)
+
+bmcv_add_test(test_slot_store)
+target_sources(test_slot_store PRIVATE ${BMCV_ROOT}/sim/src/slot_store.c)
+target_include_directories(test_slot_store PRIVATE ${BMCV_ROOT}/sim/include)
 target_include_directories(test_sim_rt PRIVATE ${BMCV_ROOT}/sim/include)
 
 # Checks the generated panel layout against the firmware's index tables.

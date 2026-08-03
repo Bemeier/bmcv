@@ -59,7 +59,16 @@ typedef struct
 // control_rate_hz is what the engine will actually run at; the divider is
 // rounded to the nearest whole number of host frames, and the time step is
 // derived from the *rounded* divider so it agrees with what really happens.
+//
+// Starts the clock at zero, so this is the call for a fresh instance.
 void sim_tickdiv_config(SimTickDiv* d, float sample_rate_hz, float control_rate_hz);
+
+// The same, keeping the clock where it is. This is what a host calls when the
+// sample rate changes under a running module: the engine reads elapsed time as
+// an unsigned difference, so a timestamp that goes backwards by a second is
+// indistinguishable from one that jumps forward by 71 minutes, and every
+// oscillator phase and the clock's tempo estimate go with it.
+void sim_tickdiv_reconfig(SimTickDiv* d, float sample_rate_hz, float control_rate_hz);
 
 // Advance one host frame. Returns 1 when a control tick is due, having
 // advanced now_us and set dt_us.
