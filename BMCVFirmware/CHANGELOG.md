@@ -1,5 +1,149 @@
 # Changelog
 
+## The sync loop stops lurching through a crossfade
+
+The measurements below found one real defect, and it was not a tuning problem.
+Baseline and after-table in `docs/pll.md`.
+
+### Fixed
+
+- **A crossfade between scenes at different rates made the oscillator lurch.**
+  The target phase is measured from an origin that repeats every `gcd` beats,
+  and `gcd` came from `find_denominator` every tick. That is a search for a
+  rational approximation, so as the ratio moves its answer does not move with
+  it - it jumps between 8, 7, 6, none, 5 and back. **44 times during a
+  one-second fader move**, 108 over a three-second sweep to x4. Every jump moved
+  the origin, the target teleported by whole beats, and the loop faithfully
+  corrected for a step nothing had caused: 3.1 beats of phase error and the
+  channel pulled to **1.4x its own rate**, which is heard.
+
+  `gcd` is latched now (`EngineState.channels_gcd[]`) and re-taken only when the
+  super-period wraps - the rule the stepped pattern length already follows, for
+  the same reason. The origin is latched with it
+  (`channels_beat_origin[]`), and that is what makes the change seamless: at the
+  wrap the channel is at phase 0 of the period it is leaving, so defining the
+  new period to start there moves the target not at all. Re-basing anywhere else
+  cannot work - two origins differ by a whole number of *beats*, which is not a
+  whole number of *cycles*, so it would step the output waveform.
+
+  Measured over the whole rework: frequency pull 1.398x -> 0.116x, slew 461.9
+  -> 32.9, peak error 3.08 -> 0.24 beats, gcd flips 44 -> 1. Long-run alignment
+  on a x0.75 channel improved with it, 0.00019 -> 0.00001 beats RMS, because the
+  loop no longer spends corrections on a target that was jumping.
+
+- **The phase accumulator wrapped somewhere other than a whole cycle, and it
+  clicked.** Found on hardware, moving the slider.
+
+  The waveform is a function of phase modulo one, so a wrap at exactly one cycle
+  is invisible - the sample either side of it is the same sample. The
+  accumulator wrapped at the super-period instead, `gcd * ratio` cycles, which
+  is a whole number of cycles only when the ratio really is the rational
+  multiple `find_denominator` claims. That held while gcd was recomputed every
+  tick: it only ever returns a gcd for which `gcd * ratio` is within 0.025 of an
+  integer, so the step was there but under 2.5% of a cycle and nobody heard it.
+  Latching gcd while the ratio kept moving removed the guarantee, and a
+  crossfade stepped the output by up to **0.34 of a cycle**.
+
+  The accumulator is one cycle wide now and nothing else. The super-period
+  position the loop needs is `channels_cycle[]` - which cycle of the period the
+  oscillator is on - plus that phase, so the thing that wraps oddly is a counter
+  nobody hears rather than the phase everybody does.
+- **...and the obvious way to fix that would have lost the beat alignment.**
+  Reducing the loop's error to a single cycle bounds it at half a cycle and
+  costs nothing audible in the steady state, since the waveform repeats. It also
+  makes the loop lock to whichever of the equivalent phases is nearest, so a
+  x2/3 channel still repeats every three beats but can sit a third of a cycle
+  off the bar - and which cycle of the pattern lands on the downbeat is the
+  whole point of aligning to a beat multiple. The error is measured over the
+  full super-period; `the_pattern_lands_on_the_same_beat_every_time` asserts
+  what nothing asserted before.
+
+### Changed
+
+- **A new alignment period is only taken once the ratio has held still**
+  (`PLL_RATIO_STABLE_US`, 120ms). A ratio crossing a crossfade is a rational
+  multiple every few ticks and irrational between them, so acquiring on the
+  instant meant taking and discarding eleven periods in a one-second fader move,
+  with the correction switching on and off along with them.
+- **The correction is clamped** to `PLL_MAX_PULL` (0.15) of the channel's
+  nominal rate. The correction is a speed change, so an unbounded one is an
+  unbounded lurch - and since the error wraps at half the super-period, a
+  channel on a long alignment period could decide it was three and a half beats
+  out and act on it at full gain. Past the clamp a large error closes at a
+  constant rate rather than an exponential one: slower, and silent. Costs 4% of
+  settling time on the largest error there is (3.90s -> 4.06s).
+- **The loop's tuning has names and units.** `PLL_TAU_S`, `PLL_MAX_PULL` and
+  `PLL_SMOOTH_S` in `channel.h`, in seconds and in fractions of the rate.
+  `k_sync` is gone: it was an EMA coefficient per *tick*, so its time constant
+  was a property of the host's control rate, and at 3.3ms it was three hundred
+  times faster than the loop and had no say in the response at all. The gain it
+  was hiding was 1/second, which is `PLL_TAU_S` 1.0 - so the speed of the loop
+  is unchanged, it is just written down.
+- `channel_reset_phase` drops the latched period and origin with the phase. A
+  reset re-establishes where the beat grid starts, and an origin measured from
+  before it would leave the channel repeating on the old one.
+
+### Added
+
+- **`max_phase_jump`** in the PLL metrics: the step in output phase that the
+  oscillator's own rate does not account for. This is the invariant - the
+  accumulator may only ever wrap at a whole cycle - and it is asserted across
+  every moving-ratio case rather than only measured. It is what turned "there is
+  sometimes a click" into a number, and it was 0.34 when the click was there.
+- **`sim/flows/clock_lock.txt`** - the locked waveform over 16 seconds. Nothing
+  in the golden set covered it: the one flow with a clock emits only UI state,
+  and the two that emit outputs run without one. Three channels against a 120bpm
+  clock at x0.5, x2/3 and x1/3 - periods that come out exactly 1.0000s, 0.7500s
+  and 1.5000s - with x2/3 as a 2-against-3 polyrhythm that only returns to phase
+  0 on the third beat, so any drift walks the trace through the rows instead of
+  repeating on them.
+
+## The sync loop, measured
+
+Step one of two: the phase-lock loop gets numbers before it gets changed. See
+`docs/pll.md` for the baseline table and what follows from it.
+
+### Added
+
+- **`tests/pll_metrics.{c,h}`** — a clock generator that drives the fixture at a
+  tempo (with deterministic jitter, so a failing run reproduces), a trace, and
+  the measurements: settling time, peak error, ringing, peak frequency pull,
+  frequency slew, steady-state RMS, and how often the alignment period changed.
+  Errors are reported in beats rather than in cycles of the channel's own
+  waveform, so a x4 channel and a x0.25 one are comparable.
+- **`tests/test_pll.c`** — twelve scenarios: cold lock, scene transitions
+  snapped and swept, phase step, tempo step, long-run polyrhythmic alignment,
+  a ratio with no beat period at all, clock jitter, clock loss and return, eight
+  channels at once, and the same phase step at two control rates. Bounds are
+  loose on purpose; the printed table is the artifact, and the point is to diff
+  it across a change.
+- `ChannelEffective.phase_error` — what the loop is actually minimising. The
+  tests measure the loop's own quantity rather than re-deriving it outside,
+  which would drift from it the moment the algorithm changes.
+
+### Found
+
+- **The loop is a proportional controller with a time constant of one second**,
+  and `k_sync` is not that time constant. It is an EMA coefficient applied per
+  tick, so its own time constant is ~3.3ms - three hundred times faster than the
+  loop - and `correction` therefore just tracks the error. A half-cycle phase
+  step settles in 3.90s at a 250us tick and 3.87s at 1000us, so the response is
+  effectively rate-independent, which is not what the code reads like.
+- **Steady-state behaviour is very good and should be preserved.** A x0.75
+  channel - gcd 4, so it only meets the beat every fourth one - holds 0.0002
+  beats RMS over four minutes with no drift. Tempo steps, clock loss and 5%
+  jitter are all absorbed. Nothing rings anywhere: 0 or 1 significant crossings
+  in every case.
+- **A moving ratio is the one real defect.** `find_denominator` changes its
+  answer **44 times during a one-second crossfade** between scenes at x1 and x2,
+  and 108 times over a three-second sweep to x4. Each change alters
+  `beat_counter % gcd` by an arbitrary number of beats, so the target teleports
+  and the loop chases a step nothing caused: phase excursions of 3.1 beats, and
+  the correction pulling the oscillator to 1.4x its nominal rate. That is an
+  audible speed lurch, and it is the artifact the rest of the tuning exists to
+  avoid. The error wraps at half the super-period, so a large gcd admits a large
+  error - at gcd 7 the loop can believe it is 3.5 beats out and act on it.
+
 ## The clock cannot poison the module, and CI runs
 
 ### Fixed

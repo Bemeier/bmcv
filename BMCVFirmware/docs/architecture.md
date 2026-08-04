@@ -121,6 +121,10 @@ under `assumptions` in the generated spec, so an assumption cannot hide.
   diffed against committed CSV output. They cover interactions across time that
   a unit test cannot state - a clock locking, a mute ramping, a mode latching.
   Review the diff, then `just flows-bless`.
+- **`tests/pll_metrics.{c,h}`** turns a run of the sync loop into numbers -
+  settling, ringing, frequency pull, phase continuity, long-run alignment - so
+  that a change to it reads as a trade rather than as a feeling.
+  `tests/test_pll.c` prints the table; `docs/pll.md` keeps the baseline.
 
 Two tests exist purely to stop the four builds drifting apart:
 `test_panel_spec.c` (the generated geometry against `hw_setup.c`) and the LED

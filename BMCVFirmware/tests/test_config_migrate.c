@@ -46,9 +46,9 @@ TEST_CASE(a_current_record_is_read_unchanged)
 {
   EngineConfig in;
   memset(&in, 0, sizeof(in));
-  in.scene_a                         = 2;
-  in.scene_b                         = 5;
-  in.quantize_mask                   = 0x0555;
+  in.scene_a                                  = 2;
+  in.scene_b                                  = 5;
+  in.quantize_mask                            = 0x0555;
   in.channel_state[3].params[1][CH_PARAM_AMP] = 12345;
   in.channel_state[3].shape_mode              = SHAPE_PWM;
 
@@ -150,13 +150,13 @@ TEST_CASE(v2_carries_its_routing_across)
 {
   EngineConfigV2 in;
   memset(&in, 0, sizeof(in));
-  in.quantize_mask                    = 0x0AAA;
-  in.input_mode[2]                    = INPUT_SLIDER;
-  in.channel_state[5].src_input       = 3;
-  in.channel_state[5].src_trig        = 2;
-  in.channel_state[5].input_amp_mode  = INPUT_AMP_MULT;
-  in.channel_state[5].quantize_mode   = QUANTIZE_CONTINUOUS;
-  in.channel_state[5].shape_mode      = V3_SHAPE_STEPPED_HARD;
+  in.quantize_mask                   = 0x0AAA;
+  in.input_mode[2]                   = INPUT_SLIDER;
+  in.channel_state[5].src_input      = 3;
+  in.channel_state[5].src_trig       = 2;
+  in.channel_state[5].input_amp_mode = INPUT_AMP_MULT;
+  in.channel_state[5].quantize_mode  = QUANTIZE_CONTINUOUS;
+  in.channel_state[5].shape_mode     = V3_SHAPE_STEPPED_HARD;
 
   EngineConfig out;
   CHECK(config_migrate(2, sizeof(in), &in, &out) == 1);

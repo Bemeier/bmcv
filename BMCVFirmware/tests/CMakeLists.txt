@@ -63,6 +63,12 @@ bmcv_add_test(test_ui_feedback)
 bmcv_add_test(test_ui_mode)
 bmcv_add_test(test_input_fold)
 bmcv_add_test(test_mcp_decode)
+
+# Characterises the phase-lock loop: settling, overshoot, ringing, frequency
+# slew and long-run alignment. pll_metrics.c is the measurement side, kept out
+# of the fixture library because nothing else needs it.
+bmcv_add_test(test_pll)
+target_sources(test_pll PRIVATE pll_metrics.c)
 bmcv_add_test(test_instance)
 
 # Host-side runtime glue from sim/. Built here so `just test` covers it too -

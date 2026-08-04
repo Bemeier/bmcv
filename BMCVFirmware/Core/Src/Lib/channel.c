@@ -37,8 +37,6 @@
 // lives in EngineState so it resets with the rest of the engine and does not
 // leak between tests or engine instances.
 
-static const float k_sync = 0.075f;
-
 // The output stage's range limit. A clamp rather than a scaling: the parameters
 // keep meaning what they say and the swing is cut off at the ends, so setting a
 // channel to 0..5V does not quietly halve everything already dialled in.
@@ -94,17 +92,30 @@ static float pwm_shape(float phase, float shape, float mod)
 
 void channel_init(uint8_t ch, EngineState* es)
 {
-  es->channels_shared_phase[ch]     = 0;
-  es->channels_phase_correction[ch] = 0;
-  es->channels_prev_phase[ch]       = 0;
-  es->channels_length_idx[ch]       = -1;   // latch on the first tick
-  es->channels_mute_gain[ch]        = 1.0f; // open, not fading in from silence
+  es->channels_shared_phase[ch]      = 0;
+  es->channels_phase_correction[ch]  = 0;
+  es->channels_gcd[ch]               = 0; // not taken yet; see channel_compute
+  es->channels_beat_origin[ch]       = 0;
+  es->channels_ratio_seen[ch]        = 0;
+  es->channels_ratio_still_since[ch] = 0;
+  es->channels_cycle[ch]             = 0;
+  es->channels_period_cycles[ch]     = 1;
+  es->channels_prev_phase[ch]        = 0;
+  es->channels_length_idx[ch]        = -1;   // latch on the first tick
+  es->channels_mute_gain[ch]         = 1.0f; // open, not fading in from silence
 }
 
+// What a reset input does: back to phase zero. The alignment period goes with
+// it - a reset re-establishes where the beat grid starts, and holding an origin
+// measured from before it would leave the channel repeating on the old one.
 void channel_reset_phase(uint8_t ch, EngineState* es)
 {
   es->channels_shared_phase[ch]     = 0;
   es->channels_phase_correction[ch] = 0;
+  es->channels_gcd[ch]              = 0;
+  es->channels_beat_origin[ch]      = 0;
+  es->channels_cycle[ch]            = 0;
+  es->channels_period_cycles[ch]    = 1;
 }
 
 // scene < 0 means every scene, as the header has always said - it used to be
@@ -171,10 +182,44 @@ void channel_compute(uint8_t ch, EngineState* es, const EngineConfig* cfg, const
   float freq_multiplier = freq_param >= 0 ? freq_param + 1.0f : -1.0f / (freq_param - 1.0f);
   float freq            = es->clock.beat_freq_smooth * freq_multiplier;
 
-  int16_t gcd        = find_denominator(freq_multiplier, 8, 0.025f);
-  float phase_delta  = dt_s * (freq + es->channels_phase_correction[ch]);
-  float phase_length = gcd > 0 ? gcd * freq_multiplier : 1.0f;
-  float diff         = 0;
+  // The alignment period, latched.
+  //
+  // find_denominator is a search for a rational approximation of the ratio, and
+  // as the ratio moves its answer does not move with it - it jumps between 8,
+  // 7, 6, none, 5 and back. The target phase is measured from an origin that
+  // repeats every `gcd` beats, so every jump moves that origin and the target
+  // teleports by whole beats. A one-second crossfade between two scenes at x1
+  // and x2 did that 44 times, and the loop chased every one: 3.1 beats of phase
+  // error and the oscillator pulled to 1.4x its own rate, which is heard.
+  //
+  // So it is taken once and held, and only re-taken when the super-period wraps
+  // - the same rule the stepped pattern length follows, for the same reason.
+  // The origin is re-taken with it, and that is what makes the change seamless:
+  // at the wrap the channel is at phase 0 of its old period, and the new period
+  // is defined to start there.
+  int16_t gcd_now = find_denominator(freq_multiplier, 8, 0.025f);
+
+  // ...and only taken while the ratio is holding still. A ratio on its way
+  // through a crossfade is a rational multiple every few ticks and something
+  // irrational the rest of the time, so acquiring on the instant meant taking
+  // and discarding eleven alignment periods in a one-second fader move, with
+  // the correction switching on and off along with them.
+  if (fabsf(freq_multiplier - es->channels_ratio_seen[ch]) > PLL_RATIO_EPS)
+  {
+    es->channels_ratio_seen[ch]        = freq_multiplier;
+    es->channels_ratio_still_since[ch] = hw->time;
+  }
+  uint8_t ratio_settled = (hw->time - es->channels_ratio_still_since[ch]) >= PLL_RATIO_STABLE_US;
+
+  if (es->channels_gcd[ch] == 0)
+  {
+    es->channels_gcd[ch]         = gcd_now;
+    es->channels_beat_origin[ch] = es->clock.beat_counter;
+  }
+
+  int16_t gcd       = es->channels_gcd[ch];
+  float phase_delta = dt_s * (freq + es->channels_phase_correction[ch]);
+  float diff        = 0;
 
   float phase_next = es->channels_shared_phase[ch] + phase_delta;
 
@@ -189,22 +234,114 @@ void channel_compute(uint8_t ch, EngineState* es, const EngineConfig* cfg, const
     es->channels_phase_correction[ch] = 0.0f;
   }
 
-  if (phase_next >= phase_length)
-    phase_next -= phase_length;
-  else if (phase_next < 0.0f)
-    phase_next += phase_length;
+  // The accumulator is the oscillator's own phase, and it wraps at one cycle.
+  // Never at anything else.
+  //
+  // It used to wrap at the super-period, gcd * ratio cycles - which is only
+  // invisible in the output when that product is a whole number of cycles. It
+  // was, near enough, while gcd was recomputed every tick: find_denominator
+  // only returns a gcd for which gcd * ratio is within 0.025 of an integer, so
+  // the step was there but bounded at 2.5% of a cycle. Latching gcd while the
+  // ratio keeps moving removed that guarantee and the step became unbounded -
+  // measured at 0.34 of a cycle through a crossfade, which is a jump in the
+  // middle of a waveform and is heard as one.
+  //
+  // The alignment period belongs in the error term below, not in the
+  // accumulator. Wrapping at a whole cycle costs nothing, because the waveform
+  // either side of that wrap is identical.
+  int16_t period_cycles = es->channels_period_cycles[ch] > 0 ? es->channels_period_cycles[ch] : 1;
+  int16_t cycle         = es->channels_cycle[ch];
 
-  es->channels_shared_phase[ch] = phase_next;
-  if (gcd > 0 && es->clock.have_beat)
+  while (phase_next >= 1.0f)
   {
-    float beat_mode    = (float) (es->clock.beat_counter % gcd) + es->clock.beat_phase;
-    float target_phase = beat_mode * freq_multiplier;
-    if (target_phase >= phase_length)
-      target_phase -= phase_length;
-    diff = phase_error(target_phase, es->channels_shared_phase[ch], phase_length);
+    phase_next -= 1.0f;
+    cycle = (int16_t) ((cycle + 1) % period_cycles);
+  }
+  while (phase_next < 0.0f)
+  {
+    phase_next += 1.0f;
+    cycle = (int16_t) ((cycle + period_cycles - 1) % period_cycles);
   }
 
-  es->channels_phase_correction[ch] = (es->channels_phase_correction[ch] * (1.0f - k_sync) + diff * k_sync);
+  es->channels_shared_phase[ch] = phase_next;
+  es->channels_cycle[ch]        = cycle;
+
+  // Re-take the alignment period at a super-period boundary, where the old
+  // period and the new one agree on where the channel is: there
+  // (beats_in % gcd) is 0, so the target is frac(beat_phase * ratio) both
+  // before and after the origin moves, and nothing steps. It comes round within
+  // gcd beats - four seconds at worst - and in the meantime the target stays
+  // continuous under a moving ratio anyway, which is all the loop needs.
+  //
+  // With no alignment period there is no correction to disturb, so a latched
+  // "none" is replaced as soon as there is something better.
+  if (ratio_settled && gcd_now != gcd)
+  {
+    uint8_t seamless = (gcd <= 0) || ((es->clock.beat_counter - es->channels_beat_origin[ch]) % (uint64_t) gcd) == 0;
+    if (seamless)
+    {
+      es->channels_gcd[ch]         = gcd_now;
+      es->channels_beat_origin[ch] = es->clock.beat_counter;
+      gcd                          = gcd_now;
+
+      // The super-period in whole cycles. Whole because find_denominator only
+      // returns a gcd for which gcd * ratio is within 0.025 of an integer -
+      // that is the entire meaning of its answer.
+      int16_t cycles                 = (gcd > 0) ? (int16_t) lrintf((float) gcd * freq_multiplier) : 1;
+      es->channels_period_cycles[ch] = cycles > 0 ? cycles : 1;
+
+      // The period restarts here, and the accumulator is at phase 0 of it.
+      es->channels_cycle[ch] = 0;
+      cycle                  = 0;
+      period_cycles          = es->channels_period_cycles[ch];
+    }
+  }
+
+  if (gcd > 0 && es->clock.have_beat)
+  {
+    // Modulo the alignment period before the multiply, not after: beat_counter
+    // is unbounded, and a float that has to hold thousands of beats times a
+    // ratio has no resolution left for the fraction that matters. This is what
+    // keeps a channel exact after an hour of running.
+    uint64_t beats_in  = es->clock.beat_counter - es->channels_beat_origin[ch];
+    float beat_mode    = (float) (beats_in % (uint64_t) gcd) + es->clock.beat_phase;
+    float target_phase = beat_mode * freq_multiplier;
+
+    // Both sides measured over the whole super-period, not over one cycle.
+    //
+    // Reducing this to a single cycle would be tempting - it bounds the error
+    // at half a cycle and costs nothing audible in the steady state, since the
+    // waveform repeats. It does cost something musical: the loop would lock to
+    // whichever of the `period_cycles` equivalent phases happened to be nearest,
+    // so a x2/3 channel would still repeat every three beats but could sit a
+    // third of a cycle off the bar. Which cycle of the pattern lands on the
+    // downbeat is the point of aligning to a beat multiple at all.
+    float period = (float) period_cycles;
+    float here   = (float) cycle + es->channels_shared_phase[ch];
+
+    target_phase = fmodf(target_phase, period);
+    if (target_phase < 0.0f)
+      target_phase += period;
+
+    diff = phase_error(target_phase, here, period);
+  }
+
+  // A frequency offset proportional to the error: first order, so the error
+  // decays exponentially and never overshoots. PLL_TAU_S is the time constant.
+  float pull = diff / PLL_TAU_S;
+
+  // Bounded, because the correction is a speed change and an unbounded one is
+  // an unbounded lurch. The error wraps at half the super-period, so a channel
+  // on a long alignment period could decide it was several beats out and act on
+  // it at full gain. Past this limit the error closes at a constant rate rather
+  // than an exponential one - slower for a large error, and silent.
+  float pull_limit = fabsf(freq) * PLL_MAX_PULL;
+  pull             = fclamp(pull, -pull_limit, pull_limit);
+
+  // Smoothed toward it in seconds rather than in ticks, so the shape of the
+  // loop is a property of the loop and not of the host's control rate.
+  float smooth = fclamp(dt_s / PLL_SMOOTH_S, 0.0f, 1.0f);
+  es->channels_phase_correction[ch] += (pull - es->channels_phase_correction[ch]) * smooth;
 
   float phase = fmodf(es->channels_shared_phase[ch] + phs, 1.0f);
   if (phase < 0.0f)
@@ -262,6 +399,7 @@ void channel_compute(uint8_t ch, EngineState* es, const EngineConfig* cfg, const
   eff->amp              = amp;
   eff->offset           = offset;
   eff->gcd              = gcd;
+  eff->phase_error      = diff;
 
   if (chcfg->src_input >= 0 && chcfg->input_amp_mode != INPUT_AMP_DISABLED)
   {

@@ -25,6 +25,16 @@ typedef struct
   float amp;          // peak swing, DAC units
   float offset;       // DC offset, DAC units
   int16_t gcd;        // cycle length in beats the phase locks to, 0 if free
+
+  // How far this channel is from where the clock says it should be, in cycles
+  // of its own waveform, wrapped into +/- half a super-period. Zero when there
+  // is nothing to lock to (no beat, or a ratio with no whole-beat period).
+  //
+  // Published because it is the quantity the sync loop is actually minimising,
+  // and tuning that loop means measuring it - tests/test_pll.c does, and
+  // re-deriving it outside would be measuring something subtly different from
+  // what the loop reacts to. Divide by freq_ratio for the same error in beats.
+  float phase_error;
 } ChannelEffective;
 
 // Signal path only. Interaction and view state live in UiState (ui_state.h);
@@ -39,6 +49,30 @@ typedef struct
   int16_t channels_output_level[N_CHANNELS];
   float channels_shared_phase[N_CHANNELS];
   float channels_phase_correction[N_CHANNELS];
+
+  // The alignment period the sync loop is working to, in beats, and the beat it
+  // counts that period from. Latched rather than recomputed every tick - see
+  // channel_compute. 0 means "not taken yet"; -1 is find_denominator's "this
+  // ratio has no whole-beat period", which is a latched answer like any other.
+  int16_t channels_gcd[N_CHANNELS];
+  uint64_t channels_beat_origin[N_CHANNELS];
+
+  // Which cycle of the alignment period the oscillator is on, and how many
+  // cycles that period holds.
+  //
+  // channels_shared_phase[] is the phase within one cycle and wraps at one
+  // cycle, because that is the only wrap the output cannot see. The super-period
+  // position the sync loop needs is this counter plus that phase - kept apart so
+  // that the thing which wraps oddly is a counter nobody hears rather than the
+  // phase everybody does.
+  int16_t channels_cycle[N_CHANNELS];
+  int16_t channels_period_cycles[N_CHANNELS];
+
+  // The ratio as it was when it last stopped moving, and when that was. A new
+  // alignment period is only taken once the ratio has held still, so a
+  // crossfade does not acquire and discard one every few ticks on its way past.
+  float channels_ratio_seen[N_CHANNELS];
+  uint32_t channels_ratio_still_since[N_CHANNELS];
 
   // Stepped-random pattern length actually in use, held steady for the rest
   // of the cycle. Changing it mid-cycle shifts the step grid under the
