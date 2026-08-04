@@ -1,5 +1,144 @@
 # Changelog
 
+## The clock cannot poison the module, and CI runs
+
+### Fixed
+
+- **A clock pulse inside the post-reset guard divided by zero, and the module
+  never came back.** `Clock_Trigger` only measures an interval outside the 2ms
+  window after a reset, but the divide was not gated on having measured one:
+  two pulses inside that window gave `1e6 / 0`. `freq_est` is a leaky
+  integrator, so the inf never washed out - every later estimate was inf, every
+  channel's phase became NaN, and `wavetable_lookup` was then indexed with
+  whatever a NaN casts to. Under ASan that is a read at index -2147483648; on
+  the module it is a read from an arbitrary flash address, and on the wasm and
+  Rack hosts it is on the audio path. Nothing short of a power cycle recovered.
+
+  Four changes, each independently worth having:
+  - The interval is only taken against a pulse that actually happened, and
+    `Clock_Reset` drops the pulse history rather than leaving the previous
+    run's timing to be measured across the reset. `last_pulse_delta_us` itself
+    survives, because it is also `Clock_Poll`'s timeout reference and a reset
+    must not make a stopped clock look live.
+  - `CLOCK_MIN_PULSE_US` - a pulse closer than 1ms to the last one is not a
+    pulse. At four pulses per beat that still admits 15000 BPM, so it only ever
+    rejects bounce. Applied before the beat counter, so a bouncing edge does
+    not advance the beat either.
+  - `CLOCK_BPM_MIN`/`CLOCK_BPM_MAX` - an interval that works out to a tempo
+    outside 1..1000 BPM is not a measurement. Rejected rather than clamped: a
+    clamp still drags the estimate to the bound and takes several good pulses
+    to come back, which is audible as every LFO changing speed at once. Two
+    edges 50us apart used to read as a 5kHz beat.
+  - `wavetable_lookup` masks `i0`. `i1` was already masked and `i0` was left to
+    the caller's contract; one AND makes a bad phase a wrong sample rather than
+    a wild read.
+- **A non-finite phase is recoverable.** Every comparison against a NaN is
+  false, so it survived the wrap, the `fmodf` and the next tick's accumulate -
+  once a channel's phase was NaN it stayed NaN. `channel_compute` resets the
+  accumulator instead. The clock can no longer produce one, but a host chooses
+  its own dt and its own tempo, and one bad frame should cost one cycle rather
+  than the channel.
+- **An encoder dithering in its detent walked the parameter.** The decoder
+  counted a step whenever the quadrature state landed on 00, which scores the
+  return leg of a dither and ignores the outward one - so a noisy contact at
+  rest accumulated +1 per bounce with nobody touching the panel. Steps are
+  accumulated and a detent is emitted per whole quadrature cycle, so the two
+  halves cancel exactly and a real turn yields the same one count per detent it
+  always did. The first sample after power-on now establishes position rather
+  than decoding as movement.
+
+### Added
+
+- **`.github/workflows/ci.yml`.** `just check` is 21 unit tests, four golden
+  flows, a headless wasm load and a headless import of the whole frontend, and
+  it runs in a couple of seconds with no hardware and no browser - and nothing
+  ran it automatically. Four jobs, one per build in `docs/architecture.md`, so
+  a failure names the toolchain it failed under:
+  - tests + flows, then the same tests again under **ASan/UBSan** (`just
+    test-san`). The suite has been clean under it from the day it was added,
+    and it is the cheapest thing that would have caught the wavetable read
+    above.
+  - wasm and the frontend check, under emsdk.
+  - **the ARM firmware**, which `just check` does not build - a break confined
+    to `BMCV_DRIVER_SOURCES` was otherwise invisible until you flashed. The HAL
+    is not vendored, so CI fetches STM32CubeG4 v1.6.1 from ST's public mirror
+    with only the two submodules the firmware compiles against, and caches it.
+    The size goes into the job summary rather than being gated: the sr-table
+    alone moved flash 16 points in one commit, and a number in the log is what
+    makes that visible while there is still room to react.
+  - `clang-format`, pinned to 18. `.clang-format` existed and nothing enforced
+    it.
+- **Preset migration** (`config_migrate.{c,h}`). The record format has changed
+  three times in as many months and every bump threw away all eight slots -
+  correct while the only module is on the bench, wrong the moment somebody else
+  has seven scenes dialled in. A version this build knows is now converted:
+  - **v3 -> v4** renumbers `shape_mode`. Three stepped modes became one, which
+    moved PWM under them; `config_validate` would have clamped SEMI and HARD
+    onto PWM, which is the right numeric range and the wrong shape. A channel
+    that was SEMI or HARD comes back as `SHAPE_STEPPED` - the shape survives,
+    its hold value does not, because hold is not a per-channel setting yet.
+  - **v2 -> v3** appends `sr_length_idx` and `clamp_mode` at their defaults and
+    **halves every AMP**, because AMP is the peak swing now and was half of it
+    then. An unconverted v2 patch would come back twice as loud as it was
+    dialled in.
+  - The old layouts are spelled out with the types their headers used, not by
+    byte offset. A record is only ever read back by the target that wrote it,
+    and the layouts genuinely differ between targets - see the note below.
+  - `preset_load` checks the CRC over `hdr.length` rather than the current
+    struct's size, since an older payload is shorter, and bounds that length
+    against what was actually read out of FRAM.
+  - A `_Static_assert` on `CONFIG_STATE_VERSION` sits in the way, so the next
+    bump is a compile error until somebody says what happens to the records
+    already written. `CONFIG_STATE_VERSION` moved to `config.h` for it -
+    migration is core code and must not include a driver header, the same
+    reason `FRAM_CONFIG_SLOTS` is already there.
+- **`mcp_decode.{c,h}`** and `tests/test_mcp_decode.c`. What the two panel
+  expanders' port bytes *mean* - the quadrature state machine, the bit-plane
+  unpacking, the pin map - had no SPI in it but sat inside `mcp.c` behind the
+  HAL, so the one piece of logic every gesture test in the suite depends on was
+  the one piece nothing could exercise. It is plain C on the core source list
+  now, driven from recorded port bytes: detent counting, dither rejection,
+  per-encoder independence, and that the pin map is a permutation rather than
+  something with a duplicate in it. `mcp.c` keeps the transfers and the DMA
+  state machine.
+- `just test-san`, `just build-ci`, `just fmt`, `just fmt-check`.
+
+### Changed
+
+- **The engine runs on a fixed period** (`ENGINE_TICK_US`, 250us). `main()`
+  calls `bmcv_main` in a bare `while (1)`, so the engine used to run once per
+  iteration and the interval between DAC updates was however long the last pass
+  happened to take - an LED flush and a USB frame land in some passes and not
+  others. The oscillators are dt-driven and stay correct through that, but the
+  samples leaving the module are not evenly spaced and an LFO's edges carry the
+  jitter. A floor rather than a catch-up: if the loop cannot keep up, a longer
+  dt is the honest thing to hand the engine and `engine_fps` says so. It also
+  makes 4kHz true rather than assumed - it is what `web/const.js` and the Rack
+  plugin already tick at.
+- The USB MIDI output is `midi_publish_inputs()` behind `BMCV_MIDI_CC_INPUTS`,
+  and says what it is: the four CV inputs as CC 0x10..0x13 on channel 1. It is
+  the only use of the USB MIDI stack, nothing asks for it and nothing
+  documented it. Kept and switchable rather than deleted.
+
+### Notes
+
+- **`EngineConfig` is not the same size on the module as in a test.**
+  `arm-none-eabi-gcc` defaults to `-fshort-enums` and a host compiler does not,
+  so the enum-typed members of `ChannelConfig` are one byte on ARM and four on
+  a host: 91 bytes against 97, and 738 against 798 for the whole config. Each
+  target is self-consistent - FRAM is only ever read by the module, and a
+  host's slot store only by that host - so nothing is broken today. But the
+  struct is not a wire format, and anything that would make it one (importing a
+  FRAM dump into the simulator, sharing a patch file between hosts) has to fix
+  this first. The cure is to give the persisted fields explicit widths, the way
+  `shape_mode` and `clamp_mode` already have them, which is a format change and
+  wants its own version bump.
+- **`find_denominator` is not worth caching.** It runs per channel per tick and
+  looks like an obvious cache; measured, it is ~50 cycles, so about 4us of a
+  250us budget across all eight channels, against roughly 750 instructions for
+  the rest of `channel_compute`. A cache plus its invalidation is more risk than
+  1.6% of the control loop is worth while flash is at 47% and RAM at 7%.
+
 ## A review pass over the four targets
 
 ### Fixed

@@ -64,6 +64,8 @@ and what each directory is for.
 
     just build            # ARM firmware        just flash
     just check            # everything host-side: tests, golden flows, wasm, web
+    just test-san         # the same tests under ASan/UBSan
+    just fmt              # clang-format the hand-written C (fmt-check to verify)
     just web              # the browser simulator
     just vcv-sdk          # fetch the Rack SDK, once
     just vcv-install      # build the Rack plugin into ~/.local/share/Rack2
@@ -79,6 +81,10 @@ and what each directory is for.
 Anything machine-specific - where your Rack SDK lives, which browser to drive -
 goes in `local.just`, which is not checked in. `CMakeLists.txt` has the same
 arrangement with `local.cmake`.
+
+CI runs `just check`, the sanitizer pass, the formatting check and an ARM build
+on every push - four jobs, one per target, in `.github/workflows/ci.yml`. The
+firmware size is printed into the job summary rather than gated.
 
 ## LED language
 
@@ -274,5 +280,8 @@ measured, and one thing is only cosmetic but is the first thing anyone judges:
 - [ ] LED gamma. `led_fb.c` drives real WS2812s and both frontends approximate
       them with `LED_FULL_VALUE`/`LED_GAMMA` (`sim/include/led_color.h`, mirrored
       in `web/leds.js`). Neither has been held next to a real module.
-- [ ] Read `dac_fps`/`engine_fps` off hardware and set the hosts' control rate
-      to what the board really achieves. 4kHz is an estimate.
+- [ ] Confirm the board holds `ENGINE_TICK_US`. The engine now runs on a fixed
+      250us period rather than once per loop iteration, so 4kHz is what the
+      module asks for rather than an estimate - but only if the loop can keep
+      up. Read `engine_fps` off hardware: below 4000 means it cannot, and the
+      figure is what the hosts should then be set to.

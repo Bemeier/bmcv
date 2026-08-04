@@ -21,6 +21,8 @@ CTestTestfile.cmake
 build-native
 build-sim
 build-wasm
+build-san
+build-ci
 
 # render_channel output
 *.wav

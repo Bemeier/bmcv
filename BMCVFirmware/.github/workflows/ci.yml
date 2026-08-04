@@ -1,0 +1,116 @@
+# Everything `just check` covers, plus the two things it cannot: the ARM build
+# (a break confined to BMCV_DRIVER_SOURCES is otherwise invisible until you
+# flash) and a sanitizer run over the same tests.
+#
+# Each job is one of the four builds in docs/architecture.md, so a failure names
+# the toolchain it failed under.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  host:
+    name: tests + flows
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y ninja-build
+      - uses: extractions/setup-just@v2
+
+      - name: Unit tests
+        run: just configure-native && just test
+
+      - name: Golden flows
+        run: just configure-sim && just flows
+
+      # A wild read is what the clock's divide-by-zero eventually turned into,
+      # and this is the cheapest thing that would have caught it.
+      - name: Tests under ASan/UBSan
+        run: just test-san
+
+  wasm:
+    name: wasm + frontend
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y ninja-build
+      - uses: extractions/setup-just@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 'latest'
+          actions-cache-folder: 'emsdk-cache'
+
+      - name: Build and check
+        run: |
+          export EMSDK_DIR="$EMSDK"
+          just configure-wasm
+          just wasm-check
+          just web-check
+
+  firmware:
+    name: ARM firmware
+    runs-on: ubuntu-24.04
+    # The HAL is not vendored - cmake/stm32cubemx/CMakeLists.txt reads it out of
+    # an STM32Cube FW package. Keep in step with toolchain.default.cmake.
+    env:
+      CUBE_G4_VERSION: v1.6.1
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y gcc-arm-none-eabi ninja-build
+      - uses: extractions/setup-just@v2
+
+      - name: Cache STM32Cube FW
+        id: cube-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/STM32CubeG4
+          key: cube-g4-${{ env.CUBE_G4_VERSION }}
+
+      # Only the two submodules the firmware actually compiles against. The rest
+      # of the package is board support for ST's own eval boards, and pulling it
+      # turns a 200MB fetch into a gigabyte.
+      - name: Fetch STM32Cube FW
+        if: steps.cube-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch "$CUBE_G4_VERSION" \
+            https://github.com/STMicroelectronics/STM32CubeG4.git ~/STM32CubeG4
+          git -C ~/STM32CubeG4 submodule update --init --depth 1 \
+            Drivers/STM32G4xx_HAL_Driver \
+            Drivers/CMSIS/Device/ST/STM32G4xx
+
+      - name: Build
+        env:
+          ARM_TOOLCHAIN_DIR: /usr
+        run: |
+          export STM32CUBE_FW_PATH="$HOME/STM32CubeG4"
+          just build-ci 2>&1 | tee build.log
+
+      # Printed rather than gated: the sr-table alone moved flash 16 points in
+      # one commit, and a number in the log is what makes that visible while
+      # there is still room to react to it.
+      - name: Size
+        run: |
+          {
+            echo '### Firmware size'
+            echo '```'
+            arm-none-eabi-size build-ci/BMCVFirmware.elf
+            # --print-memory-usage goes to the linker's stdout, not the map.
+            grep -A2 'Memory region' build.log || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  format:
+    name: clang-format
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: extractions/setup-just@v2
+      - run: sudo apt-get update && sudo apt-get install -y clang-format-18
+      - run: CLANG_FORMAT=clang-format-18 just fmt-check

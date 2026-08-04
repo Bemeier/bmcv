@@ -6,8 +6,8 @@
 // reports nothing" is the first-boot path, not an edge case.
 
 #include "config.h"
-#include "instance.h"
 #include "config_validate.h"
+#include "instance.h"
 #include "slot_store.h"
 #include "testkit.h"
 #include <string.h>

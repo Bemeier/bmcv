@@ -10,6 +10,12 @@ void Clock_Init(ClockState* clk)
   clk->beat_freq        = 1.0f;
   clk->beat_freq_smooth = 1.0f;
   clk->freq_est         = 0.0f;
+
+  // Explicitly, not by way of a zeroed caller: it is the divisor in both
+  // Clock_Trigger and Clock_Poll, and both read it before anything writes it.
+  clk->last_pulse_delta_us = 0;
+  clk->last_pulse_us       = 0;
+
   Clock_Reset(clk, 0);
 }
 
@@ -24,23 +30,44 @@ static float smooth_freq(ClockState* clk, float new_sample)
 
 void Clock_Trigger(ClockState* clk, uint32_t now_us)
 {
+  // Before anything observes the pulse, so a bounce cannot advance the beat
+  // counter either.
+  if (clk->have_pulse && (now_us - clk->last_pulse_us) < CLOCK_MIN_PULSE_US)
+  {
+    return;
+  }
+
   if (!clk->have_beat)
   {
     Clock_Reset(clk, now_us);
   }
 
   clk->have_beat = true;
-  if (now_us - clk->last_reset_us > 2000)
+  if (now_us - clk->last_reset_us > CLOCK_RESET_GUARD_US)
   {
     clk->pulse_counter++;
-    clk->last_pulse_delta_us = now_us - clk->last_pulse_us;
+
+    // Only against a pulse that actually happened. Clock_Reset drops the pulse
+    // history, so the first pulse after a reset has nothing to measure from.
+    if (clk->have_pulse)
+    {
+      clk->last_pulse_delta_us = now_us - clk->last_pulse_us;
+    }
   }
 
-  if (clk->have_pulse)
+  if (clk->last_pulse_delta_us > 0)
   {
-    clk->beat_freq        = 1000000.0f / (float) (clk->last_pulse_delta_us * clk->PULSES_PER_BEAT);
-    clk->beat_freq_smooth = smooth_freq(clk, clk->beat_freq);
-    clk->bpm              = roundf(clk->beat_freq_smooth * 600.0f) / 10.0f;
+    float beat_freq = 1000000.0f / ((float) clk->last_pulse_delta_us * (float) clk->PULSES_PER_BEAT);
+
+    // An implausible interval is a glitch, not a tempo. Rejected rather than
+    // clamped: clamping still drags the estimate to the bound and takes several
+    // good pulses to come back, which is audible as every LFO changing speed.
+    if (beat_freq * 60.0f >= CLOCK_BPM_MIN && beat_freq * 60.0f <= CLOCK_BPM_MAX)
+    {
+      clk->beat_freq        = beat_freq;
+      clk->beat_freq_smooth = smooth_freq(clk, beat_freq);
+      clk->bpm              = roundf(clk->beat_freq_smooth * 600.0f) / 10.0f;
+    }
   }
 
   if (clk->pulse_counter >= clk->PULSES_PER_BEAT)
@@ -91,4 +118,11 @@ void Clock_Reset(ClockState* clk, uint32_t now_us)
   clk->last_reset_us      = now_us;
   clk->last_beat_start_us = now_us;
   clk->beat_phase         = 0.0f;
+
+  // The interval that spans a reset is not an interval: the pulse before it
+  // belongs to whatever was playing previously. Dropping it costs one pulse of
+  // tempo measurement and is what keeps a zero delta out of the divide in
+  // Clock_Trigger. last_pulse_delta_us itself stays - it is also Clock_Poll's
+  // timeout reference, and a reset must not make a stopped clock look live.
+  clk->have_pulse = false;
 }

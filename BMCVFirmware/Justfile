@@ -189,6 +189,48 @@ docs-shots PORT="8123": wasm
 # Everything that can be checked without hardware or a browser.
 check: test flows wasm-check web-check
 
+# The same tests under AddressSanitizer and UBSan. Kept out of `check` because
+# it is a second full build, but it is what catches the class of fault that
+# reads or writes outside an array - the wavetable index off a NaN phase, for
+# one - and the suite has been clean under it from the day it was added.
+test-san:
+	cmake -S tests -B build-san -G Ninja -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -g"
+	cmake --build build-san
+	UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 ctest --test-dir build-san --output-on-failure
+
+# The firmware, with the toolchain and the STM32Cube FW package located by
+# environment rather than by a checked-out toolchain.cmake. This is the form CI
+# builds; locally `just build` and toolchain.cmake are the shorter path.
+ARM_TOOLCHAIN_DIR := env_var_or_default("ARM_TOOLCHAIN_DIR", "/usr")
+STM32CUBE_FW_PATH := env_var_or_default("STM32CUBE_FW_PATH", "")
+
+build-ci:
+	cmake -S . -B build-ci -G Ninja -DCMAKE_BUILD_TYPE=Release \
+	  -DARM_TOOLCHAIN_DIR="{{ARM_TOOLCHAIN_DIR}}" \
+	  -DSTM32CUBE_FW_PATH="{{STM32CUBE_FW_PATH}}"
+	cmake --build build-ci
+	@arm-none-eabi-size build-ci/BMCVFirmware.elf
+
+# Formatting. The set is the hand-written C: everything else under Core/,
+# USB_Device/ and the STM32Cube package is regenerated from the .ioc and would
+# fail the moment anyone reopened the project, and the two big headers in
+# Core/Inc/Lib come out of tools/. vcv/src is C++ in Rack's tab style and is
+# left to it.
+#
+# clang-format's output moves between major versions; CI pins 18.
+CLANG_FORMAT := env_var_or_default("CLANG_FORMAT", "clang-format")
+FMT_PATHS := "'Core/Src/Lib/*.c' 'Core/Inc/Lib/*.h' 'sim/src/*.c' 'sim/include/*.h' 'tests/*.c' 'tests/*.h' 'tests/fixtures/*' 'tools/*.c' 'tools/*.h'"
+FMT_EXCLUDE := "wavetables.h|stepped_random_table.h"
+
+_fmt-files:
+	@git ls-files {{FMT_PATHS}} | grep -vE '{{FMT_EXCLUDE}}'
+
+fmt:
+	just _fmt-files | xargs {{CLANG_FORMAT}} -i
+
+fmt-check:
+	just _fmt-files | xargs {{CLANG_FORMAT}} --dry-run --Werror
+
 # Regenerate the stepped-random tables into Core/Inc/Lib/stepped_random_table.h.
 # Output is checked in, so this only needs running after editing the generator -
 # review the diff, then `just test` to confirm the pattern properties still hold.

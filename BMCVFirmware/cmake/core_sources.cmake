@@ -10,6 +10,7 @@ set(BMCV_CORE_SOURCES
     assign.c
     channel.c
     clock_sync.c
+    config_migrate.c
     config_validate.c
     ctrl_button.c
     engine.c
@@ -18,6 +19,7 @@ set(BMCV_CORE_SOURCES
     input_fold.c
     instance.c
     led_fb.c
+    mcp_decode.c
     quantizer.c
     scene.c
     stepped_random.c

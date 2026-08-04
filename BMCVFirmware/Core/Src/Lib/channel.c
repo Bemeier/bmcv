@@ -178,6 +178,17 @@ void channel_compute(uint8_t ch, EngineState* es, const EngineConfig* cfg, const
 
   float phase_next = es->channels_shared_phase[ch] + phase_delta;
 
+  // A non-finite phase never comes back on its own: every comparison below is
+  // false for a NaN, so it survives the wrap, the fmodf and the next tick's
+  // accumulate, and the channel is dead until the module is power-cycled. The
+  // clock can no longer produce one, but a host is free to hand the engine any
+  // dt and any beat_freq it likes, and one bad frame should cost one cycle.
+  if (!isfinite(phase_next))
+  {
+    phase_next                        = 0.0f;
+    es->channels_phase_correction[ch] = 0.0f;
+  }
+
   if (phase_next >= phase_length)
     phase_next -= phase_length;
   else if (phase_next < 0.0f)

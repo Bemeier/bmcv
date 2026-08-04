@@ -64,6 +64,13 @@ static_assert(N_ENCODERS == N_CHANNELS, "one encoder per channel");
 #define TRIG_THRESH_DAC (TRIG_THRESH * (DAC_10V / ADC_10V))
 #define TRIG_THRESH_LOW_DAC (TRIG_THRESH_LOW * (DAC_10V / ADC_10V))
 
+// The engine's control period. The engine is dt-driven and correct at any rate,
+// so this is not a correctness constant - it is the interval the module spaces
+// its DAC updates at, and the number the other three hosts already assume
+// (web/const.js TICK_US, BMCV_CONTROL_HZ in the Rack plugin). Here so that when
+// the board turns out to hold a different rate, one place changes.
+#define ENGINE_TICK_US 250 // 4 kHz
+
 typedef struct
 {
   // ADC/DAC

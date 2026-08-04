@@ -39,7 +39,7 @@ static const char* testkit_test = "";
     if (fabs(_a - _b) > _eps)                                                                                                              \
     {                                                                                                                                      \
       testkit_failures++;                                                                                                                  \
-      fprintf(stderr, "FAIL %s:%d [%s] %s ~= %s (got %f vs %f, tol %f)\n", __FILE__, __LINE__, testkit_test, #a, #b, _a, _b, _eps);         \
+      fprintf(stderr, "FAIL %s:%d [%s] %s ~= %s (got %f vs %f, tol %f)\n", __FILE__, __LINE__, testkit_test, #a, #b, _a, _b, _eps);        \
     }                                                                                                                                      \
   } while (0)
 

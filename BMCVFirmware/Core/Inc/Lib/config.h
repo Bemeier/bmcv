@@ -20,6 +20,13 @@
 #define FRAM_CONFIG_SLOTS 8
 #define CONFIG_AUTOSAVE_SLOT (FRAM_CONFIG_SLOTS - 1)
 
+// What this build writes. Bumping it is how a record whose layout or meaning
+// has changed stops being read as if it had not - and config_migrate.c is
+// where you then say how to read the old one. Here rather than in presets.h
+// for the same reason as the slot count: the migration is core code and must
+// not include a driver header to learn the version it is migrating to.
+#define CONFIG_STATE_VERSION 4
+
 typedef enum
 {
   INPUT_DEFAULT, // Available for quantizing/adding

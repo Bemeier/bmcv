@@ -6,7 +6,7 @@ below exists to keep that true rather than approximately true.
 
 ```
 Core/Inc/Lib  Core/Src/Lib   the module. No host, no peripherals.
-Core/Src/*, Drivers/, USB_*  the STM32: HAL, DMA, SPI, the USB stack.
+Core/Src/*, USB_Device/      the STM32: HAL glue, DMA, SPI, the USB stack.
 sim/                         host-side glue, plus a headless CLI.
 web/                         the browser frontend (wasm + plain ES modules).
 vcv/                         the VCV Rack plugin.
@@ -14,6 +14,12 @@ tests/                       native unit tests for everything above.
 tools/                       generators. Their output is checked in.
 panel/                       generated panel geometry.
 ```
+
+The HAL itself is not in the tree. `cmake/stm32cubemx/CMakeLists.txt` compiles it
+out of an STM32Cube FW package located by `STM32CUBE_FW_PATH`, which is what
+`toolchain.cmake` sets - see `toolchain.default.cmake`. CI fetches the same
+version from ST's public mirror; the two submodules it needs are named in
+`.github/workflows/ci.yml`.
 
 ## The seam
 

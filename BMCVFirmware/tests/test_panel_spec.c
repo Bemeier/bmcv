@@ -187,9 +187,9 @@ TEST_CASE(the_board_is_centred_in_the_vcv_panel)
 // largest is the encoder, 12mm across.
 TEST_CASE(everything_fits_inside_the_vcv_panel)
 {
-  const float margin              = 6.0f;
-  const PanelPoint* groups[]      = {panel_button_pos, panel_led_pos, panel_encoder_pos, panel_output_pos, panel_input_pos};
-  const uint8_t counts[]          = {N_BUTTONS, LED_COUNT, N_ENCODERS, N_CHANNELS, N_INPUTS};
+  const float margin         = 6.0f;
+  const PanelPoint* groups[] = {panel_button_pos, panel_led_pos, panel_encoder_pos, panel_output_pos, panel_input_pos};
+  const uint8_t counts[]     = {N_BUTTONS, LED_COUNT, N_ENCODERS, N_CHANNELS, N_INPUTS};
 
   for (uint8_t g = 0; g < 5; g++)
   {

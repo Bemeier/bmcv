@@ -371,8 +371,38 @@ TEST_CASE(the_pwm_envelope_stays_inside_its_own_segment)
   CHECK(peak_position(v, N) < 0.2f);
 }
 
+// A host is free to hand the engine any beat_freq it likes, and one that is
+// not finite used to poison the channel permanently: every comparison against
+// a NaN is false, so it survived the wrap, the fmodf and every later tick, and
+// the wavetable was then indexed with whatever a NaN casts to. One bad frame
+// should cost one cycle, not the channel.
+TEST_CASE(a_non_finite_clock_does_not_poison_the_phase)
+{
+  Fixture f;
+  fixture_init(&f);
+  fixture_set_param(&f, 0, 0, CH_PARAM_AMP, 10000);
+
+  f.engine_state.clock.beat_freq        = INFINITY;
+  f.engine_state.clock.beat_freq_smooth = INFINITY;
+
+  fixture_tick(&f, 250);
+  CHECK(isfinite(f.engine_state.channels_shared_phase[0]));
+
+  // and it runs normally again from the next tick
+  f.engine_state.clock.beat_freq        = 1.0f;
+  f.engine_state.clock.beat_freq_smooth = 1.0f;
+
+  for (int i = 0; i < 100; i++)
+  {
+    fixture_tick(&f, 250);
+    CHECK(isfinite(f.engine_state.channels_shared_phase[0]));
+    CHECK(isfinite(f.engine_state.channels_effective[0].phase));
+  }
+}
+
 int main(void)
 {
+  RUN_TEST(a_non_finite_clock_does_not_poison_the_phase);
   RUN_TEST(zero_amplitude_channel_outputs_the_offset);
   RUN_TEST(amplitude_bounds_the_output_around_the_offset);
   RUN_TEST(full_amplitude_alone_covers_the_whole_bipolar_range);

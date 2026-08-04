@@ -4,11 +4,15 @@
 
 float wavetable_lookup(float phase, float shape)
 {
-  // Wrap phase [0,1) -> index into N samples
+  // Wrap phase [0,1) -> index into N samples. Both indices are masked, not
+  // just the neighbour: i0 used to be trusted to the caller's contract, so a
+  // phase that was not in [0,1) - a NaN casts to INT_MIN - indexed the table
+  // from an arbitrary address. One AND buys a wrong sample instead of a wild
+  // read on a path with eight callers a tick.
   float fidx = phase * N;
-  int i0     = (int) fidx;
+  int i0     = ((int) fidx) & (N - 1);
   int i1     = (i0 + 1) & (N - 1); // wrap around cheaply if N is power-of-two
-  float t    = fidx - i0;
+  float t    = fidx - (float) (int) fidx;
 
   float sidx = ((shape + 1.0) * 0.5) * M;
   int k0     = (int) floorf(sidx); // always rounds down

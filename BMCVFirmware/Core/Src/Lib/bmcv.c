@@ -104,6 +104,29 @@ void bmcv_poll_tasks()
 }
 
 static uint32_t last_dac_poll;
+static uint32_t last_engine_us;
+
+// The four CV inputs, sent out of the USB port as MIDI control changes: channel
+// 1, CC 0x10..0x13, each input's ADC reading scaled to 0..127.
+//
+// It reads like a debugging aid left running, and it may be one - it is the
+// only thing the USB MIDI stack is used for, nothing asks for it and nothing
+// documents it. It is kept because it costs a USB frame every third poll and
+// somebody may be patching the module into a DAW with it; it is behind a
+// switch, and named, so that turning it off is one line rather than an
+// archaeology exercise.
+#define BMCV_MIDI_CC_INPUTS 1
+
+static void midi_publish_inputs(void)
+{
+#if BMCV_MIDI_CC_INPUTS
+  for (uint8_t ch = 0; ch < DAC_CHANNELS; ch++)
+  {
+    MIDI_addToUSBReport(0, 0xB0, 0x10 + ch, sclamp(get_adc(ch) / 32, 0, 127));
+  }
+  update_midi();
+#endif
+}
 
 // Exponential average, so a single slow loop does not make the readout jump.
 static float fps_smooth(float prev, uint32_t dt_us)
@@ -116,6 +139,8 @@ static float fps_smooth(float prev, uint32_t dt_us)
 void bmcv_main(uint32_t now_us)
 {
   /* ---- hardware in ------------------------------------------------ */
+  // Every pass: both are event-driven, and a DMA completion should be picked up
+  // when it lands rather than at the next engine tick.
   if (dac_poll == 1 || dacadc_error())
   {
     dac_poll = 0;
@@ -130,29 +155,50 @@ void bmcv_main(uint32_t now_us)
     mcu_read_buttons();
   }
 
-  // input_fold points bmcv.ux.hw_state at the frame it just filled.
-  // engine_fps is measured inside engine_tick, so every host agrees on it.
-  uint8_t dirty = bmcv_state_update(now_us);
-
-  /* ---- pure engine ------------------------------------------------ */
-  engine_tick(&bmcv.ux, now_us, dirty);
-
-  /* ---- hardware out ----------------------------------------------- */
-  // channels_gated_level[] rather than channels_output_level[]: mute is an
-  // output-stage gain, and engine_tick has already applied it.
-  for (uint8_t c = 0; c < N_CHANNELS; c++)
+  /* ---- pure engine, on a fixed period ----------------------------- */
+  //
+  // main() calls this in a bare `while (1)`, so the engine used to run once per
+  // iteration and the interval between DAC updates was however long the last
+  // pass happened to take - a mute ramp, an LED flush and a USB frame all land
+  // in some passes and not others. The oscillators are dt-driven and stay
+  // correct through that, but the samples leaving the module are not evenly
+  // spaced, and an LFO's edges carry that jitter.
+  //
+  // A floor rather than a catch-up: the period is ENGINE_TICK_US plus whatever
+  // is left of the iteration that crossed it, which is short, and if the loop
+  // ever cannot keep up then a longer dt is the honest thing to hand the engine
+  // - a burst of made-up ticks afterwards would not be.
+  //
+  // It is also what makes engine_fps mean something. 4kHz was an estimate the
+  // three hosts already assume (sim_rt.h); the module now actually holds it,
+  // provided the loop can - if it cannot, this changes nothing and engine_fps
+  // says so.
+  if ((uint32_t) (now_us - last_engine_us) >= ENGINE_TICK_US)
   {
-    dacadc_write(bmcv.ux_setup->channels[c].dac_channel, bmcv.engine_state.channels_gated_level[c]);
+    last_engine_us = now_us;
+
+    // input_fold points bmcv.ux.hw_state at the frame it just filled.
+    // engine_fps is measured inside engine_tick, so every host agrees on it.
+    uint8_t dirty = bmcv_state_update(now_us);
+
+    engine_tick(&bmcv.ux, now_us, dirty);
+
+    /* ---- hardware out --------------------------------------------- */
+    // channels_gated_level[] rather than channels_output_level[]: mute is an
+    // output-stage gain, and engine_tick has already applied it.
+    for (uint8_t c = 0; c < N_CHANNELS; c++)
+    {
+      dacadc_write(bmcv.ux_setup->channels[c].dac_channel, bmcv.engine_state.channels_gated_level[c]);
+    }
   }
 
+  /* ---- housekeeping ----------------------------------------------- */
+  // Outside the tick: both are gated on their own transport being idle, and
+  // neither should be able to hold up the engine or be held up by it.
   if (midi_poll && midi_idle())
   {
     midi_poll = 0;
-    for (uint8_t ch = 0; ch < DAC_CHANNELS; ch++)
-    {
-      MIDI_addToUSBReport(0, 0xB0, 0x10 + ch, sclamp(get_adc(ch) / 32, 0, 127));
-    }
-    update_midi();
+    midi_publish_inputs();
   }
 
   if (led_poll && ws2811_dma_completed())
