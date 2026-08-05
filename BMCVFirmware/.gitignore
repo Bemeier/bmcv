@@ -23,6 +23,7 @@ build-sim
 build-wasm
 build-san
 build-ci
+build-rel
 
 # render_channel output
 *.wav

@@ -17,6 +17,32 @@ flash:
 
 build-flash: build flash
 
+# The same firmware at -O2. `just build` gives you a Debug build - CMakeLists.txt
+# defaults CMAKE_BUILD_TYPE to Debug, and cmake/gcc-arm-none-eabi.cmake's
+# `$<$<CONFIG:DEBUG>:-O0>` is appended after its global -O2, so -O0 wins and
+# every TU is unoptimized. That is fine to step through and expensive to run:
+# at -O0 the engine's hot path keeps fclamp, phase_mod, quantize_value and the
+# rest as real calls with every local spilled, eight channels deep, and the main
+# loop cannot hold its 4kHz tick - engine_fps and dac_fps read the same number
+# because the tick is already late on arrival.
+#
+# RelWithDebInfo rather than Release: -O2 over -Os, and symbols kept, so this
+# stays debuggable (stepping will jump around - use the Debug build for that).
+# Its own directory, so `build/`, `just flash` and the compile_commands.json
+# symlink clangd reads all stay pointing at the Debug build.
+#
+# Configure once, then `just build-flash-rel`.
+configure-rel:
+  rm -Rf build-rel && cmake -B build-rel -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
+
+build-rel:
+	cmake --build build-rel
+
+flash-rel:
+	./scripts/flash.sh build-rel/BMCVFirmware.elf
+
+build-flash-rel: build-rel flash-rel
+
 # Native host-compiled test/tool build. Kept in its own directory so `build/`
 # stays exactly what the ARM recipes, scripts/flash.sh and clangd expect.
 # Re-run after editing tests/CMakeLists.txt or adding a test file.

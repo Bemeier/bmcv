@@ -1,5 +1,144 @@
 # Changelog
 
+## The tick period is a number now, not an outcome
+
+Two rates ran the module and neither was chosen. The engine's deadline restarted
+from `now_us` every tick, so each one began late from wherever the last had
+landed and never corrected - a 250us period ran at 263 and `engine_fps` read
+3800 against a nominal 4000. The DAC service re-armed on any loop pass a DMA
+completion allowed, which happened to give 15.8 chunks per tick because that is
+where the HAL turnaround and the tick period crossed.
+
+Both were fine while the DAC only repeated values. Interpolating across a tick
+made the first one matter: the fraction divides by the nominal period, so the
+output reached its target 13us early and sat flat for the rest of every tick.
+
+### Changed
+
+- **The engine deadline advances by a fixed period instead of restarting.**
+  `engine_fps` should now read 4000 rather than 3800, and the drift that made
+  nominal and actual disagree is gone - which is what the interpolation needs to
+  divide by something meaningful.
+
+  Still not a catch-up. A tick that lands a whole period late is dropped and the
+  schedule resynchronised, never repaid as a burst of ticks carrying made-up
+  timestamps: the engine is dt-driven, so one long dt is the honest account of a
+  loop that could not keep up.
+
+- **The DAC service is rate-limited to a stated ratio.** `DAC_SUBSTEPS` is how
+  many times the service covers all eight outputs within one tick, and the chunk
+  interval follows from it. The 4x that was emerging by coincidence is now the
+  number in the source, which also spreads the chunks evenly instead of letting
+  them bunch into the gap between ticks - the ADC's sampling cadence evens out
+  with them.
+
+  It is the cheap lever for CPU. A chunk costs single-digit microseconds where a
+  tick costs over a hundred, so trading tick rate against substeps holds the
+  output rate - and therefore the staircase - while moving real load.
+
+### Added
+
+- **`bmcv_profile.resyncs`**, ticks dropped outright. An overrun is the loop
+  running late and catching up; a resync is a tick that never happened. Any
+  number here that keeps climbing means the period is too short for the work in
+  it, which is the failure that used to be silent.
+
+## The output slides between ticks instead of stepping
+
+A scope on a channel output showed stairs 263us wide - one engine tick - and a
+5Hz LFO at full depth climbs them in 41mV jumps. That puts the zero-order-hold
+images at the tick rate, 3.8kHz, which is both inside what the output filter
+passes and inside where the ear is sharpest; amplitude-modulating with an LFO
+was audibly carrying it.
+
+The bus was already fast enough to fix this and was wasting it. The DAC service
+ships about four frames per engine tick, and three of them re-sent the previous
+value byte for byte, because `DAC_BUF` was only refilled inside the tick gate.
+The traffic was being paid for and carrying nothing.
+
+### Changed
+
+- **Channel outputs interpolate between the last two ticks instead of holding
+  the last one.** Same frames, same rate, same wire - each one now carries the
+  level for the instant it is armed rather than a repeat. Steps go from 263us to
+  ~66us and from 41mV to 10mV, moving the images from 3.8kHz to 15.2kHz: 12dB
+  off the artifact from the step size alone, and more again from any slope the
+  output filter has between those two frequencies.
+
+  Interpolated on elapsed time rather than a sub-step counter, because the tick
+  period is not exact - it jitters by a loop pass and overruns roughly every two
+  seconds - and a fraction of the time that really passed survives both. A tick
+  that runs long holds at its target rather than sliding past it.
+
+  It costs one tick of output latency, the levels for tick N being on the pins
+  across tick N+1. Extrapolating instead would have avoided that and overshot
+  every direction change, which is a worse artifact than the one being removed.
+  A constant level interpolates to itself, so nothing about DC accuracy moves.
+
+  Gates and stepped shapes go through it too, on purpose: a step becoming a
+  263us ramp is far short of an audible slew, and gentler through a VCA than the
+  broadband click a hard edge is. The costs are a fixed ~50us before a gate
+  crosses a downstream trigger threshold and a one-tick transient reaching about
+  three quarters of its peak.
+
+  Firmware-side, on the way to the DAC. `engine_state` still holds the exact
+  per-tick levels, so internal trigger routing, the LED render, the simulator
+  and the VCV module all see what they saw before - which is why no golden flow
+  moved.
+
+## The module can be flashed optimized
+
+`just build` produces a Debug build: `CMakeLists.txt` defaults `CMAKE_BUILD_TYPE`
+to Debug, and `cmake/gcc-arm-none-eabi.cmake` appends `$<$<CONFIG:DEBUG>:-O0>`
+after its global `-O2`, so the last flag wins and every translation unit is
+unoptimized. That is what `just flash` has been putting on the module.
+
+The cost is in the engine's hot path. At `-O0`, `fclamp`, `iclamp`,
+`phase_mod`, `quantize_value`, `pwm_shape`, `clamp_output`,
+`div_round_nearest` and `phase_error` are all real calls with their locals
+spilled to the stack, and `channel_compute` runs them eight channels deep at
+every tick; at `-O2` none of the eight survives as a symbol. The measurement
+that says it out loud is `engine_fps` and `dac_fps` reading the same number:
+`bmcv_main` re-arms the DAC once per loop iteration, so the two only agree when
+the 250us tick gate is already satisfied on arrival - the loop is running one
+pass per tick and the tick is late.
+
+### Added
+
+- **`just configure-rel` / `build-rel` / `flash-rel` / `build-flash-rel`**, the
+  same four steps as the Debug set against a RelWithDebInfo build in
+  `build-rel/`. RelWithDebInfo rather than Release so it is `-O2` rather than
+  `-Os` and keeps its symbols; its own directory so `build/`, `just flash` and
+  the `compile_commands.json` symlink clangd reads all still mean the Debug
+  build. `scripts/flash.sh` already took the ELF path as `$1`, so `flash-rel`
+  is that argument and nothing else changed.
+
+- **`bmcv_profile`, what one tick actually costs.** Optimized, `dac_fps` reads
+  ~60000 against `engine_fps` ~3800 - decoupled, where they used to be the same
+  number, so the loop now spins between ticks instead of arriving late for each
+  one. That says the tick fits, but not by how much: the two rates only bound
+  the tick's cost to somewhere between 16 and 85us, because the spare time in a
+  period is shared with the DAC service and neither readout separates them.
+
+  So measure it directly. `bmcv.c` reads the Cortex-M4 DWT cycle counter around
+  `engine_tick` and around the whole gated block, and keeps last/min/max/average
+  of each in `bmcv_profile`, in cycles and in microseconds, plus `load` - the
+  average against `ENGINE_TICK_US`. Cycle resolution is 6.9ns where the TIM2
+  timestamps everything else uses are 1us, which a tens-of-microseconds span
+  needs. Watch it live, the same way `bmcv.engine_state.dac_fps` is watched;
+  min and max are sticky and re-arm when written to 0.
+
+  A sticky maximum reached once during startup reads exactly the same as one
+  reached every 8ms, so `max_at_tick` records which tick set it and `overruns`
+  counts the ticks that ran past `ENGINE_TICK_US`. Against `ticks`, the second
+  is a rate rather than an anecdote - which is the difference between a periodic
+  cost worth restructuring around and a transient worth ignoring.
+
+  The counter was already enabled - `init_cycle_counter()` has been called from
+  `main()` all along, with nothing reading it. The probe costs four register
+  loads and a few float operations per tick, under 0.2% of the budget, so it
+  stays in the build; `BMCV_PROFILE 0` compiles it out.
+
 ## The wavetable is generated, and cannot go quiet
 
 The SHAPE_LFO table was drawn by hand in a visual editor, which is the right way
