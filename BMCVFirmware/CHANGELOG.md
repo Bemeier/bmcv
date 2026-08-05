@@ -1,5 +1,103 @@
 # Changelog
 
+## The wavetable is generated, and cannot go quiet
+
+The SHAPE_LFO table was drawn by hand in a visual editor, which is the right way
+to find shapes and the wrong way to hold three properties that have to be true
+everywhere at once. `tools/gen_wavetable.py` builds it now; `just wavetable`,
+with `--report` to see it as sparklines.
+
+### Fixed
+
+- **Two neighbouring slices were the same wave in opposite phase, so the
+  channel went silent between them.** Slices 13 and 14: each was full scale on
+  its own, and their midpoint cancelled to 0.0003 of a possible 2.0. The
+  runtime interpolates across the shape axis, so a knob sitting between two
+  entries is the normal case rather than an edge one - nothing had ever checked
+  what happened there.
+- **A phase below zero made the lookup extrapolate rather than interpolate.**
+  The sample index came from a cast, which rounds toward zero, so the fraction
+  came out negative and the blend ran past the sample instead of toward it -
+  leaving the output range. Floor, not truncate.
+- **`shape_table` was defined in the header.** Fine while exactly one file
+  included it, a multiple-definition link error the moment a test did. The data
+  is `wavetables.c` now and the header declares it.
+
+### Changed
+
+- **Phase 0 is the rising edge, in every shape** - zero and rising at 0, peak at
+  a quarter, trough at three quarters. The table used to put the *trough* on the
+  beat and its rising edge a quarter of a cycle late, which made it the odd one
+  out: `SHAPE_PWM` opens its gate at phase 0 and `SHAPE_STEPPED` begins step 0
+  at phase 0, so in both of those the waveform's event is already on the beat.
+  PHS 0 therefore meant something different depending on which shape mode a
+  channel was in.
+
+  The case that makes it concrete is a square channel used as a **clock
+  divider**: a divider whose edge is not on the beat is not one, and at
+  divide-by-two the old alignment opened the gate half a beat late every time.
+  `a_square_channel_divides_the_clock` drives the real engine against a real
+  clock and checks every gate opens on a beat, at both ÷2 and ÷4 - ÷4 alone
+  would not have caught it, because there a quarter cycle *is* a whole beat and
+  the old edge landed on a beat too, just the wrong one.
+
+  Free, as it turns out: the guarantees below are about all slices sharing the
+  *same* anchor phases and not about which phases those are, so the table is
+  rotated a quarter cycle on its way out of the generator - an exact shift of
+  whole samples. It also puts the canonical shapes in their canonical form, the
+  sine being `sin(2*pi*p)` rather than `-cos(2*pi*p)`.
+- **Every wave is built from an odd monotone rise curve**, anchored at -1 at
+  phase 0 and +1 at phase 0.5 and half-wave antisymmetric. Three things follow
+  for nothing, and they are the point of the rewrite:
+  - every slice reaches the full swing, at the same phases;
+  - **so does every blend of two slices**, because a convex combination of
+    monotone rise curves is another one - full amplitude between entries is now
+    arithmetic rather than something to be tuned for, and it holds across the
+    wrap like everywhere else;
+  - the DC offset is exactly zero at every setting. Sweeping SHP used to walk
+    the channel's average level by as much as 0.7 of full scale.
+- **The canonical shapes are exact.** SINE is at shape 0 - what a channel
+  resets to - and is `-cos(2*pi*p)` to better than one LSB; TRIANGLE is exact
+  too. The axis is built from two families that share those two shapes exactly,
+  so the joins between them are identities rather than approximations.
+- **The shape axis is a closed loop**, which it has to be: SHP wraps at the
+  parameter (`value += delta * 256` on an int16_t) as well as in the lookup.
+  square at shape -1, SINE at 0, TRIANGLE at +0.375, a pointy extreme at
+  +0.625, and home to the same square at +1. Slices are spaced evenly in RMS
+  rather than evenly in the shape exponent - an exponent axis crowds all its
+  visible change into one end, which the first draft of the generator did,
+  giving fifteen consecutive slices that were the same square.
+- **117 slices become 64, and the table costs 28KB less flash** (47.5% -> 42.0%
+  of the G474). The drawn table spent roughly thirty slices on staircases and
+  another twenty on pulse widths, which are SHAPE_STEPPED's and SHAPE_PWM's
+  jobs now, and had runs of up to five identical slices.
+- Saw is deliberately absent: MOD's skew already turns the triangle into one,
+  and a saw cannot satisfy the anchoring above - its extreme is at the cycle
+  boundary rather than at the half cycle.
+- `N` and `M` are `WT_LEN` and `WT_SLICES`. Two single-letter macros in a header
+  every DSP file includes is a collision waiting to happen.
+
+### Added
+
+- **`docs/wavetable.md`** and the plots in `docs/images/wavetable-*.svg` - the
+  four named shapes at a readable size, and the sweep at every second slice with
+  the exact ones picked out. Both written by the same run of the generator that
+  writes the header, so a picture in the documentation cannot show a shape the
+  firmware does not have. SVG so a reviewer sees a shape change as a diff rather
+  than as a new binary, and traces are decimated to about the panel width in
+  pixels, which is all a plot can show.
+
+  The strip's sample set is the even grid **unioned with the keyframe indices**,
+  so the named shapes are in it by construction. They all sit on multiples of
+  four today and any grid would catch them; moving one by a single slice would
+  otherwise drop it silently.
+- **`tests/test_wavetable.c`** - 1921 checks, asserted against the lookup rather
+  than the table, because the lookup is what a channel hears. Full swing and
+  zero DC at every setting including between slices, both canonical shapes,
+  every wave starting at its minimum and peaking at the half, the loop closing
+  with the seam no larger a step than any other, each cycle joining itself, and
+  the lookup staying in range for any input at all.
+
 ## The sync loop stops lurching through a crossfade
 
 The measurements below found one real defect, and it was not a tuning problem.

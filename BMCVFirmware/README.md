@@ -136,6 +136,21 @@ Where MOD leans something, the sign is the same everywhere: **negative leans
 early, positive leans late.** Stepped random is the exception - density has no
 early or late - and there negative is busy, positive is sparse.
 
+- **The wavetable**:
+
+  ![The wavetable's named shapes](docs/images/wavetable-keyframes.svg)
+
+  square at SHP fully left, **sine at centre** - what a channel resets to, and
+  exact - **triangle** at +0.375, a pointy extreme at +0.625, and back to the
+  square, because SHP wraps and the shape axis is therefore a loop. Every
+  setting reaches the full swing and has no DC offset, between slices as well as
+  on them: the waves come from a family where that is arithmetic rather than
+  something checked afterwards. **Phase 0 is the rising edge** in every shape,
+  which is where PWM opens its gate and where stepped random starts step 0 - so
+  a square channel at a whole-number division is a clock divider whose gate
+  opens *on* the beat. No saw slice - MOD's skew makes one out of the triangle -
+  and no staircases or pulse widths, which are the other two shape modes'
+  subjects. See [the whole axis](docs/wavetable.md).
 - **Wavetable skew** is a rational phase warp that fixes both cycle endpoints
   and is monotone, so the loop still closes; it turns a sine into a skewed sine
   and a triangle into a ramp.

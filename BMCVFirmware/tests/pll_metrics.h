@@ -116,10 +116,10 @@ typedef struct
 typedef struct
 {
   float bpm;
-  float jitter;      // 0..1 of a pulse period
-  uint32_t next_us;  // when the next pulse is due
-  uint32_t seed;     // for the jitter sequence
-  uint8_t running;   //
+  float jitter;     // 0..1 of a pulse period
+  uint32_t next_us; // when the next pulse is due
+  uint32_t seed;    // for the jitter sequence
+  uint8_t running;  //
   uint8_t pulses_per_beat;
 } PllClock;
 

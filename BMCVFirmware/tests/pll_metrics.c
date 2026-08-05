@@ -56,15 +56,15 @@ static void trace_push(PllTrace* tr, const Fixture* f, uint8_t ch, float t_s)
 
   // The loop works in cycles of the channel's own waveform. A beat is what the
   // module is lining up with, and is comparable across ratios.
-  float ratio        = eff->freq_ratio;
-  tr->err_beats[i]   = (ratio != 0.0f) ? eff->phase_error / ratio : 0.0f;
-  tr->corr_hz[i]     = f->engine_state.channels_phase_correction[ch];
-  tr->freq_hz[i]     = eff->freq_hz;
-  tr->locked[i]      = (eff->gcd > 0 && clk->have_beat) ? 1u : 0u;
-  tr->phase[i]       = eff->phase;
-  tr->beat[i]        = clk->beat_counter;
-  tr->beat_phase[i]  = clk->beat_phase;
-  tr->gcd[i]         = eff->gcd;
+  float ratio       = eff->freq_ratio;
+  tr->err_beats[i]  = (ratio != 0.0f) ? eff->phase_error / ratio : 0.0f;
+  tr->corr_hz[i]    = f->engine_state.channels_phase_correction[ch];
+  tr->freq_hz[i]    = eff->freq_hz;
+  tr->locked[i]     = (eff->gcd > 0 && clk->have_beat) ? 1u : 0u;
+  tr->phase[i]      = eff->phase;
+  tr->beat[i]       = clk->beat_counter;
+  tr->beat_phase[i] = clk->beat_phase;
+  tr->gcd[i]        = eff->gcd;
 }
 
 void pll_step(Fixture* f, PllClock* c, uint8_t ch, uint32_t dt_us, PllTrace* tr)
@@ -293,8 +293,8 @@ void pll_report_header(void)
 {
   fprintf(stdout, "\n  %-34s %8s %8s %6s %8s %9s %9s %9s\n", "scenario", "settle", "peak", "cross", "fdev", "fslew", "rms_tail", "jump");
   fprintf(stdout, "  %-34s %8s %8s %6s %8s %9s %9s %9s\n", "", "s", "beats", "n", "x rate", "x rate/s", "beats", "cycles");
-  fprintf(stdout, "  %-34s %8s %8s %6s %8s %9s %9s %9s\n", "----------------------------------", "--------", "--------", "------", "--------",
-          "---------", "---------", "---------");
+  fprintf(stdout, "  %-34s %8s %8s %6s %8s %9s %9s %9s\n", "----------------------------------", "--------", "--------", "------",
+          "--------", "---------", "---------", "---------");
 }
 
 void pll_report(const char* name, const PllMetrics* m)

@@ -42,10 +42,7 @@ static void setup(Fixture* f, uint8_t ch, float ratio)
 // Let the clock establish a tempo before anything is measured. Two pulses give
 // beat_freq an interval; a couple of beats give the smoother time to converge,
 // so what follows is measuring the phase loop and not the tempo estimator.
-static void warm_clock(Fixture* f, PllClock* c, uint8_t ch)
-{
-  pll_run(f, c, ch, 4.0f, NULL);
-}
+static void warm_clock(Fixture* f, PllClock* c, uint8_t ch) { pll_run(f, c, ch, 4.0f, NULL); }
 
 // ---------------------------------------------------------------------------
 
@@ -65,10 +62,10 @@ TEST_CASE(a_channel_locks_to_the_beat_and_stays)
   PllMetrics m = pll_measure(&trace, PLL_TOL_BEATS);
   pll_report("lock, x1 @ 120bpm", &m);
 
-  CHECK(m.settle_s >= 0.0f);      // it arrives at all
-  CHECK(m.settle_s < 10.0f);      // within something a musician would accept
-  CHECK(m.crossings <= 2);        // it does not ring on the way
-  CHECK(m.max_freq_dev < 1.0f);   // it never runs at double its rate to get there
+  CHECK(m.settle_s >= 0.0f);    // it arrives at all
+  CHECK(m.settle_s < 10.0f);    // within something a musician would accept
+  CHECK(m.crossings <= 2);      // it does not ring on the way
+  CHECK(m.max_freq_dev < 1.0f); // it never runs at double its rate to get there
   CHECK(m.rms_err_tail_beats < PLL_TOL_BEATS);
 }
 
@@ -272,8 +269,8 @@ TEST_CASE(the_phase_never_steps_mid_waveform)
       uint32_t ticks = (uint32_t) (sweeps[s] * 1e6f / (float) ENGINE_TICK_US);
       for (uint32_t i = 0; i < ticks; i++)
       {
-        float u   = (float) i / (float) ticks;
-        float pos = dir ? (1.0f - u) : u;
+        float u                  = (float) i / (float) ticks;
+        float pos                = dir ? (1.0f - u) : u;
         fx.hw_state.slider_state = (int16_t) (SLIDER_MAX_VALUE + pos * (SLIDER_MIN_VALUE - SLIDER_MAX_VALUE));
         pll_step(&fx, &clk, 0, ENGINE_TICK_US, &trace);
       }
@@ -420,8 +417,8 @@ TEST_CASE(the_pattern_lands_on_the_same_beat_every_time)
     if (trace.beat[i] == trace.beat[i - 1])
       continue; // only the tick a beat turns over
 
-    uint64_t k = (trace.beat[i] - origin) % 3u;
-    float ph   = trace.phase[i];
+    uint64_t k      = (trace.beat[i] - origin) % 3u;
+    float ph        = trace.phase[i];
     float from_zero = fminf(ph, 1.0f - ph);
 
     if (k == 0)

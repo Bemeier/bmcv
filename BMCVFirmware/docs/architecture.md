@@ -104,6 +104,15 @@ the hardware repository to hand and a reviewer sees it change as a diff:
   asserts the two agree. `just panel`.
 - `Core/Inc/Lib/stepped_random_table.h` comes from `tools/gen_sr_table.c`.
   `just sr-table`.
+- `Core/Inc/Lib/wavetables.h`, `Core/Src/Lib/wavetables.c` and the plots in
+  `docs/images/wavetable-*.svg` all come from one run of
+  `tools/gen_wavetable.py`, so the documentation cannot show a shape the
+  firmware does not have. `just wavetable`, and `just wavetable --report` for
+  the axis as sparklines. Generated rather than drawn because the properties
+  that matter - full swing and no DC at *every* setting, the canonical shapes
+  exact, the axis closing on itself - are true of the whole family by
+  construction and were not true of a table edited slice by slice.
+  `docs/wavetable.md` is the long version.
 - `docs/images/` comes from `tools/`-driven screenshots of the real frontend.
   `just docs-shots`.
 

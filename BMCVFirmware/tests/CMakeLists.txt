@@ -48,6 +48,8 @@ endfunction()
 
 bmcv_add_test(test_helpers)
 bmcv_add_test(test_stepped_random)
+bmcv_add_test(test_wavetable)
+target_sources(test_wavetable PRIVATE pll_metrics.c)
 bmcv_add_test(test_channel)
 bmcv_add_test(test_clock_sync)
 bmcv_add_test(test_scene)

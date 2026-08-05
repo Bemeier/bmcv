@@ -220,16 +220,31 @@ build-ci:
 # clang-format's output moves between major versions; CI pins 18.
 CLANG_FORMAT := env_var_or_default("CLANG_FORMAT", "clang-format")
 FMT_PATHS := "'Core/Src/Lib/*.c' 'Core/Inc/Lib/*.h' 'sim/src/*.c' 'sim/include/*.h' 'tests/*.c' 'tests/*.h' 'tests/fixtures/*' 'tools/*.c' 'tools/*.h'"
-FMT_EXCLUDE := "wavetables.h|stepped_random_table.h"
+# Generated files. They are formatted by whatever emits them, and a formatter
+# rewriting one only guarantees the next `just wavetable` undoes it.
+FMT_EXCLUDE := "wavetables\\.[ch]|stepped_random_table\\.h"
 
+# --cached --others --exclude-standard, not a bare ls-files: a plain listing
+# covers tracked files only, so a file you have just written is silently not
+# checked - which is exactly when it has never been formatted. Locally that
+# reads as a pass; CI sees it the moment it is committed and disagrees.
 _fmt-files:
-	@git ls-files {{FMT_PATHS}} | grep -vE '{{FMT_EXCLUDE}}'
+	@git ls-files --cached --others --exclude-standard {{FMT_PATHS}} | grep -vE '{{FMT_EXCLUDE}}'
 
 fmt:
 	just _fmt-files | xargs {{CLANG_FORMAT}} -i
 
 fmt-check:
 	just _fmt-files | xargs {{CLANG_FORMAT}} --dry-run --Werror
+
+# Regenerate the SHAPE_LFO wavetable: Core/Inc/Lib/wavetables.h, its data in
+# Core/Src/Lib/wavetables.c, and the plots in docs/images/. All four come out of
+# one run, so the pictures cannot show a shape the firmware does not have.
+# Output is checked in, so this only needs running after editing the shape
+# family in the generator - review the diff, then `just test`. `--report`
+# prints the table as sparklines without writing anything.
+wavetable *ARGS:
+	python3 tools/gen_wavetable.py {{ARGS}}
 
 # Regenerate the stepped-random tables into Core/Inc/Lib/stepped_random_table.h.
 # Output is checked in, so this only needs running after editing the generator -

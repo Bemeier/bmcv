@@ -33,6 +33,7 @@ set(BMCV_CORE_SOURCES
     ux_setup.c
     ux_state.c
     wavetable.c
+    wavetables.c
 )
 
 set(BMCV_DRIVER_SOURCES
