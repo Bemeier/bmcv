@@ -3,10 +3,9 @@
 
 static const float SEMITONE_STEP = (float) SEMITONE_DAC_FP / (float) FP_SCALE; // ~273.07 DAC units/semitone
 
-// quantize_value() subtracts DAC_OFFSET_CORRECTION so the analog output lands
-// on pitch. Add it back to recover the ideal note position these tests reason
-// about.
-static float note_position(int16_t quantized) { return (float) (quantized + DAC_OFFSET_CORRECTION); }
+// A quantized value *is* the note position: nothing is subtracted from it for
+// the board's sake, so there is nothing to add back.
+static float note_position(int16_t quantized) { return (float) quantized; }
 
 static float distance_to_nearest_semitone(float pos)
 {

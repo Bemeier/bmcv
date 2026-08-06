@@ -9,13 +9,6 @@
 #define FP_SCALE 1000
 #define SEMITONE_DAC_FP 273067
 
-// Hardware calibration: DAC units subtracted from a quantized pitch so the
-// analog output lands on the true note (~25mV at the 10V/32768 scale, about
-// 0.3 of a semitone). Set to 0 to disable, and re-check against a tuner if
-// the output stage changes. Must stay below half a semitone (137) or
-// quantization stops being idempotent.
-#define DAC_OFFSET_CORRECTION 82
-
 static const float US_TO_S = 1e-6f;
 
 #define US(x) ((uint32_t) (x))
@@ -177,6 +170,14 @@ static inline int32_t div_round_nearest(int32_t num, int32_t den)
 // For each enabled scale degree we jump straight to its nearest octave
 // transposition, so 12 candidates suffice and there is no octave window to
 // get wrong at negative voltages.
+//
+// The result is an exact semitone and nothing else. This used to subtract a
+// DAC_OFFSET_CORRECTION of 82 units - about 25mV - so that the *analog* output
+// landed on the true note. That put a correction for the board's zero error
+// inside the one function that happened to care about absolute voltage, which
+// meant every unquantized channel carried the same error uncorrected. Measured
+// on the bench it is not worth correcting: the outputs are close enough
+// untouched that a two-point calibration could not improve on them.
 static inline int16_t quantize_value(int16_t input, uint16_t scale_mask)
 {
   if (scale_mask == 0)
@@ -207,7 +208,7 @@ static inline int16_t quantize_value(int16_t input, uint16_t scale_mask)
     }
   }
 
-  return (int16_t) iclamp(div_round_nearest(best_fp, FP_SCALE) - DAC_OFFSET_CORRECTION, INT16_MIN, INT16_MAX);
+  return (int16_t) iclamp(div_round_nearest(best_fp, FP_SCALE), INT16_MIN, INT16_MAX);
 }
 
 static inline uint32_t crc32(const void* data, size_t len)

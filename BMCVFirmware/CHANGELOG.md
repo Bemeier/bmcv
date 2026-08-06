@@ -1,5 +1,23 @@
 # Changelog
 
+## The outputs are left alone
+
+### Removed
+
+- **`DAC_OFFSET_CORRECTION`.** 82 DAC units - about 25mV - were subtracted
+  inside `quantize_value()` so that the analog output landed on the true note.
+  It described the output stage's zero error, so it reached quantized pitch
+  outputs and nothing else: every unquantized channel carried the same error
+  uncorrected, and the number was a compile-time constant describing one board.
+
+  Removed rather than generalised. A runtime calibration mode was built and
+  measured on the bench, and it could not improve on the untouched outputs: what
+  is left after a two-point affine fit is the converter's own INL and the spread
+  between channels, and neither is reachable by an offset and a gain. The
+  outputs are close enough as they come.
+
+  Quantized output is now an exact semitone and nothing else.
+
 ## The tick period is a number now, not an outcome
 
 Two rates ran the module and neither was chosen. The engine's deadline restarted
