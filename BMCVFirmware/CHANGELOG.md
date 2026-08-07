@@ -1552,6 +1552,12 @@ concepts one implementation each.
 - `HwState.button_pressed_t` / `button_released_t`, `AssignType`, and the three
   ad hoc indicator timers they fed.
 
+## v0.5.0 (2026-08-07)
+
+### Feat
+
+- **setup**: fetch the ARM toolchain automatically, document all 4 targets
+
 ## v0.4.0 (2026-08-07)
 
 ### Feat
