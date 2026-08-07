@@ -2,8 +2,12 @@
 # (a break confined to BMCV_DRIVER_SOURCES is otherwise invisible until you
 # flash) and a sanitizer run over the same tests.
 #
-# Each job is one of the four builds in docs/architecture.md, so a failure names
-# the toolchain it failed under.
+# Each build job is one of the four builds in docs/architecture.md, so a
+# failure names the toolchain it failed under. Two more aren't builds:
+# `commits` enforces the Conventional Commits format .cz.toml relies on to
+# bump VERSION and CHANGELOG.md, so a PR that would silently break the next
+# release fails here instead. `release` is that bump, run for real once a
+# push to main has cleared every other job - see its own comment below.
 name: CI
 
 on:
@@ -11,6 +15,9 @@ on:
     branches: [main, ui-layer-restructure]
   pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 defaults:
   run:
@@ -120,3 +127,75 @@ jobs:
       - uses: extractions/setup-just@v2
       - run: sudo apt-get update && sudo apt-get install -y clang-format-18
       - run: CLANG_FORMAT=clang-format-18 just fmt-check
+
+  commits:
+    name: commit messages
+    runs-on: ubuntu-24.04
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: pip install commitizen==4.17.0
+      - name: cz check over this PR's commits
+        run: |
+          cz check --rev-range \
+            ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
+
+  # A release is "merge to main" and nothing else. Gated on every build job
+  # by `needs`, so a bump never tags code that failed its own CI run - and
+  # main-only, via the `if`, so pushes to other branches never cut one.
+  # `cz bump` exits 21 (NO_INCREMENT) when nothing since the last tag is
+  # release-worthy; that is not a failure, so it is handled rather than
+  # propagated. Pushing with the default GITHUB_TOKEN, rather than a PAT, is
+  # deliberate too: GitHub does not let a GITHUB_TOKEN push re-trigger `on:
+  # push`, which is what keeps the bump commit below from starting another
+  # release.
+  release:
+    name: release
+    needs: [host, wasm, firmware, format]
+    runs-on: ubuntu-24.04
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: pip install commitizen==4.17.0
+      - uses: extractions/setup-just@v2
+
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump version and changelog
+        id: bump
+        run: |
+          set +e
+          just bump-ci
+          code=$?
+          set -e
+          if [ "$code" -eq 21 ]; then
+            echo "Nothing release-worthy since the last tag."
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          [ "$code" -eq 0 ] || exit "$code"
+          echo "bumped=true" >> "$GITHUB_OUTPUT"
+          echo "version=$(cz version --project)" >> "$GITHUB_OUTPUT"
+
+      - name: Push the bump commit and tag
+        if: steps.bump.outputs.bumped == 'true'
+        run: git push origin HEAD:main && git push origin --tags
+
+      - name: Create GitHub Release
+        if: steps.bump.outputs.bumped == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes="$RUNNER_TEMP/release-notes.md"
+          awk '/^## /{if(seen)exit;seen=1} seen' CHANGELOG.md > "$notes"
+          gh release create "v${{ steps.bump.outputs.version }}" \
+            --title "v${{ steps.bump.outputs.version }}" \
+            --notes-file "$notes"

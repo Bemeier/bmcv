@@ -282,6 +282,29 @@ fmt:
 fmt-check:
 	just _fmt-files | xargs {{CLANG_FORMAT}} --dry-run --Werror
 
+# Versioning. VERSION and CHANGELOG.md are driven by commits since the last
+# tag, per .cz.toml - see version.h.in for why VERSION is the one file a bump
+# has to touch. Needs `pipx install commitizen` (or `pip install --user
+# commitizen`) once; CI enforces the commit format this expects.
+#
+#   just commit       interactive wizard for a correctly formatted message
+#   just bump-dry-run  preview what `just bump` would change, without changing it
+#   just bump          bump VERSION + CHANGELOG.md, commit, tag - then push both:
+#                       git push && git push --tags
+commit:
+	cz commit
+
+bump-dry-run:
+	cz bump --changelog --dry-run
+
+bump:
+	cz bump --changelog
+
+# The unattended form CI's release job runs after a merge to main: --yes skips
+# the "is this the first tag?" prompt bump asks interactively otherwise.
+bump-ci:
+	cz bump --changelog --yes
+
 # Regenerate the SHAPE_LFO wavetable: Core/Inc/Lib/wavetables.h, its data in
 # Core/Src/Lib/wavetables.c, and the plots in docs/images/. All four come out of
 # one run, so the pictures cannot show a shape the firmware does not have.
