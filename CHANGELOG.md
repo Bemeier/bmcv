@@ -1552,6 +1552,12 @@ concepts one implementation each.
 - `HwState.button_pressed_t` / `button_released_t`, `AssignType`, and the three
   ad hoc indicator timers they fed.
 
+## v0.6.0 (2026-08-07)
+
+### Refactor
+
+- reorganize repo with firmware at the root
+
 ## v0.5.0 (2026-08-07)
 
 ### Feat
