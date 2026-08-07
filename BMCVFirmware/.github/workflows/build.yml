@@ -1,0 +1,122 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  ARM_GCC_VERSION: 15.2.1-1.1
+  STM32CUBE_G4_TAG: v1.6.1
+
+jobs:
+  firmware:
+    name: Build firmware (ARM)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache ARM GCC toolchain
+        id: cache-arm-gcc
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/arm-gcc
+          key: arm-gcc-${{ env.ARM_GCC_VERSION }}
+
+      - name: Download ARM GCC toolchain
+        if: steps.cache-arm-gcc.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          asset="xpack-arm-none-eabi-gcc-${ARM_GCC_VERSION}-linux-x64.tar.gz"
+          base_url="https://github.com/xpack-dev-tools/arm-none-eabi-gcc-xpack/releases/download/v${ARM_GCC_VERSION}"
+          curl -sL -O "${base_url}/${asset}"
+          curl -sL -O "${base_url}/${asset}.sha"
+          sha256sum -c "${asset}.sha"
+          mkdir -p "${{ runner.temp }}/arm-gcc"
+          tar xzf "${asset}" -C "${{ runner.temp }}/arm-gcc" --strip-components=1
+
+      - name: Add ARM GCC to PATH
+        # CMAKE_OBJCOPY/CMAKE_SIZE in cmake/gcc-arm-none-eabi.cmake are bare
+        # names (unlike CMAKE_C_COMPILER, which is resolved against
+        # ARM_TOOLCHAIN_DIR), so they must be found via PATH.
+        run: echo "${{ runner.temp }}/arm-gcc/bin" >> "$GITHUB_PATH"
+
+      - name: Cache STM32CubeG4 HAL/CMSIS
+        id: cache-cube
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/STM32CubeG4
+          key: stm32cubeg4-${{ env.STM32CUBE_G4_TAG }}
+
+      - name: Fetch STM32CubeG4 HAL/CMSIS
+        if: steps.cache-cube.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          dest="${{ runner.temp }}/STM32CubeG4"
+          git clone --filter=blob:none --no-checkout --depth 1 \
+            --branch "$STM32CUBE_G4_TAG" \
+            https://github.com/STMicroelectronics/STM32CubeG4.git "$dest"
+          cd "$dest"
+          git sparse-checkout init --cone
+          git sparse-checkout set \
+            Drivers/STM32G4xx_HAL_Driver \
+            Drivers/CMSIS/Device/ST/STM32G4xx \
+            Drivers/CMSIS/Include \
+            Middlewares/ST/STM32_USB_Device_Library
+          git checkout "$STM32CUBE_G4_TAG"
+          # HAL driver and CMSIS device headers are separate repos, linked as submodules
+          git submodule update --init --depth 1 -- \
+            Drivers/STM32G4xx_HAL_Driver \
+            Drivers/CMSIS/Device/ST/STM32G4xx
+
+      - name: Write toolchain.cmake
+        run: |
+          cat > toolchain.cmake <<EOF
+          set(STM32CUBE_FW_PATH "${{ runner.temp }}/STM32CubeG4" CACHE PATH "Path to STM32Cube FW")
+          set(ARM_TOOLCHAIN_DIR "${{ runner.temp }}/arm-gcc" CACHE PATH "Path to ARM Toolchain")
+          EOF
+
+      - name: Install Ninja
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ninja-build
+
+      - name: Configure
+        run: cmake -B build -G Ninja
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Upload firmware artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: BMCVFirmware
+          path: |
+            build/BMCVFirmware.elf
+            build/BMCVFirmware.bin
+            build/BMCVFirmware.map
+          if-no-files-found: error
+
+  tests:
+    name: Native tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Ninja
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ninja-build
+
+      - name: Configure
+        run: cmake -S tests -B build-native -G Ninja
+
+      - name: Build
+        run: cmake --build build-native
+
+      - name: Test
+        run: ctest --test-dir build-native --output-on-failure
