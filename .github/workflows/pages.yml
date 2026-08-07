@@ -5,7 +5,7 @@ name: Deploy Pages
 
 on:
   push:
-    branches: [main, ui-layer-restructure]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
