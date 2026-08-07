@@ -2,8 +2,8 @@
   "schema": 1,
   "generated_by": "tools/gen_panel_spec.py",
   "generated_from": {
-    "kicad_pcb": "../BMCV.kicad_pcb",
-    "netlist_ipc": "../production/netlist.ipc",
+    "kicad_pcb": "pcb/BMCV.kicad_pcb",
+    "netlist_ipc": "production/netlist.ipc",
     "hw_setup": "tools/dump_hw_setup.c (linked against the firmware's own tables)"
   },
   "assumptions": [
