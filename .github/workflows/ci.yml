@@ -8,9 +8,15 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, ui-layer-restructure]
   pull_request:
   workflow_dispatch:
+
+defaults:
+  run:
+    # This workflow lives at the monorepo root, but everything it builds -
+    # Justfile, CMakeLists.txt, sim/, web/, vcv/ - is under BMCVFirmware/.
+    working-directory: BMCVFirmware
 
 jobs:
   host:
