@@ -1551,3 +1551,13 @@ concepts one implementation each.
 
 - `HwState.button_pressed_t` / `button_released_t`, `AssignType`, and the three
   ad hoc indicator timers they fed.
+
+## v0.2.0 (2026-08-07)
+
+### Feat
+
+- **release**: commitizen versioning and GitHub Pages deploy
+
+### Fix
+
+- **release**: include the CI jobs and CMake wiring from the last commit
