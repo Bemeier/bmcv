@@ -333,10 +333,10 @@ sr-table:
 	cc -O2 -o build-native/gen_sr_table tools/gen_sr_table.c -lm
 	./build-native/gen_sr_table > Core/Inc/Lib/stepped_random_table.h
 
-# Regenerate the panel layout from the hardware repo's KiCad output plus the
+# Regenerate the panel layout from the PCB project's KiCad output plus the
 # firmware's own HwSetup tables. Outputs are checked in, so this only needs
 # running after editing hw_setup.c or when the board changes - review the diff.
-# Point HW_REPO at the BMCV hardware repo if it is not the parent directory.
-panel HW_REPO="..":
+# Point HW_REPO at the PCB project directory if it is not pcb/.
+panel HW_REPO="pcb":
 	cmake --build build-native --target dump_hw_setup
 	python3 tools/gen_panel_spec.py --hw-repo {{HW_REPO}}

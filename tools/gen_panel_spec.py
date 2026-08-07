@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the BMCV panel spec from the hardware repo's KiCad output.
+"""Generate the BMCV panel spec from the PCB project's KiCad output.
 
 The panel layout is *derived*, never typed in. Three sources are merged:
 
@@ -11,7 +11,7 @@ so the spec cannot drift from either the board or the firmware. Anything that
 genuinely is not in the CAD data lives in panel/overrides.json and is listed
 under "assumptions" in the output.
 
-Usage:  tools/gen_panel_spec.py [--hw-repo ..] [--dump build-native/dump_hw_setup]
+Usage:  tools/gen_panel_spec.py [--hw-repo pcb] [--production production] [--dump build-native/dump_hw_setup]
 """
 
 import argparse
@@ -741,16 +741,17 @@ def main():
     root = os.path.dirname(here)
 
     ap = argparse.ArgumentParser()
-    ap.add_argument("--hw-repo", default=os.path.join(root, ".."), help="hardware repo with production/")
+    ap.add_argument("--hw-repo", default=os.path.join(root, "pcb"), help="PCB project directory with BMCV.kicad_pcb")
+    ap.add_argument("--production", default=os.path.join(root, "production"), help="production/fabrication output directory with netlist.ipc")
     ap.add_argument("--dump", default=os.path.join(root, "build-native", "dump_hw_setup"))
     ap.add_argument("--out-dir", default=root)
     args = ap.parse_args()
 
-    netlist_ipc = os.path.join(args.hw_repo, "production", "netlist.ipc")
+    netlist_ipc = os.path.join(args.production, "netlist.ipc")
     kicad_pcb = os.path.join(args.hw_repo, "BMCV.kicad_pcb")
     for p in (netlist_ipc, kicad_pcb):
         if not os.path.exists(p):
-            sys.exit(f"missing {p}\n(pass --hw-repo pointing at the BMCV hardware repo)")
+            sys.exit(f"missing {p}\n(pass --hw-repo pointing at the PCB project directory and --production at production/)")
     if not os.path.exists(args.dump):
         sys.exit(f"missing {args.dump}\nbuild it first: cmake --build build-native --target dump_hw_setup")
 

@@ -22,9 +22,8 @@ out of an STM32Cube FW package located by `STM32CUBE_FW_PATH`, which is what
 `toolchain.cmake` sets - written by `just arm-sdk` (see setup.md), or by hand
 from `toolchain.default.cmake` if you already have STM32CubeCLT. CI fetches
 the same version from ST's public mirror the same way `arm-sdk` does; the two
-submodules it needs are named in `../.github/workflows/ci.yml` - that
-workflow lives at the monorepo root, alongside the KiCad hardware files, not
-under this directory.
+submodules it needs are named in `../.github/workflows/ci.yml`, at the repo
+root.
 
 ## The seam
 
@@ -100,13 +99,13 @@ import of the whole web frontend.
 ## Generated, not written
 
 Anything derived is generated and checked in, so that a reader gets it without
-the hardware repository to hand and a reviewer sees it change as a diff:
+opening KiCad and a reviewer sees it change as a diff:
 
 - `panel/` and `web/panel.json` and `vcv/res/` come from `tools/gen_panel_spec.py`,
-  which merges the hardware repository's KiCad output with the firmware's own
-  `HwSetup` tables. Positions, LED assignments and button roles are therefore
-  derived from the board and the firmware together, and `tests/test_panel_spec.c`
-  asserts the two agree. `just panel`.
+  which merges the PCB project's KiCad output (`pcb/`, `production/`) with the
+  firmware's own `HwSetup` tables. Positions, LED assignments and button roles are
+  therefore derived from the board and the firmware together, and
+  `tests/test_panel_spec.c` asserts the two agree. `just panel`.
 - `Core/Inc/Lib/stepped_random_table.h` comes from `tools/gen_sr_table.c`.
   `just sr-table`.
 - `Core/Inc/Lib/wavetables.h`, `Core/Src/Lib/wavetables.c` and the plots in
