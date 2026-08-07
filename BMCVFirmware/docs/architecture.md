@@ -19,7 +19,8 @@ The HAL itself is not in the tree. `cmake/stm32cubemx/CMakeLists.txt` compiles i
 out of an STM32Cube FW package located by `STM32CUBE_FW_PATH`, which is what
 `toolchain.cmake` sets - see `toolchain.default.cmake`. CI fetches the same
 version from ST's public mirror; the two submodules it needs are named in
-`.github/workflows/ci.yml`.
+`../.github/workflows/ci.yml` - that workflow lives at the monorepo root,
+alongside the KiCad hardware files, not under this directory.
 
 ## The seam
 

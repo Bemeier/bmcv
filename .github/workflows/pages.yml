@@ -42,6 +42,14 @@ jobs:
           just configure-wasm
           just wasm
 
+      # web/firmware/ - the updater's version dropdown. See the script for why
+      # this mirrors each release's .bin onto Pages rather than the updater
+      # fetching it from the release directly.
+      - name: Mirror release binaries for the updater
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./scripts/fetch-releases.sh
+
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

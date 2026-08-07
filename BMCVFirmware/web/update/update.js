@@ -23,6 +23,7 @@ const ui = {
   btnConnect: el('btn-connect'),
   btnReboot: el('btn-reboot'),
   midiStatus: el('midi-status'),
+  releaseSelect: el('release-select'),
   file: el('file'),
   fileStatus: el('file-status'),
   btnFlash: el('btn-flash'),
@@ -125,32 +126,81 @@ function rebootIntoUpdateMode() {
 
 // --- bootloader side, over WebUSB -----------------------------------------
 
+// Shared by both image sources: a local file and a fetched release. Checked
+// here rather than at the point of flashing, so a bad image can never get as
+// far as erasing the module.
+function loadImage(bytes, label) {
+  const candidate = new Uint8Array(bytes);
+  const problem = describeImageProblem(candidate);
+  if (problem) {
+    image = null;
+    ui.btnFlash.disabled = true;
+    setStatus(ui.fileStatus, problem, 'bad');
+    log(`Refused ${label}: ${problem}`, 'bad');
+    return;
+  }
+
+  image = candidate;
+  setStatus(ui.fileStatus, `${label} — ${image.length.toLocaleString()} bytes`, 'good');
+  ui.btnFlash.disabled = false;
+  log(`Loaded ${label}, ${image.length} bytes.`);
+}
+
 function pickedFile(file) {
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = () => {
-    const candidate = new Uint8Array(reader.result);
+  reader.onload = () => loadImage(reader.result, file.name);
+  reader.onerror = () => setStatus(ui.fileStatus, 'could not read that file', 'bad');
+  reader.readAsArrayBuffer(file);
+}
 
-    // Checked here rather than at the point of flashing, so a bad file can
-    // never get as far as erasing the module.
-    const problem = describeImageProblem(candidate);
-    if (problem) {
-      image = null;
-      ui.btnFlash.disabled = true;
-      setStatus(ui.fileStatus, problem, 'bad');
-      log(`Refused ${file.name}: ${problem}`, 'bad');
+// --- released versions, mirrored onto this same origin ---------------------
+//
+// Not fetched from the release itself: GitHub's release-asset CDN does not
+// send Access-Control-Allow-Origin, so a browser fetch() of it is blocked
+// regardless of which of GitHub's asset URL forms is used. scripts/fetch-
+// releases.sh mirrors each release's .bin here at Pages-deploy time instead,
+// which sidesteps that rather than working around it.
+
+async function loadReleases() {
+  try {
+    const res = await fetch('../firmware/index.json');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const releases = await res.json();
+
+    ui.releaseSelect.innerHTML = '';
+    if (releases.length === 0) {
+      ui.releaseSelect.append(new Option('no released versions yet', ''));
       return;
     }
 
-    image = candidate;
-    setStatus(ui.fileStatus, `${file.name} — ${image.length.toLocaleString()} bytes`, 'good');
-    ui.btnFlash.disabled = false;
-    log(`Loaded ${file.name}, ${image.length} bytes.`);
-  };
-  reader.onerror = () => {
-    setStatus(ui.fileStatus, 'could not read that file', 'bad');
-  };
-  reader.readAsArrayBuffer(file);
+    ui.releaseSelect.append(new Option('choose a version…', ''));
+    for (const r of releases) {
+      const date = new Date(r.date).toLocaleDateString();
+      ui.releaseSelect.append(new Option(`${r.tag} — ${date}, ${(r.size / 1024).toFixed(0)} KB`, r.path));
+    }
+    ui.releaseSelect.disabled = false;
+  } catch (err) {
+    ui.releaseSelect.innerHTML = '';
+    ui.releaseSelect.append(new Option('could not load releases', ''));
+    log(`Could not load the release list: ${err.message}. Pick a local file instead.`, 'warn');
+  }
+}
+
+async function pickedRelease(path) {
+  if (!path) return;
+  ui.file.value = '';
+  setStatus(ui.fileStatus, 'fetching…');
+  try {
+    const res = await fetch(`../firmware/${path}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    loadImage(await res.arrayBuffer(), path.split('/')[0]);
+  } catch (err) {
+    image = null;
+    ui.btnFlash.disabled = true;
+    setStatus(ui.fileStatus, 'could not fetch that release', 'bad');
+    log(`Could not fetch ${path}: ${err.message}`, 'bad');
+  }
 }
 
 async function flash() {
@@ -222,9 +272,14 @@ function init() {
 
   ui.btnConnect.addEventListener('click', connectMidi);
   ui.btnReboot.addEventListener('click', rebootIntoUpdateMode);
-  ui.file.addEventListener('change', (e) => pickedFile(e.target.files[0]));
+  ui.file.addEventListener('change', (e) => {
+    ui.releaseSelect.value = '';
+    pickedFile(e.target.files[0]);
+  });
+  ui.releaseSelect.addEventListener('change', (e) => pickedRelease(e.target.value));
   ui.btnFlash.addEventListener('click', flash);
 
+  loadReleases();
   log('Ready.');
 }
 

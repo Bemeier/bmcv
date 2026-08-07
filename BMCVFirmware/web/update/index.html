@@ -65,7 +65,19 @@
 
   <div class="step">
     <h2>2. Pick a firmware image</h2>
-    <p><input type="file" id="file" accept=".bin"></p>
+
+    <dl>
+      <dt>A released version</dt>
+      <dd>
+        <div class="row" style="margin:.4rem 0">
+          <select id="release-select" disabled><option value="">loading releases…</option></select>
+        </div>
+      </dd>
+
+      <dt>A local build</dt>
+      <dd><input type="file" id="file" accept=".bin"></dd>
+    </dl>
+
     <p class="note" id="file-status">A raw <code>.bin</code> — the build writes
     one next to the <code>.elf</code>.</p>
   </div>

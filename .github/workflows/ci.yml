@@ -119,6 +119,14 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # Picked up by `release` below and attached to the GitHub Release, so
+      # the updater page has something to offer in its version dropdown.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware-bin
+          path: BMCVFirmware/build-ci/BMCVFirmware.bin
+          retention-days: 5
+
   format:
     name: clang-format
     runs-on: ubuntu-24.04
@@ -158,12 +166,20 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     permissions:
       contents: write
+      # To dispatch pages.yml below - a GITHUB_TOKEN push, unlike a human's,
+      # never re-triggers `on: push` itself, so nothing else would pick up
+      # the new release's binary otherwise.
+      actions: write
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - run: pip install commitizen==4.17.0
       - uses: extractions/setup-just@v2
+      - uses: actions/download-artifact@v4
+        with:
+          name: firmware-bin
+          path: BMCVFirmware/dist
 
       - run: |
           git config user.name "github-actions[bot]"
@@ -198,4 +214,13 @@ jobs:
           awk '/^## /{if(seen)exit;seen=1} seen' CHANGELOG.md > "$notes"
           gh release create "v${{ steps.bump.outputs.version }}" \
             --title "v${{ steps.bump.outputs.version }}" \
-            --notes-file "$notes"
+            --notes-file "$notes" \
+            dist/BMCVFirmware.bin
+
+      # Pages mirrors each release's .bin onto its own origin - see pages.yml
+      # for why - so the version dropdown has this one to show.
+      - name: Redeploy Pages with the new release
+        if: steps.bump.outputs.bumped == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --repo "${{ github.repository }}" --ref main

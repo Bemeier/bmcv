@@ -52,6 +52,10 @@ LED, and the same colour for the same idea on every page.
 
 ## Trying it without hardware
 
+**[bemeier.github.io/bmcv](https://bemeier.github.io/bmcv/)** runs the browser
+simulator with no install - built and deployed from `main` by
+[`pages.yml`](../.github/workflows/pages.yml). Locally:
+
     just web        # the browser simulator, at http://localhost:8000
     just vcv-install    # the VCV Rack module
 
@@ -85,13 +89,38 @@ goes in `local.just`, which is not checked in. `CMakeLists.txt` has the same
 arrangement with `local.cmake`.
 
 CI runs `just check`, the sanitizer pass, the formatting check and an ARM build
-on every push - four jobs, one per target, in `.github/workflows/ci.yml`. The
-firmware size is printed into the job summary rather than gated.
+on every push - one job per target, in `../.github/workflows/ci.yml` (the
+monorepo root, alongside the KiCad hardware files). The firmware size is
+printed into the job summary rather than gated.
+
+A merge to `main` that clears every job above bumps `VERSION` and
+`CHANGELOG.md` from the commits since the last tag, and cuts a GitHub Release
+- see [Versioning](#versioning). The same push builds and deploys the
+simulator and updater to GitHub Pages.
+
+## Versioning
+
+Commit messages are [Conventional Commits](https://www.conventionalcommits.org)
+- `feat: ...`, `fix: ...`, `feat!: ...` for a breaking change, and so on -
+enforced on pull requests by the `commits` CI job. `VERSION` and
+`CHANGELOG.md` are generated from them by [commitizen](https://commitizen-tools.github.io/commitizen/),
+never edited by hand; `Core/Inc/Lib/version.h` is in turn generated from
+`VERSION` at configure time, which is why it isn't checked in.
+
+    just commit         interactive wizard for a correctly formatted message
+    just bump-dry-run    preview the next version and changelog, unattended
+    just bump            bump, commit and tag locally - or just push to main
+                          and let the `release` CI job do it
+
+Needs `pipx install commitizen` (or `pip install --user commitizen`) once.
 
 ## Updating the firmware over USB
 
-`just update-page` serves a page that flashes the module over its USB-C port.
-Point it at **`build-rel/BMCVFirmware.bin`** and it does the rest.
+**[bemeier.github.io/bmcv/update](https://bemeier.github.io/bmcv/update/)**
+flashes the module over its USB-C port, straight from the browser - no build
+required, and it offers every released version as a dropdown alongside
+picking a local `.bin`. `just update-page` serves the same page locally,
+against a build you point it at: `build-rel/BMCVFirmware.bin`.
 
 It has to be the `.bin`. The `.elf` beside it is what the ST-Link path
 (`just flash`) wants, and it is not a raw image - it is headers and symbols, so
