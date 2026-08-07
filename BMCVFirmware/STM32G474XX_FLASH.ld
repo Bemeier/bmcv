@@ -181,6 +181,28 @@ SECTIONS
     __bss_end__ = _ebss;
   } >RAM
 
+  /* Data that survives a reset.
+   *
+   * Outside _sbss.._ebss on purpose, so the startup code's zeroing loop does
+   * not touch it, and NOLOAD so nothing is copied over it either. A software
+   * reset leaves SRAM alone, which is what lets the firmware leave a note here
+   * for the next boot to read - see fw_update.c, which uses it to ask the next
+   * boot to hand itself to the ROM bootloader. */
+  .noinit (NOLOAD) :
+  {
+    . = ALIGN(4);
+    *(.noinit)
+    *(.noinit*)
+    . = ALIGN(4);
+  } >RAM
+
+  /* The startup code zeroes [_sbss, _ebss), so .noinit has to begin at or after
+   * _ebss. It currently lands exactly on it, which is correct but has no slack:
+   * reorder the sections above and the marker starts getting wiped on every
+   * boot, the module stops being able to reach the bootloader from the update
+   * page, and nothing else looks wrong. Cheaper to have the linker refuse. */
+  ASSERT(ADDR(.noinit) >= _ebss, "fw_update's .noinit would be zeroed by the startup code")
+
   /* User_heap_stack section, used to check that there is enough RAM left */
   ._user_heap_stack :
   {

@@ -65,6 +65,7 @@ bmcv_add_test(test_ui_feedback)
 bmcv_add_test(test_ui_mode)
 bmcv_add_test(test_input_fold)
 bmcv_add_test(test_mcp_decode)
+bmcv_add_test(test_sysex)
 
 # Characterises the phase-lock loop: settling, overshoot, ringing, frequency
 # slew and long-run alignment. pll_metrics.c is the measurement side, kept out

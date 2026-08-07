@@ -77,6 +77,8 @@ and what each directory is for.
 
     just panel            # regenerate the panel spec from the hardware repo
     just docs-shots       # regenerate the screenshots above
+    just update-page      # the firmware updater, at http://localhost:8000/update/
+    just dfu-check        # check the DfuSe client against a fake device
 
 Anything machine-specific - where your Rack SDK lives, which browser to drive -
 goes in `local.just`, which is not checked in. `CMakeLists.txt` has the same
@@ -85,6 +87,49 @@ arrangement with `local.cmake`.
 CI runs `just check`, the sanitizer pass, the formatting check and an ARM build
 on every push - four jobs, one per target, in `.github/workflows/ci.yml`. The
 firmware size is printed into the job summary rather than gated.
+
+## Updating the firmware over USB
+
+`just update-page` serves a page that flashes the module over its USB-C port.
+Point it at **`build-rel/BMCVFirmware.bin`** and it does the rest.
+
+It has to be the `.bin`. The `.elf` beside it is what the ST-Link path
+(`just flash`) wants, and it is not a raw image - it is headers and symbols, so
+its first bytes are not the vector table, and a debug build is four times the
+size of the flash. The page checks for this and refuses, naming the mistake,
+before it erases anything.
+
+Two things to know before plugging in:
+
+- **The case has to be powering the module.** Its USB-C port is data only -
+  VBUS is not connected to anything on the board, so a USB cable on its own
+  will not bring it up.
+- **On Windows, one-time setup.** In update mode the module is ST's built-in
+  bootloader, which Windows has no driver for and Chrome therefore cannot
+  claim. [Zadig](https://zadig.akeo.ie/) binds `WinUSB` to it: pick
+  **STM32 BOOTLOADER**, choose **WinUSB**, Replace Driver. Once per machine.
+  macOS and Linux need nothing.
+
+There are two ways into update mode. The page can ask the running firmware to
+reboot into it over MIDI, which is the normal path and turns the whole panel
+amber. Or hold **FN2** while the case powers up, which works even when the
+firmware is too broken to answer - FN2 is wired to the chip's BOOT0 pin, so
+this happens before any of our code runs. That route leaves the panel dark,
+because at that point ST's bootloader is running and it does not know the panel
+exists.
+
+**Power-cycle the case when the flash finishes.** The module does not restart
+itself: ST's bootloader disconnects from USB at the end of an update and then
+waits for a reset that no longer has any way of reaching it, so there is nothing
+the page can send to bring it back. The image is fully written by then; the
+power cycle is only what starts it.
+
+Nothing here can brick the module. The bootloader is mask ROM: it cannot be
+erased, so a flash interrupted halfway leaves the module sitting in update mode
+waiting to be flashed again.
+
+The updater is a separate page from the simulator on purpose - a broken
+simulator build should not take down the thing that flashes the module.
 
 ## LED language
 

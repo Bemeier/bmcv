@@ -1,5 +1,101 @@
 # Changelog
 
+## The module flashes itself, from a browser tab
+
+The module has a USB-C port and, until now, no way to use it for the one thing a
+USB port on a Eurorack module is for. Updating meant an ST-Link on the
+programming header.
+
+It turns out the hardware was already designed for this and nobody had noticed:
+tracing the schematic, **FN2 is wired to PB8, which is the chip's BOOT0 pin** —
+10k pulldown, 100R series, button to 3V3. Holding FN2 while the case powers up
+pulls BOOT0 high and hands the module to the DFU bootloader that lives in the
+STM32's mask ROM. No bootloader of ours needed, no flash spent on one, and
+nothing that can be bricked, because mask ROM cannot be erased.
+
+So `web/update/` is a page that speaks DfuSe over WebUSB, and the firmware
+gained just enough to make the button optional.
+
+### Added
+
+- **A SysEx control channel** (`sysex.c`) on the USB MIDI endpoint the firmware
+  already enumerated. Two commands: reboot into update mode, and report the
+  running version. Parsing is hardware-free and tested — this is the one path by
+  which a passing DAW message could reboot the module mid-set, so the tests are
+  mostly about everything it must *not* answer.
+- **A reset into the ROM bootloader**, rather than a jump into it. The firmware
+  lights the panel, leaves the USB bus, writes a marker to a `.noinit` word and
+  resets; `fw_update_check_boot()` reads that marker as the first statement in
+  `main()`, before `HAL_Init` and before any peripheral exists, and hands over
+  from there.
+
+  The direct jump was tried first and does not work, for a reason worth writing
+  down: the bootloader ran - `SCB->VTOR` read back as `0x1FFF0000`, which only
+  it sets - but it never brought USB up. The giveaway was that USB and SYSCFG
+  registers could not be read over SWD at all while it sat there, because their
+  clocks were still gated. It will not initialise a chip it inherits mid-flight,
+  however carefully that chip is torn down first. Coming in through FN2 works
+  because BOOT0 hands it a chip that has just reset, and the marker-and-reset
+  path is how the software route gets the same thing.
+
+  The panel stays amber across the reset for free: the WS2811s latch, and they
+  run off +5V rather than off the MCU.
+- **`web/update/`** — a separate page from the simulator, so a broken simulator
+  build cannot take down the thing that flashes the module. Its DfuSe client is
+  written out rather than vendored; the protocol we need is two hundred lines,
+  against a library we would use a fifth of.
+- **`just dfu-check`**, in `just check`. The flashing sequence is the one thing
+  here whose failure mode is a half-written module, and it cannot be tried
+  casually, so it is asserted against a fake device: command opcodes, data
+  blocks numbered from 2, the short final block sent at its real length, and the
+  device resetting mid-leave counted as success rather than failure.
+- **The page refuses anything that is not a raw image for this target**, before
+  it erases rather than partway through writing. An `.elf` is the mistake that
+  matters: it sits next to the `.bin`, it is what the ST-Link workflow leaves
+  lying around, and it is not an image at all - byte 0 is an ELF header, not the
+  vector table, and a debug build is four times the size of the flash. Writing
+  one gets a fifth of the way in and then fails on an address past the end of
+  the chip, with the module already erased. Checked by its vector table - first
+  word a stack pointer in RAM, second a reset handler in flash - which no
+  `.elf`, `.hex` or unrelated file passes. `just dfu-check` asserts it against
+  the real built artefacts, both of them.
+
+- **`just where`**, which halts the running module over SWD and resolves PC and
+  LR to source lines. A frozen panel looks identical whether the main loop is
+  stuck in a spin, sitting in a fault handler, or executing code that no longer
+  exists, and this is what tells the three apart. It is what diagnosed the jump
+  above, and the manifest stall below.
+
+### Known limits
+
+- **The module does not restart itself after an update - power-cycle the case.**
+  The zero-length download that closes a DFU session has to carry block 2, not
+  0; block 0 means "this is a command", and a command with no payload is
+  discarded, so the session never closed at all. With that fixed the bootloader
+  does reach its manifest phase - and then stops. It drops its own USB pull-up
+  and parks in dfuMANIFEST-WAIT-RESET, waiting for a bus reset that no longer
+  has any route to it, in the place ST's reference implementation calls
+  `NVIC_SystemReset()`.
+
+  Measured rather than inferred: PC in ROM at `0x1FFF5064`, `VTOR` at
+  `0x1FFF0000`, the app's `uwTick` still zero, and nothing on the bus. Nothing
+  the host can send reaches a device that has already disconnected, so this is
+  where it stays. The image is fully written by then and the page says so.
+- **Update mode shows on the panel only when you got there from the page.** The
+  LEDs are set to amber before the reset and the WS2811s latch off +5V, so the
+  colour survives it. The FN2 route cannot do this and never will — ST's
+  bootloader is running by then and knows nothing about the panel. A dark panel
+  in that mode is correct.
+- **Windows needs Zadig once**, to bind WinUSB to the bootloader so Chrome can
+  claim it. This was the deciding tradeoff: a bootloader of our own carrying MS
+  OS 2.0 descriptors would remove the step, but only if those descriptors behave
+  on a clean Windows install, which is not verifiable until it is in users'
+  hands — against a certain cost in flash, a linker offset, and a new way to
+  brick a module.
+- **Versions are reported, never enforced.** Any build flashes over any other.
+  The ROM bootloader has no concept of a version, so a policy here would only be
+  one the recovery path ignores.
+
 ## The outputs are left alone
 
 ### Removed

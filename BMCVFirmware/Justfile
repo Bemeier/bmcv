@@ -15,6 +15,12 @@ build:
 flash:
 	./scripts/flash.sh
 
+# Halt the running module over SWD and say where its PC is, in source terms.
+# For when the panel has frozen and nothing else can tell you why. Needs the
+# ST-Link attached and the ELF matching what is flashed.
+where ELF="build-rel/BMCVFirmware.elf":
+	./scripts/where.sh {{ELF}}
+
 build-flash: build flash
 
 # The same firmware at -O2. `just build` gives you a Debug build - CMakeLists.txt
@@ -115,6 +121,19 @@ wasm-check: wasm
 web-check: wasm
 	node web/frontend-check.mjs
 
+# Serve the firmware updater at http://localhost:PORT/update/. No wasm
+# dependency, deliberately: the updater is a separate page precisely so that a
+# broken simulator build cannot take the thing that flashes the module with it.
+update-page PORT="8000":
+	@echo "http://localhost:{{PORT}}/update/"
+	python3 -m http.server {{PORT}} --directory web
+
+# Checks the DfuSe client against a fake device: command opcodes, data block
+# numbering, the short final block, and what counts as a firmware image at all.
+# The one piece of this project whose failure mode is a half-written module.
+dfu-check:
+	node web/update/dfu-check.mjs
+
 # VCV Rack plugin. Same core as the firmware, compiled straight out of
 # Core/Src/Lib - see vcv/Makefile.
 RACK_SDK := env_var_or_default("RACK_DIR", env_var("HOME") / "Rack-SDK")
@@ -213,7 +232,7 @@ docs-shots PORT="8123": wasm
 	@echo "wrote docs/images/web-overview.png, docs/images/web-panel.png"
 
 # Everything that can be checked without hardware or a browser.
-check: test flows wasm-check web-check
+check: test flows wasm-check web-check dfu-check
 
 # The same tests under AddressSanitizer and UBSan. Kept out of `check` because
 # it is a second full build, but it is what catches the class of fault that
