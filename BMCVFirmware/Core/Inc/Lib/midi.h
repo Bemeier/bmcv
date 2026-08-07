@@ -17,4 +17,11 @@ uint8_t midi_dfu_requested();
 // enough to call every pass; it does nothing until there is something to say.
 void midi_poll_control();
 
+// A MIDI Clock (0xF8) / Start (0xFA) byte was latched since the last call -
+// see midi_realtime.h for why Start and not Continue. Read-and-clear, the
+// same contract as adc_read_trig_state(): call once per tick and feed the
+// result to InputSample.midi_clock_trig / midi_reset_trig.
+uint8_t midi_read_clock_trig();
+uint8_t midi_read_reset_trig();
+
 #endif /* INC_DRIVERS_MIDI_H_ */

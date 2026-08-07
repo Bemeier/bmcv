@@ -21,6 +21,11 @@ static void apply_clock_events(UxState* state, uint32_t now_us)
 {
   ClockState* clk = &state->engine_state->clock;
 
+  // Set before Poll as well as Trigger/Reset: Poll's phase interpolation
+  // divides by PULSES_PER_BEAT too, and a stale value there would show as a
+  // one-tick glitch in the LED phase right after the source changes.
+  clk->PULSES_PER_BEAT = state->hw_state->clock_source_is_midi ? CLOCK_PULSES_PER_BEAT_MIDI : CLOCK_PULSES_PER_BEAT_CV;
+
   Clock_Poll(clk, now_us);
 
   // Reset first: a reset arriving on the same tick as a pulse must land

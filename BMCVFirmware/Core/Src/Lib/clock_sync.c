@@ -4,7 +4,7 @@
 
 void Clock_Init(ClockState* clk)
 {
-  clk->PULSES_PER_BEAT  = 4;
+  clk->PULSES_PER_BEAT  = CLOCK_PULSES_PER_BEAT_CV;
   clk->have_beat        = false;
   clk->have_pulse       = false;
   clk->beat_freq        = 1.0f;

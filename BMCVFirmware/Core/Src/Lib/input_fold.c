@@ -64,21 +64,41 @@ uint8_t input_fold(InputFrames* in, UxState* ux, const InputSample* sample, uint
   curr->clock_pulse = 0;
   curr->clock_reset = 0;
 
+  uint8_t has_clock_input = 0;
+  uint8_t has_reset_input = 0;
+
   int32_t slider_cv = 0;
   for (uint8_t g = 0; g < N_INPUTS; g++)
   {
     InputMode mode = ux->engine_config->input_mode[g];
 
-    // TODO: Clock input configuration
-    if (mode == INPUT_CLOCK && curr->trigger_src[TRIG_SRC_INPUT(g)])
-      curr->clock_pulse = 1;
+    if (mode == INPUT_CLOCK)
+    {
+      has_clock_input = 1;
+      if (curr->trigger_src[TRIG_SRC_INPUT(g)])
+        curr->clock_pulse = 1;
+    }
 
-    if (mode == INPUT_RESET && curr->trigger_src[TRIG_SRC_INPUT(g)])
-      curr->clock_reset = 1;
+    if (mode == INPUT_RESET)
+    {
+      has_reset_input = 1;
+      if (curr->trigger_src[TRIG_SRC_INPUT(g)])
+        curr->clock_reset = 1;
+    }
 
     if (mode == INPUT_SLIDER)
       slider_cv += sample->cv_raw[hw->input_adc_idx[g]] * 2;
   }
+
+  // MIDI only drives the clock/reset when nothing is patched for the job - a
+  // jack always wins over a cable that is not even physical. The two gate
+  // independently: a module might have a reset jack in use but no clock jack,
+  // or the other way round.
+  curr->clock_source_is_midi = !has_clock_input;
+  if (!has_clock_input && sample->midi_clock_trig)
+    curr->clock_pulse = 1;
+  if (!has_reset_input && sample->midi_reset_trig)
+    curr->clock_reset = 1;
 
   curr->slider_state = (uint16_t) iclamp((int32_t) sample->slider_raw - slider_cv, SLIDER_MIN_VALUE, SLIDER_MAX_VALUE);
 

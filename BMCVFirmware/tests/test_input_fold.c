@@ -80,8 +80,12 @@ static uint8_t rig_fold(Rig* r, uint32_t now_us)
 {
   uint8_t dirty = input_fold(&r->in, &r->ux, &r->sample, now_us);
   // Gate pulses are one-shot: the caller latches an edge, the input layer
-  // consumes it. Mirror that so a held-high sample does not retrigger.
+  // consumes it. Mirror that so a held-high sample does not retrigger - the
+  // real firmware gets this for free, since midi_read_clock_trig() and
+  // adc_read_trig_state() are both read-and-clear.
   memset(r->sample.cv_trig, 0, sizeof(r->sample.cv_trig));
+  r->sample.midi_clock_trig = 0;
+  r->sample.midi_reset_trig = 0;
   return dirty;
 }
 
@@ -381,6 +385,86 @@ TEST_CASE(reset_is_dispatched_before_clock_on_the_same_tick)
   CHECK(r.es.clock.beat_counter == 0);
 }
 
+// -- MIDI clock/reset fallback -----------------------------------------------
+//
+// MIDI only drives the clock or reset when nothing is patched for the job - a
+// jack always wins, whether or not anything is actually plugged into it. The
+// two gate independently.
+
+TEST_CASE(midi_clock_drives_the_clock_when_no_input_is_configured)
+{
+  Rig r;
+  rig_init(&r); // every input starts at INPUT_DEFAULT
+
+  CHECK(!r.es.clock.have_beat);
+
+  // 24 pulses per beat at MIDI's fixed PPQN; ~20.8ms per pulse -> 2Hz beat.
+  uint32_t t = 0;
+  for (int i = 0; i < 48; i++)
+  {
+    t += 20833;
+    r.sample.midi_clock_trig = 1;
+    rig_tick(&r, t);
+  }
+
+  CHECK(r.es.clock.have_beat);
+  CHECK(r.es.clock.PULSES_PER_BEAT == CLOCK_PULSES_PER_BEAT_MIDI);
+  CHECK_NEAR(r.es.clock.beat_freq_smooth, 2.0, 0.05);
+}
+
+TEST_CASE(a_configured_clock_input_blocks_midi_even_when_the_input_is_idle)
+{
+  Rig r;
+  rig_init(&r);
+  r.cfg.input_mode[0] = INPUT_CLOCK; // configured, but never patched
+
+  r.sample.midi_clock_trig = 1;
+  rig_tick(&r, MS(1));
+
+  CHECK(r.ux.hw_state->clock_pulse == 0);
+  CHECK(!r.es.clock.have_beat);
+  CHECK(r.es.clock.PULSES_PER_BEAT == CLOCK_PULSES_PER_BEAT_CV);
+}
+
+TEST_CASE(midi_reset_resets_only_when_no_input_is_configured_as_reset)
+{
+  Rig r;
+  rig_init(&r);
+  r.es.clock.beat_counter = 7;
+
+  r.sample.midi_reset_trig = 1;
+  rig_tick(&r, MS(1));
+  CHECK(r.es.clock.beat_counter == 0);
+
+  // Now a physical reset input is configured: MIDI must no longer reach it,
+  // patched or not.
+  Rig r2;
+  rig_init(&r2);
+  r2.cfg.input_mode[1]     = INPUT_RESET;
+  r2.es.clock.beat_counter = 7;
+
+  r2.sample.midi_reset_trig = 1;
+  rig_tick(&r2, MS(1));
+  CHECK(r2.es.clock.beat_counter == 7);
+}
+
+// Clock and reset gate independently: a reset jack in use must not block a
+// MIDI clock that has nowhere physical to come from, or the other way round.
+TEST_CASE(clock_and_reset_fallback_gate_independently)
+{
+  Rig r;
+  rig_init(&r);
+  r.cfg.input_mode[1] = INPUT_RESET; // reset is spoken for, clock is not
+
+  r.sample.midi_clock_trig = 1;
+  rig_fold(&r, MS(1));
+  CHECK(r.ux.hw_state->clock_pulse == 1);
+
+  r.sample.midi_reset_trig = 1;
+  rig_fold(&r, MS(2));
+  CHECK(r.ux.hw_state->clock_reset == 0);
+}
+
 // -- autosave --------------------------------------------------------------
 
 TEST_CASE(autosave_writes_only_when_the_config_actually_changed)
@@ -497,6 +581,10 @@ int main(void)
   RUN_TEST(input_clock_mode_drives_the_clock);
   RUN_TEST(input_reset_mode_resets_clock_and_every_channel_phase);
   RUN_TEST(reset_is_dispatched_before_clock_on_the_same_tick);
+  RUN_TEST(midi_clock_drives_the_clock_when_no_input_is_configured);
+  RUN_TEST(a_configured_clock_input_blocks_midi_even_when_the_input_is_idle);
+  RUN_TEST(midi_reset_resets_only_when_no_input_is_configured_as_reset);
+  RUN_TEST(clock_and_reset_fallback_gate_independently);
   RUN_TEST(autosave_writes_only_when_the_config_actually_changed);
   RUN_TEST(autosave_is_silent);
   RUN_TEST(null_preset_io_is_safe);

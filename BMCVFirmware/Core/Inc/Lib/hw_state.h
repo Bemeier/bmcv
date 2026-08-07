@@ -25,6 +25,14 @@ typedef struct
   uint8_t clock_pulse;
   uint8_t clock_reset;
 
+  // True when no input is configured as the clock source, so clock_pulse (if
+  // set this tick) came from MIDI rather than a jack - a fact about this
+  // tick's config, not a latch, so it reads the same whether or not
+  // clock_pulse itself is set. engine_tick uses it to pick
+  // ClockState.PULSES_PER_BEAT: a CV clock is one pulse per step, MIDI Clock
+  // is fixed at 24 per quarter note.
+  uint8_t clock_source_is_midi;
+
   // Raw level only. Press durations and gestures are derived once, in
   // ui_input.c - HwState deliberately no longer carries them, so there is no
   // second source of truth for "how long has this been held".

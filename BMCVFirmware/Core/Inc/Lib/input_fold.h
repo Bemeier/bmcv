@@ -39,6 +39,14 @@ typedef struct
   // should use input_trig_step() to reproduce that.
   uint8_t cv_trig[N_INPUTS];
 
+  // A MIDI Clock (0xF8) / Start (0xFA) byte arrived since the last tick - see
+  // midi_realtime.h. Latched the same way as cv_trig and for the same reason:
+  // caught in the USB interrupt, consumed once per engine tick. input_fold
+  // only acts on these when no input is configured as the clock/reset source
+  // respectively - a physical patch cable always wins.
+  uint8_t midi_clock_trig;
+  uint8_t midi_reset_trig;
+
   uint8_t button_down[N_BUTTONS];
 
   // Free-running absolute position. The delta is computed here and is

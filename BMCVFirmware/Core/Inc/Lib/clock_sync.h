@@ -27,6 +27,12 @@
 // rather than measuring an interval against whatever came before it.
 #define CLOCK_RESET_GUARD_US 2000u
 
+// PULSES_PER_BEAT differs by source and the caller sets it accordingly - see
+// engine.c's apply_clock_events. A CV clock is one pulse per step; MIDI Clock
+// is fixed at 24 per quarter note by the MIDI spec, not a module setting.
+#define CLOCK_PULSES_PER_BEAT_CV 4u
+#define CLOCK_PULSES_PER_BEAT_MIDI 24u
+
 typedef struct
 {
   uint8_t PULSES_PER_BEAT;

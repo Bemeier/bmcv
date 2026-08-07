@@ -416,6 +416,9 @@ uint8_t bmcv_state_update(uint32_t now_us)
     sample.cv_trig[ch] = adc_read_trig_state(ch);
   }
 
+  sample.midi_clock_trig = midi_read_clock_trig();
+  sample.midi_reset_trig = midi_read_reset_trig();
+
   for (uint8_t b = 0; b < N_BUTTONS; b++)
   {
     sample.button_down[b] = get_btn_state(b);
