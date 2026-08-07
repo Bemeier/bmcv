@@ -44,6 +44,19 @@ EXTRA_CFLAGS += -std=gnu2x
 
 include $(RACK_DIR)/plugin.mk
 
+# Checked directly against the construct that actually needs C23 - bare
+# static_assert, no <assert.h> - rather than against a compiler version
+# number, which would have to special-case Clang defining __GNUC__ too (see
+# the gnu2x note above for why this needs checking at all). Left unchecked,
+# `make -j` runs every core source in parallel and buries the one real
+# problem under a wall of "expected declaration specifiers" from each.
+ifneq ($(shell echo 'static_assert(1, "x");' | $(CC) -std=gnu2x -x c -c -o /dev/null - 2>&1),)
+$(error $(CC) cannot compile a bare C23 static_assert - too old. Core/Inc/Lib/hw_setup.h \
+  uses it as a keyword, not the <assert.h> macro. GCC needs 13+; Ubuntu 24.04 and Debian 13 \
+  ship that by default. Install a newer compiler alongside the system one and pass CC=<path> \
+  - see docs/setup.md)
+endif
+
 # compile.mk hardcodes build/, so a Linux build and a cross-compiled Windows
 # build would drop their objects on top of each other and fail at link with
 # something unhelpful about file formats. Wipe the tree when the target

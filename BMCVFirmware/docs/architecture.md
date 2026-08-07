@@ -2,7 +2,9 @@
 
 Four things are built from it: the firmware, a headless simulator, a browser
 frontend and a VCV Rack module. All four run the same C, and the arrangement
-below exists to keep that true rather than approximately true.
+below exists to keep that true rather than approximately true. For how to
+build each - what to install and in what order - see
+[setup.md](setup.md).
 
 ```
 Core/Inc/Lib  Core/Src/Lib   the module. No host, no peripherals.
@@ -17,10 +19,12 @@ panel/                       generated panel geometry.
 
 The HAL itself is not in the tree. `cmake/stm32cubemx/CMakeLists.txt` compiles it
 out of an STM32Cube FW package located by `STM32CUBE_FW_PATH`, which is what
-`toolchain.cmake` sets - see `toolchain.default.cmake`. CI fetches the same
-version from ST's public mirror; the two submodules it needs are named in
-`../.github/workflows/ci.yml` - that workflow lives at the monorepo root,
-alongside the KiCad hardware files, not under this directory.
+`toolchain.cmake` sets - written by `just arm-sdk` (see setup.md), or by hand
+from `toolchain.default.cmake` if you already have STM32CubeCLT. CI fetches
+the same version from ST's public mirror the same way `arm-sdk` does; the two
+submodules it needs are named in `../.github/workflows/ci.yml` - that
+workflow lives at the monorepo root, alongside the KiCad hardware files, not
+under this directory.
 
 ## The seam
 

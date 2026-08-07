@@ -66,6 +66,11 @@ and what each directory is for.
 
 ## Building
 
+Prerequisites, what each fetch recipe actually gets and why, and
+troubleshooting: [docs/setup.md](docs/setup.md). On a fresh checkout, the
+one thing to run first is `just arm-sdk`.
+
+    just arm-sdk          # fetch the ARM toolchain + STM32Cube HAL, once
     just build            # ARM firmware        just flash
     just check            # everything host-side: tests, golden flows, wasm, web
     just test-san         # the same tests under ASan/UBSan

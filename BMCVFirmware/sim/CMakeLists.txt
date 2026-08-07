@@ -10,6 +10,8 @@
 cmake_minimum_required(VERSION 3.22)
 project(bmcv_sim C)
 
+include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/require_modern_c.cmake)
+
 set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

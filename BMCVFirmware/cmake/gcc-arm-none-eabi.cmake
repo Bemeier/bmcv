@@ -54,7 +54,14 @@ set(CPU_FLAGS "-mcpu=cortex-m4 -mthumb")
 set(FPU_FLAGS "-mfpu=fpv4-sp-d16 -mfloat-abi=hard")
 
 set(CMAKE_C_COMPILER ${ARM_TOOLCHAIN_DIR}/bin/arm-none-eabi-gcc)
+set(CMAKE_CXX_COMPILER ${ARM_TOOLCHAIN_DIR}/bin/arm-none-eabi-g++)
 set(CMAKE_ASM_COMPILER ${CMAKE_C_COMPILER})
+# The compiler was re-pointed at ARM_TOOLCHAIN_DIR above; these were not, so
+# linking worked (arm-none-eabi-gcc is an absolute path) and the objcopy step
+# right after it silently needed ARM_TOOLCHAIN_DIR/bin on PATH too - true by
+# accident for anyone whose IDE already put a toolchain there, not otherwise.
+set(CMAKE_OBJCOPY ${ARM_TOOLCHAIN_DIR}/bin/arm-none-eabi-objcopy)
+set(CMAKE_SIZE ${ARM_TOOLCHAIN_DIR}/bin/arm-none-eabi-size)
 set(CMAKE_SYSROOT ${ARM_TOOLCHAIN_DIR}/arm-none-eabi)
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 

@@ -6,6 +6,18 @@
 #   RACK_WIN_DIR := "/mnt/c/Users/someone/AppData/Local/Rack2"
 import? 'local.just'
 
+# Everything `just build` needs beyond cmake/ninja: the ARM compiler and ST's
+# HAL, fetched once. Neither needs ST's account-gated, multi-gigabyte
+# STM32CubeCLT installer - see scripts/fetch-arm-sdk.sh for what this gets
+# instead and why. Writes toolchain.cmake pointing at both, unless one is
+# already there, so this is the only thing to run before `just configure`
+# on a fresh checkout.
+ARM_GCC_DIR := env_var_or_default("ARM_GCC_DIR", env_var("HOME") / "arm-gcc-xpack")
+CUBE_G4_DIR := env_var_or_default("CUBE_G4_DIR", env_var("HOME") / "STM32CubeG4")
+
+arm-sdk:
+	./scripts/fetch-arm-sdk.sh "{{ARM_GCC_DIR}}" "{{CUBE_G4_DIR}}"
+
 configure:
   rm -Rf build && cmake -B build -G Ninja
 
