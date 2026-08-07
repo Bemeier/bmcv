@@ -1,0 +1,9 @@
+#!args --rate=200ms --emit=outputs
+# Select AMP, then wind channel 0's encoder up and watch out0 come alive.
+# Params are picked by tapping a ctrl button while no shift mode is active;
+# ctrl ids 0..5 map to FRQ SHP MOD PHS AMP OFS, so SAV selects AMP.
+0ms     slider 0.0
+50ms    ctrl SAV 1
+80ms    ctrl SAV 0
+200ms   enc 3 400
+2s      end

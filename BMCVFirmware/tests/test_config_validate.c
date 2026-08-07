@@ -18,7 +18,7 @@ TEST_CASE(a_valid_config_is_passed_through_unchanged)
   f.engine_config.input_mode[3] = INPUT_SLIDER;
   for (uint8_t c = 0; c < N_ENCODERS; c++)
   {
-    f.engine_config.channel_state[c].shape_mode     = SHAPE_STEPPED_SEMI;
+    f.engine_config.channel_state[c].shape_mode     = SHAPE_STEPPED;
     f.engine_config.channel_state[c].quantize_mode  = QUANTIZE_CONTINUOUS;
     f.engine_config.channel_state[c].input_amp_mode = INPUT_AMP_MULT;
     f.engine_config.channel_state[c].src_input      = 1;

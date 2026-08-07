@@ -1,0 +1,108 @@
+/* Deliberately not shared with the simulator's stylesheet. This page has to
+   keep working when the simulator build is broken - that is the whole reason
+   it is a separate page - so it owns everything it needs. Same palette, so the
+   two still look like one project. */
+
+:root {
+  color-scheme: dark;
+  --bg: #14161a;
+  --box: #1b1e23;
+  --line: #333840;
+  --fg: #dfe3ea;
+  --muted: #8b929d;
+  --accent: #6fc3ff;
+  --warn: #f0b45a;
+  --bad: #ff7b6b;
+  --good: #7fd88f;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0 auto;
+  padding: 1.5rem;
+  max-width: 46rem;
+  background: var(--bg);
+  color: var(--fg);
+  font: 15px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+header { margin-bottom: 1.5rem; }
+h1 { margin: 0; font-size: 1.4rem; font-weight: 600; letter-spacing: .02em; }
+h1 .sub { color: var(--muted); font-weight: 400; }
+.tagline { margin: .35rem 0 0; color: var(--muted); }
+
+h2 {
+  margin: 0 0 .6rem;
+  font-size: .8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--muted);
+}
+
+.step {
+  background: var(--box);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 1rem 1.1rem;
+  margin-bottom: 1rem;
+}
+.step[hidden] { display: none; }
+
+.step > :last-child { margin-bottom: 0; }
+.step p { margin: .5rem 0; }
+
+button {
+  font: inherit;
+  color: var(--fg);
+  background: #2b2f37;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: .45rem .9rem;
+  cursor: pointer;
+}
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:disabled { opacity: .45; cursor: default; }
+button.primary { background: #2d4a5e; border-color: #3f6d8a; }
+
+input[type=file] { font: inherit; color: var(--muted); max-width: 100%; }
+
+.muted { color: var(--muted); }
+.warn { color: var(--warn); }
+.bad { color: var(--bad); }
+.good { color: var(--good); }
+
+.note { color: var(--muted); font-size: .88rem; }
+
+.row { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; }
+
+progress {
+  width: 100%;
+  height: .6rem;
+  accent-color: var(--accent);
+}
+
+#log {
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--muted);
+  background: #101216;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: .6rem .7rem;
+  max-height: 12rem;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+dl { margin: .5rem 0; }
+dt { font-weight: 600; margin-top: .7rem; }
+dd { margin: .2rem 0 0; color: var(--muted); }
+
+kbd {
+  font: inherit;
+  background: #2b2f37;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0 .3em;
+}

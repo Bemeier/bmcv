@@ -1,356 +1,349 @@
 #include "channel.h"
-#include "assign.h"
 #include "clock_sync.h"
-#include "color_presets.h"
-#include "dac_adc.h"
+#include "config.h"
+#include "engine_state.h"
 #include "helpers.h"
 #include "hw_setup.h"
+#include "hw_state.h"
 #include "math.h"
-#include "state.h"
 #include "stepped_random.h"
-#include "ux_state.h"
-#include "wave_fn.h"
-#include "led_fb.h"
+#include "stepped_random_table.h"
+#include "wavetable.h"
 #include <stdint.h>
 
-#define N_SHP_LEVELS 8
-#define N_AMP_LEVELS 11
-#define N_FREQ_MULTIPLIERS 31
 #define N_FREQ_SCALE 255
-// #define SHAPE_INTERVAL INT16_MAX / M
 
-// Output-side (DAC-domain) trigger detection thresholds for this channel's own
-// signal. Deliberately distinct from dac_adc.h's identically-valued
-// TRIG_THRESH*, which are input-side (ADC-domain) - the two are independent
-// and should be tunable separately.
-#define CHANNEL_TRIG_THRESH 1024
-#define CHANNEL_TRIG_THRESH_LOW 800
+// A channel's own output can trigger another channel's sample & hold, so it
+// gets the same treatment an input jack does: the same two voltages (~1.25V
+// rising, ~0.98V falling), expressed in the DAC domain this signal lives in.
+//
+// These used to be 1024/800 written out again - the input-side numbers copied
+// across without rescaling, which in DAC units is 0.31V, so a channel counted
+// as triggering almost the moment it left zero.
+#define CHANNEL_TRIG_THRESH TRIG_THRESH_DAC
+#define CHANNEL_TRIG_THRESH_LOW TRIG_THRESH_LOW_DAC
 
-/*
-static const int16_t quantized_amp_levels[N_AMP_LEVELS] = {
-    -INT16_MAX,     // *-1
-    -INT16_MAX / 2, // *-1/2
-    -INT16_MAX / 3, // *-1/3
-    -INT16_MAX / 4, // *-1/4
-    -INT16_MAX / 8, // *-1/8
-    0,              // 0
-    INT16_MAX / 8,  // *1/4
-    INT16_MAX / 4,  // *1/4
-    INT16_MAX / 3,  // *1/3
-    INT16_MAX / 2,  // *1/2
-    INT16_MAX       // *1
-};
+// How long after the last encoder movement a channel still counts as being
+// actively edited, during which a pattern-length change applies immediately
+// rather than waiting for the cycle wrap.
+#define MOD_EDIT_WINDOW MS(500)
 
-static const int16_t quantized_shp_levels[N_SHP_LEVELS] = {
-    -SHAPE_INTERVAL * 4, -SHAPE_INTERVAL * 3, -SHAPE_INTERVAL * 2, -SHAPE_INTERVAL * 1,
-    -SHAPE_INTERVAL * 0, SHAPE_INTERVAL * 1,  SHAPE_INTERVAL * 2,  SHAPE_INTERVAL * 3,
-};
-*/
-
-static const int16_t quantized_multipliers[N_FREQ_MULTIPLIERS] = {
-    -127 * 255, // 1/128
-    -63 * 255,  // 1/64
-    -31 * 255,  // 1/32
-    -23 * 255,  // 1/24
-    -15 * 255,  // 1/16
-    -11 * 255,  // 1/12
-    -7 * 255,   // 1/8
-    -5 * 255,   // 1/6
-    -4 * 255,   // 1/5
-    -3 * 255,   // 1/4
-    -2 * 255,   // 1/3
-    -1 * 255,   // 1/2
-    -127,       // 2/3
-    -85,        // 3/4
-    -64,        // 4/5
-    0,          // 1
-    64,         // 5/4
-    85,         // 4/3
-    127,        // 3/2
-    1 * 255,    // 2
-    2 * 255,    // 3
-    3 * 255,    // 4
-    4 * 255,    // 5
-    5 * 255,    // 6
-    7 * 255,    // 8
-    11 * 255,   // 12
-    15 * 255,   // 16
-    23 * 255,   // 24
-    31 * 255,   // 32
-    63 * 255,   // 32
-    127 * 255,  // 128
-};
-
-// TODO: Even dividers: green
-static const uint8_t quantized_multipliers_colors[N_FREQ_MULTIPLIERS] = {
-    HUE_GREEN,  // 1/128
-    HUE_CYAN,   // 1/64
-    HUE_GREEN,  // 1/32
-    HUE_RED,    // 1/24
-    HUE_GREEN,  // 1/16
-    HUE_RED,    // 1/12
-    HUE_GREEN,  // 1/8
-    HUE_RED,    // 1/6
-    HUE_YELLOW, // 1/5
-    HUE_GREEN,  // 1/4
-    HUE_RED,    // 1/3
-    HUE_GREEN,  // 1/2
-    HUE_CYAN,   // 2/3
-    HUE_CYAN,   // 3/4
-    HUE_CYAN,   // 5/4
-    HUE_GREEN,  // 1
-    HUE_CYAN,   // 5/4
-    HUE_CYAN,   // 4/3
-    HUE_CYAN,   // 3/2
-    HUE_GREEN,  // 2
-    HUE_RED,    // 3
-    HUE_GREEN,  // 4
-    HUE_YELLOW, // 5
-    HUE_RED,    // 6
-    HUE_GREEN,  // 8
-    HUE_RED,    // 12
-    HUE_GREEN,  // 16
-    HUE_RED,    // 24
-    HUE_CYAN,   // 32
-    HUE_GREEN,  // 64
-    HUE_CYAN    // 64
-};
+// Mute fade, in milliseconds. At the ~3kHz tick rate this is about 15 steps,
+// and the converter is band-limited well below that, so it is comfortably
+// enough to keep the transition silent.
+#define MUTE_RAMP_MS 5.0f
 
 // Per-channel mutable state (prev_out / trig_state / trig_flag / last_delta)
 // lives in EngineState so it resets with the rest of the engine and does not
 // leak between tests or engine instances.
 
-static const uint8_t quantize_mode_color[QUANTIZE_MODE_COUNT]   = {HUE_RED, HUE_MAGENTA, HUE_CYAN};
-static const uint8_t input_amp_mode_color[INPUT_AMP_MODE_COUNT] = {HUE_RED, HUE_GREEN, HUE_YELLOW};
-static const uint8_t shape_mode_color[SHAPE_MODE_COUNT]         = {HUE_GREEN, HUE_MAGENTA, HUE_BLUE, HUE_CYAN};
-
-static const float k_sync = 0.075f;
-
-void update_channel_param(const ChannelSetup* ch, UxState* state)
+// The output stage's range limit. A clamp rather than a scaling: the parameters
+// keep meaning what they say and the swing is cut off at the ends, so setting a
+// channel to 0..5V does not quietly halve everything already dialled in.
+static float clamp_output(float value, int8_t mode)
 {
-  ChannelConfig* chcfg = &state->engine_config->channel_state[ch->id];
-  int8_t param         = state->engine_state->selected_param;
-  int16_t delta        = state->hw_state->encoder_delta[ch->encoder];
-  int8_t alt           = state->hw_state->button_pressed_t[ch->button] > 0;
-  if (delta == 0)
+  switch (mode)
+  {
+  case CLAMP_BI_5:
+    return fclamp(value, -(float) DAC_5V, (float) DAC_5V);
+  case CLAMP_UNI_10:
+    return fclamp(value, 0.0f, (float) INT16_MAX);
+  case CLAMP_UNI_5:
+    return fclamp(value, 0.0f, (float) DAC_5V);
+  case CLAMP_BI_10:
+  default:
+    return fclamp(value, (float) INT16_MIN, (float) INT16_MAX);
+  }
+}
+
+// PWM: a gate with an envelope on it.
+//
+// SHP is the pulse width. MOD splits ramp time between the two edges, each
+// confined to its own segment - the rise inside the on-time, the fall inside
+// the off-time - so the width still means what it says at either extreme. MOD 0
+// is a hard gate, negative snaps up and decays, positive swells and then drops.
+//
+// The ramps are curved rather than linear, which is what makes the negative
+// side read as an envelope rather than as a triangle: the attack is concave
+// (quick off the floor, easing into the plateau) and the decay convex (steep,
+// then a tail). One multiply each, and no expf on a path that runs eight times
+// a tick.
+static float pwm_shape(float phase, float shape, float mod)
+{
+  // Off both end stops, so the pulse never disappears entirely.
+  float width = fclamp(0.5f + shape * 0.48f, 0.02f, 0.98f);
+
+  if (phase < width)
+  {
+    float rise = (mod > 0.0f) ? mod * width : 0.0f;
+    if (phase >= rise)
+      return 1.0f; // covers rise == 0, where the edge is instant
+    float x = phase / rise;
+    return -1.0f + 2.0f * (2.0f * x - x * x);
+  }
+
+  float fall = (mod < 0.0f) ? -mod * (1.0f - width) : 0.0f;
+  float t    = phase - width;
+  if (t >= fall)
+    return -1.0f;
+  float y = 1.0f - t / fall;
+  return -1.0f + 2.0f * y * y;
+}
+
+void channel_init(uint8_t ch, EngineState* es)
+{
+  es->channels_shared_phase[ch]      = 0;
+  es->channels_phase_correction[ch]  = 0;
+  es->channels_gcd[ch]               = 0; // not taken yet; see channel_compute
+  es->channels_beat_origin[ch]       = 0;
+  es->channels_ratio_seen[ch]        = 0;
+  es->channels_ratio_still_since[ch] = 0;
+  es->channels_cycle[ch]             = 0;
+  es->channels_period_cycles[ch]     = 1;
+  es->channels_prev_phase[ch]        = 0;
+  es->channels_length_idx[ch]        = -1;   // latch on the first tick
+  es->channels_mute_gain[ch]         = 1.0f; // open, not fading in from silence
+}
+
+// What a reset input does: back to phase zero. The alignment period goes with
+// it - a reset re-establishes where the beat grid starts, and holding an origin
+// measured from before it would leave the channel repeating on the old one.
+void channel_reset_phase(uint8_t ch, EngineState* es)
+{
+  es->channels_shared_phase[ch]     = 0;
+  es->channels_phase_correction[ch] = 0;
+  es->channels_gcd[ch]              = 0;
+  es->channels_beat_origin[ch]      = 0;
+  es->channels_cycle[ch]            = 0;
+  es->channels_period_cycles[ch]    = 1;
+}
+
+// scene < 0 means every scene, as the header has always said - it used to be
+// rejected along with the out-of-range values, so the one caller that wanted
+// "everywhere" had to loop for itself.
+void channel_reset_param(uint8_t ch, EngineConfig* cfg, int8_t scene, int8_t param)
+{
+  if (ch >= N_CHANNELS || scene >= N_SCENES || param < 0 || param >= CH_PARAM_COUNT)
     return;
 
-  state->engine_state->channels_last_delta[ch->id] = state->hw_state->time;
+  for (uint8_t s = 0; s < N_SCENES; s++)
+  {
+    if (scene >= 0 && s != (uint8_t) scene)
+      continue;
 
-  state->engine_state->channels_mark_for[ch->id] = MS(1000);
-
-  if (alt)
-  {
-    chcfg->params[state->engine_state->active_scene][param] += 32 * delta;
-  }
-  else if (param == CH_PARAM_FRQ)
-  {
-    size_t idx = 0;
-    chcfg->params[state->engine_state->active_scene][param] =
-        val_neighbour(chcfg->params[state->engine_state->active_scene][param], delta, quantized_multipliers, N_FREQ_MULTIPLIERS, &idx);
-    state->engine_state->channels_mark_hue[ch->id] = quantized_multipliers_colors[idx];
-  }
-  /*
-  else if (param == CH_PARAM_SHP)
-  {
-      size_t idx = 0;
-      chcfg->params[state->engine_state->active_scene][param] =
-          val_neighbour(chcfg->params[state->engine_state->active_scene][param], delta, quantized_shp_levels, N_SHP_LEVELS, &idx);
-  }
-  */
-  else
-  {
-    chcfg->params[state->engine_state->active_scene][param] += delta * 256;
+    // Frequency is a ratio: its neutral value is "one beat", which is -255 in
+    // the multiplier table, not zero.
+    cfg->channel_state[ch].params[s][param] = (param == CH_PARAM_FRQ) ? -255 : 0;
   }
 }
 
-void init_channel(const ChannelSetup* ch, UxState* state)
+void channel_reset(uint8_t ch, EngineState* es, EngineConfig* cfg, int8_t scene)
 {
-  state->engine_state->channels_shared_phase[ch->id]     = 0;
-  state->engine_state->channels_phase_correction[ch->id] = 0;
-}
+  channel_init(ch, es);
 
-void reset_channel_param(const ChannelSetup* ch, UxState* state, int8_t scene, int8_t param)
-{
-  ChannelConfig* chcfg = &state->engine_config->channel_state[ch->id];
-  if (param == CH_PARAM_FRQ)
+  for (uint8_t p = 0; p < CH_PARAM_COUNT; p++)
   {
-    chcfg->params[scene][param] = -255;
-  }
-  else
-  {
-    chcfg->params[scene][param] = 0;
+    channel_reset_param(ch, cfg, scene, (int8_t) p);
   }
 }
 
-void reset_channel(const ChannelSetup* ch, UxState* state, int8_t scene)
+void channel_compute(uint8_t ch, EngineState* es, const EngineConfig* cfg, const HwState* hw)
 {
-  init_channel(ch, state);
-
-  if (scene < 0)
-  {
-    for (uint8_t s = 0; s < N_SCENES; s++)
-    {
-      for (uint8_t p = 0; p < CH_PARAM_COUNT; p++)
-      {
-        reset_channel_param(ch, state, s, p);
-      }
-    }
-  }
-  else
-  {
-    for (uint8_t p = 0; p < CH_PARAM_COUNT; p++)
-    {
-      reset_channel_param(ch, state, scene, p);
-    }
-  }
-}
-
-void reset_channel_phase(const ChannelSetup* ch, UxState* state)
-{
-  state->engine_state->channels_shared_phase[ch->id]     = 0;
-  state->engine_state->channels_phase_correction[ch->id] = 0;
-}
-
-void update_channel(const ChannelSetup* ch, UxState* state)
-{
-  int8_t long_pressed  = state->hw_state->button_released_t[ch->button] > MS(500);
-  int8_t pressed       = state->hw_state->button_released_t[ch->button] > MS(10);
-  int8_t pressing      = state->hw_state->button_pressed_t[ch->button] > 0;
-  ChannelConfig* chcfg = &state->engine_config->channel_state[ch->id];
-  switch (state->engine_state->shift_state)
-  {
-  case SHIFT_STATE_SYS:
-    chcfg->shape_mode = delta_modulo_step(chcfg->shape_mode, state->hw_state->encoder_delta[ch->encoder], SHAPE_MODE_COUNT);
-    break;
-  case SHIFT_STATE_QNT:
-    if (pressed && assign_state(state) == ASSIGN_NONE)
-    {
-      chcfg->quantize_mode = QUANTIZE_TRIG_SRC;
-      assign_event(ASSIGN_TRIG_SRC, ch->id, state);
-    }
-    else if (pressed && assign_state(state) == ASSIGN_TRIG_SRC)
-    {
-      assign_event(ASSIGN_CHANNEL, ch->id, state);
-    }
-    else if (assign_state(state) == ASSIGN_NONE)
-    {
-      chcfg->quantize_mode = delta_modulo_step(chcfg->quantize_mode, state->hw_state->encoder_delta[ch->encoder], QUANTIZE_MODE_COUNT);
-    }
-    break;
-  case SHIFT_STATE_MON:
-    if (pressed)
-    {
-      if (assign_state(state) == ASSIGN_NONE)
-      {
-        assign_reset(state);
-        assign_event(ASSIGN_CHANNEL, ch->id, state);
-      }
-      else if (assign_state(state) == ASSIGN_CHANNEL && assign_src(state) == ch->id)
-      {
-        assign_reset(state);
-        chcfg->src_input = -1;
-      }
-    }
-
-    if (!pressing)
-    {
-      chcfg->input_amp_mode = delta_modulo_step(chcfg->input_amp_mode, state->hw_state->encoder_delta[ch->encoder], INPUT_AMP_MODE_COUNT);
-    }
-    break;
-  case SHIFT_STATE_CPY:
-    if (pressed)
-    {
-      assign_event(ASSIGN_CHANNEL, ch->id, state);
-    }
-    break;
-  case SHIFT_STATE_CLR:
-    if (long_pressed)
-    {
-      clear_channel(ch->id, 1, state);
-    }
-    else if (pressed)
-    {
-      clear_channel(ch->id, 0, state);
-    }
-    break;
-  case SHIFT_STATE_NONE:
-    uint32_t t_no_rotation = state->hw_state->time - state->engine_state->channels_last_delta[ch->id];
-    if (long_pressed && state->hw_state->button_released_t[ch->button] < t_no_rotation)
-    {
-      reset_channel_param(ch, state, state->engine_state->active_scene, state->engine_state->selected_param);
-    }
-    else
-    {
-      update_channel_param(ch, state);
-    }
-    break;
-  default:
-    break;
-  }
-}
-
-void compute_channel_scene(const ChannelSetup* ch, UxState* state)
-{
-  (void) ch;
-  (void) state;
-}
-
-void compute_channel(const ChannelSetup* ch, UxState* state)
-{
-  ChannelConfig* chcfg = &state->engine_config->channel_state[ch->id];
-  float dt_s           = state->hw_state->dt * US_TO_S;
+  const ChannelConfig* chcfg = &cfg->channel_state[ch];
+  float dt_s                 = hw->dt * US_TO_S;
 
   int16_t avg[CH_PARAM_COUNT] = {0};
   for (uint8_t s = 0; s < N_SCENES; s++)
   {
-    if (state->engine_state->scenes_contribution[s] == 0)
+    if (es->scenes_contribution[s] == 0)
     {
       continue;
     }
 
     for (uint8_t p = 0; p < CH_PARAM_COUNT; p++)
     {
-      int16_t relative = (int16_t) (((int32_t) chcfg->params[s][p] * state->engine_state->scenes_contribution[s]) / 255);
+      int16_t relative = (int16_t) (((int32_t) chcfg->params[s][p] * es->scenes_contribution[s]) / 255);
       avg[p] += relative;
     }
   }
 
   float freq_param = avg[CH_PARAM_FRQ] / (float) N_FREQ_SCALE;
   float offset     = (float) avg[CH_PARAM_OFS];
-  float amp        = (float) avg[CH_PARAM_AMP] * 0.5f;
-  float shape      = (float) avg[CH_PARAM_SHP] / INT16_MAX;
-  float phs        = (float) avg[CH_PARAM_PHS] / INT16_MAX;
+
+  // Peak, not half of it. AMP at full scale swings the whole +/-10V the
+  // converter can reach, so the range a channel can cover is the range the
+  // module has - it used to top out at +/-5V unless offset or cross-modulation
+  // pushed it further, which made the wider output clamps unreachable from the
+  // oscillator alone.
+  float amp   = (float) avg[CH_PARAM_AMP];
+  float shape = (float) avg[CH_PARAM_SHP] / INT16_MAX;
+  float phs   = (float) avg[CH_PARAM_PHS] / INT16_MAX;
 
   float freq_multiplier = freq_param >= 0 ? freq_param + 1.0f : -1.0f / (freq_param - 1.0f);
-  float freq            = g_clk.beat_freq_smooth * freq_multiplier;
+  float freq            = es->clock.beat_freq_smooth * freq_multiplier;
 
-  int16_t gcd        = find_denominator(freq_multiplier, 8, 0.025f);
-  float phase_delta  = dt_s * (freq + state->engine_state->channels_phase_correction[ch->id]);
-  float phase_length = gcd > 0 ? gcd * freq_multiplier : 1.0f;
-  float diff         = 0;
+  // The alignment period, latched.
+  //
+  // find_denominator is a search for a rational approximation of the ratio, and
+  // as the ratio moves its answer does not move with it - it jumps between 8,
+  // 7, 6, none, 5 and back. The target phase is measured from an origin that
+  // repeats every `gcd` beats, so every jump moves that origin and the target
+  // teleports by whole beats. A one-second crossfade between two scenes at x1
+  // and x2 did that 44 times, and the loop chased every one: 3.1 beats of phase
+  // error and the oscillator pulled to 1.4x its own rate, which is heard.
+  //
+  // So it is taken once and held, and only re-taken when the super-period wraps
+  // - the same rule the stepped pattern length follows, for the same reason.
+  // The origin is re-taken with it, and that is what makes the change seamless:
+  // at the wrap the channel is at phase 0 of its old period, and the new period
+  // is defined to start there.
+  int16_t gcd_now = find_denominator(freq_multiplier, 8, 0.025f);
 
-  float phase_next = state->engine_state->channels_shared_phase[ch->id] + phase_delta;
-
-  if (phase_next >= phase_length)
-    phase_next -= phase_length;
-  else if (phase_next < 0.0f)
-    phase_next += phase_length;
-
-  state->engine_state->channels_shared_phase[ch->id] = phase_next;
-  if (gcd > 0 && g_clk.have_beat)
+  // ...and only taken while the ratio is holding still. A ratio on its way
+  // through a crossfade is a rational multiple every few ticks and something
+  // irrational the rest of the time, so acquiring on the instant meant taking
+  // and discarding eleven alignment periods in a one-second fader move, with
+  // the correction switching on and off along with them.
+  if (fabsf(freq_multiplier - es->channels_ratio_seen[ch]) > PLL_RATIO_EPS)
   {
-    float beat_mode    = (float) (g_clk.beat_counter % gcd) + g_clk.beat_phase;
-    float target_phase = beat_mode * freq_multiplier;
-    if (target_phase >= phase_length)
-      target_phase -= phase_length;
-    diff = gcd > 0 ? phase_error(target_phase, state->engine_state->channels_shared_phase[ch->id], phase_length) : 0;
+    es->channels_ratio_seen[ch]        = freq_multiplier;
+    es->channels_ratio_still_since[ch] = hw->time;
+  }
+  uint8_t ratio_settled = (hw->time - es->channels_ratio_still_since[ch]) >= PLL_RATIO_STABLE_US;
+
+  if (es->channels_gcd[ch] == 0)
+  {
+    es->channels_gcd[ch]         = gcd_now;
+    es->channels_beat_origin[ch] = es->clock.beat_counter;
   }
 
-  state->engine_state->channels_phase_correction[ch->id] =
-      (state->engine_state->channels_phase_correction[ch->id] * (1.0f - k_sync) + diff * k_sync);
+  int16_t gcd       = es->channels_gcd[ch];
+  float phase_delta = dt_s * (freq + es->channels_phase_correction[ch]);
+  float diff        = 0;
 
-  float phase = fmodf(state->engine_state->channels_shared_phase[ch->id] + phs, 1.0f);
+  float phase_next = es->channels_shared_phase[ch] + phase_delta;
+
+  // A non-finite phase never comes back on its own: every comparison below is
+  // false for a NaN, so it survives the wrap, the fmodf and the next tick's
+  // accumulate, and the channel is dead until the module is power-cycled. The
+  // clock can no longer produce one, but a host is free to hand the engine any
+  // dt and any beat_freq it likes, and one bad frame should cost one cycle.
+  if (!isfinite(phase_next))
+  {
+    phase_next                        = 0.0f;
+    es->channels_phase_correction[ch] = 0.0f;
+  }
+
+  // The accumulator is the oscillator's own phase, and it wraps at one cycle.
+  // Never at anything else.
+  //
+  // It used to wrap at the super-period, gcd * ratio cycles - which is only
+  // invisible in the output when that product is a whole number of cycles. It
+  // was, near enough, while gcd was recomputed every tick: find_denominator
+  // only returns a gcd for which gcd * ratio is within 0.025 of an integer, so
+  // the step was there but bounded at 2.5% of a cycle. Latching gcd while the
+  // ratio keeps moving removed that guarantee and the step became unbounded -
+  // measured at 0.34 of a cycle through a crossfade, which is a jump in the
+  // middle of a waveform and is heard as one.
+  //
+  // The alignment period belongs in the error term below, not in the
+  // accumulator. Wrapping at a whole cycle costs nothing, because the waveform
+  // either side of that wrap is identical.
+  int16_t period_cycles = es->channels_period_cycles[ch] > 0 ? es->channels_period_cycles[ch] : 1;
+  int16_t cycle         = es->channels_cycle[ch];
+
+  while (phase_next >= 1.0f)
+  {
+    phase_next -= 1.0f;
+    cycle = (int16_t) ((cycle + 1) % period_cycles);
+  }
+  while (phase_next < 0.0f)
+  {
+    phase_next += 1.0f;
+    cycle = (int16_t) ((cycle + period_cycles - 1) % period_cycles);
+  }
+
+  es->channels_shared_phase[ch] = phase_next;
+  es->channels_cycle[ch]        = cycle;
+
+  // Re-take the alignment period at a super-period boundary, where the old
+  // period and the new one agree on where the channel is: there
+  // (beats_in % gcd) is 0, so the target is frac(beat_phase * ratio) both
+  // before and after the origin moves, and nothing steps. It comes round within
+  // gcd beats - four seconds at worst - and in the meantime the target stays
+  // continuous under a moving ratio anyway, which is all the loop needs.
+  //
+  // With no alignment period there is no correction to disturb, so a latched
+  // "none" is replaced as soon as there is something better.
+  if (ratio_settled && gcd_now != gcd)
+  {
+    uint8_t seamless = (gcd <= 0) || ((es->clock.beat_counter - es->channels_beat_origin[ch]) % (uint64_t) gcd) == 0;
+    if (seamless)
+    {
+      es->channels_gcd[ch]         = gcd_now;
+      es->channels_beat_origin[ch] = es->clock.beat_counter;
+      gcd                          = gcd_now;
+
+      // The super-period in whole cycles. Whole because find_denominator only
+      // returns a gcd for which gcd * ratio is within 0.025 of an integer -
+      // that is the entire meaning of its answer.
+      int16_t cycles                 = (gcd > 0) ? (int16_t) lrintf((float) gcd * freq_multiplier) : 1;
+      es->channels_period_cycles[ch] = cycles > 0 ? cycles : 1;
+
+      // The period restarts here, and the accumulator is at phase 0 of it.
+      es->channels_cycle[ch] = 0;
+      cycle                  = 0;
+      period_cycles          = es->channels_period_cycles[ch];
+    }
+  }
+
+  if (gcd > 0 && es->clock.have_beat)
+  {
+    // Modulo the alignment period before the multiply, not after: beat_counter
+    // is unbounded, and a float that has to hold thousands of beats times a
+    // ratio has no resolution left for the fraction that matters. This is what
+    // keeps a channel exact after an hour of running.
+    uint64_t beats_in  = es->clock.beat_counter - es->channels_beat_origin[ch];
+    float beat_mode    = (float) (beats_in % (uint64_t) gcd) + es->clock.beat_phase;
+    float target_phase = beat_mode * freq_multiplier;
+
+    // Both sides measured over the whole super-period, not over one cycle.
+    //
+    // Reducing this to a single cycle would be tempting - it bounds the error
+    // at half a cycle and costs nothing audible in the steady state, since the
+    // waveform repeats. It does cost something musical: the loop would lock to
+    // whichever of the `period_cycles` equivalent phases happened to be nearest,
+    // so a x2/3 channel would still repeat every three beats but could sit a
+    // third of a cycle off the bar. Which cycle of the pattern lands on the
+    // downbeat is the point of aligning to a beat multiple at all.
+    float period = (float) period_cycles;
+    float here   = (float) cycle + es->channels_shared_phase[ch];
+
+    target_phase = fmodf(target_phase, period);
+    if (target_phase < 0.0f)
+      target_phase += period;
+
+    diff = phase_error(target_phase, here, period);
+  }
+
+  // A frequency offset proportional to the error: first order, so the error
+  // decays exponentially and never overshoots. PLL_TAU_S is the time constant.
+  float pull = diff / PLL_TAU_S;
+
+  // Bounded, because the correction is a speed change and an unbounded one is
+  // an unbounded lurch. The error wraps at half the super-period, so a channel
+  // on a long alignment period could decide it was several beats out and act on
+  // it at full gain. Past this limit the error closes at a constant rate rather
+  // than an exponential one - slower for a large error, and silent.
+  float pull_limit = fabsf(freq) * PLL_MAX_PULL;
+  pull             = fclamp(pull, -pull_limit, pull_limit);
+
+  // Smoothed toward it in seconds rather than in ticks, so the shape of the
+  // loop is a property of the loop and not of the host's control rate.
+  float smooth = fclamp(dt_s / PLL_SMOOTH_S, 0.0f, 1.0f);
+  es->channels_phase_correction[ch] += (pull - es->channels_phase_correction[ch]) * smooth;
+
+  float phase = fmodf(es->channels_shared_phase[ch] + phs, 1.0f);
   if (phase < 0.0f)
     phase += 1.0f;
   while (phase >= 1.0f)
@@ -362,36 +355,55 @@ void compute_channel(const ChannelSetup* ch, UxState* state)
 
   float raw = 0;
 
+  // Pattern length is held steady for the rest of the cycle: switching it
+  // mid-cycle moves the step grid under the playhead and jumps the output by
+  // up to 1.8 of a 2.0 range. Re-latched on the cycle wrap - where it is
+  // seamless, because slot 0 reads the same at every length - and immediately
+  // while the encoder is being turned, so auditioning stays responsive even on
+  // a slow LFO.
+  int8_t* latched_idx = &es->channels_length_idx[ch];
+  float prev_phase    = es->channels_prev_phase[ch];
+  uint8_t wrapped     = phase < prev_phase;
+  uint8_t editing     = (hw->time - es->channels_last_delta[ch]) < MOD_EDIT_WINDOW;
+
+  es->channels_prev_phase[ch] = phase;
+
+  if (*latched_idx < 0 || wrapped || editing)
+  {
+    *latched_idx = (int8_t) iclamp(chcfg->sr_length_idx, 0, SR_LENGTH_COUNT - 1);
+  }
+
   switch (chcfg->shape_mode)
   {
-  case SHAPE_STEPPED_SMOOTH:
-    raw = stepped_random(phase, shape, mod, SR_HOLD_SMOOTH);
+  case SHAPE_STEPPED:
+    raw = stepped_random(phase, shape, mod, *latched_idx, SR_HOLD_SMOOTH);
     break;
-  case SHAPE_STEPPED_SEMI:
-    raw = stepped_random(phase, shape, mod, SR_HOLD_SEMI);
-    break;
-  case SHAPE_STEPPED_HARD:
-    raw = stepped_random(phase, shape, mod, SR_HOLD_HARD);
+  case SHAPE_PWM:
+    raw = pwm_shape(phase, shape, mod);
     break;
   case SHAPE_LFO:
   default:
     raw = wavetable_lookup(phase_mod(phase, mod), shape) / (float) INT16_MAX;
-    // raw = wave_fn(phase, shape, mod);
     break;
   }
 
   float value = offset + amp * raw;
 
-  state->engine_state->cfrm[ch->id]  = freq_multiplier;
-  state->engine_state->cgcd[ch->id]  = gcd;
-  state->engine_state->cphsc[ch->id] = state->engine_state->channels_shared_phase[ch->id];
-  state->engine_state->csphs[ch->id] = phase;
-  state->engine_state->cshp[ch->id]  = shape;
-  state->engine_state->cmod[ch->id]  = mod;
+  ChannelEffective* eff = &es->channels_effective[ch];
+  eff->freq_hz          = freq;
+  eff->freq_ratio       = freq_multiplier;
+  eff->phase            = phase;
+  eff->phase_offset     = phs;
+  eff->shape            = shape;
+  eff->mod              = mod;
+  eff->amp              = amp;
+  eff->offset           = offset;
+  eff->gcd              = gcd;
+  eff->phase_error      = diff;
 
   if (chcfg->src_input >= 0 && chcfg->input_amp_mode != INPUT_AMP_DISABLED)
   {
-    int16_t input_val = state->hw_state->input_state[chcfg->src_input];
+    int16_t input_val = hw->input_state[chcfg->src_input];
     if (chcfg->input_amp_mode == INPUT_AMP_ADD)
     {
       value += input_val;
@@ -402,154 +414,68 @@ void compute_channel(const ChannelSetup* ch, UxState* state)
     }
   }
 
-  if (value > INT16_MAX)
-    value = INT16_MAX;
-  else if (value < INT16_MIN)
-    value = INT16_MIN;
+  // Last, so it bounds the cross-modulated result and not just the oscillator.
+  value = clamp_output(value, chcfg->clamp_mode);
 
   switch (chcfg->quantize_mode)
   {
   case QUANTIZE_CONTINUOUS:
-    state->engine_state->channels_output_level[ch->id] = quantize_value((int16_t) value, state->engine_config->quantize_mask);
+    es->channels_output_level[ch] = quantize_value((int16_t) value, cfg->quantize_mask);
     break;
   case QUANTIZE_TRIG_SRC:
-    if (chcfg->src_trig >= 0 && state->hw_state->trigger_src[chcfg->src_trig])
+    if (chcfg->src_trig >= 0 && hw->trigger_src[chcfg->src_trig])
     {
-      state->engine_state->channels_output_level[ch->id] = quantize_value((int16_t) value, state->engine_config->quantize_mask);
+      es->channels_output_level[ch] = quantize_value((int16_t) value, cfg->quantize_mask);
     }
     break;
   default:
-    state->engine_state->channels_output_level[ch->id] = (int16_t) value;
+    es->channels_output_level[ch] = (int16_t) value;
   }
 }
 
-void write_channel_led(const ChannelSetup* ch, UxState* state)
+void channel_detect_trigger(uint8_t ch, EngineState* es)
 {
-  ChannelConfig* chcfg = &state->engine_config->channel_state[ch->id];
-  if (state->dt < state->engine_state->channels_mark_for[ch->id])
-  {
-    state->engine_state->channels_mark_for[ch->id] -= state->dt;
-  }
-  else
-  {
-    state->engine_state->channels_mark_for[ch->id] = 0;
-  }
+  int16_t curr_out = es->channels_output_level[ch];
 
-  uint8_t mark = state->engine_state->channels_mark_for[ch->id] > 0;
-
-  switch (state->engine_state->shift_state)
+  if (es->channels_trig_state[ch] < 1 && es->channels_prev_out[ch] < CHANNEL_TRIG_THRESH && curr_out >= CHANNEL_TRIG_THRESH)
   {
-  case SHIFT_STATE_SYS:
-    led_set_hsv(state, ch->led, shape_mode_color[chcfg->shape_mode], SAT_HIG, VAL_LOW);
-    break;
-  case SHIFT_STATE_QNT:
-    if (assign_state(state) == ASSIGN_TRIG_SRC)
-    {
-      if (assign_src(state) == ch->id)
-      {
-        led_set_hsv(state, ch->led, HUE_CYAN, SAT_HIG, VAL_LOW);
-      }
-      else
-      {
-        led_set_hsv(state, ch->led, HUE_CYAN, SAT_OFF, state->engine_state->blink_fast * VAL_LOW);
-      }
-    }
-    else
-    {
-      led_set_hsv(state, ch->led, quantize_mode_color[chcfg->quantize_mode], SAT_HIG, VAL_LOW);
-    }
-    break;
-    //
-  case SHIFT_STATE_CLR:
-    int8_t alt = state->hw_state->button_pressed_t[ch->button] > MS(1000);
-    led_set_hsv(state, ch->led, HUE_RED, SAT_HIG, (state->engine_state->blink_fast || alt) * VAL_LOW);
-    break;
-  case SHIFT_STATE_CPY:
-    if (assign_state(state) == ASSIGN_NONE)
-    {
-      led_set_hsv(state, ch->led, 0, SAT_OFF, state->engine_state->blink_fast * VAL_LOW);
-    }
-    else if (assign_state(state) == ASSIGN_CHANNEL)
-    {
-      if (assign_src(state) == ch->id)
-      {
-        led_set_hsv(state, ch->led, HUE_GREEN, SAT_HIG, VAL_LOW);
-      }
-      else
-      {
-        led_set_hsv(state, ch->led, 0, SAT_OFF, state->engine_state->blink_fast * VAL_LOW);
-      }
-    }
-    else
-    {
-      led_set_hsv(state, ch->led, 0, SAT_OFF, VAL_OFF);
-    }
-    break;
-  case SHIFT_STATE_MON:
-    if (assign_state(state) == ASSIGN_CHANNEL)
-    {
-      if (assign_src(state) == ch->id)
-      {
-        led_set_hsv(state, ch->led, HUE_RED, SAT_MED, state->engine_state->blink_fast * VAL_LOW);
-      }
-      else
-      {
-        led_set_hsv(state, ch->led, 0, SAT_OFF, VAL_OFF);
-      }
-      break;
-    }
-    led_set_hsv(state, ch->led, input_amp_mode_color[chcfg->input_amp_mode], SAT_HIG, VAL_LOW);
-    /* fall through */
-  default:
-    if (mark)
-      break;
-    led_set_dac(state, ch->led, state->engine_state->channels_output_level[ch->id]);
-    break;
-  }
-
-  if (mark)
-  {
-    switch (state->engine_state->selected_param)
-    {
-    case CH_PARAM_FRQ:
-      led_set_hsv(state, ch->led, state->engine_state->channels_mark_hue[ch->id], SAT_MAX, state->engine_state->blink_fast * VAL_MED);
-      break;
-    default:
-      led_set_adcr(state, ch->led, chcfg->params[state->engine_state->active_scene][state->engine_state->selected_param]);
-      break;
-    }
-  }
-}
-
-// Pure: updates this channel's output trigger edge state. Split out of
-// write_channel_dac so the trigger logic is testable without a DAC.
-void detect_channel_trigger(const ChannelSetup* ch, UxState* state)
-{
-  EngineState* es  = state->engine_state;
-  int16_t curr_out = es->channels_output_level[ch->id];
-
-  if (es->channels_trig_state[ch->id] < 1 && es->channels_prev_out[ch->id] < CHANNEL_TRIG_THRESH && curr_out >= CHANNEL_TRIG_THRESH)
-  {
-    es->channels_trig_state[ch->id] = 1;
-    es->channels_trig_flag[ch->id]  = 1;
+    es->channels_trig_state[ch] = 1;
+    es->channels_trig_flag[ch]  = 1;
   }
   else if (curr_out < CHANNEL_TRIG_THRESH_LOW)
   {
-    es->channels_trig_state[ch->id] = 0;
+    es->channels_trig_state[ch] = 0;
   }
-  es->channels_prev_out[ch->id] = curr_out;
+  es->channels_prev_out[ch] = curr_out;
 }
 
-void write_channel_dac(const ChannelSetup* ch, UxState* state)
+// Gating happens here rather than by zeroing channels_output_level, so a muted
+// channel keeps its real value for cross-modulation and for other channels
+// using it as a trigger source. Mute is the output stage only.
+//
+// The gain ramps instead of jumping: a hard step to zero clicks.
+void channel_apply_mute(uint8_t ch, EngineState* es, uint8_t muted, uint32_t dt_us)
 {
-  dacadc_write(ch->dac_channel, state->engine_state->channels_output_level[ch->id]);
+  float* gain  = &es->channels_mute_gain[ch];
+  float target = muted ? 0.0f : 1.0f;
+  float step   = (dt_us * US_TO_S) / (MUTE_RAMP_MS * 0.001f);
+  float to_go  = target - *gain;
+
+  if (to_go > step)
+    *gain += step;
+  else if (to_go < -step)
+    *gain -= step;
+  else
+    *gain = target;
+
+  es->channels_gated_level[ch] = (int16_t) (*gain * (float) es->channels_output_level[ch]);
 }
 
-uint8_t read_channel_trig_state(const ChannelSetup* ch, UxState* state)
+uint8_t channel_take_trig(uint8_t ch, EngineState* es)
 {
-  if (state->engine_state->channels_trig_flag[ch->id])
+  if (es->channels_trig_flag[ch])
   {
-    state->engine_state->channels_trig_flag[ch->id] = 0;
+    es->channels_trig_flag[ch] = 0;
     return 1;
   }
   return 0;

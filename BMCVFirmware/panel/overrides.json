@@ -1,0 +1,62 @@
+{
+  "_comment": [
+    "The few panel facts that are NOT in the KiCad output or the firmware tables.",
+    "Everything else in bmcv_panel.json is derived - see tools/gen_panel_spec.py.",
+    "Each entry here should either be measured off a real module or resolved from",
+    "the schematic, and then moved out of 'assumptions'."
+  ],
+  "panel": {
+    "hp": 16,
+    "width_mm": 81.0,
+    "height_mm": 128.5,
+    "_note": "matches web/bmcv_panel.png; board_offset_mm is derived, the board is centred in the panel."
+  },
+  "slider": {
+    "designator": "RV13",
+    "travel_mm": 49.0,
+    "raw_min": 400,
+    "raw_max": 7661,
+    "_note": [
+      "axis and body_mm are read from the RV13 footprint in BMCV.kicad_pcb.",
+      "travel_mm is the wiper stroke, which the CAD data does not carry. Measured",
+      "off the slot drawn in web/bmcv_panel.png: the slot spans board x 13.38..66.53",
+      "(53.15mm) centred on RV13 at 40.0, leaving ~49mm of handle-centre travel once",
+      "the 4mm handle is accounted for."
+    ]
+  },
+  "mounting_slots_mm": {
+    "_note": [
+      "Panel-space centres of the four M3 slots, in the same coordinates as",
+      "panel.width_mm - not board space, since they are outside the board.",
+      "Measured off the dark shapes in web/bmcv_panel.png, which is the only",
+      "place the panel's own outline exists; the KiCad data here is the PCB.",
+      "Only a host that draws its own screws needs them."
+    ],
+    "positions": [[7.45, 2.96], [73.47, 2.96], [7.45, 125.45], [73.47, 125.45]],
+    "slot_w_mm": 5.76
+  },
+
+  "adc_input_order": {
+    "A1": 2,
+    "B1": 3,
+    "A2": 0,
+    "B2": 1,
+    "_note": [
+      "AD7367 has two ADCs (A, B), each 2:1 muxed by the ADDR line, so the four",
+      "converter slots are A1/B1 (one ADDR phase) and A2/B2 (the other).",
+      "dacadc_dma_next() samples the ADDR pin into `offset` BEFORE toggling it,",
+      "so which phase lands in adc_i[0..1] vs adc_i[2..3] cannot be settled by",
+      "reading the code.",
+      "Resolved by the panel: with A2/B2 in adc slots 0/1, input_adc_idx {2,3,0,1}",
+      "puts inputs 0..3 on J9,J10,J11,J12 - top-left, top-right, bottom-left,",
+      "bottom-right, the same reading order as everything else on the panel.",
+      "The other phase would number them 2,3,0,1 across the panel, which nothing",
+      "else on the module does."
+    ]
+  },
+  "assumptions": [
+    "mounting slot centres measured off web/bmcv_panel.png, not derived from CAD",
+    "slider travel_mm = 49.0, measured off the slot in the panel artwork rather than the wiper itself",
+    "the 80x108mm board is centred in a 81x128.5mm panel; matches web/bmcv_panel.png"
+  ]
+}

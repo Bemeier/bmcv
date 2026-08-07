@@ -1,13 +1,15 @@
 #include "presets.h"
-#include "config_validate.h"
+#include "config_migrate.h"
 #include "fram.h"
 #include "helpers.h"
 
 _Static_assert(sizeof(EngineConfigRecord) <= FRAM_CONFIG_SLOT_SIZE, "ConfigState too large for FRAM slot");
 
-int8_t preset_store(EngineConfig* cfg, int8_t dst)
+int8_t preset_store(const EngineConfig* cfg, int8_t dst)
 {
-  if (dst >= FRAM_CONFIG_SLOTS)
+  // Both ends: a negative slot would produce a wrapped uint16_t address and
+  // write somewhere arbitrary in FRAM.
+  if (dst < 0 || dst >= FRAM_CONFIG_SLOTS)
     return 0;
 
   EngineConfigRecord rec = {.hdr =
@@ -25,7 +27,7 @@ int8_t preset_store(EngineConfig* cfg, int8_t dst)
 
 int8_t preset_load(EngineConfig* cfg, int8_t src)
 {
-  if (src >= FRAM_CONFIG_SLOTS)
+  if (src < 0 || src >= FRAM_CONFIG_SLOTS)
     return 0;
 
   EngineConfigRecord rec;
@@ -37,19 +39,17 @@ int8_t preset_load(EngineConfig* cfg, int8_t src)
   if (rec.hdr.magic != FRAM_MAGIC)
     return 0;
 
-  if (rec.hdr.version != CONFIG_STATE_VERSION)
-    return 0; // Or trigger migration
-
-  if (rec.hdr.length != sizeof(EngineConfig))
+  // The payload is whatever EngineConfig was when it was written, so the CRC
+  // covers hdr.length bytes rather than the current struct's size. Bounded
+  // both ways: a corrupt length must not send crc32 past what was read out of
+  // FRAM, and a zero-length record has nothing to check.
+  if (rec.hdr.length == 0 || rec.hdr.length > sizeof(rec.data))
     return 0;
 
-  if (rec.hdr.crc != crc32(&rec.data, sizeof(EngineConfig)))
+  if (rec.hdr.crc != crc32(&rec.data, rec.hdr.length))
     return 0;
 
-  *cfg = rec.data;
-
-  // The header only proves the record is intact, not that its values mean
-  // anything to this build - see config_validate().
-  config_validate(cfg);
-  return 1;
+  // Intact is not the same as readable. config_migrate decides whether this
+  // build knows the version, converts it if so, and validates what it produced.
+  return config_migrate(rec.hdr.version, rec.hdr.length, &rec.data, cfg);
 }

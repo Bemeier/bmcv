@@ -1,51 +1,51 @@
 #include "ctrl_button.h"
 #include "color_presets.h"
+#include "config.h"
 #include "helpers.h"
-#include "state.h"
 #include "led_fb.h"
+#include "ui_input.h"
+#include "ui_mode.h"
 #include <stdint.h>
 
-void update_shift_mode(const CtrlButtonSetup* btn, UxState* state)
+void ui_ctrl_shift_mode(const CtrlButtonSetup* btn, UxState* state)
 {
-  uint32_t pressed_since  = state->hw_state->button_pressed_t[state->ux_setup->ctrl_buttons[btn->id].button];
-  uint32_t released_after = state->hw_state->button_released_t[state->ux_setup->ctrl_buttons[btn->id].button];
-
-  if (pressed_since > CTRL_SHIFT_ACTIVATION)
+  if (btn_ev(&state->ui->in, btn->button, BTN_EV_HOLD))
   {
-    state->engine_state->shift_state = (ShiftStates) btn->id;
+    state->ui->shift_state = (ShiftStates) btn->id;
+    return;
   }
-  else if (released_after > 0 && released_after <= CTRL_SHIFT_ACTIVATION &&
-           (state->engine_state->shift_state != SHIFT_STATE_QNT || btn->id == SHIFT_STATE_QNT))
+
+  if (!btn_ev(&state->ui->in, btn->button, BTN_EV_TAP) || state->ui->shift_state == SHIFT_STATE_NONE)
+    return;
+
+  // A mode's own button always leaves it. Any other ctrl button leaves it too,
+  // unless the mode has a keyboard overlay - in QNT the ctrl and scene buttons
+  // are a piano for semitone selection, so a tap is a note, not an exit.
+  if (btn->id == state->ui->shift_state || !ui_mode(state->ui->shift_state)->keyboard_overlay)
   {
-    state->engine_state->shift_state = SHIFT_STATE_NONE;
+    state->ui->shift_state = SHIFT_STATE_NONE;
+    // The tap is consumed by the exit. It used to also set selected_param in
+    // the same tick, so leaving a mode via an arbitrary button silently
+    // changed what the encoders edit.
+    state->ui->exit_consumed_tap = 1;
   }
 }
 
-void update_selected_param(const CtrlButtonSetup* btn, UxState* state)
+void ui_ctrl_selected_param(const CtrlButtonSetup* btn, UxState* state)
 {
-  uint32_t released_after = state->hw_state->button_released_t[state->ux_setup->ctrl_buttons[btn->id].button];
-  if (state->engine_state->shift_state == SHIFT_STATE_NONE && btn->id < CH_PARAM_COUNT && released_after > 0 && released_after < MS(200))
-  {
-    state->engine_state->selected_param = (ChannelParameters) btn->id;
+  if (state->ui->exit_consumed_tap)
     return;
-  }
-}
+  if (state->ui->shift_state == SHIFT_STATE_NONE && btn->id < CH_PARAM_COUNT && btn_ev(&state->ui->in, btn->button, BTN_EV_TAP))
+  {
+    state->ui->selected_param = (ChannelParameters) btn->id;
 
-void write_ctrl_button_led(const CtrlButtonSetup* btn, UxState* state)
-{
-  if (btn->led < 0)
-    return;
-
-  if (state->engine_state->shift_state == btn->id)
-  {
-    led_set_hsv(state, btn->led, btn->color, SAT_MAX, state->engine_state->blink_slow ? VAL_MED : 0);
-  }
-  else if (state->engine_state->selected_param == btn->id && state->engine_state->shift_state == SHIFT_STATE_NONE)
-  {
-    led_set_hsv(state, btn->led, btn->color, SAT_MAX, VAL_MED);
-  }
-  else
-  {
-    led_set_hsv(state, btn->led, btn->color, SAT_MAX, VAL_OFF);
+    // Picking a parameter shows it across every encoder for a moment, the same
+    // as touching one does - including when it is the parameter already
+    // selected, which makes the button a "show me where these are set" key.
+    //
+    // The tap that *left* a shift mode is excluded above, deliberately: coming
+    // out of a mode should land back on the output monitor rather than on a
+    // parameter the user did not ask to see.
+    ui_show_param_display(state->ui);
   }
 }

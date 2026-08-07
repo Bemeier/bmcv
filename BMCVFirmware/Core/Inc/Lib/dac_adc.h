@@ -1,11 +1,9 @@
 #ifndef INC_DRIVERS_DAC_ADC_H_
 #define INC_DRIVERS_DAC_ADC_H_
 
-#include "hw_setup.h" // IWYU pragma: keep - CV range constants (ADC_10V etc.)
+#include "hw_setup.h" // IWYU pragma: keep - CV range and TRIG_THRESH constants
 #include <stdint.h>
 
-#define TRIG_THRESH 1024
-#define TRIG_THRESH_LOW 800
 #define DAC_CHANNELS 4
 #define DAC_CHANNEL_DATA_WIDTH 6
 

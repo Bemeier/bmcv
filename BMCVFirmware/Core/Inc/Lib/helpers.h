@@ -9,13 +9,6 @@
 #define FP_SCALE 1000
 #define SEMITONE_DAC_FP 273067
 
-// Hardware calibration: DAC units subtracted from a quantized pitch so the
-// analog output lands on the true note (~25mV at the 10V/32768 scale, about
-// 0.3 of a semitone). Set to 0 to disable, and re-check against a tuner if
-// the output stage changes. Must stay below half a semitone (137) or
-// quantization stops being idempotent.
-#define DAC_OFFSET_CORRECTION 82
-
 static const float US_TO_S = 1e-6f;
 
 #define US(x) ((uint32_t) (x))
@@ -138,48 +131,25 @@ static inline float lerp(float a, float b, float t) { return a + t * (b - a); }
 
 static inline float smoothstep(float t) { return t * t * (3.0f - 2.0f * t); }
 
+// Skew: leans a waveform early or late without moving where it starts or ends.
+//
+// One rational warp rather than the two straight segments this used to be,
+// which had a slope discontinuity where they met - a visible kink halfway
+// through the cycle - and a curvature term riding on the same parameter, so one
+// knob did two things. f(0)=0, f(1)=1 and monotone, so the cycle still closes
+// seamlessly; negative leans the shape early, positive late.
 static inline float phase_mod(float phase, float mod)
 {
-  mod = fclamp(mod, -1.0f, 1.0f);
-
   if (mod == 0.0f)
   {
-    return phase; // ← guaranteed clean original
+    return phase; // guaranteed clean original
   }
 
-  float warp = 0.5f + mod * 0.45f; // safe range
+  // Clamped off the ends: r goes to 0 or infinity there.
+  mod = fclamp(mod, -0.98f, 0.98f);
 
-  float p;
-  if (phase < warp)
-  {
-    p = phase / (2.0f * warp);
-  }
-  else
-  {
-    p = 0.5f + (phase - warp) / (2.0f * (1.0f - warp));
-  }
-
-  // Optional curvature — scaled by |mod| so it disappears at mod=0
-  float curve_amount = fabsf(mod) * 0.8f;         // 0.0 → 0.8 (adjust to taste)
-  float curved       = p * p * (3.0f - 2.0f * p); // smoothstep
-
-  // Blend between linear warped phase and curved version
-  return lerp(p, curved, curve_amount);
-}
-
-static inline float smoothstep_edge(float edge0, float edge1, float x)
-{
-  // Clamp x to [edge0, edge1]
-  x = fclamp((x - edge0) / (edge1 - edge0), 0.0f, 1.0f);
-
-  // Smooth hermite interpolation
-  return x * x * (3.0f - 2.0f * x);
-}
-
-static inline int delta_modulo_step(int val, int delta, int maxVal)
-{
-  delta = iclamp(delta, -maxVal, maxVal);
-  return (val + delta + maxVal) % maxVal;
+  float r = (1.0f + mod) / (1.0f - mod); // 1 at centre, 1/99 .. 99 across the knob
+  return phase / (phase + (1.0f - phase) * r);
 }
 
 // Round-to-nearest integer division, symmetric about zero. C's built-in
@@ -200,6 +170,14 @@ static inline int32_t div_round_nearest(int32_t num, int32_t den)
 // For each enabled scale degree we jump straight to its nearest octave
 // transposition, so 12 candidates suffice and there is no octave window to
 // get wrong at negative voltages.
+//
+// The result is an exact semitone and nothing else. This used to subtract a
+// DAC_OFFSET_CORRECTION of 82 units - about 25mV - so that the *analog* output
+// landed on the true note. That put a correction for the board's zero error
+// inside the one function that happened to care about absolute voltage, which
+// meant every unquantized channel carried the same error uncorrected. Measured
+// on the bench it is not worth correcting: the outputs are close enough
+// untouched that a two-point calibration could not improve on them.
 static inline int16_t quantize_value(int16_t input, uint16_t scale_mask)
 {
   if (scale_mask == 0)
@@ -230,12 +208,14 @@ static inline int16_t quantize_value(int16_t input, uint16_t scale_mask)
     }
   }
 
-  return (int16_t) iclamp(div_round_nearest(best_fp, FP_SCALE) - DAC_OFFSET_CORRECTION, INT16_MIN, INT16_MAX);
+  return (int16_t) iclamp(div_round_nearest(best_fp, FP_SCALE), INT16_MIN, INT16_MAX);
 }
 
 static inline uint32_t crc32(const void* data, size_t len)
 {
-  const uint8_t* p = data;
+  // Cast spelled out: implicit from void* is fine in C, but this header is
+  // also read by the C++ side of the VCV Rack plugin.
+  const uint8_t* p = (const uint8_t*) data;
   uint32_t crc     = 0xFFFFFFFF;
 
   while (len--)

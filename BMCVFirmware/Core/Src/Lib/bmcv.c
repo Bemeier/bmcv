@@ -1,24 +1,18 @@
 #include "bmcv.h"
-#include "assign.h"
-#include "channel.h"
-#include "clock_sync.h"
-#include "color_presets.h"
-#include "config_validate.h"
+#include "buttons_encoders.h"
+#include "config.h"
 #include "dac_adc.h"
 #include "dac_adc_hal.h"
 #include "engine.h"
-#include "error.h"
+#include "engine_state.h"
 #include "helpers.h"
 #include "hw_setup.h"
-#include "led_fb.h"
+#include "input_fold.h"
+#include "instance.h"
 #include "mcp.h"
 #include "midi.h"
 #include "presets.h"
-#include "scene.h"
-#include "state.h"
 #include "stm32g474xx.h"
-#include "ux_setup.h"
-#include "ux_state.h"
 #include "ws2811.h"
 #include <stdint.h>
 
@@ -34,78 +28,94 @@ static uint8_t mcp_poll  = 0;
 static uint8_t led_poll  = 0;
 static uint8_t midi_poll = 0;
 
-// Presets  Read/Write
-static uint32_t last_write          = 0; // timestamp of last write
-static int last_crc                 = 0;
-static uint32_t write_indicator_for = 0;
+// The module. One struct holding config, signal path, interaction state, the
+// input layer and the wiring between them - see instance.h. The firmware has
+// exactly one; a simulator has one per instance. Declared in bmcv.h, and
+// external only so a debugger can name it.
+BmcvInstance bmcv;
 
-// System Config
-static const HwSetup* hw_setup;
-static const UxSetup* ux_setup;
+// What one tick costs, measured with the Cortex-M4's DWT cycle counter: a
+// free-running 32-bit counter in the debug block that increments once per CPU
+// clock. At 144MHz that is 6.9ns a count, against the 1us of the TIM2 timestamp
+// the rest of this file runs on - a tick is tens of microseconds, so TIM2 was
+// never going to tell us more than its order of magnitude. main() turns the
+// counter on (init_cycle_counter); the subtraction is unsigned, so the 29.8s
+// wrap needs no handling for a span this short.
+//
+// Left in the build: the probe is four register loads and a few float ops
+// against a 250us budget, under 0.2%. Set to 0 to compile it out.
+//
+// What it measures is wall time with interrupts enabled - the DMA completion,
+// TIM4, EXTI and USB all still preempt a tick. `avg_us` is therefore what the
+// work costs, and `max_us` is that plus the worst interference it has run into,
+// which is the one that decides whether a shorter tick period would fit.
+#define BMCV_PROFILE 1
 
-// Hardware State Buffer
-static uint8_t state_idx;
-static HwState state[STATE_RINGBUF_SIZE];
-static HwState* prev_hw = &state[0];
-static HwState* curr_hw = &state[1];
+BmcvProfile bmcv_profile;
 
-// Engine & UX State
-static UxState ux_state;
-static EngineConfig engine_config;
-static EngineState engine_state;
-// uint32_t ux_update_time; // last ux update
+#if BMCV_PROFILE
+#define PROFILE_NOW() (DWT->CYCCNT)
+
+// Both set once in bmcv_init, so the per-tick work is a multiply and a compare
+// rather than a divide.
+static float us_per_cycle;
+static uint32_t overrun_cycles; // one tick period, in cycles
+
+static void span_record(BmcvSpan* s, uint32_t cycles)
+{
+  const float us = (float) cycles * us_per_cycle;
+
+  s->last_cycles = cycles;
+  s->last_us     = us;
+  s->avg_us      = (s->avg_us == 0.0f) ? us : s->avg_us * 0.95f + 0.05f * us;
+
+  // 0 means unset, which is also what writing 0 from a debugger means: either
+  // way the next tick re-arms it.
+  if (cycles < s->min_cycles || s->min_cycles == 0)
+  {
+    s->min_cycles = cycles;
+    s->min_us     = us;
+  }
+  if (cycles > s->max_cycles)
+  {
+    s->max_cycles  = cycles;
+    s->max_us      = us;
+    s->max_at_tick = bmcv_profile.ticks;
+  }
+}
+#else
+#define PROFILE_NOW() 0u
+#endif
+
+// Preset persistence for the core. On the module this is FRAM; the simulator
+// and a VCV Rack instance plug their own storage in here instead.
+static int8_t fram_store(void* user, const EngineConfig* cfg, int8_t slot)
+{
+  (void) user;
+  return preset_store(cfg, slot);
+}
+
+static int8_t fram_load(void* user, EngineConfig* cfg, int8_t slot)
+{
+  (void) user;
+  return preset_load(cfg, slot);
+}
+
+static const PresetIo fram_preset_io = {.store = fram_store, .load = fram_load, .user = NULL};
 
 void bmcv_init(uint16_t _mpc_interrupt_pin, ADC_TypeDef* _slider_adc)
 {
-  hw_setup = HwSetup_Get();
-  ux_setup = UxSetup_InitFromHw(hw_setup);
-
   mpc_interrupt_pin = _mpc_interrupt_pin;
   slider_adc        = _slider_adc;
 
-  Clock_Init();
+#if BMCV_PROFILE
+  // From the clock the RCC actually came up on rather than a literal 144, so
+  // the microsecond columns stay right if SystemClock_Config ever changes.
+  us_per_cycle   = 1000000.0f / (float) SystemCoreClock;
+  overrun_cycles = ENGINE_TICK_US * (SystemCoreClock / 1000000u);
+#endif
 
-  ux_state.hw_setup                     = hw_setup;
-  ux_state.ux_setup                     = ux_setup;
-  ux_state.engine_config                = &engine_config;
-  ux_state.engine_state                 = &engine_state;
-  ux_state.engine_state->selected_param = CH_PARAM_SHP;
-  ux_state.engine_state->shift_state    = SHIFT_STATE_NONE;
-  assign_reset(&ux_state); // assign_src_id must start at -1, not 0
-  // ux_update_time = 0;
-
-  for (uint8_t c = 0; c < N_ENCODERS; c++)
-  {
-    init_channel(&ux_setup->channels[c], &ux_state);
-  }
-
-  if (!preset_load(&engine_config, FRAM_CONFIG_SLOTS - 1))
-  {
-    engine_config.input_mode[0] = INPUT_CLOCK;
-    engine_config.input_mode[1] = INPUT_RESET;
-    engine_config.input_mode[2] = INPUT_DEFAULT;
-    engine_config.input_mode[3] = INPUT_DEFAULT;
-    engine_config.scene_a       = 0;
-    engine_config.scene_b       = 6;
-    engine_config.quantize_mask = 0b111111111111;
-    for (uint8_t c = 0; c < N_ENCODERS; c++)
-    {
-      engine_config.channel_state[c].src_input     = -1;
-      engine_config.channel_state[c].quantize_mode = QUANTIZE_DISABLED;
-    }
-
-    for (uint8_t c = 0; c < N_ENCODERS; c++)
-    {
-      reset_channel(&ux_setup->channels[c], &ux_state, -1);
-    }
-    error_set(6);
-  }
-
-  // Holds for the defaults above as well as a loaded preset, so the rest of
-  // the firmware can index on these fields unconditionally.
-  config_validate(&engine_config);
-
-  last_crc = crc32(&engine_config, sizeof(EngineConfig));
+  bmcv_instance_init(&bmcv, &fram_preset_io, 0);
 }
 
 void bmcv_handle_adc_conversion_complete(ADC_HandleTypeDef* hadc)
@@ -153,19 +163,123 @@ void bmcv_poll_tasks()
   }
 }
 
-uint32_t last_dac_poll;
+static uint32_t last_dac_poll;
+static uint32_t last_engine_us; // start of the tick being interpolated across
+static uint32_t next_engine_us; // when the next one is due
+static uint8_t engine_started;  // so the first tick is not counted as a resync
+
+// How many times the DAC service covers all eight outputs within one engine
+// tick, and the chunk interval that follows from it - one frame is
+// DAC_CHANNELS chunks, so this is what the service is rate-limited to.
+//
+// The ratio used to be emergent rather than chosen: the service re-armed on
+// every loop pass a DMA completion allowed, which happened to land at 15.8
+// chunks per tick because that is where the HAL turnaround and the tick period
+// crossed. Stating it makes it a number that can be reasoned about - and turned
+// down, which is the cheap lever for CPU, since a chunk costs single-digit
+// microseconds where a tick costs over a hundred.
+//
+// It also spreads the chunks evenly instead of letting them bunch into the gap
+// between ticks, which keeps the ADC's sampling cadence even as a side effect.
+#define DAC_SUBSTEPS 4
+#define DAC_CHUNK_US (ENGINE_TICK_US / (DAC_SUBSTEPS * DAC_CHANNELS))
+
+// The four CV inputs, sent out of the USB port as MIDI control changes: channel
+// 1, CC 0x10..0x13, each input's ADC reading scaled to 0..127.
+//
+// It reads like a debugging aid left running, and it may be one - it is the
+// only thing the USB MIDI stack is used for, nothing asks for it and nothing
+// documents it. It is kept because it costs a USB frame every third poll and
+// somebody may be patching the module into a DAW with it; it is behind a
+// switch, and named, so that turning it off is one line rather than an
+// archaeology exercise.
+#define BMCV_MIDI_CC_INPUTS 1
+
+static void midi_publish_inputs(void)
+{
+#if BMCV_MIDI_CC_INPUTS
+  for (uint8_t ch = 0; ch < DAC_CHANNELS; ch++)
+  {
+    MIDI_addToUSBReport(0, 0xB0, 0x10 + ch, sclamp(get_adc(ch) / 32, 0, 127));
+  }
+  update_midi();
+#endif
+}
+
+// Exponential average, so a single slow loop does not make the readout jump.
+static float fps_smooth(float prev, uint32_t dt_us)
+{
+  if (dt_us == 0)
+    return prev;
+  return prev * 0.95f + 0.05f * (1000000.0f / (float) dt_us);
+}
+
+// The engine produces one set of levels per ENGINE_TICK_US. The DAC service
+// ships a frame about four times as often, and every one of those extra frames
+// used to re-send the value unchanged - a staircase whose steps are one tick
+// wide, 263us of it on a scope, with the zero-order-hold images sitting at the
+// tick rate where a cheap output filter barely touches them and a VCA makes
+// them audible.
+//
+// So slide between the levels rather than repeating them. The bus was already
+// running fast enough to do this - the frames were being sent either way, they
+// just carried the same number four times - so this costs no extra traffic and
+// nothing on the analog side had to change.
+//
+// On elapsed time rather than a sub-step counter: the tick period is not exact.
+// It jitters by a loop pass and overruns about once every two seconds, and a
+// fraction of the time that has actually passed stays right through both, where
+// a counter would drift against them.
+//
+// One tick of output latency is the price - the levels computed on tick N are
+// on the pins across tick N+1. Extrapolating would avoid the latency and
+// overshoot on every direction change, which is a worse artifact than the one
+// being removed here.
+//
+// Gates and stepped shapes are interpolated too, deliberately. A step becomes a
+// 263us ramp, which is well under what reads as a slew and is gentler through a
+// VCA than the broadband click a hard edge makes. What it does cost is a fixed
+// ~50us before a gate crosses a downstream trigger threshold, and a transient
+// only one tick long reaching about three quarters of its peak.
+//
+// Firmware-side, on the way out. engine_state still holds the exact per-tick
+// levels, so internal trigger routing, the LED render and the other hosts see
+// what they always saw.
+static int16_t dac_level_prev[N_CHANNELS];
+static int16_t dac_level_curr[N_CHANNELS];
+
+static void dac_write_interpolated(uint32_t now_us)
+{
+  uint32_t elapsed = now_us - last_engine_us;
+  if (elapsed > ENGINE_TICK_US)
+  {
+    elapsed = ENGINE_TICK_US; // a late tick holds at the target, never past it
+  }
+
+  const float frac = (float) elapsed * (1.0f / (float) ENGINE_TICK_US);
+
+  for (uint8_t c = 0; c < N_CHANNELS; c++)
+  {
+    const float prev = (float) dac_level_prev[c];
+    const float v    = prev + ((float) dac_level_curr[c] - prev) * frac;
+    dacadc_write(bmcv.ux_setup->channels[c].dac_channel, (int16_t) v);
+  }
+}
 
 void bmcv_main(uint32_t now_us)
 {
   /* ---- hardware in ------------------------------------------------ */
-  if (dac_poll == 1 || dacadc_error())
+  // Every pass: both are event-driven, and a DMA completion should be picked up
+  // when it lands rather than at the next engine tick.
+  if ((dac_poll == 1 || dacadc_error()) && (uint32_t) (now_us - last_dac_poll) >= DAC_CHUNK_US)
   {
     dac_poll = 0;
+    // Immediately before the frame is armed, so the levels it carries are the
+    // ones interpolated for this instant rather than for the last tick.
+    dac_write_interpolated(now_us);
     dacadc_dma_next();
-    uint32_t dac_dt                = now_us - last_dac_poll;
-    float dac_fps                  = 1000000.0f / dac_dt;
-    ux_state.engine_state->dac_fps = ux_state.engine_state->dac_fps * 0.95f + 0.05f * dac_fps;
-    last_dac_poll                  = now_us;
+    bmcv.engine_state.dac_fps = fps_smooth(bmcv.engine_state.dac_fps, now_us - last_dac_poll);
+    last_dac_poll             = now_us;
   }
 
   if (mcp_poll == 1 && mcp_read())
@@ -174,34 +288,95 @@ void bmcv_main(uint32_t now_us)
     mcu_read_buttons();
   }
 
-  int8_t dirty      = bmcv_state_update(now_us);
-  ux_state.hw_state = curr_hw;
-
-  float engine_fps                  = 1000000.0f / ux_state.hw_state->dt;
-  ux_state.engine_state->engine_fps = ux_state.engine_state->engine_fps * 0.95f + 0.05f * engine_fps;
-
-  /* ---- pure engine ------------------------------------------------ */
-  engine_tick(&ux_state, now_us, dirty);
-
-  /* ---- hardware out ----------------------------------------------- */
-  for (uint8_t c = 0; c < N_CHANNELS; c++)
+  /* ---- pure engine, on a fixed period ----------------------------- */
+  //
+  // main() calls this in a bare `while (1)`, so the engine used to run once per
+  // iteration and the interval between DAC updates was however long the last
+  // pass happened to take - a mute ramp, an LED flush and a USB frame all land
+  // in some passes and not others. The oscillators are dt-driven and stay
+  // correct through that, but the samples leaving the module are not evenly
+  // spaced, and an LFO's edges carry that jitter.
+  //
+  // The deadline advances by a fixed period rather than restarting from now_us.
+  // Restarting made each tick begin late from wherever the last one landed and
+  // never corrected, so a 250us period ran at 263 and engine_fps read 3800
+  // against a nominal 4000. That 5% was harmless while the DAC only repeated
+  // values; it stopped being harmless once the output interpolates across a
+  // tick, because the interpolation divides by the nominal period and so
+  // reached its target 13us early and sat flat there for the rest of every
+  // tick. Nominal and actual have to agree for that fraction to mean anything.
+  //
+  // Still not a catch-up. A tick that lands a whole period late is dropped and
+  // the schedule resynchronised, rather than repaid as a burst of ticks with
+  // made-up timestamps: the engine is dt-driven, so one long dt is the honest
+  // account of a loop that could not keep up, and `resyncs` counts how often
+  // that has happened.
+  if ((int32_t) (now_us - next_engine_us) >= 0)
   {
-    write_channel_dac(&ux_setup->channels[c], &ux_state);
+    next_engine_us += ENGINE_TICK_US;
+
+    if ((int32_t) (now_us - next_engine_us) >= (int32_t) ENGINE_TICK_US)
+    {
+      next_engine_us = now_us + ENGINE_TICK_US;
+#if BMCV_PROFILE
+      if (engine_started)
+      {
+        bmcv_profile.resyncs++;
+      }
+#endif
+    }
+
+    engine_started = 1;
+    last_engine_us = now_us;
+
+    [[maybe_unused]] const uint32_t t_tick_start = PROFILE_NOW();
+
+    // input_fold points bmcv.ux.hw_state at the frame it just filled.
+    // engine_fps is measured inside engine_tick, so every host agrees on it.
+    uint8_t dirty = bmcv_state_update(now_us);
+
+    [[maybe_unused]] const uint32_t t_engine_start = PROFILE_NOW();
+
+    engine_tick(&bmcv.ux, now_us, dirty);
+
+    [[maybe_unused]] const uint32_t t_engine_end = PROFILE_NOW();
+
+    /* ---- hardware out --------------------------------------------- */
+    // Advance the pair the DAC service slides between, rather than writing the
+    // buffer here: what reaches the pins is now interpolated between two ticks,
+    // and this is the tick that just became the far end of it.
+    //
+    // channels_gated_level[] rather than channels_output_level[]: mute is an
+    // output-stage gain, and engine_tick has already applied it.
+    for (uint8_t c = 0; c < N_CHANNELS; c++)
+    {
+      dac_level_prev[c] = dac_level_curr[c];
+      dac_level_curr[c] = bmcv.engine_state.channels_gated_level[c];
+    }
+
+#if BMCV_PROFILE
+    const uint32_t tick_cycles = PROFILE_NOW() - t_tick_start;
+
+    span_record(&bmcv_profile.engine, t_engine_end - t_engine_start);
+    span_record(&bmcv_profile.tick, tick_cycles);
+
+    if (tick_cycles > overrun_cycles)
+    {
+      bmcv_profile.overruns++;
+    }
+
+    bmcv_profile.load = bmcv_profile.tick.avg_us * (1.0f / (float) ENGINE_TICK_US);
+    bmcv_profile.ticks++;
+#endif
   }
 
-  if (write_indicator_for > 0)
-  {
-    led_set_hsv(&ux_state, ux_setup->ctrl_buttons[1].led, HUE_RED, SAT_MAX, VAL_MED);
-  }
-
+  /* ---- housekeeping ----------------------------------------------- */
+  // Outside the tick: both are gated on their own transport being idle, and
+  // neither should be able to hold up the engine or be held up by it.
   if (midi_poll && midi_idle())
   {
     midi_poll = 0;
-    for (uint8_t ch = 0; ch < DAC_CHANNELS; ch++)
-    {
-      MIDI_addToUSBReport(0, 0xB0, 0x10 + ch, sclamp(get_adc(ch) / 32, 0, 127));
-    }
-    update_midi();
+    midi_publish_inputs();
   }
 
   if (led_poll && ws2811_dma_completed())
@@ -218,135 +393,38 @@ void bmcv_flush_leds(void)
 {
   for (int16_t i = 0; i < LED_COUNT; i++)
   {
-    const LedRgb* led = &engine_state.leds[i];
+    const LedRgb* led = &bmcv.engine_state.leds[i];
     ws2811_setled_rgb(i, led->r, led->g, led->b);
   }
 }
 
+// Read the peripherals into an InputSample. This is all that is left of the
+// old bmcv_state_update: the bookkeeping it used to do around these reads -
+// press levels, encoder deltas, clock dispatch, slider CV, autosave - now
+// lives in input_fold.c, where a host without an STM32 can reach it.
 uint8_t bmcv_state_update(uint32_t now_us)
 {
-  uint8_t dirty      = 0;
-  int32_t slider_cv  = 0;
-  uint32_t deltaTime = now_us - curr_hw->time;
-  prev_hw            = &state[state_idx];
-  state_idx          = (state_idx + 1) % STATE_RINGBUF_SIZE;
-  curr_hw            = &state[state_idx];
-  curr_hw->dt        = deltaTime;
-  curr_hw->time      = now_us;
+  // Zeroed rather than left to the field-by-field fill below, so adding a
+  // field to InputSample cannot leave one reading stack garbage.
+  InputSample sample = {0};
 
-  // Trig State
-  for (uint8_t g = 0; g < N_INPUTS; g++)
+  sample.slider_raw = slider_adc_value;
+
+  for (uint8_t ch = 0; ch < N_INPUTS; ch++)
   {
-    curr_hw->trigger_src[g] = adc_read_trig_state(hw_setup->input_adc_idx[g]);
-  }
-
-  for (uint8_t c = 0; c < N_CHANNELS; c++)
-  {
-    curr_hw->trigger_src[N_INPUTS + c] = read_channel_trig_state(&ux_setup->channels[c], &ux_state);
-  }
-
-  Clock_Poll(now_us);
-
-  for (uint8_t g = 0; g < N_INPUTS; g++)
-  {
-    if (engine_config.input_mode[g] == INPUT_RESET && curr_hw->trigger_src[g])
-    {
-      Clock_Reset(now_us);
-      for (uint8_t c = 0; c < N_CHANNELS; c++)
-      {
-        reset_channel_phase(&ux_setup->channels[c], &ux_state);
-      }
-    }
-    if (engine_config.input_mode[g] == INPUT_SLIDER)
-    {
-      slider_cv += get_adc(hw_setup->input_adc_idx[g]) * 2;
-    }
-  }
-
-  for (uint8_t g = 0; g < N_INPUTS; g++)
-  {
-    // TODO: Clock input configuration
-    if (engine_config.input_mode[g] == INPUT_CLOCK && curr_hw->trigger_src[g])
-    {
-      Clock_Trigger(now_us);
-    }
-  }
-
-  curr_hw->slider_state = iclamp(slider_adc_value - slider_cv, SLIDER_MIN_VALUE, SLIDER_MAX_VALUE);
-
-  if (now_us - last_write > MS(2000))
-  {
-    last_write  = now_us;
-    int crc_now = crc32(&engine_config, sizeof(EngineConfig));
-    if (last_crc != crc_now)
-    {
-      preset_store(&engine_config, FRAM_CONFIG_SLOTS - 1);
-      last_crc            = crc_now;
-      write_indicator_for = MS(100);
-    }
-  }
-
-  if (deltaTime < write_indicator_for)
-  {
-    write_indicator_for -= deltaTime;
-  }
-  else
-  {
-    write_indicator_for = 0;
-  }
-
-  for (uint8_t i = 0; i < N_INPUTS; i++)
-  {
-    curr_hw->input_state[i] = get_adc(hw_setup->input_adc_idx[i]) * 4;
+    sample.cv_raw[ch]  = get_adc(ch);
+    sample.cv_trig[ch] = adc_read_trig_state(ch);
   }
 
   for (uint8_t b = 0; b < N_BUTTONS; b++)
   {
-    curr_hw->button_state[b]      = get_btn_state(b);
-    curr_hw->button_released_t[b] = 0;
-
-    if (curr_hw->button_state[b] && prev_hw->button_state[b])
-    {
-      curr_hw->button_pressed_t[b] += deltaTime;
-    }
-    else
-    {
-      curr_hw->button_pressed_t[b] = 0;
-    }
-
-    if (!curr_hw->button_state[b] && prev_hw->button_state[b])
-    {
-      curr_hw->button_released_t[b] = prev_hw->button_pressed_t[b];
-    }
-
-    dirty += curr_hw->button_state[b] != prev_hw->button_state[b];
+    sample.button_down[b] = get_btn_state(b);
   }
 
   for (uint8_t e = 0; e < N_ENCODERS; e++)
   {
-    curr_hw->encoder_state[e] = get_enc_state(e);
-    curr_hw->encoder_delta[e] = (int16_t) (curr_hw->encoder_state[e] - prev_hw->encoder_state[e]);
-    dirty += curr_hw->encoder_delta[e] != 0;
+    sample.encoder_pos[e] = get_enc_state(e);
   }
 
-  if (error_any())
-  {
-    // draw error code
-    led_clear_all(&ux_state);
-
-    for (int s = 0; s < 7; s++)
-    {
-      uint8_t val = error_get(s) * 64;
-      led_set_hsv(&ux_state, ux_setup->scenes[s].led, 0, SAT_OFF, val);
-    }
-
-    if (dirty)
-    { // any interaction cleans error
-      error_clear();
-    }
-
-    return 0;
-  }
-
-  return dirty;
+  return input_fold(&bmcv.input, &bmcv.ux, &sample, now_us);
 }

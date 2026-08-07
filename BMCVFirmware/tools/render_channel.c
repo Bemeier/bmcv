@@ -4,7 +4,7 @@
 //
 // Because it drives the actual signal path, what you see here includes scene
 // blending, the PLL, quantization and amp/offset - not just a bare shape
-// lookup. Change channel.c / wave_fn.c / stepped_random.c, rebuild, re-run.
+// lookup. Change channel.c / wavetable.c / stepped_random.c, rebuild, re-run.
 //
 // Usage:
 //   render_channel [--shape-mode=lfo|stepped_random] [--shape=F] [--mod=F]
@@ -49,10 +49,8 @@ static const struct
   int mode;
 } shape_mode_names[] = {
     {"lfo", SHAPE_LFO},
-    {"smooth", SHAPE_STEPPED_SMOOTH},
-    {"semi", SHAPE_STEPPED_SEMI},
-    {"stepped", SHAPE_STEPPED_HARD},
-    {"stepped_random", SHAPE_STEPPED_SMOOTH}, // legacy spelling
+    {"stepped", SHAPE_STEPPED},
+    {"pwm", SHAPE_PWM},
 };
 
 static int shape_mode_from_name(const char* name)
@@ -79,7 +77,7 @@ static int opt(const char* arg, const char* name, const char** val)
 
 static void parse_args(int argc, char** argv, Args* a)
 {
-  *a = (Args) {.freq_mult = 1.0f, .bpm = 120.0f, .amp = 20000, .offset = 0, .duration_s = 2.0f, .rate = 1000, .out = NULL};
+  *a = (Args){.freq_mult = 1.0f, .bpm = 120.0f, .amp = 20000, .offset = 0, .duration_s = 2.0f, .rate = 1000, .out = NULL};
 
   for (int i = 1; i < argc; i++)
   {
@@ -174,9 +172,9 @@ int main(int argc, char** argv)
     fprintf(csv, "t,phase,shape,mod,level,norm\n");
   }
 
-  const uint32_t dt_us       = 1000000u / a.rate;
-  const uint32_t pulse_us    = (uint32_t) (60000000.0f / (a.bpm * (float) g_clk.PULSES_PER_BEAT));
-  uint32_t next_pulse_us     = 0;
+  const uint32_t dt_us    = 1000000u / a.rate;
+  const uint32_t pulse_us = (uint32_t) (60000000.0f / (a.bpm * (float) f.engine_state.clock.PULSES_PER_BEAT));
+  uint32_t next_pulse_us  = 0;
 
   for (uint32_t i = 0; i < n; i++)
   {
@@ -190,10 +188,10 @@ int main(int argc, char** argv)
     // Synthetic clock, so the PLL behaves as it would with a patched clock in.
     while (f.hw_state.time >= next_pulse_us)
     {
-      Clock_Trigger(next_pulse_us);
+      Clock_Trigger(&f.engine_state.clock, next_pulse_us);
       next_pulse_us += pulse_us;
     }
-    Clock_Poll(f.hw_state.time);
+    Clock_Poll(&f.engine_state.clock, f.hw_state.time);
 
     fixture_tick(&f, dt_us);
 
@@ -202,8 +200,8 @@ int main(int argc, char** argv)
 
     if (csv)
     {
-      fprintf(csv, "%.6f,%.6f,%.6f,%.6f,%d,%.6f\n", i / (double) a.rate, (double) f.engine_state.csphs[RENDER_CH], (double) shape,
-              (double) mod, level, (double) samples[i]);
+      fprintf(csv, "%.6f,%.6f,%.6f,%.6f,%d,%.6f\n", i / (double) a.rate, (double) f.engine_state.channels_effective[RENDER_CH].phase,
+              (double) shape, (double) mod, level, (double) samples[i]);
     }
   }
 

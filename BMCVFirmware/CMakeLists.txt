@@ -29,6 +29,22 @@ add_executable(${CMAKE_PROJECT_NAME})
 
 add_subdirectory(cmake/stm32cubemx)
 
+# version.h is generated from VERSION rather than checked in, so a `cz bump`
+# (see .cz.toml) can never drift from what midi.c reports over SysEx - there
+# is exactly one file for it to touch.
+file(STRINGS "${CMAKE_SOURCE_DIR}/VERSION" BMCV_VERSION LIMIT_COUNT 1)
+if(NOT BMCV_VERSION MATCHES "^([0-9]+)\\.([0-9]+)\\.([0-9]+)")
+  message(FATAL_ERROR "VERSION must contain MAJOR.MINOR.PATCH, got: '${BMCV_VERSION}'")
+endif()
+set(FW_VERSION_MAJOR ${CMAKE_MATCH_1})
+set(FW_VERSION_MINOR ${CMAKE_MATCH_2})
+set(FW_VERSION_PATCH ${CMAKE_MATCH_3})
+configure_file(
+  Core/Inc/Lib/version.h.in
+  ${CMAKE_CURRENT_BINARY_DIR}/generated/version.h
+  @ONLY
+)
+
 # Source lists are shared with the native test build so a new Lib file only
 # has to be declared once - see cmake/core_sources.cmake
 include(cmake/core_sources.cmake)
@@ -44,6 +60,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
   Middlewares/ST/STM32_USB_Device_Library/Class/MIDI/Inc
   Core/Inc/Lib
+  ${CMAKE_CURRENT_BINARY_DIR}/generated
 )
 
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE

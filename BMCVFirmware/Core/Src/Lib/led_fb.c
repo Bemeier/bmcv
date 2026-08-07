@@ -1,7 +1,6 @@
 #include "led_fb.h"
 #include "color_presets.h"
 #include "hw_setup.h"
-#include <stdlib.h>
 
 // Colour conversion moved here from ws2811.c: it is presentation logic, not
 // driver logic, and keeping it hardware-free makes it testable.
@@ -72,22 +71,28 @@ void led_set_hsv(UxState* state, int16_t idx, uint8_t h, uint8_t s, uint8_t v)
   }
 }
 
-void led_set_adcr(UxState* state, int16_t idx, int16_t val)
+// Bipolar level -> colour, in whichever converter domain the caller is in:
+// green for positive, red for negative, with blue mixed in above half scale so
+// the top half of the range stays readable. `half_scale` is the count that
+// corresponds to 5V in that domain - ADC_5V or DAC_5V.
+void led_set_bipolar(UxState* state, int16_t idx, int32_t val, int32_t half_scale)
 {
   if (idx < 0 || idx >= LED_COUNT)
     return;
   LedRgb* led = &state->engine_state->leds[idx];
 
-  // int16_t only safe because we know ADC values are only 14 bits, so they won't overflow here.
-  int16_t abs_val    = abs(val);
-  int16_t blue_range = abs_val - ADC_5V;
+  int32_t per_step   = half_scale / VAL_MAX;
+  int32_t abs_val    = (val < 0) ? -val : val;
+  int32_t blue_range = abs_val - half_scale;
   uint8_t base_val   = VAL_MAX;
+
   if (blue_range < 0)
   {
     blue_range = 0;
-    base_val   = (abs_val / (ADC_5V / VAL_MAX)) & 0xFF;
+    base_val   = (uint8_t) ((abs_val / per_step) & 0xFF);
   }
-  led->b = ((blue_range / (ADC_5V / VAL_MAX)) & 0xFF);
+
+  led->b = (uint8_t) ((blue_range / per_step) & 0xFF);
   if (val > 0)
   {
     led->g = base_val;
@@ -100,32 +105,9 @@ void led_set_adcr(UxState* state, int16_t idx, int16_t val)
   }
 }
 
-void led_set_dac(UxState* state, int16_t idx, int32_t val)
-{
-  if (idx < 0 || idx >= LED_COUNT)
-    return;
-  LedRgb* led = &state->engine_state->leds[idx];
+void led_set_adcr(UxState* state, int16_t idx, int16_t val) { led_set_bipolar(state, idx, val, ADC_5V); }
 
-  int32_t abs_val    = abs(val);
-  int32_t blue_range = abs_val - DAC_5V;
-  uint8_t base_val   = VAL_MAX;
-  if (blue_range < 0)
-  {
-    blue_range = 0;
-    base_val   = (abs_val / (DAC_5V / VAL_MAX)) & 0xFF;
-  }
-  led->b = ((blue_range / (DAC_5V / VAL_MAX)) & 0xFF);
-  if (val > 0)
-  {
-    led->g = base_val;
-    led->r = 0;
-  }
-  else
-  {
-    led->r = base_val;
-    led->g = 0;
-  }
-}
+void led_set_dac(UxState* state, int16_t idx, int32_t val) { led_set_bipolar(state, idx, val, DAC_5V); }
 
 void led_clear_all(UxState* state)
 {

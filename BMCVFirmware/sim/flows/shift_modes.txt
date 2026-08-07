@@ -1,0 +1,16 @@
+#!args --rate=100ms --emit=ui
+# Holding a ctrl button past UI_T_HOLD latches its shift mode; the
+# mode's own button taps out of it again. QNT is the exception that keeps its
+# buttons as a semitone keyboard, so other ctrl taps do not exit it.
+0ms     slider 0.0
+100ms   ctrl QNT 1
+600ms   ctrl QNT 0
+800ms   ctrl STA 1
+900ms   ctrl STA 0
+1100ms  ctrl QNT 1
+1120ms  ctrl QNT 0
+1400ms  ctrl MON 1
+1900ms  ctrl MON 0
+2100ms  ctrl MON 1
+2120ms  ctrl MON 0
+2400ms  end

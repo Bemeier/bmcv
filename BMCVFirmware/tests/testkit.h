@@ -39,12 +39,17 @@ static const char* testkit_test = "";
     if (fabs(_a - _b) > _eps)                                                                                                              \
     {                                                                                                                                      \
       testkit_failures++;                                                                                                                  \
-      fprintf(stderr, "FAIL %s:%d [%s] %s ~= %s (got %f vs %f, tol %f)\n", __FILE__, __LINE__, testkit_test, #a, #b, _a, _b, _eps);         \
+      fprintf(stderr, "FAIL %s:%d [%s] %s ~= %s (got %f vs %f, tol %f)\n", __FILE__, __LINE__, testkit_test, #a, #b, _a, _b, _eps);        \
     }                                                                                                                                      \
   } while (0)
 
-// Call at the end of main(): prints the summary and yields the exit code.
-static inline int testkit_summary(const char* file)
+// Call at the end of main() *as* `return TESTKIT_SUMMARY();` - it prints the
+// summary and yields the exit code ctest reads.
+//
+// [[nodiscard]] because dropping the return value is silent and total: main
+// falls off its end, returns 0, and ctest reports a green run no matter how
+// many checks failed. Four of the test files here did exactly that.
+[[nodiscard]] static inline int testkit_summary(const char* file)
 {
   fprintf(stdout, "%s: %d checks, %d failed\n", file, testkit_checks, testkit_failures);
   return testkit_failures ? 1 : 0;

@@ -10,25 +10,38 @@ set(BMCV_CORE_SOURCES
     assign.c
     channel.c
     clock_sync.c
+    config_migrate.c
     config_validate.c
     ctrl_button.c
     engine.c
-    envelope.c
     error.c
     hw_setup.c
+    input_fold.c
+    instance.c
     led_fb.c
+    mcp_decode.c
     quantizer.c
     scene.c
     stepped_random.c
+    sysex.c
+    ui_channel.c
+    ui_feedback.c
+    ui_input.c
+    ui_mode.c
+    ui_render.c
+    ui_scene.c
+    ui_select.c
     ux_setup.c
     ux_state.c
-    wave_fn.c
+    wavetable.c
+    wavetables.c
 )
 
 set(BMCV_DRIVER_SOURCES
     bmcv.c
     dac_adc.c
     fram.c
+    fw_update.c
     mcp.c
     midi.c
     presets.c

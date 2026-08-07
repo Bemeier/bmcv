@@ -1,0 +1,7 @@
+#!args --rate=250ms --emit=ui --bpm=120 --duration=3s
+# Input 0 defaults to INPUT_CLOCK, so the synthesised pulse train should lock
+# the internal tempo to 120 BPM and stay there.
+0ms     slider 0.0
+50ms    ctrl SAV 1
+80ms    ctrl SAV 0
+200ms   enc 3 400

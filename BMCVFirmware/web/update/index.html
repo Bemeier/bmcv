@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BMCV firmware update</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <h1>BMCV <span class="sub">firmware update</span></h1>
+  <p class="tagline">Flashes the module over USB-C, straight from this page.</p>
+</header>
+
+<main>
+
+<div id="unsupported" class="step" hidden>
+  <h2>This browser cannot do it</h2>
+  <p class="bad">Flashing needs WebUSB, which only Chromium browsers have.</p>
+  <p class="note">Chrome, Edge, Opera and Brave all work. Firefox and Safari
+  have no WebUSB and no plans for it, so there is nothing to enable.</p>
+</div>
+
+<div id="main-flow">
+
+  <div class="step">
+    <h2>Before you start</h2>
+    <p><b>The module must be powered by your case.</b> Its USB-C port carries
+    data only — VBUS is not connected to anything, so a USB cable alone will
+    not power it up.</p>
+    <p class="note" id="windows-note" hidden><b>On Windows, one-time setup:</b>
+    in update mode the module appears as a generic ST bootloader that Windows
+    has no driver for. Install one with
+    <a href="https://zadig.akeo.ie/">Zadig</a>: plug the module in, put it in
+    update mode below, then in Zadig pick <b>STM32 BOOTLOADER</b> from the list,
+    choose <b>WinUSB</b> as the driver, and hit Replace Driver. You only ever do
+    this once per machine.</p>
+  </div>
+
+  <div class="step">
+    <h2>1. Put the module in update mode</h2>
+    <p>Two ways in. The first is easier; the second works even if the firmware
+    on the module is too broken to respond.</p>
+
+    <dl>
+      <dt>From here</dt>
+      <dd>
+        <div class="row" style="margin:.4rem 0">
+          <button id="btn-connect">Connect over MIDI</button>
+          <button id="btn-reboot" class="primary" disabled>Reboot into update mode</button>
+          <span id="midi-status" class="muted"></span>
+        </div>
+      </dd>
+
+      <dt>By hand</dt>
+      <dd>Power the case down, hold <b>FN2</b>, power it back up, then let go.</dd>
+    </dl>
+
+    <p class="note">In update mode the whole panel glows amber — but only if you
+    got there from this page. The FN2 route leaves the panel dark, because at
+    that point the module is running ST's built-in bootloader, which knows
+    nothing about the LEDs. A dark panel there is normal.</p>
+  </div>
+
+  <div class="step">
+    <h2>2. Pick a firmware image</h2>
+    <p><input type="file" id="file" accept=".bin"></p>
+    <p class="note" id="file-status">A raw <code>.bin</code> — the build writes
+    one next to the <code>.elf</code>.</p>
+  </div>
+
+  <div class="step">
+    <h2>3. Flash it</h2>
+    <div class="row">
+      <button id="btn-flash" class="primary" disabled>Flash firmware</button>
+      <span id="flash-status" class="muted"></span>
+    </div>
+    <p><progress id="progress" value="0" max="1"></progress></p>
+    <p class="note">Do not unplug the module or power the case down while this
+    runs. If it is interrupted, the module stays in update mode and you can
+    simply flash again — the bootloader is in ROM and cannot be erased.</p>
+  </div>
+
+  <div class="step">
+    <h2>4. Power-cycle the case</h2>
+    <p>When the flash finishes, <b>switch the case off and back on</b>. The new
+    firmware is already written; this is just what starts it.</p>
+    <p class="note">The module will not restart by itself. ST's built-in
+    bootloader disconnects from USB at the end of an update and then waits for a
+    reset that no longer has any way of reaching it, so there is nothing this
+    page can send to bring it back. A power cycle is the reset.</p>
+  </div>
+
+  <div class="step">
+    <h2>Log</h2>
+    <div id="log"></div>
+  </div>
+
+</div>
+
+</main>
+
+<script type="module" src="update.js"></script>
+</body>
+</html>

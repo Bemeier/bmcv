@@ -26,11 +26,12 @@ list(TRANSFORM BMCV_CORE_SOURCES PREPEND ${BMCV_LIB_SRC}/)
 
 add_library(bmcv_core STATIC
   ${BMCV_CORE_SOURCES}
-  fakes/fake_drivers.c
 )
 target_include_directories(bmcv_core PUBLIC ${BMCV_LIB_INC})
 target_link_libraries(bmcv_core PUBLIC m)
-target_compile_options(bmcv_core PRIVATE -Wall -Wextra)
+# -Wmissing-prototypes catches a non-static function with no declaration, which
+# is how three dead or internal functions here ended up externally visible.
+target_compile_options(bmcv_core PRIVATE -Wall -Wextra -Wmissing-prototypes)
 
 add_library(bmcv_fixture STATIC fixtures/fixture.c)
 target_include_directories(bmcv_fixture PUBLIC fixtures)
@@ -45,16 +46,56 @@ function(bmcv_add_test name)
   add_test(NAME ${name} COMMAND ${name})
 endfunction()
 
+bmcv_add_test(test_helpers)
 bmcv_add_test(test_stepped_random)
+bmcv_add_test(test_wavetable)
+target_sources(test_wavetable PRIVATE pll_metrics.c)
 bmcv_add_test(test_channel)
 bmcv_add_test(test_clock_sync)
 bmcv_add_test(test_scene)
 bmcv_add_test(test_quantizer)
 bmcv_add_test(test_assign)
 bmcv_add_test(test_led_render)
+bmcv_add_test(test_config_migrate)
 bmcv_add_test(test_config_validate)
+bmcv_add_test(test_ui_input)
+bmcv_add_test(test_ui_gestures)
+bmcv_add_test(test_ui_select)
+bmcv_add_test(test_ui_feedback)
+bmcv_add_test(test_ui_mode)
+bmcv_add_test(test_input_fold)
+bmcv_add_test(test_mcp_decode)
+bmcv_add_test(test_sysex)
+
+# Characterises the phase-lock loop: settling, overshoot, ringing, frequency
+# slew and long-run alignment. pll_metrics.c is the measurement side, kept out
+# of the fixture library because nothing else needs it.
+bmcv_add_test(test_pll)
+target_sources(test_pll PRIVATE pll_metrics.c)
+bmcv_add_test(test_instance)
+
+# Host-side runtime glue from sim/. Built here so `just test` covers it too -
+# it is shared by every host, so a regression would be everywhere at once.
+bmcv_add_test(test_sim_rt)
+target_sources(test_sim_rt PRIVATE ${BMCV_ROOT}/sim/src/sim_rt.c)
+
+bmcv_add_test(test_slot_store)
+target_sources(test_slot_store PRIVATE ${BMCV_ROOT}/sim/src/slot_store.c)
+target_include_directories(test_slot_store PRIVATE ${BMCV_ROOT}/sim/include)
+target_include_directories(test_sim_rt PRIVATE ${BMCV_ROOT}/sim/include)
+
+# Checks the generated panel layout against the firmware's index tables.
+# Needs panel/panel_layout.h, which `just panel` produces.
+bmcv_add_test(test_panel_spec)
+target_include_directories(test_panel_spec PRIVATE ${BMCV_ROOT}/panel)
+target_link_libraries(test_panel_spec PRIVATE m)
 
 
 add_executable(render_channel ${BMCV_ROOT}/tools/render_channel.c)
 target_link_libraries(render_channel PRIVATE bmcv_fixture)
 target_include_directories(render_channel PRIVATE ${BMCV_ROOT}/tools)
+
+# Feeds gen_panel_spec.py the firmware's own index tables, so the generated
+# panel spec cannot drift from hw_setup.c. See `just panel`.
+add_executable(dump_hw_setup ${BMCV_ROOT}/tools/dump_hw_setup.c)
+target_link_libraries(dump_hw_setup PRIVATE bmcv_core)

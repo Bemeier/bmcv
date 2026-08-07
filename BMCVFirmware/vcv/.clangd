@@ -1,0 +1,8 @@
+# The repo root's .clangd forces -std=c2x, which is right for the firmware and
+# an error for the C++ here.
+#
+# Everything else - the Rack SDK's include paths above all - comes from
+# vcv/compile_commands.json, which `just vcv-compdb` generates and .gitignore
+# excludes. Those paths are per-machine and do not belong in a tracked file.
+CompileFlags:
+  Remove: [-std=c2x]

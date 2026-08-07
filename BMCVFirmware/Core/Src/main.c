@@ -25,8 +25,10 @@
 #include "bmcv.h"
 #include "dac_adc_hal.h"
 #include "fram.h"
+#include "fw_update.h"
 #include "helpers.h"
 #include "mcp.h"
+#include "midi.h"
 #include "ws2811_hal.h"
 #include <stdint.h>
 
@@ -105,6 +107,11 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
+  // Before HAL_Init, before the clocks, before anything. If the last boot asked
+  // to be updated, the ROM bootloader takes over from here - and it only brings
+  // USB up if it inherits a chip that has just reset, which is exactly what
+  // this point in the boot still is.
+  fw_update_check_boot();
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -166,6 +173,15 @@ int main(void)
   while (1)
   {
     bmcv_main(__HAL_TIM_GET_COUNTER(&htim2));
+
+    // Host control traffic, handled out here rather than in the USB interrupt
+    // that received it. Entering DFU tears down the USB stack, which is not
+    // something to do from inside its own ISR - and it never comes back.
+    midi_poll_control();
+    if (midi_dfu_requested())
+    {
+      fw_update_enter_dfu();
+    }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

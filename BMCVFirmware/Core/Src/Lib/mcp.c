@@ -15,12 +15,6 @@ uint8_t mcp_read_buttons();
 
 uint8_t mcp_read_encoders();
 
-void enc_process_states();
-
-void enc_update_pin_states(uint8_t gpioa, uint8_t gpiob);
-
-void btn_process_states();
-
 void mcp_dma_complete();
 
 #define MCP_IODIRA 0x00
@@ -59,9 +53,6 @@ void mcp_dma_complete();
 #define MCP_HW_ADDR_0 0x00 // A2=0, A1=0, A0=1 = MCP for Encoders
 #define MCP_HW_ADDR_1 0x01 // A2=0, A1=0, A0=1 = MCP for Switches
 
-#define PORT_A_OFFSET 0
-#define PORT_B_OFFSET 8
-
 int8_t mcp_read()
 {
   if (btnenc.spi_dma_state == 0)
@@ -72,9 +63,9 @@ int8_t mcp_read()
   return 0;
 }
 
-uint8_t get_btn_state(uint8_t buttonIndex) { return btnenc.button_state[buttonIndex]; }
+uint8_t get_btn_state(uint8_t buttonIndex) { return btnenc.dec.button_state[buttonIndex]; }
 
-int16_t get_enc_state(uint8_t encoderIndex) { return btnenc.enc_position_state[encoderIndex]; }
+int16_t get_enc_state(uint8_t encoderIndex) { return btnenc.dec.enc_position[encoderIndex]; }
 
 void mcp_handle_txrx_complete(SPI_HandleTypeDef* hspi)
 {
@@ -104,114 +95,16 @@ uint8_t mcp_read_register(uint8_t hw_addr, uint8_t reg) { return mcp_transmit_re
 // Write version
 uint8_t mcp_write_register(uint8_t hw_addr, uint8_t reg, uint8_t data) { return mcp_transmit_register(hw_addr, reg, data, 1); }
 
-void btn_process_states()
-{
-  for (uint8_t b = 0; b < N_ENCODERS; b++)
-  {
-    uint8_t pin = btnenc.enc_button_pins[b];
-    if (pin < 8)
-    {
-      btnenc.button_state[b] = (btnenc.gpioa_state >> pin) & 0x01;
-    }
-    else
-    {
-      btnenc.button_state[b] = (btnenc.gpiob_state >> (pin - 8)) & 0x01;
-    }
-  }
-
-  for (uint8_t b = 0; b < N_ENCODERS; b++)
-  {
-    uint8_t pin = btnenc.bottom_button_pins[b];
-    if (pin < 8)
-    {
-      btnenc.button_state[N_ENCODERS + b] = (btnenc.gpioa_state >> pin) & 0x01;
-    }
-    else
-    {
-      btnenc.button_state[N_ENCODERS + b] = (btnenc.gpiob_state >> (pin - 8)) & 0x01;
-    }
-  }
-}
-
-void enc_process_states()
-{
-  const int8_t encoder_table[16] = {0, -1, 1, 0, 1, 0, 0, -1, -1, 0, 0, 1, 0, 1, -1, 0};
-
-  for (int i = 0; i < N_ENCODERS; i++)
-  {
-    uint8_t a_old = (btnenc.a_state_prev >> i) & 0x01;
-    uint8_t b_old = (btnenc.b_state_prev >> i) & 0x01;
-    uint8_t a_new = (btnenc.a_state >> i) & 0x01;
-    uint8_t b_new = (btnenc.b_state >> i) & 0x01;
-
-    uint8_t prev_state = (a_old << 1) | b_old;
-    uint8_t curr_state = (a_new << 1) | b_new;
-
-    uint8_t index = (prev_state << 2) | curr_state;
-    int8_t delta  = encoder_table[index];
-
-    if (curr_state == 0b00)
-    {
-      btnenc.enc_position_state[i] += delta;
-    }
-    // enc_position_state[i] += delta;
-  }
-
-  btnenc.a_state_prev = btnenc.a_state;
-  btnenc.b_state_prev = btnenc.b_state;
-}
-
-void enc_update_pin_states(uint8_t gpioa, uint8_t gpiob)
-{
-  uint8_t new_a_state = 0;
-  uint8_t new_b_state = 0;
-
-  for (int i = 0; i < N_ENCODERS; i++)
-  {
-    // Read pin A
-    uint8_t pin_a       = btnenc.enc_pins_a[i];
-    uint8_t pin_a_state = 0;
-
-    if (pin_a < 8)
-    {
-      pin_a_state = (gpioa >> pin_a) & 0x01;
-    }
-    else
-    {
-      pin_a_state = (gpiob >> (pin_a - 8)) & 0x01;
-    }
-
-    // Read pin B
-    uint8_t pin_b       = btnenc.enc_pins_b[i];
-    uint8_t pin_b_state = 0;
-
-    if (pin_b < 8)
-    {
-      pin_b_state = (gpioa >> pin_b) & 0x01;
-    }
-    else
-    {
-      pin_b_state = (gpiob >> (pin_b - 8)) & 0x01;
-    }
-    // Set bit i in result states
-    new_a_state |= (pin_a_state << i);
-    new_b_state |= (pin_b_state << i);
-  }
-
-  btnenc.a_state = new_a_state;
-  btnenc.b_state = new_b_state;
-}
-
 void mcu_read_buttons()
 {
-  btnenc.button_state[N_ENCODERS * 2 + 0] = HAL_GPIO_ReadPin(IN_BTN_MCU1_GPIO_Port, IN_BTN_MCU1_Pin);
-  btnenc.button_state[N_ENCODERS * 2 + 1] = HAL_GPIO_ReadPin(IN_BTN_MCU2_GPIO_Port, IN_BTN_MCU2_Pin);
-  btnenc.button_state[N_ENCODERS * 2 + 2] = HAL_GPIO_ReadPin(IN_BTN_MCU3_GPIO_Port, IN_BTN_MCU3_Pin);
-  btnenc.button_state[N_ENCODERS * 2 + 3] = HAL_GPIO_ReadPin(IN_BTN_MCU4_GPIO_Port, IN_BTN_MCU4_Pin);
-  btnenc.button_state[N_ENCODERS * 2 + 4] = HAL_GPIO_ReadPin(IN_BTN_MCU5_GPIO_Port, IN_BTN_MCU5_Pin);
-  btnenc.button_state[N_ENCODERS * 2 + 5] = HAL_GPIO_ReadPin(MENU_BTN_2_GPIO_Port, MENU_BTN_2_Pin);
-  btnenc.button_state[N_ENCODERS * 2 + 6] = HAL_GPIO_ReadPin(MENU_BTN_BOOT_GPIO_Port, MENU_BTN_BOOT_Pin);
-  btnenc.button_state[N_ENCODERS * 2 + 7] = HAL_GPIO_ReadPin(MENU_BTN_3_GPIO_Port, MENU_BTN_3_Pin);
+  btnenc.dec.button_state[N_ENCODERS * 2 + 0] = HAL_GPIO_ReadPin(IN_BTN_MCU1_GPIO_Port, IN_BTN_MCU1_Pin);
+  btnenc.dec.button_state[N_ENCODERS * 2 + 1] = HAL_GPIO_ReadPin(IN_BTN_MCU2_GPIO_Port, IN_BTN_MCU2_Pin);
+  btnenc.dec.button_state[N_ENCODERS * 2 + 2] = HAL_GPIO_ReadPin(IN_BTN_MCU3_GPIO_Port, IN_BTN_MCU3_Pin);
+  btnenc.dec.button_state[N_ENCODERS * 2 + 3] = HAL_GPIO_ReadPin(IN_BTN_MCU4_GPIO_Port, IN_BTN_MCU4_Pin);
+  btnenc.dec.button_state[N_ENCODERS * 2 + 4] = HAL_GPIO_ReadPin(IN_BTN_MCU5_GPIO_Port, IN_BTN_MCU5_Pin);
+  btnenc.dec.button_state[N_ENCODERS * 2 + 5] = HAL_GPIO_ReadPin(MENU_BTN_2_GPIO_Port, MENU_BTN_2_Pin);
+  btnenc.dec.button_state[N_ENCODERS * 2 + 6] = HAL_GPIO_ReadPin(MENU_BTN_BOOT_GPIO_Port, MENU_BTN_BOOT_Pin);
+  btnenc.dec.button_state[N_ENCODERS * 2 + 7] = HAL_GPIO_ReadPin(MENU_BTN_3_GPIO_Port, MENU_BTN_3_Pin);
 }
 
 uint8_t mcp_read_buttons()
@@ -248,17 +141,14 @@ void mcp_dma_complete()
 
   if (btnenc.spi_dma_state == 2)
   {
-    btnenc.gpioa_state = btnenc.rx_buf[6];
-    btnenc.gpiob_state = btnenc.rx_buf[7];
-    btn_process_states();
+    mcp_decode_buttons(&btnenc.dec, btnenc.rx_buf[6], btnenc.rx_buf[7]);
     mcp_read_encoders();
     return;
   }
 
   if (btnenc.spi_dma_state == 1)
   {
-    enc_update_pin_states(btnenc.rx_buf[2], btnenc.rx_buf[3]);
-    enc_process_states();
+    mcp_decode_encoders(&btnenc.dec, btnenc.rx_buf[2], btnenc.rx_buf[3]);
   }
 
   btnenc.spi_dma_state = 0;
@@ -275,44 +165,7 @@ void mcp_init(SPI_HandleTypeDef* spi)
 
   btnenc.spi_dma_state = 0;
 
-  btnenc.enc_button_pins[0] = PORT_A_OFFSET + 4; // Encoder 1
-  btnenc.enc_button_pins[1] = PORT_A_OFFSET + 6; // Encoder 2
-  btnenc.enc_button_pins[2] = PORT_A_OFFSET + 7; // Encoder 3
-  btnenc.enc_button_pins[3] = PORT_B_OFFSET + 0; // Encoder 4
-  btnenc.enc_button_pins[4] = PORT_A_OFFSET + 5; // Encoder 5 <- correct
-  btnenc.enc_button_pins[5] = PORT_B_OFFSET + 1; // Encoder 6
-  btnenc.enc_button_pins[6] = PORT_B_OFFSET + 2; // Encoder 7
-  btnenc.enc_button_pins[7] = PORT_B_OFFSET + 3; // Encoder 8 <-correct
-
-  btnenc.bottom_button_pins[0] = PORT_A_OFFSET + 0;
-  btnenc.bottom_button_pins[1] = PORT_A_OFFSET + 1;
-  btnenc.bottom_button_pins[2] = PORT_A_OFFSET + 2;
-  btnenc.bottom_button_pins[3] = PORT_A_OFFSET + 3;
-
-  btnenc.bottom_button_pins[4] = PORT_B_OFFSET + 4;
-  btnenc.bottom_button_pins[5] = PORT_B_OFFSET + 5;
-  btnenc.bottom_button_pins[6] = PORT_B_OFFSET + 6;
-  btnenc.bottom_button_pins[7] = PORT_B_OFFSET + 7;
-  // Offset: 0 1 2 3 4 5  6  7
-  // Value:  0 1 2 4 6 8 16 32
-
-  btnenc.enc_pins_a[0] = PORT_B_OFFSET + 2; // Encoder 1 A
-  btnenc.enc_pins_a[1] = PORT_B_OFFSET + 1; // Encoder 2 A
-  btnenc.enc_pins_a[2] = PORT_A_OFFSET + 7; // Encoder 3 A
-  btnenc.enc_pins_a[3] = PORT_A_OFFSET + 5; // Encoder 4 A
-  btnenc.enc_pins_a[4] = PORT_A_OFFSET + 2; // Encoder 5 A
-  btnenc.enc_pins_a[5] = PORT_A_OFFSET + 0; // Encoder 6 A
-  btnenc.enc_pins_a[6] = PORT_B_OFFSET + 4; // Encoder 7 A
-  btnenc.enc_pins_a[7] = PORT_B_OFFSET + 6; // Encoder 8 A
-
-  btnenc.enc_pins_b[0] = PORT_B_OFFSET + 3; // Encoder 1 B
-  btnenc.enc_pins_b[1] = PORT_B_OFFSET + 0; // Encoder 2 B
-  btnenc.enc_pins_b[2] = PORT_A_OFFSET + 6; // Encoder 3 B
-  btnenc.enc_pins_b[3] = PORT_A_OFFSET + 4; // Encoder 4 B
-  btnenc.enc_pins_b[4] = PORT_A_OFFSET + 3; // Encoder 5 B
-  btnenc.enc_pins_b[5] = PORT_A_OFFSET + 1; // Encoder 6 B
-  btnenc.enc_pins_b[6] = PORT_B_OFFSET + 5; // Encoder 7 B
-  btnenc.enc_pins_b[7] = PORT_B_OFFSET + 7; // Encoder 8 B
+  mcp_decode_init(&btnenc.dec);
 
   btnenc.tx_buf[0] = 0x40 | ((MCP_HW_ADDR_0 & 0x07) << 1) | 1;
   btnenc.tx_buf[1] = MCP_GPIOA;

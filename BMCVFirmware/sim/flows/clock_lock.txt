@@ -1,0 +1,49 @@
+#!args --rate=125ms --emit=outputs --bpm=120 --duration=16s
+# The locked waveform, over time.
+#
+# Every other flow that emits outputs runs without a clock, and the one flow
+# that runs a clock emits only UI state - so until this existed, nothing in the
+# golden set covered what the phase-lock loop actually does to the signal. That
+# is the half of the engine with the most moving parts and the least ability to
+# be pinned by a unit test, since what matters about it is a trajectory rather
+# than a value.
+#
+# Three channels at three rates against one 120bpm clock. Measured over the
+# second half of the run, the periods come out exactly 1.0000s, 0.7500s and
+# 1.5000s - x0.5, x2/3 and x1/3 of the beat, which is what the FRQ offsets
+# below land on:
+#
+#   ch0  x0.5    one cycle every 2 beats   (alignment period 2 beats)
+#   ch1  x2/3    two cycles every 3 beats  (3 beats - a 2-against-3 polyrhythm)
+#   ch2  x1/3    one cycle every 3 beats   (3 beats)
+#
+# ch1 is the case worth having: it only returns to phase 0 on the third beat,
+# so a lock that drifts at all shows up as the trace walking through the rows
+# rather than repeating on them.
+#
+# 125ms rows are a sixteenth of a beat, so a row is a position in the bar
+# rather than an arbitrary sample, and 16s is long enough that a slow drift
+# would accumulate visibly.
+#
+# Encoder ids are panel encoders, not channel numbers: channel_encoder_idx maps
+# channels 0,1,2 to encoders 3,2,4. ctrl SAV selects AMP, ctrl STA selects FRQ.
+
+# Start on scene 0 only.
+0ms     slider 0.0
+
+# AMP up on the three channels.
+50ms    ctrl SAV 1
+80ms    ctrl SAV 0
+150ms   enc 3 400
+200ms   enc 2 400
+250ms   enc 4 400
+
+# FRQ off its default on channels 1 and 2. FRQ is ctrl 0, on STA's button; the
+# parameter is a ratio rather than a rate, so these are offsets that land on
+# musically distinct multiples rather than round numbers of detents.
+400ms   ctrl STA 1
+430ms   ctrl STA 0
+500ms   enc 2 255
+600ms   enc 4 -85
+
+16s     end

@@ -4,39 +4,35 @@
 #include "ux_state.h"
 #include <stdint.h>
 
-// AssignType lives in state.h - it is part of EngineState.
-
-/*
-
-- Copy scene to scene
-  - (any mode->copy->)
-  - i.e. duplicate full scene, all channels
-- Copy channel to scene
-  - (any mode->copy->)
-  - set current channel state to all scenes
-- Copy channel to channel
-  - (any mode->copy->)
-  - copy channel to other channel in current scene
-- Assign input to channel
-  - (from monitor mode->input->)
-  - ...
-*/
-
-int8_t assign_src(const UxState* state);
-
-AssignType assign_state(const UxState* state);
-
-void assign_event(AssignType sourceType, int8_t sourceId, UxState* state);
-
-void assign_reset(UxState* state);
+// The mutations behind the selection model. Deliberately plain functions with
+// no notion of what is currently selected or how it got picked - ui_select.c
+// owns that, and calls these once a source and a destination are both known.
+//
+//   scene -> scene       duplicate every channel's params
+//   channel -> scene     put this channel's params into another scene
+//   channel -> channel   within the active scene
+//   input -> channel     which input modulates it (MON)
+//   trig src -> channel  what samples it (QNT)
+//
+// Each validates its own indices; an out-of-range id is a no-op.
 
 void assign_input_to_channel(int8_t i, int8_t c, UxState* state);
+
+// The two side effects a selection has before it commits, named here rather
+// than written inline in ui_select.c - which is not supposed to know which
+// mode it is running under.
+void assign_input_clear(int8_t c, UxState* state);
+void assign_trig_arm_channel(int8_t c, UxState* state);
 
 void assign_channel_to_channel(int8_t c_src, int8_t c_dst, UxState* state);
 
 void assign_channel_to_scene(int8_t c_src, int8_t s_dst, UxState* state);
 
 void assign_scene_to_scene(int8_t s_src, int8_t s_dst, UxState* state);
+
+void assign_trig_src_use_channel(int8_t c_src, int8_t c_dst, UxState* state);
+
+void assign_trig_src_use_input(int8_t c_src, int8_t i_dst, UxState* state);
 
 void clear_channel(int8_t c, int8_t all_scenes, UxState* state);
 

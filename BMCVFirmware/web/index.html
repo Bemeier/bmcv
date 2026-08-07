@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BMCV simulator</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <h1>BMCV <span class="sub">simulator</span></h1>
+</header>
+
+<main>
+  <section id="panel-pane">
+    <div id="panel-wrap"><svg id="panel" xmlns="http://www.w3.org/2000/svg"></svg></div>
+    <p id="hint" class="hint">&nbsp;</p>
+    <p class="help">
+      Drag an encoder's <b>ring</b> to turn it, or use the scroll wheel.
+      Click its <b>centre</b> to push. Hold <kbd>Shift</kbd> while turning for
+      press-and-turn.
+    </p>
+  </section>
+
+  <section id="side">
+    <div id="side-grid">
+    <div class="readouts">
+      <div class="readout"><span class="label">mode</span><span id="r-shift" class="value">—</span></div>
+      <div class="readout"><span class="label">param</span><span id="r-param" class="value">—</span></div>
+      <div class="readout"><span class="label">scene</span><span id="r-scene" class="value">—</span></div>
+      <div class="readout"><span class="label">bpm in</span><span id="r-bpm-in" class="value">—</span></div>
+      <div class="readout"><span class="label">bpm run</span><span id="r-bpm" class="value">—</span></div>
+    </div>
+
+    <div class="panel-box">
+      <h2>Outputs</h2>
+      <canvas id="scope" width="1000" height="440"></canvas>
+      <p class="note">Laid out like the panel: each cell spans &plusmn;10&nbsp;V, with grid lines at &plusmn;5&nbsp;V and 0&nbsp;V.</p>
+    </div>
+
+    <div class="panel-box">
+      <h2>Inputs</h2>
+      <div class="scope-stack">
+        <canvas id="inscope"></canvas>
+        <div id="in-overlay"></div>
+      </div>
+      <p class="note">Laid out like the jacks, top-left is IN0; each trace is what the engine latched, over &plusmn;10&nbsp;V.</p>
+    </div>
+
+    <div class="panel-box">
+      <h2>Channels <span class="muted">(effective, after the scene crossfade)</span></h2>
+      <table id="params"></table>
+    </div>
+
+    <div class="panel-box">
+      <button id="reset">Reset module</button>
+      <button id="reset-fram">Reset FRAM</button>
+      <span id="status" class="muted"></span>
+      <p class="note">
+        <b>Reset module</b> reboots it, keeping the stored presets.
+        <b>Reset FRAM</b> wipes those and the browser copy. The module autosaves
+        its config to its last preset slot every couple of seconds and the
+        simulator mirrors that into browser storage, so a patch survives a
+        reload.
+      </p>
+    </div>
+    </div>
+  </section>
+</main>
+
+<script type="module" src="main.js"></script>
+</body>
+</html>
