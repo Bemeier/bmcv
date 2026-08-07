@@ -1552,6 +1552,12 @@ concepts one implementation each.
 - `HwState.button_pressed_t` / `button_released_t`, `AssignType`, and the three
   ad hoc indicator timers they fed.
 
+## v0.3.0 (2026-08-07)
+
+### Feat
+
+- **update**: flash a released version from a dropdown
+
 ## v0.2.0 (2026-08-07)
 
 ### Feat

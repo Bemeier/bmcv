@@ -1,6 +1,6 @@
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "0.2.0"
+version = "0.3.0"
 version_files = ["VERSION"]
 tag_format = "v$version"
 # 0.x: a breaking change bumps MINOR, not MAJOR, until a deliberate 1.0.
