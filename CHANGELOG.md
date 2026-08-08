@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.6.1 (2026-08-08)
+
+### Fix
+
+- **release**: stop release notes from picking up stale changelog prose
+
 ## v0.6.0 (2026-08-07)
 
 ### Refactor
