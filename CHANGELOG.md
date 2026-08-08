@@ -1,5 +1,39 @@
 # Changelog
 
+## v0.6.0 (2026-08-07)
+
+### Refactor
+
+- reorganize repo with firmware at the root
+
+## v0.5.0 (2026-08-07)
+
+### Feat
+
+- **setup**: fetch the ARM toolchain automatically, document all 4 targets
+
+## v0.4.0 (2026-08-07)
+
+### Feat
+
+- **midi**: drive the clock and reset from MIDI when no input is configured
+
+## v0.3.0 (2026-08-07)
+
+### Feat
+
+- **update**: flash a released version from a dropdown
+
+## v0.2.0 (2026-08-07)
+
+### Feat
+
+- **release**: commitizen versioning and GitHub Pages deploy
+
+### Fix
+
+- **release**: include the CI jobs and CMake wiring from the last commit
+
 ## The module flashes itself, from a browser tab
 
 The module has a USB-C port and, until now, no way to use it for the one thing a
@@ -1552,36 +1586,3 @@ concepts one implementation each.
 - `HwState.button_pressed_t` / `button_released_t`, `AssignType`, and the three
   ad hoc indicator timers they fed.
 
-## v0.6.0 (2026-08-07)
-
-### Refactor
-
-- reorganize repo with firmware at the root
-
-## v0.5.0 (2026-08-07)
-
-### Feat
-
-- **setup**: fetch the ARM toolchain automatically, document all 4 targets
-
-## v0.4.0 (2026-08-07)
-
-### Feat
-
-- **midi**: drive the clock and reset from MIDI when no input is configured
-
-## v0.3.0 (2026-08-07)
-
-### Feat
-
-- **update**: flash a released version from a dropdown
-
-## v0.2.0 (2026-08-07)
-
-### Feat
-
-- **release**: commitizen versioning and GitHub Pages deploy
-
-### Fix
-
-- **release**: include the CI jobs and CMake wiring from the last commit

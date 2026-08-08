@@ -205,7 +205,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           notes="$RUNNER_TEMP/release-notes.md"
-          awk '/^## /{if(seen)exit;seen=1} seen' CHANGELOG.md > "$notes"
+          # Matches the heading for the version just bumped, not whatever
+          # happens to be the first "## " line in the file - CHANGELOG.md's
+          # top section is a hand-narrated pre-versioning history, not cz's
+          # entries, and the two only stay in the same order by convention.
+          awk -v ver="v${{ steps.bump.outputs.version }}" '
+            $0 ~ "^## " ver "( |$)" { print; capture=1; next }
+            capture && /^## / { exit }
+            capture { print }
+          ' CHANGELOG.md > "$notes"
           gh release create "v${{ steps.bump.outputs.version }}" \
             --title "v${{ steps.bump.outputs.version }}" \
             --notes-file "$notes" \
