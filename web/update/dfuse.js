@@ -258,6 +258,14 @@ export class DfuDevice {
   }
 
   async write(startAddr, image, onProgress) {
+    // Before anything is sent, because this is the number every byte's address
+    // is derived from. A zero would also make the loop below never advance:
+    // slice(offset, offset + 0) is empty, offset never moves, and it would sit
+    // there issuing downloads with rising block numbers for ever.
+    if (!Number.isInteger(this.transferSize) || this.transferSize <= 0) {
+      throw new DfuError(`the device declared a transfer size of ${this.transferSize}, which cannot be used`);
+    }
+
     await this.setAddress(startAddr);
 
     // Data blocks are numbered from 2; the device derives each block's address
@@ -305,6 +313,37 @@ export class DfuDevice {
   }
 }
 
+// Walk a raw configuration descriptor and return the wTransferSize the DFU
+// functional descriptor declares for `interfaceNumber`, or null if there is
+// none to find. Exported so it can be tested against a descriptor without a
+// device - see dfu-check.mjs.
+//
+// This number is not a buffer size we are free to pick. DfuSe has the device
+// derive each block's address as pointer + (block - 2) * wTransferSize, using
+// its own value, so a wrong one here does not fail - it writes the image to
+// the wrong addresses.
+export function transferSizeFromDescriptor(bytes, interfaceNumber) {
+  let seenOurInterface = false;
+  for (let i = 0; i + 1 < bytes.length; ) {
+    const len = bytes[i];
+    const type = bytes[i + 1];
+    if (len === 0) break;
+
+    if (type === 0x04) {
+      // Interface descriptor: bInterfaceNumber is at offset 2. The STM32 ROM
+      // bootloader has three alternate settings on one interface, all sharing
+      // a number, so this stays true across them.
+      seenOurInterface = bytes[i + 2] === interfaceNumber;
+    } else if (type === 0x21 && seenOurInterface && i + 6 < bytes.length) {
+      // DFU functional descriptor: wTransferSize at offset 5.
+      const size = bytes[i + 5] | (bytes[i + 6] << 8);
+      return size > 0 ? size : null;
+    }
+    i += len;
+  }
+  return null;
+}
+
 // Pull the raw configuration descriptor and read wTransferSize out of the DFU
 // functional descriptor. WebUSB exposes interfaces and endpoints but not
 // class-specific descriptors, so this is the only way to ask.
@@ -321,25 +360,17 @@ async function readTransferSize(device, interfaceNumber) {
   );
   const bytes = new Uint8Array(full.data.buffer);
 
-  let seenOurInterface = false;
-  for (let i = 0; i + 1 < bytes.length; ) {
-    const len = bytes[i];
-    const type = bytes[i + 1];
-    if (len === 0) break;
-
-    if (type === 0x04) {
-      // Interface descriptor: bInterfaceNumber is at offset 2.
-      seenOurInterface = bytes[i + 2] === interfaceNumber;
-    } else if (type === 0x21 && seenOurInterface && i + 6 < bytes.length) {
-      // DFU functional descriptor: wTransferSize at offset 5.
-      return bytes[i + 5] | (bytes[i + 6] << 8);
-    }
-    i += len;
+  const size = transferSizeFromDescriptor(bytes, interfaceNumber);
+  if (size === null) {
+    // This used to fall back to 2048, on the grounds that every STM32 ROM
+    // bootloader reports it. That is a guess at the number the device uses to
+    // place the bytes, and guessing low is silent: the device spaces the blocks
+    // further apart than we chunked them and the image lands full of holes.
+    // Refusing costs a device that would otherwise have worked by luck, and
+    // saves one that would have been quietly corrupted.
+    throw new DfuError('That device did not say what transfer size it wants, so it cannot be flashed safely.');
   }
-
-  // Every STM32 ROM bootloader reports 2048. Falling back to it beats failing
-  // outright if the descriptor walk ever comes up empty.
-  return 2048;
+  return size;
 }
 
 // Ask the user to pick the device, then open and claim its DFU interface.

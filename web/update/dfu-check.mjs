@@ -13,7 +13,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { DfuDevice, describeImageProblem, FLASH_PAGE_SIZE, FLASH_START } from './dfuse.js';
+import { DfuDevice, describeImageProblem, transferSizeFromDescriptor, FLASH_PAGE_SIZE, FLASH_START } from './dfuse.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -218,6 +218,141 @@ const downloads = (calls) => calls.filter((c) => c.dir === 'out' && c.request ==
   } else {
     console.log('skip the real .elf (no build-rel yet)');
   }
+}
+
+/* ---- the transfer size, which decides where every byte lands -------------- */
+
+// DfuSe has the device compute each block's address as
+// pointer + (block - 2) * wTransferSize, from its own declared value. Reading
+// this wrong does not fail the flash - it scatters the image.
+{
+  // A configuration descriptor shaped like the STM32 ROM bootloader's: one
+  // interface carrying three alternate settings (internal flash, option bytes,
+  // OTP) that all share a bInterfaceNumber, with the DFU functional descriptor
+  // after the last of them.
+  const iface = (num, alt) => [9, 0x04, num, alt, 0, 0xfe, 0x01, 0x02, 0];
+  const dfuFunctional = (size) => [9, 0x21, 0x0b, 0xff, 0x00, size & 0xff, (size >> 8) & 0xff, 0x1a, 0x01];
+  const config = (size) =>
+    new Uint8Array([9, 0x02, 0, 0, 1, 1, 0, 0xc0, 50, ...iface(0, 0), ...iface(0, 1), ...iface(0, 2), ...dfuFunctional(size)]);
+
+  check(transferSizeFromDescriptor(config(2048), 0) === 2048, 'the declared transfer size is read from the DFU functional descriptor');
+  check(transferSizeFromDescriptor(config(1024), 0) === 1024, 'a device declaring something other than 2048 is believed');
+  check(transferSizeFromDescriptor(config(2048), 3) === null, 'a functional descriptor on another interface is not used');
+  check(transferSizeFromDescriptor(config(0), 0) === null, 'a declared size of zero is rejected rather than returned');
+  check(transferSizeFromDescriptor(new Uint8Array([9, 0x02, 0, 0, 1, 1, 0, 0xc0, 50]), 0) === null, 'a descriptor with no DFU functional block yields nothing');
+
+  // A zero length would step the walk nowhere; it must terminate anyway.
+  check(transferSizeFromDescriptor(new Uint8Array([0, 0x02, 0, 0]), 0) === null, 'a zero-length descriptor does not hang the walk');
+}
+
+// The same number, one layer up: write() must refuse rather than loop. With a
+// transfer size of zero every chunk is empty, so the offset never advances and
+// the loop issues downloads with rising block numbers indefinitely.
+{
+  let downloads = 0;
+  const dev = {
+    async controlTransferOut() {
+      if (++downloads > 1000) throw new Error('runaway write loop');
+      return { status: 'ok' };
+    },
+    async controlTransferIn() {
+      return { status: 'ok', data: new DataView(new Uint8Array([0, 0, 0, 0, 5, 0]).buffer) };
+    },
+  };
+
+  let message = null;
+  try {
+    await new DfuDevice(dev, 0, 0).write(FLASH_START, new Uint8Array(4096));
+  } catch (e) {
+    message = e.message;
+  }
+  check(message !== null && !message.includes('runaway'), 'a transfer size of zero is refused instead of looping');
+  check(downloads === 0, 'and nothing is sent to the device before it is refused');
+}
+
+/* ---- returning to idle --------------------------------------------------- */
+
+// The recovery path after an interrupted flash: the bootloader is left in
+// dfuDNLOAD_IDLE and rejects the next set-address until it is cleared. This is
+// what makes "the module is still in update mode and can be flashed again"
+// true rather than hopeful.
+{
+  const states = [5, 2]; // dfuDNLOAD_IDLE, then dfuIDLE after the abort
+  const requests = [];
+  const dev = {
+    async controlTransferOut(setup) {
+      requests.push(setup.request);
+      return { status: 'ok' };
+    },
+    async controlTransferIn() {
+      const state = states.shift() ?? 2;
+      return { status: 'ok', data: new DataView(new Uint8Array([0, 0, 0, 0, state, 0]).buffer) };
+    },
+  };
+
+  await new DfuDevice(dev, 0, 2048).toIdle();
+  check(requests.includes(6), 'an interrupted download is cleared with DFU_ABORT');
+}
+
+{
+  // A device stuck in dfuERROR needs CLRSTATUS, not an abort.
+  const states = [10, 2];
+  const requests = [];
+  const dev = {
+    async controlTransferOut(setup) {
+      requests.push(setup.request);
+      return { status: 'ok' };
+    },
+    async controlTransferIn() {
+      const state = states.shift() ?? 2;
+      return { status: 'ok', data: new DataView(new Uint8Array([0, 0, 0, 0, state, 0]).buffer) };
+    },
+  };
+
+  await new DfuDevice(dev, 0, 2048).toIdle();
+  check(requests.includes(4), 'a device in dfuERROR is cleared with DFU_CLRSTATUS');
+}
+
+{
+  // A device that will not come back is an error rather than a flash attempt.
+  const dev = {
+    async controlTransferOut() {
+      return { status: 'ok' };
+    },
+    async controlTransferIn() {
+      return { status: 'ok', data: new DataView(new Uint8Array([0, 0, 0, 0, 9, 0]).buffer) };
+    },
+  };
+
+  let threw = false;
+  try {
+    await new DfuDevice(dev, 0, 2048).toIdle();
+  } catch {
+    threw = true;
+  }
+  check(threw, 'a device that will not return to idle is refused, not flashed anyway');
+}
+
+/* ---- a device that reports a failure mid-write ---------------------------- */
+
+{
+  const dev = {
+    async controlTransferOut() {
+      return { status: 'ok' };
+    },
+    async controlTransferIn() {
+      // bStatus = 3 (write failed), state dfuIDLE.
+      return { status: 'ok', data: new DataView(new Uint8Array([3, 0, 0, 0, 2, 0]).buffer) };
+    },
+  };
+
+  let message = null;
+  try {
+    await new DfuDevice(dev, 0, 2048).write(FLASH_START, new Uint8Array(64));
+  } catch (e) {
+    message = e.message;
+  }
+  check(message === 'write failed', `a device-reported write failure stops the flash (got ${message})`);
 }
 
 console.log(failures ? `\n${failures} check(s) failed` : '\nall checks passed');
