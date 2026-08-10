@@ -9,9 +9,10 @@
 
 void fram_init(SPI_HandleTypeDef* spi, GPIO_TypeDef* port, uint16_t pin);
 
-uint8_t fram_ReadByte(uint16_t addr);
-void fram_WriteByte(uint16_t addr, uint8_t data);
-
+// The whole interface presets.c needs, and the only one there has ever been a
+// caller for. There were single-byte helpers beside these; they were unused,
+// and fram_WriteByte issued its WRITE without the WREN the part requires, so
+// it would have silently done nothing to anyone who reached for it.
 void fram_Write(uint16_t addr, const uint8_t* data, uint16_t len);
 void fram_Read(uint16_t addr, uint8_t* data, uint16_t len);
 
