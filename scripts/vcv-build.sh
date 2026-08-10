@@ -85,7 +85,21 @@ fi
 
 # Whether this host can build that platform at all, before anything is fetched.
 case "$ARCH" in
-  lin-x64 | win-x64) ;;
+  lin-x64) ;;
+  win-x64)
+    # A cross build, so the compiler is not the host's cc and is quite likely
+    # not installed - this arm exists for the same reason the two below do.
+    # Without it the SDK is fetched and then make reports the missing compiler
+    # once per source file, in parallel, none of them naming the package. A CC
+    # set by hand is taken as "I have a toolchain" and left alone.
+    if [ "$TARGET" != sdk ] && [ -z "${CC:-}" ] &&
+      ! command -v x86_64-w64-mingw32-gcc >/dev/null; then
+      echo "vcv-build.sh: win-x64 is a cross build and needs MinGW-w64." >&2
+      echo "  sudo apt install gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64" >&2
+      echo "Or point CC/CXX/STRIP at a cross toolchain you already have." >&2
+      exit 1
+    fi
+    ;;
   mac-x64 | mac-arm64)
     # Only a mac can produce a Mach-O dylib without a cross toolchain this
     # script does not set up (osxcross, as VCV's own builder uses). Without this
@@ -111,6 +125,32 @@ case "$ARCH" in
     exit 1
     ;;
 esac
+
+# The tools plugin.mk shells out to, checked here rather than left to fail
+# inside it. `jq` is read at parse time - SLUG and VERSION come out of
+# plugin.json - so every build target needs it, not just the packaging one;
+# `zstd` packs the .vcvplugin, so `dist` needs it and so does `install`, which
+# depends on dist. Left to the SDK, a missing one is `zstd: command not found`
+# and `Error 127` against a plugin.mk line number, after a build that has
+# already compiled, stripped and copied everything - naming neither the recipe
+# nor the package.
+#
+# GitHub's ubuntu images happen to ship both, which is why CI never caught
+# this; a fresh Ubuntu or WSL box ships neither. Skipped for `sdk`, which
+# fetches an SDK and builds nothing.
+if [ "$TARGET" != sdk ]; then
+  missing=""
+  command -v jq >/dev/null || missing="jq"
+  case "$TARGET" in
+    dist | install) command -v zstd >/dev/null || missing="${missing:+$missing }zstd" ;;
+  esac
+  if [ -n "$missing" ]; then
+    echo "vcv-build.sh: missing $missing, which the Rack SDK's plugin.mk needs." >&2
+    echo "  Debian/Ubuntu:  sudo apt install $missing" >&2
+    echo "  macOS:          brew install $missing" >&2
+    exit 1
+  fi
+fi
 
 # An SDK per platform rather than one Rack-SDK: a release builds four of them
 # from the same checkout, and pointing a build at the wrong libRack is
