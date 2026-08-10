@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.6.2 (2026-08-10)
+
+### Fix
+
+- **vcv**: correct the plugin install paths and decouple just from the script
+
 ## v0.6.1 (2026-08-08)
 
 ### Fix
