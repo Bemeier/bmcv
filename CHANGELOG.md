@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.7.0 (2026-08-10)
+
+### Feat
+
+- **release**: publish the firmware .elf alongside the .bin
+
 ## v0.6.2 (2026-08-10)
 
 ### Fix
