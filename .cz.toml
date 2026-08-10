@@ -1,6 +1,12 @@
 [tool.commitizen]
 name = "cz_conventional_commits"
 version = "0.6.1"
+# Deliberately not vcv/plugin.json. Rack refuses to load a plugin whose version
+# does not begin with Rack's own major - src/plugin/Plugin.cpp, "does not match
+# Rack ABI version" - so a version driven from here would pin this project's
+# major to Rack's and take semver away from the firmware. The plugin carries its
+# own fixed 2.0.0 instead; the firmware version rides on the release asset's
+# filename. See scripts/vcv-build.sh.
 version_files = ["VERSION"]
 tag_format = "v$version"
 # 0.x: a breaking change bumps MINOR, not MAJOR, until a deliberate 1.0.

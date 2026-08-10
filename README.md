@@ -74,6 +74,27 @@ the same UX layer, the same LED renderer - so what they do is what the module
 does. See [docs/architecture.md](docs/architecture.md) for how that is arranged
 and what each directory is for.
 
+### Installing the Rack module without building it
+
+Every [release](https://github.com/Bemeier/bmcv/releases) carries a
+`BMCV-<version>-<platform>.vcvplugin` for `lin-x64`, `win-x64`, `mac-x64` and
+`mac-arm64`. Drop the one for your platform into Rack's plugin folder and
+restart Rack, which unpacks it on the way up:
+
+| | |
+|---|---|
+| Windows | `%LOCALAPPDATA%\Rack2\plugins` |
+| macOS | `~/Library/Application Support/Rack2/plugins` |
+| Linux | `~/.local/share/Rack2/plugins` |
+
+It is not in the VCV Library, so nothing has signed it but this repository's
+CI. On macOS that means Gatekeeper quarantines it on download and Rack then
+refuses to load it - clear the flag once, after copying it in:
+
+    xattr -dr com.apple.quarantine ~/Library/Application\ Support/Rack2/plugins
+
+Windows may want a "more info" click past SmartScreen the first time.
+
 ## Building
 
 Prerequisites, what each fetch recipe actually gets and why, and
@@ -86,12 +107,11 @@ one thing to run first is `just arm-sdk`.
     just test-san         # the same tests under ASan/UBSan
     just fmt              # clang-format the hand-written C (fmt-check to verify)
     just web              # the browser simulator
-    just vcv-sdk          # fetch the Rack SDK, once
     just vcv-install      # build the Rack plugin into ~/.local/share/Rack2
+    just vcv-dist win-x64 # a distributable .vcvplugin for any platform
 
     # Rack running on Windows while you build in WSL. Needs the cross-compiler
     # once: sudo apt install gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64
-    just vcv-win-sdk      # fetch the Windows Rack SDK, once
     just vcv-win-install  # cross-build plugin.dll into %LOCALAPPDATA%\Rack2
 
     just panel            # regenerate the panel spec from the hardware repo
@@ -127,6 +147,15 @@ never edited by hand; `Core/Inc/Lib/version.h` is in turn generated from
                           and let the `release` CI job do it
 
 Needs `pipx install commitizen` (or `pip install --user commitizen`) once.
+
+The Rack plugin is the one thing that does not follow this version, because it
+cannot: Rack refuses to load a plugin whose version does not begin with Rack's
+own major, so driving `vcv/plugin.json` from `VERSION` would pin this project's
+major to Rack's and cost the firmware its semver. It is fixed at `2.0.0` and
+stays there - it means "for Rack 2", not "the second version of anything". The
+firmware version travels on the released file's name instead,
+`BMCV-v0.6.1-lin-x64.vcvplugin`, which is why the plugin shows as 2.0.0 in
+Rack's browser however new the firmware inside it is.
 
 ## Updating the firmware over USB
 

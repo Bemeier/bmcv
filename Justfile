@@ -1,9 +1,14 @@
 # Anything machine-specific goes in local.just, which is not checked in - the
-# same arrangement CMakeLists.txt has with local.cmake. Override a variable
-# there rather than editing this file:
+# same arrangement CMakeLists.txt has with local.cmake. It can add variables and
+# recipes, but not redefine a variable this file already sets: just rejects that
+# outright with "variable has multiple definitions". To change one of those,
+# either set it in the environment, since every one of them reads there first:
 #
-#   RACK_SDK := "/opt/Rack-SDK"
-#   RACK_WIN_DIR := "/mnt/c/Users/someone/AppData/Local/Rack2"
+#   export RACK_WIN_DIR=/mnt/c/Users/someone/AppData/Local/Rack2
+#
+# or pass it for a single run, which needs no local.just at all:
+#
+#   just RACK_WIN_DIR=/mnt/c/Users/someone/AppData/Local/Rack2 vcv-win-install
 import? 'local.just'
 
 # Everything `just build` needs beyond cmake/ninja: the ARM compiler and ST's
@@ -148,69 +153,62 @@ dfu-check:
 
 # VCV Rack plugin. Same core as the firmware, compiled straight out of
 # Core/Src/Lib - see vcv/Makefile.
-RACK_SDK := env_var_or_default("RACK_DIR", env_var("HOME") / "Rack-SDK")
-# The SDK to fetch. A plugin built against 2.x loads in any later 2.x, so this
-# only needs raising to reach a new API.
-RACK_SDK_VERSION := env_var_or_default("RACK_SDK_VERSION", "2.6.6")
-RACK_PLUGIN_DIR := env_var_or_default("XDG_DATA_HOME", env_var("HOME") / ".local/share") / "Rack2/plugins-lin-x64"
+#
+# Every recipe here takes a Rack platform name and defaults it to this host's.
+# The four with a published SDK are the whole list - lin-x64, win-x64, mac-x64,
+# mac-arm64 - and scripts/vcv-build.sh, which all of them go through, explains
+# why lin-arm64 is not one of them and which are cross builds.
+#
+#   just vcv                 build plugin.so/.dll for this host
+#   just vcv-dist win-x64    build the distributable .vcvplugin for a platform
+#   just vcv-install         unpack a host build into Rack's plugin directory
+#
+# CI's matrix calls vcv-dist for each of the four - see
+# .github/workflows/vcv.yml - so nothing about a released artifact is
+# reachable only from a workflow file.
+RACK_HOST_ARCH := `./scripts/vcv-build.sh --host-arch`
+RACK_PLUGIN_DIR := env_var_or_default("XDG_DATA_HOME", env_var("HOME") / ".local/share") / "Rack2/plugins-" + RACK_HOST_ARCH
 
-vcv-sdk:
-	bash -c 'set -e; d="{{RACK_SDK}}"; [ -d "$d" ] && exit 0; \
-	  mkdir -p "$(dirname "$d")" && cd "$(dirname "$d")" && \
-	  curl -fL -o rack-sdk.zip "https://vcvrack.com/downloads/Rack-SDK-{{RACK_SDK_VERSION}}-lin-x64.zip" && \
-	  unzip -q -o rack-sdk.zip && rm rack-sdk.zip'
-	@echo "Rack SDK at {{RACK_SDK}}"
+# Fetch a Rack SDK without building anything, and say where it landed. Not a
+# dependency of the recipes below - each fetches what it needs - so this is
+# only for priming a machine, or for asking where an SDK is.
+vcv-sdk ARCH=RACK_HOST_ARCH:
+	./scripts/vcv-build.sh {{ARCH}} sdk
 
-vcv:
-	RACK_DIR="{{RACK_SDK}}" make -C vcv -j
+vcv ARCH=RACK_HOST_ARCH:
+	./scripts/vcv-build.sh {{ARCH}}
 
-vcv-clean:
-	RACK_DIR="{{RACK_SDK}}" make -C vcv clean
+# The zstd-compressed .vcvplugin Rack distributes, into vcv/dist/. This is what
+# a release attaches.
+vcv-dist ARCH=RACK_HOST_ARCH:
+	./scripts/vcv-build.sh {{ARCH}} dist
+
+vcv-clean ARCH=RACK_HOST_ARCH:
+	./scripts/vcv-build.sh {{ARCH}} clean
 
 # clangd needs the Rack SDK's include paths, which live outside the repo and
 # differ per machine. Asking make for them keeps them out of a checked-in file
 # - vcv/compile_commands.json is generated and ignored, like the CMake ones.
-vcv-compdb:
-	RACK_DIR="{{RACK_SDK}}" python3 tools/gen_compdb.py --dir vcv --out vcv/compile_commands.json
+vcv-compdb ARCH=RACK_HOST_ARCH:
+	RACK_DIR="$(./scripts/vcv-build.sh {{ARCH}} sdk)" \
+	  python3 tools/gen_compdb.py --dir vcv --out vcv/compile_commands.json
 
-# Unpacked into Rack's plugin directory rather than through `make install`,
-# which builds a zstd-compressed .vcvplugin for distribution. Rack loads either.
+# Unpacked into Rack's plugin directory rather than through vcv-dist, whose
+# .vcvplugin Rack would have to extract first. Rack loads either.
 vcv-install: vcv
 	mkdir -p "{{RACK_PLUGIN_DIR}}/BMCV"
 	cp vcv/plugin.so vcv/plugin.json "{{RACK_PLUGIN_DIR}}/BMCV/"
 	cp -r vcv/res "{{RACK_PLUGIN_DIR}}/BMCV/"
 	@echo "installed to {{RACK_PLUGIN_DIR}}/BMCV"
 
-# Windows build, cross-compiled from here with MinGW-w64. Rack for Windows
-# loads a plugin.dll and will not look at a .so, so a WSL setup needs this
-# rather than the native build above. Needs the mingw-w64 toolchain:
-#   sudo apt install gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64
-RACK_SDK_WIN := env_var_or_default("RACK_DIR_WIN", env_var("HOME") / "Rack-SDK-win")
-
-vcv-win-sdk:
-	bash -c 'set -e; d="{{RACK_SDK_WIN}}"; [ -d "$d" ] && exit 0; \
-	  t=$(mktemp -d) && cd "$t" && \
-	  curl -fL -o rack-sdk.zip "https://vcvrack.com/downloads/Rack-SDK-{{RACK_SDK_VERSION}}-win-x64.zip" && \
-	  unzip -q rack-sdk.zip && mv Rack-SDK "$d" && rm -rf "$t"'
-	@echo "Windows Rack SDK at {{RACK_SDK_WIN}}"
-
-vcv-win:
-	RACK_DIR="{{RACK_SDK_WIN}}" \
-	CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++ \
-	STRIP=x86_64-w64-mingw32-strip \
-	make -C vcv -j
-
-vcv-win-clean:
-	RACK_DIR="{{RACK_SDK_WIN}}" make -C vcv clean
-
 # Straight into the Windows-side Rack over /mnt/c, which is the point of the
-# cross build: Rack runs on Windows, the checkout lives in WSL. The default
-# guesses the one Windows user that has Rack installed; set RACK_WIN_DIR in
-# local.just if that guess is wrong. Restart Rack afterwards - it only scans
-# for plugins at startup.
+# win-x64 cross build: Rack runs on Windows, the checkout lives in WSL. The
+# default guesses the one Windows user that has Rack installed; set
+# RACK_WIN_DIR in local.just if that guess is wrong. Restart Rack afterwards -
+# it only scans for plugins at startup.
 RACK_WIN_DIR := env_var_or_default("RACK_WIN_DIR", "")
 
-vcv-win-install: vcv-win
+vcv-win-install: (vcv "win-x64")
 	bash -c 'set -e; \
 	  r="{{RACK_WIN_DIR}}"; \
 	  [ -n "$r" ] || r=$(echo /mnt/c/Users/*/AppData/Local/Rack2 | cut -d" " -f1); \
@@ -296,8 +294,9 @@ fmt-check:
 
 # Versioning. VERSION and CHANGELOG.md are driven by commits since the last
 # tag, per .cz.toml - see version.h.in for why VERSION is the one file a bump
-# has to touch. Needs `pipx install commitizen` (or `pip install --user
-# commitizen`) once; CI enforces the commit format this expects.
+# has to touch. The Rack plugin's own version is not one of them and does not
+# move; .cz.toml says why. Needs `pipx install commitizen` (or `pip install
+# --user commitizen`) once; CI enforces the commit format this expects.
 #
 #   just commit       interactive wizard for a correctly formatted message
 #   just bump-dry-run  preview what `just bump` would change, without changing it

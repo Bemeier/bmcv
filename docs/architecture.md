@@ -88,6 +88,12 @@ host support generally.
 | sim + wasm | `sim/CMakeLists.txt` | same sources under `emcmake` for the web |
 | Rack plugin | `vcv/Makefile` | Rack supplies `plugin.mk`; a plugin must include it |
 
+The Rack plugin is also the only one built for more than one platform, four of
+them, so which SDK and which compiler go with which is `scripts/vcv-build.sh`
+rather than anything in `vcv/Makefile` - one path shared by `just vcv-dist` and
+by the CI matrix in `.github/workflows/vcv.yml`, so a released `.vcvplugin` is
+reproducible locally.
+
 They are four projects rather than one because their toolchains genuinely
 differ, not because the code does. Each includes `cmake/core_sources.cmake` (or
 parses it, in the Rack plugin's case) so the source list cannot drift.

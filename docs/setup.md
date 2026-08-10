@@ -105,22 +105,69 @@ headless against the built module - any reasonably recent LTS.
 ## VCV Rack plugin
 
 ```
-just vcv-sdk           # once: fetches the Rack SDK
 just vcv-install         # -> ~/.local/share/Rack2/plugins-lin-x64/BMCV
+just vcv-dist            # -> vcv/dist/BMCV-<version>-<platform>.vcvplugin
 ```
 
-Needs `make` and a C/C++ toolchain, both usually already present
-(`build-essential` on Debian/Ubuntu, Xcode Command Line Tools on macOS).
-The same GCC 13+ / modern-Clang requirement as the native tests applies
-here too - `vcv/Makefile` compiles the same `Core/Src/Lib` sources, and
-checks for it the same way before running `make -j` turns one real error
-into a wall of them across every source in parallel. Pass `CC=`/`CXX=` to
-`make -C vcv` (or set them before `just vcv`) to build with a
-non-default compiler.
+Both fetch the Rack SDK they need on first use; `just vcv-sdk` does only
+that, for priming a machine. Needs `make` and a C/C++ toolchain, both
+usually already present (`build-essential` on Debian/Ubuntu, Xcode Command
+Line Tools on macOS). The same GCC 13+ / modern-Clang requirement as the
+native tests applies here too - `vcv/Makefile` compiles the same
+`Core/Src/Lib` sources, and checks for it the same way before running
+`make -j` turns one real error into a wall of them across every source in
+parallel. Pass `CC=`/`CXX=` to build with a non-default compiler.
 
-Cross-compiling for Windows from WSL needs the MinGW toolchain -
-`sudo apt install gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64` - see
-`just vcv-win-sdk`/`vcv-win-install` and the Justfile's comments above them.
+### Platforms
+
+Every recipe takes a Rack platform name and defaults to this host's:
+
+```
+just vcv-dist lin-x64      just vcv-dist mac-x64
+just vcv-dist win-x64      just vcv-dist mac-arm64
+```
+
+Those four are the entire list, because they are the four Rack publishes an
+SDK for. There is **no `lin-arm64`**: on an arm64 Linux machine the plugin
+compiles and then has no `libRack.so` to link against, so the recipes stop
+with that rather than with `cannot find -lRack`. Everything else in this
+repository - firmware, tests, simulator, web frontend - builds there fine.
+
+`win-x64` is a cross build from Linux, which is what a checkout in WSL needs
+since Rack on Windows loads a `plugin.dll` and will not look at a `.so`. It
+wants the MinGW toolchain, GCC 13 or newer for the same C23 reason as above:
+
+```
+sudo apt install gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64   # 24.04+: GCC 13
+```
+
+The two mac platforms are native builds only - the SDK decides the target
+architecture from the host - so `mac-x64` needs an Intel mac and `mac-arm64`
+Apple silicon. If you have neither, or neither an x86_64 Linux machine,
+[`vcv.yml`](../.github/workflows/vcv.yml) builds all four on every pull
+request and attaches them to each release.
+
+To build the two x86_64 platforms on a machine that is not x86_64, an emulated
+container works. Register the emulator and build an image once:
+
+```
+docker run --privileged --rm tonistiigi/binfmt --install amd64
+printf 'FROM ubuntu:24.04\nRUN apt-get update && apt-get install -y \\\n\
+  build-essential jq zstd unzip curl ca-certificates \\\n\
+  gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64\n' \
+  | docker build --platform linux/amd64 -t bmcv-vcv-builder -
+```
+
+then build in it as yourself, so nothing in the checkout ends up root-owned:
+
+```
+docker run --rm --platform linux/amd64 -v "$PWD:/repo" -w /repo \
+  --user "$(id -u):$(id -g)" -e HOME=/tmp -e RACK_SDK_HOME=/tmp/sdks \
+  bmcv-vcv-builder ./scripts/vcv-build.sh win-x64 dist
+```
+
+Slow under emulation, but it is how `lin-x64` and `win-x64` were first
+verified from an arm64 machine. Nothing reaches macOS this way.
 
 ## Versioning (commitizen)
 
@@ -130,8 +177,9 @@ just bump-dry-run             # preview
 just bump                      # bump VERSION + CHANGELOG.md, commit, tag
 ```
 
-See the [Versioning](../README.md#versioning) section of the main README
-for what commit messages this expects.
+See the [Versioning](../README.md#versioning) section of the main README for
+what commit messages this expects, and for why `vcv/plugin.json`'s version is
+fixed at `2.0.0` rather than following `VERSION` like everything else.
 
 ## Formatting
 

@@ -5,13 +5,20 @@
   "license": "GPL-3.0-or-later",
   "brand": "BMCV",
   "author": "Jan Kolkmeier",
-  "sourceUrl": "https://github.com/jankolkmeier/BMCVFirmware",
+  "sourceUrl": "https://github.com/Bemeier/bmcv",
+  "manualUrl": "https://github.com/Bemeier/bmcv#readme",
+  "changelogUrl": "https://github.com/Bemeier/bmcv/blob/main/CHANGELOG.md",
+  "minRackVersion": "2.6.6",
   "modules": [
     {
       "slug": "BMCV",
       "name": "BMCV",
       "description": "Eight scene-crossfaded LFOs, running the BMCV hardware module's own firmware.",
-      "tags": ["Low-frequency oscillator", "Random", "Hardware clone"]
+      "tags": [
+        "Low-frequency oscillator",
+        "Random",
+        "Hardware clone"
+      ]
     }
   ]
 }
