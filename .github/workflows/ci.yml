@@ -113,12 +113,18 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # Picked up by `release` below and attached to the GitHub Release, so
-      # the updater page has something to offer in its version dropdown.
+      # Picked up by `release` below and attached to the GitHub Release. The
+      # .bin is what the updater page offers in its version dropdown and the
+      # only thing that can be flashed; the .elf beside it is the same build
+      # with its symbols still attached, which is what a debugger or a live
+      # variable viewer needs to make sense of a module running that release.
+      # Both come out of this one build, so the symbols describe the image.
       - uses: actions/upload-artifact@v4
         with:
           name: firmware-bin
-          path: build-ci/BMCVFirmware.bin
+          path: |
+            build-ci/BMCVFirmware.bin
+            build-ci/BMCVFirmware.elf
           retention-days: 5
 
   format:
@@ -217,7 +223,7 @@ jobs:
           gh release create "v${{ steps.bump.outputs.version }}" \
             --title "v${{ steps.bump.outputs.version }}" \
             --notes-file "$notes" \
-            dist/BMCVFirmware.bin
+            dist/BMCVFirmware.bin dist/BMCVFirmware.elf
 
       # Pages mirrors each release's .bin onto its own origin - see pages.yml
       # for why - so the version dropdown has this one to show.

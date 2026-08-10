@@ -174,6 +174,13 @@ its first bytes are not the vector table, and a debug build is four times the
 size of the flash. The page checks for this and refuses, naming the mistake,
 before it erases anything.
 
+That `.elf` is on every release too, next to the `.bin`. It is the same build -
+identical image, symbols still attached - and it is what a debugger or a live
+variable viewer needs to attach to a module running that release: a `.bin` is
+raw flash and carries no symbol table at all, so no tool can find a variable in
+one. Take the `.elf` from the release the module is actually running, since
+every address in it belongs to that build.
+
 Two things to know before plugging in:
 
 - **The case has to be powering the module.** Its USB-C port is data only -

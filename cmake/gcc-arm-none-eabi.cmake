@@ -34,11 +34,17 @@ add_compile_options(
     $<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>
 )
 
+# -g rather than -g0 in Release, because the ELF is a release artifact and a
+# debugger attached to a released module is worth more than a smaller file that
+# nothing loads. It costs the firmware nothing: -g only adds .debug_* sections
+# to the ELF, and objcopy leaves them behind when it extracts the .bin - the
+# image is byte-identical either way, which is what makes this safe to carry in
+# the build CI releases from.
 add_compile_options(
     $<$<CONFIG:DEBUG>:-O0>
     $<$<CONFIG:DEBUG>:-g3>
     $<$<CONFIG:RELEASE>:-Os>
-    $<$<CONFIG:RELEASE>:-g0>
+    $<$<CONFIG:RELEASE>:-g>
 )
 
 add_link_options(
