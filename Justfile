@@ -23,10 +23,21 @@ CUBE_G4_DIR := env_var_or_default("CUBE_G4_DIR", env_var("HOME") / "STM32CubeG4"
 arm-sdk:
 	./scripts/fetch-arm-sdk.sh "{{ARM_GCC_DIR}}" "{{CUBE_G4_DIR}}"
 
+# Configure a build directory that is not there yet, so a fresh checkout can go
+# straight to `just build`, `just test` or `just flows` without first knowing
+# which of the five configure recipes comes before which build. Absent this,
+# forgetting one gets you `Error: <path> is not a directory` from cmake, which
+# does not say what to run.
+#
+# The configure-* recipes stay the way to reconfigure from scratch - every one
+# of them rm -Rf's first, so they are not what you want on every build.
+_ensure DIR RECIPE:
+	@[ -d "{{DIR}}" ] || just {{RECIPE}}
+
 configure:
   rm -Rf build && cmake -B build -G Ninja
 
-build:
+build: (_ensure "build" "configure")
 	cmake --build build
 
 flash:
@@ -58,7 +69,7 @@ build-flash: build flash
 configure-rel:
   rm -Rf build-rel && cmake -B build-rel -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
 
-build-rel:
+build-rel: (_ensure "build-rel" "configure-rel")
 	cmake --build build-rel
 
 flash-rel:
@@ -72,11 +83,11 @@ build-flash-rel: build-rel flash-rel
 configure-native:
 	rm -Rf build-native && cmake -S tests -B build-native -G Ninja
 
-test:
+test: (_ensure "build-native" "configure-native")
 	cmake --build build-native
 	ctest --test-dir build-native --output-on-failure
 
-render *ARGS:
+render *ARGS: (_ensure "build-native" "configure-native")
 	cmake --build build-native --target render_channel
 	./build-native/render_channel {{ARGS}}
 
@@ -85,23 +96,23 @@ render *ARGS:
 configure-sim:
 	rm -Rf build-sim && cmake -S sim -B build-sim -G Ninja
 
-sim:
+sim: (_ensure "build-sim" "configure-sim")
 	cmake --build build-sim
 
 # Run an input script through the module. See sim/flows/ for examples and
 # sim/src/bmcv_sim_cli.c for the script format.
 #   just sim-run --script=sim/flows/demo_amp.txt --emit=all
-sim-run *ARGS:
+sim-run *ARGS: (_ensure "build-sim" "configure-sim")
 	cmake --build build-sim
 	./build-sim/bmcv_sim_cli {{ARGS}}
 
 # Replay every flow in sim/flows/ and diff against its committed golden file.
 # Regenerate with `just flows-bless` after reviewing the change.
-flows:
+flows: (_ensure "build-sim" "configure-sim")
 	cmake --build build-sim
 	./sim/flows/run.sh check
 
-flows-bless:
+flows-bless: (_ensure "build-sim" "configure-sim")
 	cmake --build build-sim
 	./sim/flows/run.sh bless
 
@@ -118,7 +129,7 @@ configure-wasm:
 	rm -Rf build-wasm
 	bash -c 'source "{{EMSDK}}/emsdk_env.sh" >/dev/null 2>&1 && emcmake cmake -S sim -B build-wasm -G Ninja'
 
-wasm:
+wasm: (_ensure "build-wasm" "configure-wasm")
 	bash -c 'source "{{EMSDK}}/emsdk_env.sh" >/dev/null 2>&1 && cmake --build build-wasm'
 
 # Serve web/ so the browser will load the wasm module (file:// will not).
@@ -247,6 +258,20 @@ docs-shots PORT="8123": wasm
 # Everything that can be checked without hardware or a browser.
 check: test flows wasm-check web-check dfu-check
 
+# The above plus the two artifacts it does not compile: the firmware and the
+# Rack plugin. Neither needs hardware either - `check` leaves them out because
+# it is the fast inner loop, and this is the "does this machine build the whole
+# project" pass, for a fresh checkout or a new machine.
+#
+# `build` rather than `build-ci`: both build the firmware, but build-ci takes
+# its toolchain and HAL paths from the environment the way the workflow sets
+# them, where `build` reads the toolchain.cmake `just arm-sdk` writes. Locally
+# that is the one that works without arguments.
+#
+# vcv-dist rather than vcv, so the packaging tools are covered too - that is
+# where a missing zstd shows up.
+check-all: check build vcv-dist
+
 # The same tests under AddressSanitizer and UBSan. Kept out of `check` because
 # it is a second full build, but it is what catches the class of fault that
 # reads or writes outside an array - the wavetable index off a NaN phase, for
@@ -331,7 +356,7 @@ wavetable *ARGS:
 # Regenerate the stepped-random tables into Core/Inc/Lib/stepped_random_table.h.
 # Output is checked in, so this only needs running after editing the generator -
 # review the diff, then `just test` to confirm the pattern properties still hold.
-sr-table:
+sr-table: (_ensure "build-native" "configure-native")
 	cc -O2 -o build-native/gen_sr_table tools/gen_sr_table.c -lm
 	./build-native/gen_sr_table > Core/Inc/Lib/stepped_random_table.h
 
@@ -339,6 +364,6 @@ sr-table:
 # firmware's own HwSetup tables. Outputs are checked in, so this only needs
 # running after editing hw_setup.c or when the board changes - review the diff.
 # Point HW_REPO at the PCB project directory if it is not pcb/.
-panel HW_REPO="pcb":
+panel HW_REPO="pcb": (_ensure "build-native" "configure-native")
 	cmake --build build-native --target dump_hw_setup
 	python3 tools/gen_panel_spec.py --hw-repo {{HW_REPO}}
