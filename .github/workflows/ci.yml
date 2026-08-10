@@ -226,3 +226,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow run pages.yml --repo "${{ github.repository }}" --ref main
+
+      # The Rack plugin for all four platforms, added to the release once it
+      # exists. Dispatched rather than a job here for the same reason it lives
+      # in its own workflow - see vcv.yml's header - and dispatched at all
+      # because a GITHUB_TOKEN release, like a GITHUB_TOKEN push, never
+      # triggers a workflow on its own.
+      - name: Build and attach the VCV Rack plugins
+        if: steps.bump.outputs.bumped == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run vcv.yml --repo "${{ github.repository }}" --ref main \
+            -f tag="v${{ steps.bump.outputs.version }}"

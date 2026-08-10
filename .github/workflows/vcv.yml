@@ -1,0 +1,144 @@
+# The VCV Rack plugin, for all four platforms Rack publishes an SDK for. Kept
+# out of ci.yml because it is the one target whose build cannot be gated on: two
+# of the four need macOS runners, and a mac runner hiccup should not hold up a
+# firmware release for a module that exists to test the firmware.
+#
+# So it runs on pull requests, where it is a real gate like everything else, and
+# on workflow_dispatch with a `tag`, which is how ci.yml's release job asks for
+# the artifacts once a release exists. Deliberately not on pushes to main: those
+# come from PRs that already ran this, and the release dispatch would then build
+# the same four platforms twice per merge. The gap that leaves - a direct push to
+# main that breaks the plugin - shows up as a failed dispatch with no assets
+# attached, which is recoverable by re-running it.
+name: VCV plugin
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: >-
+          Release tag to build and attach the .vcvplugin files to, e.g. v0.6.2.
+          Leave empty to just build the default branch and attach nothing.
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+# Keep in step with scripts/vcv-build.sh, which defaults to the same version -
+# this is here only because the cache key needs it before the script runs.
+env:
+  RACK_SDK_VERSION: '2.6.6'
+
+jobs:
+  build:
+    name: ${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # One platform's toolchain breaking says nothing about the other three,
+      # and a release wants to know about all of them in one run.
+      fail-fast: false
+      matrix:
+        include:
+          - arch: lin-x64
+            os: ubuntu-24.04
+          # Cross-built from Linux. Ubuntu 24.04's MinGW is GCC 13, the oldest
+          # that compiles the core's C23 - see vcv/Makefile.
+          - arch: win-x64
+            os: ubuntu-24.04
+            apt: gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64
+          # macos-15 is arm64 - every unsuffixed macos label has been since
+          # macos-14 - and the -intel labels are the only x86_64 ones. Apple
+          # Clang 17 on both images compiles the core's C23; a bare
+          # static_assert needs Clang 16 or newer.
+          #
+          # Both mac platforms come off the same arm64 runner: mac-x64 is a
+          # cross build, which scripts/vcv-build.sh arranges by handing the SDK
+          # a CROSS_COMPILE of x86_64-apple-darwin. Actions retires x86_64 macOS
+          # in August 2027 and this would have been forced then; doing it now
+          # means the native build is still available to compare against, by
+          # putting `macos-15-intel` back here for one run.
+          - arch: mac-x64
+            os: macos-15
+          - arch: mac-arm64
+            os: macos-15
+    steps:
+      # An empty ref is checkout's own default, so this builds the dispatched
+      # tag when there is one and the triggering branch otherwise.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: extractions/setup-just@v2
+
+      - name: Cross toolchain
+        if: matrix.apt
+        run: sudo apt-get update && sudo apt-get install -y ${{ matrix.apt }}
+
+      # plugin.mk reads the manifest with jq and packs the .vcvplugin with zstd.
+      # Every image currently ships both - macos-15 has jq 1.8.2 and zstd 1.5.7
+      # - so this is a no-op guard against a future image dropping one, not a
+      # known gap. It costs a second and turns "zstd: command not found" three
+      # minutes into a release build into nothing at all.
+      - name: Packaging tools
+        if: startsWith(matrix.os, 'macos')
+        run: command -v zstd >/dev/null || brew install zstd
+
+      - name: Cache the Rack SDK
+        uses: actions/cache@v4
+        with:
+          path: ~/Rack-SDK-${{ matrix.arch }}
+          key: rack-sdk-${{ env.RACK_SDK_VERSION }}-${{ matrix.arch }}
+
+      - name: Build
+        run: just vcv-dist ${{ matrix.arch }}
+
+      # make dist names the file after vcv/plugin.json's version, which is
+      # pinned at 2.0.0 and so says nothing about which firmware is inside -
+      # see .cz.toml for why it is pinned. On a release build the tag does say,
+      # so it goes in the filename. Rack does not care what the file is called:
+      # it matches the .vcvplugin extension and unarchives it, and the plugin's
+      # identity comes from the manifest inside (src/plugin.cpp, extractPackages).
+      - name: Name the package after the firmware version
+        if: inputs.tag != ''
+        run: |
+          mv vcv/dist/*.vcvplugin \
+             "vcv/dist/BMCV-${{ inputs.tag }}-${{ matrix.arch }}.vcvplugin"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vcvplugin-${{ matrix.arch }}
+          path: vcv/dist/*.vcvplugin
+          retention-days: 14
+
+  # Only when dispatched with a tag. The release already exists by then -
+  # ci.yml creates it, then asks for this - so these are added to it rather
+  # than being what creates it.
+  #
+  # `!cancelled()` rather than a plain `needs`, so that one platform failing
+  # still attaches the platforms that built. Three working plugins on a release
+  # beat none, the failed matrix job stays red either way, and if nothing built
+  # the glob below finds no files and this fails loudly.
+  attach:
+    name: attach to release
+    needs: build
+    if: >-
+      ${{ !cancelled() && github.event_name == 'workflow_dispatch'
+          && inputs.tag != '' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: vcvplugin-*
+          merge-multiple: true
+
+      # --clobber so a re-dispatch after fixing one platform replaces that
+      # platform's asset instead of failing on the three already there.
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${{ inputs.tag }}" dist/*.vcvplugin \
+            --repo "${{ github.repository }}" --clobber
