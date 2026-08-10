@@ -81,8 +81,20 @@ void led_set_bipolar(UxState* state, int16_t idx, int32_t val, int32_t half_scal
     return;
   LedRgb* led = &state->engine_state->leds[idx];
 
-  int32_t per_step   = half_scale / VAL_MAX;
-  int32_t abs_val    = (val < 0) ? -val : val;
+  // Both callers pass a converter constant, so per_step is 32 or 128 and this
+  // never fires. It is here because this is the exported entry point and the
+  // two below are the convenience wrappers: a half_scale under VAL_MAX makes
+  // per_step zero and the two divides below undefined, which on the module is a
+  // hard fault rather than a wrong colour.
+  int32_t per_step = half_scale / VAL_MAX;
+  if (per_step <= 0)
+    return;
+
+  // Widened before negating and saturated on the way back: val is int32 and
+  // -INT32_MIN is not representable in one, so the obvious `(val < 0) ? -val`
+  // is undefined at that single input.
+  int64_t wide       = (val < 0) ? -(int64_t) val : (int64_t) val;
+  int32_t abs_val    = (int32_t) (wide > INT32_MAX ? INT32_MAX : wide);
   int32_t blue_range = abs_val - half_scale;
   uint8_t base_val   = VAL_MAX;
 
