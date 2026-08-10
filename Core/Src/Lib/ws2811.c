@@ -57,6 +57,14 @@ void ws2811_commit()
   }
 }
 
+// Give up on the frame in flight and let the next tick try again. Both callers
+// are failure paths where the DMA will never report completion for itself.
+static void ws2811_abandon_frame(void)
+{
+  HAL_TIM_PWM_Stop_DMA(ws2811_timer, ws2811_channel);
+  WS_DATA_COMPLETE_FLAG = 1;
+}
+
 void ws2811_update()
 {
   if (ws2811_timer == NULL || !ws2811_dma_completed())
@@ -66,7 +74,27 @@ void ws2811_update()
   HAL_StatusTypeDef result = HAL_TIM_PWM_Start_DMA(ws2811_timer, ws2811_channel, (uint32_t*) ws2811_pwm_data, WS2811_BUF_LEN);
   if (result != HAL_OK)
   {
-    // TODO
+    // Nothing was started, so the completion callback that clears this flag
+    // will never run - and the guard at the top of this function refuses to
+    // draw while the flag reads "in flight". One failed start would therefore
+    // park the panel on its last frame permanently, and take the amber DFU
+    // indication with it, since fw_update.c waits on this same flag before it
+    // hands over to the bootloader.
+    //
+    // Stopping the channel first so the HAL's own state is not left
+    // half-started, which is what would make the retry fail the same way.
+    ws2811_abandon_frame();
+  }
+}
+
+// A transfer error is delivered to the HAL's error callback rather than to the
+// completion one, so without this it leaves the flag clear and freezes the
+// panel exactly as a failed start would.
+void ws2811_dma_error_callback(TIM_HandleTypeDef* htim)
+{
+  if (htim == ws2811_timer)
+  {
+    ws2811_abandon_frame();
   }
 }
 

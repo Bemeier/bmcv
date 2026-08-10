@@ -90,6 +90,8 @@ void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef* hspi) { bmcv_handle_txrx_comple
 
 void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef* htim) { ws2811_dma_complete_callback(htim); }
 
+void HAL_TIM_ErrorCallback(TIM_HandleTypeDef* htim) { ws2811_dma_error_callback(htim); }
+
 void init_cycle_counter()
 {
   CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;

@@ -9,9 +9,14 @@
 #define RST_PERIODS 64
 #define WS2811_BUF_LEN ((WS2811_BITS * LED_COUNT) + RST_PERIODS)
 
-// 800KHz = 1.25ms pulses
-#define T1H 45; // 44/90 * 1.25ms = 0.625ms
-#define T0H 18; // 18/90 * 1.25ms = 0.25ms
+// 800KHz = 1.25ms pulses.
+//
+// No trailing semicolon: these carried one, which works only because every use
+// is a bare assignment statement, where it expands to a harmless empty one.
+// Any other context - `T1H * 2`, an initialiser, an argument - would not
+// compile, and the error would point here rather than at the use.
+#define T1H 45 // 44/90 * 1.25ms = 0.625ms
+#define T0H 18 // 18/90 * 1.25ms = 0.25ms
 
 typedef union
 {
