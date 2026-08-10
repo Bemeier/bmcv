@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.7.2 (2026-08-10)
+
+### Fix
+
+- **update**: refuse an unusable DFU transfer size instead of guessing
+- **leds**: recover from a failed LED DMA instead of freezing the panel
+
+### Refactor
+
+- delete two dead linker scripts and the unused FRAM helpers
+
 ## v0.7.1 (2026-08-10)
 
 ### Fix
