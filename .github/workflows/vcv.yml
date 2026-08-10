@@ -79,9 +79,14 @@ jobs:
 
       # plugin.mk reads the manifest with jq and packs the .vcvplugin with zstd.
       # Every image currently ships both - macos-15 has jq 1.8.2 and zstd 1.5.7
-      # - so this is a no-op guard against a future image dropping one, not a
-      # known gap. It costs a second and turns "zstd: command not found" three
-      # minutes into a release build into nothing at all.
+      # - so this is a guard against a future image dropping one. It costs a
+      # second and turns "zstd: command not found" three minutes into a release
+      # build into nothing at all.
+      #
+      # Not having one is a real failure mode off the runners, though, which is
+      # why scripts/vcv-build.sh checks for both rather than relying on this:
+      # a fresh Ubuntu or WSL box installs neither by default, and CI is no
+      # check on that precisely because these images do ship them.
       - name: Packaging tools
         if: startsWith(matrix.os, 'macos')
         run: command -v zstd >/dev/null || brew install zstd

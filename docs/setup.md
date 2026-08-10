@@ -22,10 +22,15 @@ hundred megabytes fetched straight from GitHub and ST's own HAL repos.
 
 ```
 just arm-sdk        # once: fetches the ARM toolchain + STM32Cube HAL
-just configure       # once per fresh build/, or after editing CMakeLists.txt
 just build            # -> build/BMCVFirmware.elf, build/BMCVFirmware.bin
 just flash             # over an ST-Link, via OpenOCD
 ```
+
+`build` configures `build/` first if it is not there, so `arm-sdk` really is
+the only thing a fresh checkout needs up front. `just configure` reconfigures
+from scratch - it deletes `build/` and starts over - which is what you want
+after editing `CMakeLists.txt`, and not what you want on every build. The
+same holds for each `configure-*` recipe below.
 
 `arm-sdk` fetches two things, both version-pinned in
 `scripts/fetch-arm-sdk.sh` for reproducibility:
@@ -53,9 +58,10 @@ requirement on top of it.
 ## Native tests and tools
 
 ```
-just configure-native
 just test              # ctest over Core/Src/Lib, host-compiled
 just test-san           # the same, under ASan/UBSan
+just check              # every host-side check at once
+just check-all          # and the firmware and Rack plugin builds too
 ```
 
 Needs only cmake/ninja/a C compiler - no ARM toolchain, no STM32Cube FW. The
@@ -90,7 +96,6 @@ practice.
 
 ```
 just wasm-sdk         # once: clones and builds emsdk (a real build - slow)
-just configure-wasm
 just wasm               # -> web/bmcv.js, web/bmcv.wasm
 just web                 # serves web/ at http://localhost:8000
 ```
@@ -110,10 +115,24 @@ just vcv-dist            # -> vcv/dist/BMCV-<version>-<platform>.vcvplugin
 ```
 
 Both fetch the Rack SDK they need on first use; `just vcv-sdk` does only
-that, for priming a machine. Needs `make` and a C/C++ toolchain, both
-usually already present (`build-essential` on Debian/Ubuntu, Xcode Command
-Line Tools on macOS). The same GCC 13+ / modern-Clang requirement as the
-native tests applies here too - `vcv/Makefile` compiles the same
+that, for priming a machine. Needs `make` and a C/C++ toolchain
+(`build-essential` on Debian/Ubuntu, Xcode Command Line Tools on macOS),
+plus two smaller things the SDK's own `plugin.mk` shells out to and neither
+distribution installs by default:
+
+```
+sudo apt install jq zstd     # macOS: brew install jq zstd
+```
+
+`jq` reads the slug and version out of `plugin.json`, at make's parse time,
+so every build needs it; `zstd` packs the `.vcvplugin`, so `vcv-dist` and
+`vcv-install` need it as well. `scripts/vcv-build.sh` checks for both up
+front - left to `plugin.mk` a missing one surfaces as `Error 127` against a
+line number, after everything has already compiled. GitHub's Ubuntu runners
+happen to ship both, so CI is not a check on this.
+
+The same GCC 13+ / modern-Clang requirement as the native
+tests applies here too - `vcv/Makefile` compiles the same
 `Core/Src/Lib` sources, and checks for it the same way before running
 `make -j` turns one real error into a wall of them across every source in
 parallel. Pass `CC=`/`CXX=` to build with a non-default compiler.
@@ -215,3 +234,8 @@ resolves `objcopy`/`size` the same way it already resolved the compiler.
 missing-header errors.** `toolchain.cmake` does not exist yet - run
 `just arm-sdk`, or see [Firmware (ARM)](#firmware-arm) above for pointing at
 an existing STM32CubeCLT install instead.
+
+**`missing jq` or `missing zstd` from `vcv-build.sh`.** Install them - see
+[VCV Rack plugin](#vcv-rack-plugin) above. If the message came from
+`plugin.mk` instead (`Error 127`, a plugin.mk line number, after a build that
+appeared to be working), the checkout predates the up-front check.

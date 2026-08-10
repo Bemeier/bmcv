@@ -107,6 +107,7 @@ one thing to run first is `just arm-sdk`.
     just arm-sdk          # fetch the ARM toolchain + STM32Cube HAL, once
     just build            # ARM firmware        just flash
     just check            # everything host-side: tests, golden flows, wasm, web
+    just check-all        # the above plus the firmware and Rack plugin builds
     just test-san         # the same tests under ASan/UBSan
     just fmt              # clang-format the hand-written C (fmt-check to verify)
     just web              # the browser simulator
