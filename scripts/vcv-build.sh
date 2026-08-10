@@ -56,8 +56,32 @@ if [ "${1:-}" = --host-arch ]; then
   exit 0
 fi
 
-ARCH="${1:?usage: vcv-build.sh ARCH [MAKE_TARGET] | --host-arch}"
+# An empty ARCH means this host's, so that the Justfile can pass one straight
+# through without having to work out a default - and so nothing outside the vcv
+# recipes ever runs this script just to find out what platform it is on.
+ARCH="${1:-}"
+[ -n "$ARCH" ] || ARCH="$(host_arch)"
 TARGET="${2:-all}"
+
+case "$ARCH" in
+  lin-x64 | win-x64 | mac-x64 | mac-arm64 | lin-arm64) ;;
+  *)
+    echo "vcv-build.sh: unknown platform '$ARCH'." >&2
+    echo "Rack's are lin-x64, win-x64, mac-x64, mac-arm64." >&2
+    exit 1
+    ;;
+esac
+
+# Before the capability checks below, because tidying up has to work even on a
+# machine that cannot build the platform it is tidying up after - and must not
+# need an SDK to do it. This is plugin.mk's own clean (`rm -rf build $(TARGET)
+# dist`) with every platform's library name, rather than the one the SDK would
+# have picked, since there is no SDK here to ask.
+if [ "$TARGET" = clean ]; then
+  cd "$REPO_ROOT/vcv"
+  rm -rfv build dist plugin.so plugin.dll plugin.dylib
+  exit 0
+fi
 
 # Whether this host can build that platform at all, before anything is fetched.
 case "$ARCH" in
@@ -86,19 +110,25 @@ case "$ARCH" in
     echo "or let CI do it - .github/workflows/vcv.yml builds all four." >&2
     exit 1
     ;;
-  *)
-    echo "vcv-build.sh: unknown platform '$ARCH'." >&2
-    echo "Rack's are lin-x64, win-x64, mac-x64, mac-arm64." >&2
-    exit 1
-    ;;
 esac
 
 # An SDK per platform rather than one Rack-SDK: a release builds four of them
 # from the same checkout, and pointing a build at the wrong libRack is
 # otherwise a mystery rather than an error.
 #
+# RACK_DIR is honoured for the host's own platform only, which is what it used
+# to mean when there was one SDK and one platform to build. Letting it win for
+# every platform would mean anyone who still has it exported hands their Linux
+# libRack to a MinGW cross build and gets an unexplained failure at -lRack.
+#
 # Progress goes to stderr throughout, so that `sdk` below can put the directory
 # on stdout and be the one thing that knows where SDKs live.
+if [ -n "${RACK_DIR:-}" ] && [ "$ARCH" != "$(host_arch)" ]; then
+  echo "Ignoring \$RACK_DIR: it means an SDK for this machine, and this is a" >&2
+  echo "$ARCH build. Unset it, or point it at an SDK for $ARCH." >&2
+  unset RACK_DIR
+fi
+
 if [ -n "${RACK_DIR:-}" ]; then
   echo "Using the Rack SDK at \$RACK_DIR ($RACK_DIR)." >&2
 else

@@ -26,8 +26,10 @@ on:
 permissions:
   contents: read
 
-# Keep in step with scripts/vcv-build.sh, which defaults to the same version -
-# this is here only because the cache key needs it before the script runs.
+# The SDK every job here builds against. Being a workflow-level env it reaches
+# the build step too, so it overrides scripts/vcv-build.sh's own default rather
+# than merely restating it - raise the two together, or CI quietly keeps
+# building against this one while local builds move on.
 env:
   RACK_SDK_VERSION: '2.6.6'
 

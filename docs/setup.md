@@ -141,9 +141,10 @@ wants the MinGW toolchain, GCC 13 or newer for the same C23 reason as above:
 sudo apt install gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64   # 24.04+: GCC 13
 ```
 
-The two mac platforms are native builds only - the SDK decides the target
-architecture from the host - so `mac-x64` needs an Intel mac and `mac-arm64`
-Apple silicon. If you have neither, or neither an x86_64 Linux machine,
+The two mac platforms need a mac - only Apple's toolchain emits a Mach-O
+dylib - but either mac builds both: the recipes hand the SDK a `CROSS_COMPILE`
+when the CPU you have is not the one you asked for, so `just vcv-dist mac-x64`
+works on Apple silicon. If you have no mac at all,
 [`vcv.yml`](../.github/workflows/vcv.yml) builds all four on every pull
 request and attaches them to each release.
 

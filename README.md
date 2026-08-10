@@ -79,19 +79,22 @@ and what each directory is for.
 Every [release](https://github.com/Bemeier/bmcv/releases) carries a
 `BMCV-<version>-<platform>.vcvplugin` for `lin-x64`, `win-x64`, `mac-x64` and
 `mac-arm64`. Drop the one for your platform into Rack's plugin folder and
-restart Rack, which unpacks it on the way up:
+restart Rack, which unpacks it on the way up. The folder ends in your
+platform's name - since Rack 2.4 there is one per platform, and a plain
+`plugins` directory is not read:
 
 | | |
 |---|---|
-| Windows | `%LOCALAPPDATA%\Rack2\plugins` |
-| macOS | `~/Library/Application Support/Rack2/plugins` |
-| Linux | `~/.local/share/Rack2/plugins` |
+| Windows | `%LOCALAPPDATA%\Rack2\plugins-win-x64` |
+| macOS (Apple silicon) | `~/Library/Application Support/Rack2/plugins-mac-arm64` |
+| macOS (Intel) | `~/Library/Application Support/Rack2/plugins-mac-x64` |
+| Linux | `~/.local/share/Rack2/plugins-lin-x64` |
 
 It is not in the VCV Library, so nothing has signed it but this repository's
 CI. On macOS that means Gatekeeper quarantines it on download and Rack then
-refuses to load it - clear the flag once, after copying it in:
+refuses to load it - clear the flag on the file itself, before starting Rack:
 
-    xattr -dr com.apple.quarantine ~/Library/Application\ Support/Rack2/plugins
+    xattr -dr com.apple.quarantine ~/Library/Application\ Support/Rack2/plugins-mac-arm64/BMCV-*.vcvplugin
 
 Windows may want a "more info" click past SmartScreen the first time.
 

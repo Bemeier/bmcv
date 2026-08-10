@@ -166,53 +166,56 @@ dfu-check:
 # CI's matrix calls vcv-dist for each of the four - see
 # .github/workflows/vcv.yml - so nothing about a released artifact is
 # reachable only from a workflow file.
-RACK_HOST_ARCH := `./scripts/vcv-build.sh --host-arch`
-RACK_PLUGIN_DIR := env_var_or_default("XDG_DATA_HOME", env_var("HOME") / ".local/share") / "Rack2/plugins-" + RACK_HOST_ARCH
+#
+# An empty ARCH means the host's, and is resolved inside the script rather than
+# by a variable here. A `just` variable holding a backtick is evaluated on any
+# invocation that reads it, and one holding this script's output would be read
+# by `just build` and `just test` too - making every recipe in this file depend
+# on the vcv build script being present and runnable.
 
 # Fetch a Rack SDK without building anything, and say where it landed. Not a
 # dependency of the recipes below - each fetches what it needs - so this is
 # only for priming a machine, or for asking where an SDK is.
-vcv-sdk ARCH=RACK_HOST_ARCH:
-	./scripts/vcv-build.sh {{ARCH}} sdk
+vcv-sdk ARCH="":
+	./scripts/vcv-build.sh "{{ARCH}}" sdk
 
-vcv ARCH=RACK_HOST_ARCH:
-	./scripts/vcv-build.sh {{ARCH}}
+vcv ARCH="":
+	./scripts/vcv-build.sh "{{ARCH}}"
 
 # The zstd-compressed .vcvplugin Rack distributes, into vcv/dist/. This is what
 # a release attaches.
-vcv-dist ARCH=RACK_HOST_ARCH:
-	./scripts/vcv-build.sh {{ARCH}} dist
+vcv-dist ARCH="":
+	./scripts/vcv-build.sh "{{ARCH}}" dist
 
-vcv-clean ARCH=RACK_HOST_ARCH:
-	./scripts/vcv-build.sh {{ARCH}} clean
+vcv-clean ARCH="":
+	./scripts/vcv-build.sh "{{ARCH}}" clean
 
 # clangd needs the Rack SDK's include paths, which live outside the repo and
 # differ per machine. Asking make for them keeps them out of a checked-in file
 # - vcv/compile_commands.json is generated and ignored, like the CMake ones.
-vcv-compdb ARCH=RACK_HOST_ARCH:
-	RACK_DIR="$(./scripts/vcv-build.sh {{ARCH}} sdk)" \
+vcv-compdb ARCH="":
+	RACK_DIR="$(./scripts/vcv-build.sh "{{ARCH}}" sdk)" \
 	  python3 tools/gen_compdb.py --dir vcv --out vcv/compile_commands.json
 
-# Unpacked into Rack's plugin directory rather than through vcv-dist, whose
-# .vcvplugin Rack would have to extract first. Rack loads either.
-vcv-install: vcv
-	mkdir -p "{{RACK_PLUGIN_DIR}}/BMCV"
-	cp vcv/plugin.so vcv/plugin.json "{{RACK_PLUGIN_DIR}}/BMCV/"
-	cp -r vcv/res "{{RACK_PLUGIN_DIR}}/BMCV/"
-	@echo "installed to {{RACK_PLUGIN_DIR}}/BMCV"
+# Through the SDK's own install target, which puts the .vcvplugin in the
+# plugins-<os>-<cpu> directory Rack actually scans - a different place, and a
+# different library name, on each of the four. Rack unpacks the package on the
+# next start. Restart Rack afterwards; it only looks at startup.
+vcv-install ARCH="":
+	./scripts/vcv-build.sh "{{ARCH}}" install
 
 # Straight into the Windows-side Rack over /mnt/c, which is the point of the
 # win-x64 cross build: Rack runs on Windows, the checkout lives in WSL. The
-# default guesses the one Windows user that has Rack installed; set
-# RACK_WIN_DIR in local.just if that guess is wrong. Restart Rack afterwards -
-# it only scans for plugins at startup.
+# default guesses the one Windows user that has Rack installed; export
+# RACK_WIN_DIR if that guess is wrong. Restart Rack afterwards - it only scans
+# for plugins at startup.
 RACK_WIN_DIR := env_var_or_default("RACK_WIN_DIR", "")
 
 vcv-win-install: (vcv "win-x64")
 	bash -c 'set -e; \
 	  r="{{RACK_WIN_DIR}}"; \
 	  [ -n "$r" ] || r=$(echo /mnt/c/Users/*/AppData/Local/Rack2 | cut -d" " -f1); \
-	  [ -d "$r" ] || { echo "no Windows Rack2 directory found; set RACK_WIN_DIR in local.just" >&2; exit 1; }; \
+	  [ -d "$r" ] || { echo "no Windows Rack2 directory found; export RACK_WIN_DIR" >&2; exit 1; }; \
 	  d="$r/plugins-win-x64/BMCV"; mkdir -p "$d"; \
 	  cp vcv/plugin.dll "$d/" 2>/dev/null || { \
 	    echo "could not replace $d/plugin.dll." >&2; \
@@ -222,8 +225,8 @@ vcv-win-install: (vcv "win-x64")
 	  echo "installed to $d"'
 
 # The screenshots in docs/. Needs a Chrome or Chromium; under WSL that is the
-# Windows one, so put its path in local.just:
-#   CHROME := "/mnt/c/Program Files/Google/Chrome/Application/chrome.exe"
+# Windows one, so export its path:
+#   export CHROME="/mnt/c/Program Files/Google/Chrome/Application/chrome.exe"
 CHROME := env_var_or_default("CHROME", "chromium")
 
 docs-shots PORT="8123": wasm
