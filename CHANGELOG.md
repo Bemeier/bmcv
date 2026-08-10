@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.7.1 (2026-08-10)
+
+### Fix
+
+- **leds**: guard led_set_bipolar against a zero divisor and INT32_MIN
+- **clock**: drop the pulse history when the clock source changes
+
 ## v0.7.0 (2026-08-10)
 
 ### Feat
