@@ -3,16 +3,28 @@
 # of the four need macOS runners, and a mac runner hiccup should not hold up a
 # firmware release for a module that exists to test the firmware.
 #
-# So it runs on pull requests, where it is a real gate like everything else, and
-# on workflow_dispatch with a `tag`, which is how ci.yml's release job asks for
-# the artifacts once a release exists. Deliberately not on pushes to main: those
-# come from PRs that already ran this, and the release dispatch would then build
-# the same four platforms twice per merge. The gap that leaves - a direct push to
-# main that breaks the plugin - shows up as a failed dispatch with no assets
-# attached, which is recoverable by re-running it.
+# So it runs on pull requests, on pushes to main, and on workflow_dispatch with
+# a `tag`, which is how ci.yml's release job asks for the artifacts once a
+# release exists.
+#
+# Running on main as well as on PRs does mean a merge that came from a PR builds
+# the four platforms twice. That is the lesser cost: work reaches main here by
+# direct push far more often than by merge, and without a push trigger those
+# commits met no plugin build at all before the release dispatch - which is how
+# the two commits that reorganized this very build (946dbcd, b14e7db) went in
+# unchecked. A failure after the dispatch is not cheap to recover from either:
+# the tag and the Release already exist, with the firmware attached and no
+# plugin, so the fix is a new commit plus a re-dispatch against a public tag.
+#
+# This still does not gate a release. ci.yml's release job lists only
+# [host, wasm, firmware, format] in its `needs`, so a mac runner hiccup cannot
+# hold up a firmware release no matter what this workflow does - that is what
+# keeping it out of ci.yml buys, and it is unaffected by the trigger.
 name: VCV plugin
 
 on:
+  push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
     inputs:
