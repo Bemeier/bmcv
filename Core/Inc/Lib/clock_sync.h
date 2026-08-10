@@ -64,4 +64,12 @@ void Clock_Reset(ClockState* clk, uint32_t now_us);
 void Clock_Trigger(ClockState* clk, uint32_t now_us);
 void Clock_Poll(ClockState* clk, uint32_t now_us);
 
+// Change the source's resolution, dropping the pulse history that was counted
+// in the old one. Call this rather than assigning PULSES_PER_BEAT: the counter
+// is expressed in the old source's units, and Clock_Poll divides by the new
+// one, so a bare assignment leaves beat_phase reading whole beats out of range
+// until the next pulse happens to renormalize it. A no-op when the value has
+// not actually changed, so it is safe to call every tick.
+void Clock_SetPulsesPerBeat(ClockState* clk, uint8_t ppb);
+
 #endif /* INC_LIB_CLOCK_SYNC_H_ */

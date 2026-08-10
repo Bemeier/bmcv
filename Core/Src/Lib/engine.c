@@ -24,7 +24,13 @@ static void apply_clock_events(UxState* state, uint32_t now_us)
   // Set before Poll as well as Trigger/Reset: Poll's phase interpolation
   // divides by PULSES_PER_BEAT too, and a stale value there would show as a
   // one-tick glitch in the LED phase right after the source changes.
-  clk->PULSES_PER_BEAT = state->hw_state->clock_source_is_midi ? CLOCK_PULSES_PER_BEAT_MIDI : CLOCK_PULSES_PER_BEAT_CV;
+  //
+  // Through Clock_SetPulsesPerBeat rather than by assignment, because the pulse
+  // count and the pulse it was counted from are in the old source's units and
+  // have to go with it. Assigning here left beat_phase up to 4.75 - whole beats
+  // of phase error handed to every channel's sync loop - for as long as it took
+  // the new source to send a pulse.
+  Clock_SetPulsesPerBeat(clk, state->hw_state->clock_source_is_midi ? CLOCK_PULSES_PER_BEAT_MIDI : CLOCK_PULSES_PER_BEAT_CV);
 
   Clock_Poll(clk, now_us);
 

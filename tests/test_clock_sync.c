@@ -172,8 +172,107 @@ TEST_CASE(an_implausible_interval_is_not_a_measurement)
   CHECK(clk.beat_freq * 60.0f <= CLOCK_BPM_MAX);
 }
 
+// beat_phase leaves here for channel.c's target-phase term, where it is added
+// to a beat count and multiplied by the ratio - so a value outside [0,1) is
+// whole beats of phase error applied to all eight channels at once.
+//
+// The source changes under it whenever an input is assigned to INPUT_CLOCK
+// while MIDI Clock is running: input_fold keys off the configuration, not off
+// whether a cable is patched, so the switch lands on the very next tick. The
+// pulse count is in the old source's units, and assigning PULSES_PER_BEAT
+// without dropping it left 16 of the 24 reachable counts reading between 1.0
+// and 4.75 until the new source sent a pulse.
+TEST_CASE(a_source_change_cannot_put_beat_phase_out_of_range)
+{
+  for (unsigned pc = 0; pc < CLOCK_PULSES_PER_BEAT_MIDI; pc++)
+  {
+    ClockState clk;
+    Clock_Init(&clk);
+    Clock_SetPulsesPerBeat(&clk, CLOCK_PULSES_PER_BEAT_MIDI);
+
+    // Run on MIDI until the counter sits at pc, so every reachable value of it
+    // is covered rather than whichever one a fixed pulse count happens to give.
+    uint32_t t = 0;
+    for (int i = 0; i < 500 && clk.pulse_counter != pc; i++)
+    {
+      t += 20833; // ~2Hz beat at 24 ppb
+      Clock_Trigger(&clk, t);
+    }
+    if (clk.pulse_counter != pc)
+      continue; // not a reachable count
+
+    Clock_SetPulsesPerBeat(&clk, CLOCK_PULSES_PER_BEAT_CV);
+
+    // The engine polls every tick, and the new source has not sent a pulse yet.
+    for (int i = 0; i < 8; i++)
+    {
+      t += 250;
+      Clock_Poll(&clk, t);
+      CHECK(clk.beat_phase >= 0.0f && clk.beat_phase < 1.0f);
+    }
+  }
+}
+
+// The counter is what carries the stale units, so it has to go; the measured
+// interval is what tells Clock_Poll a stopped clock has stopped, so it stays -
+// the same split Clock_Reset makes, for the same reason.
+TEST_CASE(a_source_change_drops_the_pulse_count_but_not_the_timeout)
+{
+  ClockState clk;
+  Clock_Init(&clk);
+  Clock_SetPulsesPerBeat(&clk, CLOCK_PULSES_PER_BEAT_MIDI);
+
+  uint32_t t = 0;
+  for (int i = 0; i < 30; i++)
+  {
+    t += 20833;
+    Clock_Trigger(&clk, t);
+  }
+  CHECK(clk.pulse_counter > 0);
+  CHECK(clk.last_pulse_delta_us > 0);
+
+  Clock_SetPulsesPerBeat(&clk, CLOCK_PULSES_PER_BEAT_CV);
+
+  CHECK(clk.PULSES_PER_BEAT == CLOCK_PULSES_PER_BEAT_CV);
+  CHECK(clk.pulse_counter == 0);
+  CHECK(!clk.have_pulse);
+  CHECK(clk.last_pulse_delta_us > 0);
+
+  // and a clock that has stopped still reads as stopped
+  Clock_Poll(&clk, t + 4 * clk.last_pulse_delta_us + 1);
+  CHECK(!clk.have_beat);
+}
+
+// Called every tick with the same value, so it must not be a reset in disguise:
+// re-setting the value it already holds has to leave the count running.
+TEST_CASE(setting_the_same_pulses_per_beat_is_a_no_op)
+{
+  ClockState clk;
+  Clock_Init(&clk);
+
+  uint32_t t = 0;
+  for (int i = 0; i < 6; i++)
+  {
+    t += 125000;
+    Clock_Trigger(&clk, t);
+  }
+
+  uint32_t counter = clk.pulse_counter;
+  bool pulsed      = clk.have_pulse;
+
+  for (int i = 0; i < 10; i++)
+    Clock_SetPulsesPerBeat(&clk, CLOCK_PULSES_PER_BEAT_CV);
+
+  CHECK(clk.pulse_counter == counter);
+  CHECK(clk.have_pulse == pulsed);
+  CHECK_NEAR(clk.beat_freq_smooth, 2.0, 0.02);
+}
+
 int main(void)
 {
+  RUN_TEST(a_source_change_cannot_put_beat_phase_out_of_range);
+  RUN_TEST(a_source_change_drops_the_pulse_count_but_not_the_timeout);
+  RUN_TEST(setting_the_same_pulses_per_beat_is_a_no_op);
   RUN_TEST(beat_freq_smooth_converges_to_the_pulse_rate);
   RUN_TEST(have_beat_drops_after_clock_loss);
   RUN_TEST(clocks_are_independent);

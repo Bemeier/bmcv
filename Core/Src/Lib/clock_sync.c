@@ -28,6 +28,22 @@ static float smooth_freq(ClockState* clk, float new_sample)
   return clk->freq_est;
 }
 
+// A pulse counted at 24 per beat means nothing at 4, so the count does not
+// survive the change - nor does the pulse it was counted from, for the same
+// reason Clock_Reset drops it: the interval spanning a source change is not an
+// interval. last_pulse_delta_us itself stays, exactly as it does across a
+// reset, because it is also Clock_Poll's timeout reference and a source change
+// must not make a stopped clock look live.
+void Clock_SetPulsesPerBeat(ClockState* clk, uint8_t ppb)
+{
+  if (ppb == 0 || ppb == clk->PULSES_PER_BEAT)
+    return;
+
+  clk->PULSES_PER_BEAT = ppb;
+  clk->pulse_counter   = 0;
+  clk->have_pulse      = false;
+}
+
 void Clock_Trigger(ClockState* clk, uint32_t now_us)
 {
   // Before anything observes the pulse, so a bounce cannot advance the beat
@@ -99,8 +115,19 @@ void Clock_Poll(ClockState* clk, uint32_t now_us)
     }
     float pulse_fraction = (float) dt_pulse / (float) clk->last_pulse_delta_us;
     float next_phase     = (clk->pulse_counter + pulse_fraction) / (float) clk->PULSES_PER_BEAT;
-    if (next_phase >= 1.0f)
+
+    // A loop, not one subtraction. beat_phase leaves here for channel.c's
+    // target-phase term, and a value above 1.0 is whole beats of phase error
+    // applied to every channel at once. One subtraction is enough only while
+    // pulse_counter is below PULSES_PER_BEAT and the pulse is not overdue -
+    // Clock_SetPulsesPerBeat now keeps the first true, but the interval this
+    // interpolates against is the previous source's until a new pulse measures
+    // one, so the second is not guaranteed at the moment of a change.
+    while (next_phase >= 1.0f)
       next_phase -= 1.0f;
+    if (next_phase < 0.0f)
+      next_phase = 0.0f;
+
     clk->beat_phase = next_phase;
   }
   else
