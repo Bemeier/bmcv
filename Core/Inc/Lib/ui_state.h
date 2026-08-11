@@ -31,6 +31,58 @@
 // back to the output level.
 #define UI_EDIT_DISPLAY MS(2000)
 
+// While FRQ is being shown, each ring pulses at its own output rate, so the row
+// says which channels are fast as well as which ratio each one is on.
+//
+// The pulse dims and never brightens: VAL_MED is the peak, so the FRQ ring
+// keeps the same ceiling as every other base layer. It goes most of the way
+// down from there - a shallow breath was not readable on the hardware, and the
+// rate is the whole reason the pulse is there.
+//
+// Not to zero, though: the trough still has to show the hue and the saturation,
+// which are the other two facts the ring is carrying.
+#define FREQ_PULSE_V_MIN 6
+#define FREQ_PULSE_V_MAX VAL_MED
+
+// The peak also runs slightly warm, which is what a filament does and reads as
+// more contrast than brightness alone gives.
+//
+// Small on purpose, and this is the number that cannot be turned up freely:
+// quintuplet (orange, 30) and triplet (yellow, 43) are only 13 apart, so a
+// swing approaching that makes a quintuplet at its peak the same colour as a
+// triplet at its trough - and the hue is carrying which division this is.
+// Below half that gap, the classes stay apart at every phase.
+#define FREQ_PULSE_HUE_SWING 4
+
+// Above this the pulse stops following the oscillator and free-runs here
+// instead. Sampling a faster phase than the panel is drawn at aliases it into a
+// slow phantom pulse - which would draw the fastest channel on the row as one
+// of the slowest. Everything past the ceiling shimmers together instead, which
+// at least reads as "all of these are off the top of the scale".
+//
+// The rate that bounds this is the *render* rate, not engine_state.led_fps.
+// The flush measures ~300Hz, but ui_render only rebuilds the framebuffer once
+// per UX_UPDATE_INTERVAL - 125Hz - so most of those flushes re-send a frame
+// that has not changed. Sampling is what aliases, and the sampling happens in
+// ui_render.
+//
+// 25Hz is five samples per cycle at that rate, and is also about where the eye
+// stops resolving a pulse this shallow and starts fusing it into a steady glow
+// - so it is the perceptual limit as much as the sampling one. Raising it
+// further means shortening UX_UPDATE_INTERVAL first; led_fps has headroom to
+// spare and is not the constraint.
+//
+// Divides 1000000 exactly, so the free-running fallback wraps cleanly.
+#define FREQ_PULSE_MAX_HZ 25u
+
+// Fine adjust on the frequency grid, in detents per gap between two ratios.
+#define FREQ_FINE_STEPS_PER_GAP 8
+
+// How far off a grid entry a value may sit and still read as fully saturated,
+// as a percentage of the distance to the neighbour. Absorbs rounding so a
+// snapped ratio always shows a pure hue.
+#define FREQ_OFFGRID_DEADZONE 5
+
 // Everything the interaction layer owns: what mode the user is in, what they
 // have selected, what is being shown back to them.
 //

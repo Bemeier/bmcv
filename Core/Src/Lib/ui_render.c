@@ -13,6 +13,7 @@
 #include "ui_select.h"
 #include "ui_state.h"
 #include "ux_state.h"
+#include <math.h>
 #include <stdint.h>
 
 // Which hue each value of a per-channel or per-input setting reads as. The
@@ -95,6 +96,28 @@ void ui_render_feedback(UxState* state, int16_t led, TargetKind kind, int8_t id)
 
 /* ---- layer 2: transient value display ---------------------------------- */
 
+// Where in its own cycle a channel is, for the purpose of pulsing a ring.
+//
+// The oscillator's real phase while that is slow enough to be drawn, so the row
+// shows the actual polyrhythm and each ring is in step with what that channel is
+// putting out. Past FREQ_PULSE_MAX_HZ the panel cannot resolve it: the redraw
+// would undersample the phase and alias it into a slow pulse, drawing the
+// fastest channel as one of the slowest. Those free-run at the ceiling instead,
+// all together, which reads as "off the top of the scale" rather than as a lie.
+static float freq_pulse_phase(const UxState* s, const ChannelSetup* ch)
+{
+  const ChannelEffective* eff = &s->engine_state->channels_effective[ch->id];
+
+  if (eff->freq_hz > 0.0f && eff->freq_hz <= (float) FREQ_PULSE_MAX_HZ)
+    return eff->phase;
+
+  // Integer modulo first: FREQ_PULSE_MAX_HZ divides 1000000 exactly, so this
+  // wraps on a whole cycle and never steps at the microsecond counter's own
+  // wrap.
+  uint32_t period = 1000000u / FREQ_PULSE_MAX_HZ;
+  return (float) (s->hw_state->time % period) / (float) period;
+}
+
 // Only no-mode has anything transient to show: a shift mode's channel LED shows
 // that mode's setting permanently, so there is nothing to reveal on touch. The
 // selected parameter is the exception - it is a number, not a mode, and the LED
@@ -111,12 +134,27 @@ static void render_channel_param_edit(UxState* s, const ChannelSetup* ch)
 
   int16_t value = s->engine_config->channel_state[ch->id].params[s->engine_state->active_scene][s->engine_config->selected_param];
 
-  // Frequency is a ratio, not a level, so it reads as a coded hue rather than
-  // a bipolar bar. Steady: it used to be multiplied by the fast blink, which
-  // was survivable when one channel lit on touch and became a row of eight
-  // flashing at once as soon as picking the parameter lit all of them.
+  // Frequency is a ratio, not a level, so it reads as a coded colour rather
+  // than a bipolar bar: hue for which kind of division, saturation for how far
+  // off the grid it sits.
+  //
+  // Brightness is the third fact - a shallow pulse at the channel's own output
+  // rate, which is the only thing on the ring that says whether a ratio is fast
+  // or slow. Not on a blink timer: the row used to be multiplied by the fast
+  // blink, and eight rings flashing in unison say nothing about any of them.
   if (s->engine_config->selected_param == CH_PARAM_FRQ)
-    led_set_hsv(s, ch->led, ui_channel_freq_hue(value), SAT_MAX, VAL_MED);
+  {
+    UiColor c   = ui_channel_freq_color(value);
+    float pulse = 0.5f * (1.0f + cosf(2.0f * 3.14159265f * freq_pulse_phase(s, ch)));
+    c.v         = (uint8_t) (FREQ_PULSE_V_MIN + (FREQ_PULSE_V_MAX - FREQ_PULSE_V_MIN) * pulse);
+
+    // Down the wheel toward the warm end as it brightens. Subtracted rather
+    // than added so the peak runs warm, and bounded by FREQ_PULSE_HUE_SWING so
+    // no class can pulse into another one's colour. Every FREQ_* hue is well
+    // clear of zero, so this cannot wrap.
+    c.h = (uint8_t) (c.h - (uint8_t) (FREQ_PULSE_HUE_SWING * pulse));
+    set(s, ch->led, c);
+  }
   else
     led_set_adcr(s, ch->led, value);
 }

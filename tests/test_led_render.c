@@ -406,17 +406,40 @@ TEST_CASE(while_a_source_is_held_only_valid_destinations_light)
   CHECK(!lit(led_of_scene(&f, 2)));
 }
 
-// The frequency ratio reads as a coded hue rather than a level, and it holds
-// still. It used to be multiplied by a fast blink to mark it as a code rather
-// than a level: survivable when touching one channel lit one LED, and a row of
-// eight flashing green in unison once picking the parameter lit all of them.
-TEST_CASE(the_frequency_hue_does_not_pulse)
+// Arm the FRQ display on every ring, which is the only state in which any of
+// the frequency colour is drawn.
+static void show_freq(Fixture* f)
+{
+  f->ui_state.shift_state         = SHIFT_STATE_NONE;
+  f->engine_config.selected_param = CH_PARAM_FRQ;
+  f->ui_state.param_display_hold  = UI_EDIT_DISPLAY;
+}
+
+// Put a channel at a known point of a known cycle, bypassing the oscillator.
+static void set_pulse(Fixture* f, uint8_t ch, float hz, float phase)
+{
+  f->engine_state.channels_effective[ch].freq_hz = hz;
+  f->engine_state.channels_effective[ch].phase   = phase;
+}
+
+static uint8_t brightest(LedRgb c)
+{
+  uint8_t m = c.r > c.g ? c.r : c.g;
+  return m > c.b ? m : c.b;
+}
+
+// The frequency ratio is a code, not a level, and it must not be driven by the
+// shared blink timers. It used to be multiplied by the fast blink to mark it as
+// a code: survivable when touching one channel lit one LED, and a row of eight
+// flashing green in unison once picking the parameter lit all of them. It now
+// pulses at each channel's own rate instead, which is what the timers must not
+// disturb.
+TEST_CASE(the_frequency_colour_ignores_the_blink_timers)
 {
   Fixture f;
   fixture_init(&f);
-  f.ui_state.shift_state         = SHIFT_STATE_NONE;
-  f.engine_config.selected_param = CH_PARAM_FRQ;
-  f.ui_state.param_display_hold  = UI_EDIT_DISPLAY;
+  show_freq(&f);
+  set_pulse(&f, 0, 1.0f, 0.0f);
 
   f.ui_state.blink_slow = 1;
   f.ui_state.blink_mark = 1;
@@ -430,6 +453,181 @@ TEST_CASE(the_frequency_hue_does_not_pulse)
 
   CHECK(lit(on));
   CHECK(on.r == off.r && on.g == off.g && on.b == off.b);
+}
+
+// The ring pulses at the channel's own output rate, which is the only thing on
+// it that says whether a ratio is fast or slow.
+TEST_CASE(the_frequency_ring_pulses_with_the_channel_phase)
+{
+  Fixture f;
+  fixture_init(&f);
+  show_freq(&f);
+
+  set_pulse(&f, 0, 1.0f, 0.0f); // peak of the raised cosine
+  ui_render(&f.ux);
+  uint8_t peak = brightest(led_of_channel(&f, 0));
+
+  set_pulse(&f, 0, 1.0f, 0.5f); // trough
+  ui_render(&f.ux);
+  uint8_t trough = brightest(led_of_channel(&f, 0));
+
+  CHECK(peak > trough);
+  CHECK(peak == FREQ_PULSE_V_MAX);
+  CHECK(trough == FREQ_PULSE_V_MIN);
+}
+
+// A dim pulse, not a blink: it never goes dark and never exceeds the brightness
+// every other base layer uses, so the row stays readable throughout.
+TEST_CASE(the_frequency_pulse_stays_inside_its_brightness_band)
+{
+  Fixture f;
+  fixture_init(&f);
+  show_freq(&f);
+
+  for (int i = 0; i <= 32; i++)
+  {
+    set_pulse(&f, 0, 1.0f, (float) i / 32.0f);
+    ui_render(&f.ux);
+    uint8_t v = brightest(led_of_channel(&f, 0));
+    CHECK(v >= FREQ_PULSE_V_MIN && v <= FREQ_PULSE_V_MAX);
+  }
+}
+
+// Past the ceiling the panel cannot resolve the phase, and sampling it anyway
+// aliases the fastest channel into a slow pulse. Those free-run together
+// instead, so a fast channel never reads as a slower one: its brightness stops
+// depending on its own phase entirely.
+TEST_CASE(a_channel_above_the_pulse_ceiling_does_not_follow_its_own_phase)
+{
+  Fixture f;
+  fixture_init(&f);
+  show_freq(&f);
+
+  float fast = (float) FREQ_PULSE_MAX_HZ * 10.0f;
+
+  set_pulse(&f, 0, fast, 0.0f);
+  set_pulse(&f, 1, fast, 0.5f);
+  ui_render(&f.ux);
+
+  // Same instant, same rate: two channels a half cycle apart in their own
+  // waveforms must still light identically, because neither phase is being read.
+  CHECK(brightest(led_of_channel(&f, 0)) == brightest(led_of_channel(&f, 1)));
+}
+
+// Hue is the ratio's prime limit and nothing else: 1/8 and 16 are both straight
+// divisions and wear the same green, while 1/3 and 3/2 are both triplets.
+TEST_CASE(the_frequency_hue_codes_the_prime_limit_of_the_ratio)
+{
+  Fixture f;
+  fixture_init(&f);
+  show_freq(&f);
+
+  // Every channel at the pulse peak, so only hue differs between them.
+  for (uint8_t c = 0; c < N_CHANNELS; c++)
+    set_pulse(&f, c, 1.0f, 0.0f);
+
+  fixture_set_param(&f, 0, 0, CH_PARAM_FRQ, -1785); // 1/8  straight
+  fixture_set_param(&f, 1, 0, CH_PARAM_FRQ, 3825);  // 16   straight
+  fixture_set_param(&f, 2, 0, CH_PARAM_FRQ, -510);  // 1/3  triplet
+  fixture_set_param(&f, 3, 0, CH_PARAM_FRQ, 128);   // 3/2  triplet
+  fixture_set_param(&f, 4, 0, CH_PARAM_FRQ, 1020);  // 5    quintuplet
+  ui_render(&f.ux);
+
+  LedRgb eighth = led_of_channel(&f, 0);
+  LedRgb six16  = led_of_channel(&f, 1);
+  LedRgb third  = led_of_channel(&f, 2);
+  LedRgb dotted = led_of_channel(&f, 3);
+  LedRgb five   = led_of_channel(&f, 4);
+
+  // Octaves apart, same class, so byte-identical.
+  CHECK(eighth.r == six16.r && eighth.g == six16.g && eighth.b == six16.b);
+  CHECK(third.r == dotted.r && third.g == dotted.g && third.b == dotted.b);
+
+  // Green -> yellow -> orange: green has no red in it, and the two warm classes
+  // are separated by how much green is left.
+  CHECK(greenest(eighth));
+  CHECK(third.r > 0 && third.g > 0);
+  CHECK(five.r > 0 && five.g > 0);
+  CHECK(third.g > five.g); // yellow keeps more green than orange
+}
+
+// The peak runs warmer than the trough, which is what gives the pulse contrast
+// beyond brightness alone.
+TEST_CASE(the_frequency_pulse_warms_the_hue_as_it_brightens)
+{
+  Fixture f;
+  fixture_init(&f);
+  show_freq(&f);
+  fixture_set_param(&f, 0, 0, CH_PARAM_FRQ, 0); // 1x, straight -> green
+
+  set_pulse(&f, 0, 1.0f, 0.5f); // trough
+  ui_render(&f.ux);
+  LedRgb trough = led_of_channel(&f, 0);
+
+  set_pulse(&f, 0, 1.0f, 0.0f); // peak
+  ui_render(&f.ux);
+  LedRgb peak = led_of_channel(&f, 0);
+
+  // Warmer means proportionally more red against the green it is mixed into.
+  CHECK(peak.r * trough.g > trough.r * peak.g);
+}
+
+// The hue swing must not be able to carry one class into another's colour.
+// Quintuplet and triplet are the closest pair on the wheel, so a quintuplet at
+// its brightest and a triplet at its dimmest are the worst case there is: if
+// those two are still told apart, every other pairing is.
+TEST_CASE(the_pulse_never_swings_one_frequency_class_into_another)
+{
+  Fixture f;
+  fixture_init(&f);
+  show_freq(&f);
+
+  fixture_set_param(&f, 0, 0, CH_PARAM_FRQ, 1020); // 5    quintuplet
+  fixture_set_param(&f, 1, 0, CH_PARAM_FRQ, 510);  // 3    triplet
+  set_pulse(&f, 0, 1.0f, 0.0f);                    // quintuplet at its peak
+  set_pulse(&f, 1, 1.0f, 0.5f);                    // triplet at its trough
+  ui_render(&f.ux);
+
+  LedRgb quint = led_of_channel(&f, 0);
+  LedRgb trip  = led_of_channel(&f, 1);
+
+  // Compared as a ratio, because the two are at opposite ends of the pulse and
+  // so are nowhere near the same brightness. Orange keeps less green against
+  // its red than yellow does, at any brightness.
+  CHECK(quint.g * trip.r < trip.g * quint.r);
+}
+
+// A value between two ratios washes out, so a fine adjust is visible as one -
+// but never all the way to white, which belongs to assignment alone.
+TEST_CASE(a_value_off_the_frequency_grid_desaturates)
+{
+  Fixture f;
+  fixture_init(&f);
+  show_freq(&f);
+  for (uint8_t c = 0; c < N_CHANNELS; c++)
+    set_pulse(&f, c, 1.0f, 0.0f);
+
+  // All three still round to 1x, so the hue is identical and saturation is the
+  // only thing that can differ between them.
+  fixture_set_param(&f, 0, 0, CH_PARAM_FRQ, 0);  // exactly 1x
+  fixture_set_param(&f, 1, 0, CH_PARAM_FRQ, 1);  // inside the deadzone
+  fixture_set_param(&f, 2, 0, CH_PARAM_FRQ, 24); // well off the grid
+  ui_render(&f.ux);
+
+  LedRgb snapped = led_of_channel(&f, 0);
+  LedRgb nearly  = led_of_channel(&f, 1);
+  LedRgb between = led_of_channel(&f, 2);
+
+  // Saturation shows up as how much of the other primaries are mixed in: a pure
+  // hue leaves them at the floor, a washed one lifts them.
+  CHECK(between.r > snapped.r);
+  CHECK(between.b > snapped.b);
+
+  // Rounding must not cost a snapped ratio its pure colour.
+  CHECK(nearly.r == snapped.r && nearly.g == snapped.g && nearly.b == snapped.b);
+
+  // Still a tinted pastel, not white: the floor stays well under the peak.
+  CHECK(between.b * 2 < brightest(between));
 }
 
 // With no mode active the ring is a level meter, and the parameter being edited
@@ -475,7 +673,14 @@ int main(void)
   RUN_TEST(a_one_stage_press_does_not_get_brighter_when_held);
   RUN_TEST(a_pickable_element_keeps_its_state_colour_and_marks_itself_white);
   RUN_TEST(while_a_source_is_held_only_valid_destinations_light);
-  RUN_TEST(the_frequency_hue_does_not_pulse);
+  RUN_TEST(the_frequency_colour_ignores_the_blink_timers);
+  RUN_TEST(the_frequency_ring_pulses_with_the_channel_phase);
+  RUN_TEST(the_frequency_pulse_stays_inside_its_brightness_band);
+  RUN_TEST(a_channel_above_the_pulse_ceiling_does_not_follow_its_own_phase);
+  RUN_TEST(the_frequency_hue_codes_the_prime_limit_of_the_ratio);
+  RUN_TEST(the_frequency_pulse_warms_the_hue_as_it_brightens);
+  RUN_TEST(the_pulse_never_swings_one_frequency_class_into_another);
+  RUN_TEST(a_value_off_the_frequency_grid_desaturates);
   RUN_TEST(the_selected_parameter_shows_on_touch_and_decays_back_to_the_output_level);
   return TESTKIT_SUMMARY();
 }

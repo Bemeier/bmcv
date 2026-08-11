@@ -55,7 +55,9 @@ the encoders and scene buttons mean something else while it is held. Tap the
 same button to leave. The nine pages are described under [Shift
 Modes](#shift-modes) below.
 
-**Fine adjust.** Press an encoder in while turning it.
+**Fine adjust.** Press an encoder in while turning it. On FRQ that steps between
+the beat ratios rather than by a fixed amount, so it takes about eight detents
+to travel from one ratio to the next wherever you are on the range.
 
 **Nothing commits until you let go.** Holds that destroy something - clearing a
 channel, clearing every scene - show what they are about to do while you hold
@@ -242,6 +244,15 @@ One fact per LED, and the same colour for the same idea on every page.
   cannot be pressed it does not light.
 - **Output level** only appears when no shift mode is active. In a shift mode
   the encoder ring shows that mode's setting, or nothing if it has none.
+- **FRQ is a ratio, not a level**, so its ring codes three facts on three axes
+  rather than drawing a bar. **Hue** is the kind of division: **green** straight
+  (halves, quarters, octaves), **yellow** triplet, **orange** quintuplet -
+  octaves are free, so 1/8 and 16 are the same green and 1/3, 3/2 and 24 are the
+  same yellow. **Saturation** is how far off the grid the value sits, so a fine
+  adjust washes the colour out to a pastel and a snapped ratio is pure.
+  **Brightness** pulses shallowly at the channel's own output rate, which is
+  what says fast from slow; anything too fast for the panel to resolve shimmers
+  together at one rate instead of aliasing into a slow phantom pulse.
 - **Confirmations** are a brief flash on top: purple wrote, pink cleared, cyan
   loaded. Purple is the selection colour, so a copy landing somewhere flashes
   the colour the source was held in. Red is errors only.

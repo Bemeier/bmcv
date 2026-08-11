@@ -38,12 +38,17 @@
 200ms   enc 2 400
 250ms   enc 4 400
 
-# FRQ off its default on channels 1 and 2. FRQ is ctrl 0, on STA's button; the
-# parameter is a ratio rather than a rate, so these are offsets that land on
-# musically distinct multiples rather than round numbers of detents.
+# FRQ off its default on channels 1 and 2. FRQ is ctrl 0, on STA's button.
+#
+# One detent per event however far the encoder is turned: FRQ snaps to the ratio
+# grid, and val_neighbour clamps the delta to a single step. So these are counts
+# of grid entries, and the count is what has to change if the grid does - ch2
+# takes two steps down from the x1/2 default because x2/5 sits between x1/2 and
+# the x1/3 this flow is about.
 400ms   ctrl STA 1
 430ms   ctrl STA 0
-500ms   enc 2 255
-600ms   enc 4 -85
+500ms   enc 2 1
+600ms   enc 4 -1
+650ms   enc 4 -1
 
 16s     end

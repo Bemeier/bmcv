@@ -150,6 +150,95 @@ TEST_CASE(an_encoder_moves_only_its_own_channel)
     CHECK(f.engine_config.channel_state[c].clamp_mode == 0);
 }
 
+// How many detents of fine adjust it takes to walk from one grid entry to the
+// next, starting from `from`.
+static int detents_to_cross(Fixture* f, int16_t from, int16_t to)
+{
+  f->ui_state.shift_state         = SHIFT_STATE_NONE;
+  f->engine_config.selected_param = CH_PARAM_FRQ;
+  fixture_set_param(f, 0, 0, CH_PARAM_FRQ, from);
+
+  int16_t dir = to > from ? +1 : -1;
+  int n       = 0;
+  fixture_hold(f, ch_btn(f, 0), MS(10)); // the fine-adjust modifier
+
+  while (n < 500)
+  {
+    int16_t before = f->engine_config.channel_state[0].params[0][CH_PARAM_FRQ];
+    if ((dir > 0 && before >= to) || (dir < 0 && before <= to))
+      break;
+    fixture_encoder(f, ch_enc(f, 0), dir);
+    n++;
+    if (f->engine_config.channel_state[0].params[0][CH_PARAM_FRQ] == before)
+      break; // clamped, not moving
+  }
+
+  fixture_release(f, ch_btn(f, 0));
+  return n;
+}
+
+// The frequency grid is 1/f-linear, so a flat fine-adjust step meant something
+// different everywhere on it: half a gap near 1x, where two detents crossed to
+// the next ratio, and 0.2% of one between 1/64 and 1/128, where crossing took
+// 250. A gap-relative step costs the same handful of detents per ratio wherever
+// you are, which is also what makes the off-grid wash behave the same at both
+// ends.
+TEST_CASE(fine_adjust_costs_the_same_detents_per_ratio_across_the_grid)
+{
+  Fixture f;
+  fixture_init(&f);
+
+  int near_one = detents_to_cross(&f, 0, 64);          // 1x    -> 5/4
+  int near_top = detents_to_cross(&f, 7905, 16065);    // 32x   -> 64x
+  int near_bot = detents_to_cross(&f, -32385, -16065); // 1/128 -> 1/64
+
+  CHECK(near_one > 0 && near_one <= FREQ_FINE_STEPS_PER_GAP + 1);
+  CHECK(near_top > 0 && near_top <= FREQ_FINE_STEPS_PER_GAP + 1);
+  CHECK(near_bot > 0 && near_bot <= FREQ_FINE_STEPS_PER_GAP + 1);
+}
+
+// Fine adjust used to clamp nothing, so twelve detents from the top of the grid
+// overflowed int16_t and wrapped to -32768: the fastest setting on the panel
+// snapping straight past the slowest.
+TEST_CASE(fine_adjust_clamps_at_the_ends_of_the_frequency_grid)
+{
+  Fixture f;
+  fixture_init(&f);
+  f.ui_state.shift_state         = SHIFT_STATE_NONE;
+  f.engine_config.selected_param = CH_PARAM_FRQ;
+
+  fixture_set_param(&f, 0, 0, CH_PARAM_FRQ, 16065); // 64x, the top entry
+  fixture_hold(&f, ch_btn(&f, 0), MS(10));
+  for (int i = 0; i < 40; i++)
+    fixture_encoder(&f, ch_enc(&f, 0), +1);
+  fixture_release(&f, ch_btn(&f, 0));
+  CHECK(f.engine_config.channel_state[0].params[0][CH_PARAM_FRQ] == 16065);
+
+  fixture_set_param(&f, 0, 0, CH_PARAM_FRQ, -32385); // 1/128, the bottom entry
+  fixture_hold(&f, ch_btn(&f, 0), MS(10));
+  for (int i = 0; i < 40; i++)
+    fixture_encoder(&f, ch_enc(&f, 0), -1);
+  fixture_release(&f, ch_btn(&f, 0));
+  CHECK(f.engine_config.channel_state[0].params[0][CH_PARAM_FRQ] == -32385);
+}
+
+// The other five parameters are linear and keep the flat step - the gap-
+// relative one is meaningless off the frequency grid.
+TEST_CASE(fine_adjust_on_a_linear_parameter_keeps_its_flat_step)
+{
+  Fixture f;
+  fixture_init(&f);
+  f.ui_state.shift_state         = SHIFT_STATE_NONE;
+  f.engine_config.selected_param = CH_PARAM_AMP;
+  fixture_set_param(&f, 0, 0, CH_PARAM_AMP, 0);
+
+  fixture_hold(&f, ch_btn(&f, 0), MS(10));
+  fixture_encoder(&f, ch_enc(&f, 0), +1);
+  fixture_release(&f, ch_btn(&f, 0));
+
+  CHECK(f.engine_config.channel_state[0].params[0][CH_PARAM_AMP] == 32);
+}
+
 int main(void)
 {
   RUN_TEST(the_channel_button_toggles_mute_in_mut);
@@ -160,5 +249,8 @@ int main(void)
   RUN_TEST(turning_pattern_length_records_a_channel_edit);
   RUN_TEST(holding_the_button_in_mon_blocks_the_amp_mode_encoder);
   RUN_TEST(an_encoder_moves_only_its_own_channel);
+  RUN_TEST(fine_adjust_costs_the_same_detents_per_ratio_across_the_grid);
+  RUN_TEST(fine_adjust_clamps_at_the_ends_of_the_frequency_grid);
+  RUN_TEST(fine_adjust_on_a_linear_parameter_keeps_its_flat_step);
   return TESTKIT_SUMMARY();
 }

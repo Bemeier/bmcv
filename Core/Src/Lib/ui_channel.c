@@ -13,89 +13,75 @@
 #include "ux_state.h"
 #include <stdint.h>
 
-#define N_FREQ_MULTIPLIERS 31
-
 // The frequency parameter steps through ratios of the beat rather than sweeping
-// continuously, so the encoder snaps to this table. Values are in the same
-// units as ChannelConfig.params.
-static const int16_t quantized_multipliers[N_FREQ_MULTIPLIERS] = {
-    -127 * 255, // 1/128
-    -63 * 255,  // 1/64
-    -31 * 255,  // 1/32
-    -23 * 255,  // 1/24
-    -15 * 255,  // 1/16
-    -11 * 255,  // 1/12
-    -7 * 255,   // 1/8
-    -5 * 255,   // 1/6
-    -4 * 255,   // 1/5
-    -3 * 255,   // 1/4
-    -2 * 255,   // 1/3
-    -1 * 255,   // 1/2
-    -127,       // 2/3
-    -85,        // 3/4
-    -64,        // 4/5
-    0,          // 1
-    64,         // 5/4
-    85,         // 4/3
-    127,        // 3/2
-    1 * 255,    // 2
-    2 * 255,    // 3
-    3 * 255,    // 4
-    4 * 255,    // 5
-    5 * 255,    // 6
-    7 * 255,    // 8
-    11 * 255,   // 12
-    15 * 255,   // 16
-    23 * 255,   // 24
-    31 * 255,   // 32
-    63 * 255,   // 64
-    127 * 255,  // 128
-};
+// continuously, so the encoder snaps to this grid.
+//
+// The set is a 5-limit lattice: every entry is 2^k, 3*2^k or 5*2^k over the
+// same, which is the same thing as saying every entry is a straight division, a
+// triplet or a quintuplet. That structure is what the colour reads off, so the
+// ratio is written here as a fraction and the stored value *and* the hue are
+// both derived from it - one source of truth. Adding a divisor without giving
+// it a colour is not expressible.
+//
+// Not reciprocal-symmetric, deliberately: 1/128 is 32 bars and is a real
+// setting for a slow LFO, while 128x is 256Hz at 120BPM - past anything the
+// panel can show and not a division anyone reaches for.
+// Hand-laid out, slowest to fastest and eight to a line, because the shape of
+// the set is the documentation. Exempt from the formatter, which reflows it
+// into a different paragraph on every run and never reaches a fixed point - so
+// `just fmt-check` could never pass on it.
+// clang-format off
+#define FREQ_RATIOS(X)                                                     \
+  X(1, 128) X(1, 64) X(1, 32) X(1, 24) X(1, 16) X(1, 12) X(1, 10) X(1, 8)  \
+  X(1, 6)   X(1, 5)  X(1, 4)  X(1, 3)  X(2, 5)  X(1, 2)  X(2, 3)  X(3, 4)  \
+  X(4, 5)   X(1, 1)  X(5, 4)  X(4, 3)  X(3, 2)  X(2, 1)  X(5, 2)  X(3, 1)  \
+  X(4, 1)   X(5, 1)  X(6, 1)  X(8, 1)  X(10, 1) X(12, 1) X(16, 1) X(24, 1) \
+  X(32, 1)  X(64, 1)
+// clang-format on
 
-// Same order and length as quantized_multipliers, read with the same index:
-// a frequency ratio is shown as a coded hue rather than a level, because it is
-// a ratio and not a magnitude.
-// TODO: Even dividers: green
-static const uint8_t quantized_multipliers_colors[N_FREQ_MULTIPLIERS] = {
-    HUE_GREEN,  // 1/128
-    HUE_CYAN,   // 1/64
-    HUE_GREEN,  // 1/32
-    HUE_RED,    // 1/24
-    HUE_GREEN,  // 1/16
-    HUE_RED,    // 1/12
-    HUE_GREEN,  // 1/8
-    HUE_RED,    // 1/6
-    HUE_YELLOW, // 1/5
-    HUE_GREEN,  // 1/4
-    HUE_RED,    // 1/3
-    HUE_GREEN,  // 1/2
-    HUE_CYAN,   // 2/3
-    HUE_CYAN,   // 3/4
-    HUE_CYAN,   // 4/5
-    HUE_GREEN,  // 1
-    HUE_CYAN,   // 5/4
-    HUE_CYAN,   // 4/3
-    HUE_CYAN,   // 3/2
-    HUE_GREEN,  // 2
-    HUE_RED,    // 3
-    HUE_GREEN,  // 4
-    HUE_YELLOW, // 5
-    HUE_RED,    // 6
-    HUE_GREEN,  // 8
-    HUE_RED,    // 12
-    HUE_GREEN,  // 16
-    HUE_RED,    // 24
-    HUE_CYAN,   // 32
-    HUE_GREEN,  // 64
-    HUE_CYAN    // 128
-};
+// The stored parameter is 1/f-linear either side of 1x - see the multiplier
+// reconstruction in channel_compute - so the two directions are not the same
+// expression. Rounded rather than truncated, which is why 2/3 and 3/2 are at
+// -/+128 where the old hand-typed table had -/+127.
+#define FREQ_VAL(p, q) ((int16_t) ((p) >= (q) ? (255 * ((p) - (q)) + (q) / 2) / (q) : -(255 * ((q) - (p)) + (p) / 2) / (p)))
 
-_Static_assert(sizeof quantized_multipliers_colors / sizeof quantized_multipliers_colors[0] == N_FREQ_MULTIPLIERS,
-               "one colour per multiplier, read with the same index");
+#define FREQ_COUNT_ONE(p, q) +1
+#define N_FREQ_MULTIPLIERS (0 FREQ_RATIOS(FREQ_COUNT_ONE))
 
-uint8_t ui_channel_freq_hue(int16_t value)
+#define FREQ_EMIT_VAL(p, q) FREQ_VAL(p, q),
+static const int16_t quantized_multipliers[N_FREQ_MULTIPLIERS] = {FREQ_RATIOS(FREQ_EMIT_VAL)};
+
+#define FREQ_EMIT_RATIO(p, q) {(p), (q)},
+static const struct
 {
-  // The table is sorted, so the first entry not below the value is either the
+  uint8_t p, q;
+} freq_ratios[N_FREQ_MULTIPLIERS] = {FREQ_RATIOS(FREQ_EMIT_RATIO)};
+
+// A ratio's prime limit: the largest odd prime left in p*q once the octaves are
+// divided out. It is the whole of what makes one division feel different from
+// another - 3/2 is a dotted eighth and aligns on a 3-beat period exactly as 3,
+// 6 and 1/3 do - so it is the only thing the hue codes.
+//
+// Green -> yellow -> orange is monotone on the hue wheel and reads as familiar
+// -> exotic. Red is deliberately not here: it means an error and nothing else.
+static uint8_t ratio_hue(uint16_t p, uint16_t q)
+{
+  uint32_t n = (uint32_t) p * q; // p and q are coprime, so this keeps both odd parts
+  while ((n & 1u) == 0u)
+  {
+    n >>= 1;
+  }
+  if (n % 5u == 0u)
+    return HUE_FREQ_QUINTUPLET;
+  if (n % 3u == 0u)
+    return HUE_FREQ_TRIPLET;
+  return HUE_FREQ_STRAIGHT;
+}
+
+// The grid entry nearest a stored value.
+static size_t freq_nearest(int16_t value)
+{
+  // The grid is sorted, so the first entry not below the value is either the
   // match or one past the nearest one below it.
   size_t idx = 0;
   while (idx + 1 < N_FREQ_MULTIPLIERS && quantized_multipliers[idx] < value)
@@ -106,7 +92,71 @@ uint8_t ui_channel_freq_hue(int16_t value)
   {
     idx--;
   }
-  return quantized_multipliers_colors[idx];
+  return idx;
+}
+
+// The gap between the grid entry at idx and its neighbour on the side `value`
+// falls, which is what "how far off the grid" has to be measured against: the
+// grid is wildly non-uniform - 64 units between 1 and 5/4, 16320 between 1/64
+// and 1/128 - so an absolute distance means nothing on its own.
+static int32_t freq_gap(size_t idx, int16_t value)
+{
+  if (value < quantized_multipliers[idx] && idx > 0)
+    return quantized_multipliers[idx] - quantized_multipliers[idx - 1];
+  if (value > quantized_multipliers[idx] && idx + 1 < N_FREQ_MULTIPLIERS)
+    return quantized_multipliers[idx + 1] - quantized_multipliers[idx];
+  return 0;
+}
+
+UiColor ui_channel_freq_color(int16_t value)
+{
+  size_t idx = freq_nearest(value);
+  UiColor c  = {ratio_hue(freq_ratios[idx].p, freq_ratios[idx].q), SAT_MAX, VAL_MED};
+
+  // Off the grid, the hue still says which ratio you are near and the colour
+  // washes out to say you are not on it. Floored at SAT_MED rather than run to
+  // white: white is the assignment vocabulary and nothing else may use it.
+  int32_t gap = freq_gap(idx, value);
+  if (gap > 0)
+  {
+    // Halfway to the neighbour is the furthest off-grid a value can be, so that
+    // is where the wash bottoms out. The deadzone keeps a snapped value pure
+    // through any rounding.
+    int32_t d_pct  = (int32_t) (abs(value - quantized_multipliers[idx]) * 200) / gap; // 0..100
+    int32_t washed = iclamp((d_pct - FREQ_OFFGRID_DEADZONE) * 100 / (100 - FREQ_OFFGRID_DEADZONE), 0, 100);
+    c.s            = (uint8_t) (SAT_MAX - (SAT_MAX - SAT_MED) * washed / 100);
+  }
+  return c;
+}
+
+// One detent of fine adjust on the frequency grid.
+//
+// Clamped to the ends of the grid, which is not cosmetic: the step used to be
+// unbounded, so twelve detents from the top entry overflowed int16_t and wrapped
+// to -32768 - the fastest setting on the panel snapping straight to slower than
+// the slowest.
+static int16_t freq_fine_adjust(int16_t value, int16_t delta)
+{
+  int16_t lo = quantized_multipliers[0];
+  int16_t hi = quantized_multipliers[N_FREQ_MULTIPLIERS - 1];
+
+  // The interval being moved through is the one ahead of the value in the
+  // direction of travel, so a value sitting exactly on a grid entry steps by
+  // the gap it is about to cross rather than the one behind it.
+  size_t idx  = freq_nearest(value);
+  int32_t gap = freq_gap(idx, value);
+  if (gap == 0)
+  {
+    size_t ahead = (delta > 0) ? idx : (idx > 0 ? idx - 1 : 0);
+    if (ahead + 1 < N_FREQ_MULTIPLIERS)
+      gap = quantized_multipliers[ahead + 1] - quantized_multipliers[ahead];
+  }
+
+  int32_t step = gap / FREQ_FINE_STEPS_PER_GAP;
+  if (step < 1)
+    step = 1;
+
+  return (int16_t) iclamp((int32_t) value + step * delta, lo, hi);
 }
 
 static void ui_channel_param(const ChannelSetup* ch, UxState* state)
@@ -129,9 +179,19 @@ static void ui_channel_param(const ChannelSetup* ch, UxState* state)
   // potentially unaligned.
   int16_t value = chcfg->params[scene][param];
 
-  if (alt)
+  if (alt && param == CH_PARAM_FRQ)
   {
-    // Holding the channel button is the fine-adjust modifier.
+    // Fine-adjust on the frequency grid is a fraction of the interval it is
+    // moving through, not a flat step. The grid is 1/f-linear, so a flat 32 was
+    // half a gap near 1x - where two detents crossed to the next ratio - and
+    // 0.2% of one between 1/64 and 1/128, where crossing took 250. A gap-
+    // relative step is the same eight detents per ratio everywhere.
+    value = freq_fine_adjust(value, delta);
+  }
+  else if (alt)
+  {
+    // Holding the channel button is the fine-adjust modifier. The other five
+    // parameters are linear, so a flat step is the right one.
     value += 32 * delta;
   }
   else if (param == CH_PARAM_FRQ)

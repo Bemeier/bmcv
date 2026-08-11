@@ -64,6 +64,18 @@
 #define HUE_STATE_MULT HUE_CYAN // multiplicative
 #define HUE_STATE_RESET HUE_RED // resets something
 
+// Frequency ratios. FRQ is a rational multiple of the beat, and the one thing
+// about a ratio worth coding as colour is its prime limit - whether it is a
+// straight division, a triplet or a quintuplet. Octaves are free, so 1/8 and 16
+// are the same green and 1/3, 3/2 and 24 are the same yellow.
+//
+// Ordered along the wheel so it reads as familiar -> exotic. Red is not in this
+// scale on purpose: the old table used it for every odd division, and red means
+// an error and nothing else.
+#define HUE_FREQ_STRAIGHT HUE_GREEN    // 2-limit: halves, quarters, octaves
+#define HUE_FREQ_TRIPLET HUE_YELLOW    // 3-limit
+#define HUE_FREQ_QUINTUPLET HUE_ORANGE // 5-limit
+
 // Semantic palette. The renderer names meanings, not colours, so "what a
 // blinking button means" is defined once instead of being re-picked in every
 // mode's switch arm.
