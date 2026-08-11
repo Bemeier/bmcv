@@ -57,17 +57,17 @@ TEST_CASE(the_tap_that_exits_a_mode_does_not_also_change_the_selected_param)
 {
   Fixture f;
   fixture_init(&f);
-  f.ui_state.selected_param = CH_PARAM_FRQ;
+  f.engine_config.selected_param = CH_PARAM_FRQ;
 
   latch(&f, SHIFT_STATE_CPY);
   fixture_press(&f, ctrl_btn(&f, CH_PARAM_SHP), MS(40));
 
   CHECK(f.ui_state.shift_state == SHIFT_STATE_NONE);
-  CHECK(f.ui_state.selected_param == CH_PARAM_FRQ);
+  CHECK(f.engine_config.selected_param == CH_PARAM_FRQ);
 
   // A second tap, now that no mode is active, does select it.
   fixture_press(&f, ctrl_btn(&f, CH_PARAM_SHP), MS(40));
-  CHECK(f.ui_state.selected_param == CH_PARAM_SHP);
+  CHECK(f.engine_config.selected_param == CH_PARAM_SHP);
 }
 
 TEST_CASE(leaving_a_mode_drops_any_half_finished_selection)

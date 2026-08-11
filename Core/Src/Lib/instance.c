@@ -24,7 +24,9 @@ void bmcv_instance_init(BmcvInstance* m, const PresetIo* io, uint32_t now_us)
 
   Clock_Init(&m->engine_state.clock);
 
-  m->ui_state.selected_param  = CH_PARAM_SHP;
+  // No selected_param here: it comes out of the stored config below, or out of
+  // config_defaults when there is none, so that a module comes back on the page
+  // it was left on rather than on a fixed one.
   m->ui_state.shift_state     = SHIFT_STATE_NONE;
   m->ui_state.momentary_scene = -1; // 0 would read as "scene 0 held"
   ui_sel_reset(&m->ui_state);

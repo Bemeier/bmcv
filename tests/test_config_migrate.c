@@ -42,6 +42,27 @@ typedef struct __attribute__((packed))
   ChannelConfigV2 channel_state[N_CHANNELS];
 } EngineConfigV2;
 
+// v3 and v4 share this: the current EngineConfig before selected_param was
+// appended. ChannelConfig has not moved since v3, so this reuses it - the two
+// versions differ only in what shape_mode's numbers mean, which is not a
+// layout difference and is why they need separate cases rather than separate
+// structs.
+typedef struct __attribute__((packed))
+{
+  uint8_t clock_div;
+  uint8_t scene_a;
+  uint8_t scene_b;
+  uint8_t current_preset;
+  uint16_t quantize_mask;
+  InputMode input_mode[N_INPUTS];
+  ChannelConfig channel_state[N_CHANNELS];
+} EngineConfigV4;
+
+// The relationship the migration relies on, asserted rather than assumed: a v4
+// record is the current struct minus its last byte. If EngineConfig ever grows
+// a field somewhere other than the end, this is what says so.
+_Static_assert(sizeof(EngineConfigV4) + 1 == sizeof(EngineConfig), "v4 is no longer EngineConfig without its trailing selected_param");
+
 TEST_CASE(a_current_record_is_read_unchanged)
 {
   EngineConfig in;
@@ -66,7 +87,7 @@ TEST_CASE(a_current_record_is_read_unchanged)
 // renumbered PWM under it.
 TEST_CASE(v3_shape_modes_are_renumbered_not_clamped)
 {
-  EngineConfig in;
+  EngineConfigV4 in;
   memset(&in, 0, sizeof(in));
   in.channel_state[0].shape_mode = V3_SHAPE_LFO;
   in.channel_state[1].shape_mode = V3_SHAPE_STEPPED_SMOOTH;
@@ -89,7 +110,7 @@ TEST_CASE(v3_shape_modes_are_renumbered_not_clamped)
 
 TEST_CASE(v3_keeps_everything_the_layout_already_carried)
 {
-  EngineConfig in;
+  EngineConfigV4 in;
   memset(&in, 0, sizeof(in));
   in.scene_a                                  = 1;
   in.scene_b                                  = 6;
@@ -107,6 +128,71 @@ TEST_CASE(v3_keeps_everything_the_layout_already_carried)
   CHECK(out.channel_state[2].sr_length_idx == 3);
   CHECK(out.channel_state[2].clamp_mode == CLAMP_UNI_5);
   CHECK(out.channel_state[2].src_input == 1);
+}
+
+// v5 appended the selected parameter. A record written before it named none,
+// so it comes back on the default rather than on CH_PARAM_FRQ, which is what a
+// zeroed byte would have meant.
+TEST_CASE(v4_gains_the_selected_parameter_at_its_default)
+{
+  EngineConfigV4 in;
+  memset(&in, 0, sizeof(in));
+  in.scene_a                                  = 2;
+  in.channel_state[1].params[0][CH_PARAM_AMP] = 4321;
+  in.channel_state[1].clamp_mode              = CLAMP_UNI_5;
+
+  EngineConfig out;
+  CHECK(config_migrate(4, sizeof(in), &in, &out) == 1);
+
+  CHECK(out.selected_param == CH_PARAM_OFS);
+
+  // and the rest of the record is carried across untouched
+  CHECK(out.scene_a == 2);
+  CHECK(out.channel_state[1].params[0][CH_PARAM_AMP] == 4321);
+  CHECK(out.channel_state[1].clamp_mode == CLAMP_UNI_5);
+}
+
+// The older versions route through the v4 conversion, so they get the same
+// default rather than whatever their own path happened to leave behind.
+TEST_CASE(older_versions_also_arrive_with_a_selected_parameter)
+{
+  EngineConfigV4 v3;
+  memset(&v3, 0, sizeof(v3));
+  EngineConfigV2 v2;
+  memset(&v2, 0, sizeof(v2));
+
+  EngineConfig out;
+  CHECK(config_migrate(3, sizeof(v3), &v3, &out) == 1);
+  CHECK(out.selected_param == CH_PARAM_OFS);
+
+  CHECK(config_migrate(2, sizeof(v2), &v2, &out) == 1);
+  CHECK(out.selected_param == CH_PARAM_OFS);
+}
+
+// A current record says which parameter it was left on, and that survives the
+// round trip - this is the whole reason the field moved into the patch.
+TEST_CASE(a_current_record_keeps_its_selected_parameter)
+{
+  EngineConfig in;
+  memset(&in, 0, sizeof(in));
+  in.selected_param = CH_PARAM_PHS;
+
+  EngineConfig out;
+  CHECK(config_migrate(CONFIG_STATE_VERSION, sizeof(in), &in, &out) == 1);
+  CHECK(out.selected_param == CH_PARAM_PHS);
+}
+
+// Out of range is not a selection, so it becomes the default rather than being
+// clamped onto whichever end it was nearest.
+TEST_CASE(an_out_of_range_selected_parameter_becomes_the_default)
+{
+  EngineConfig in;
+  memset(&in, 0, sizeof(in));
+  in.selected_param = 200;
+
+  EngineConfig out;
+  CHECK(config_migrate(CONFIG_STATE_VERSION, sizeof(in), &in, &out) == 1);
+  CHECK(out.selected_param == CH_PARAM_OFS);
 }
 
 TEST_CASE(v2_gains_the_two_appended_fields_at_their_defaults)
@@ -192,6 +278,7 @@ TEST_CASE(a_length_that_does_not_match_the_version_is_refused)
 
   CHECK(config_migrate(CONFIG_STATE_VERSION, sizeof(in) - 1, &in, &out) == 0);
   CHECK(config_migrate(3, sizeof(in) + 1, &in, &out) == 0);
+  CHECK(config_migrate(4, sizeof(in), &in, &out) == 0); // v4 is one byte shorter
   CHECK(config_migrate(2, sizeof(EngineConfig), &in, &out) == 0);
 }
 
@@ -200,7 +287,7 @@ TEST_CASE(a_length_that_does_not_match_the_version_is_refused)
 // not be an exception to it.
 TEST_CASE(a_converted_record_is_validated)
 {
-  EngineConfig in;
+  EngineConfigV4 in;
   memset(&in, 0xFF, sizeof(in)); // every field out of range at once
   in.scene_a = 99;
   in.scene_b = 99;
@@ -234,6 +321,10 @@ int main(void)
   RUN_TEST(a_current_record_is_read_unchanged);
   RUN_TEST(v3_shape_modes_are_renumbered_not_clamped);
   RUN_TEST(v3_keeps_everything_the_layout_already_carried);
+  RUN_TEST(v4_gains_the_selected_parameter_at_its_default);
+  RUN_TEST(older_versions_also_arrive_with_a_selected_parameter);
+  RUN_TEST(a_current_record_keeps_its_selected_parameter);
+  RUN_TEST(an_out_of_range_selected_parameter_becomes_the_default);
   RUN_TEST(v2_gains_the_two_appended_fields_at_their_defaults);
   RUN_TEST(v2_amplitudes_are_halved_to_keep_the_level);
   RUN_TEST(v2_carries_its_routing_across);

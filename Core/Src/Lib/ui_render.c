@@ -109,13 +109,13 @@ static void render_channel_param_edit(UxState* s, const ChannelSetup* ch)
   if (s->ui->param_display_hold == 0)
     return;
 
-  int16_t value = s->engine_config->channel_state[ch->id].params[s->engine_state->active_scene][s->ui->selected_param];
+  int16_t value = s->engine_config->channel_state[ch->id].params[s->engine_state->active_scene][s->engine_config->selected_param];
 
   // Frequency is a ratio, not a level, so it reads as a coded hue rather than
   // a bipolar bar. Steady: it used to be multiplied by the fast blink, which
   // was survivable when one channel lit on touch and became a row of eight
   // flashing at once as soon as picking the parameter lit all of them.
-  if (s->ui->selected_param == CH_PARAM_FRQ)
+  if (s->engine_config->selected_param == CH_PARAM_FRQ)
     led_set_hsv(s, ch->led, ui_channel_freq_hue(value), SAT_MAX, VAL_MED);
   else
     led_set_adcr(s, ch->led, value);
@@ -333,7 +333,7 @@ static void render_ctrl_button(UxState* s, const CtrlButtonSetup* btn)
     led_set_hsv(s, btn->led, btn->color, SAT_MAX, s->ui->blink_slow ? VAL_MED : 0);
   else if (s->ui->shift_state != SHIFT_STATE_NONE)
     led_set_hsv(s, btn->led, btn->color, SAT_MAX, VAL_OFF); // a mode is running; its button is the only lit one
-  else if (s->ui->selected_param == btn->id)
+  else if (s->engine_config->selected_param == btn->id)
     led_set_hsv(s, btn->led, btn->color, SAT_MAX, VAL_HIG);
   else
     // Barely on, but on: it says which colour belongs to which parameter, so

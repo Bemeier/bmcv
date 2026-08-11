@@ -32,6 +32,10 @@ void config_defaults(EngineConfig* cfg)
   cfg->scene_b       = N_SCENES - 1;
   cfg->quantize_mask = 0x0FFFu; // every semitone enabled
 
+  // Explicitly, because the memset above would otherwise leave this at
+  // CH_PARAM_FRQ - zero is a real parameter here, not an "unset".
+  cfg->selected_param = CH_PARAM_OFS;
+
   for (uint8_t c = 0; c < N_CHANNELS; c++)
   {
     cfg->channel_state[c].src_input     = -1;
@@ -52,6 +56,15 @@ void config_validate(EngineConfig* cfg)
   for (uint8_t i = 0; i < N_INPUTS; i++)
   {
     cfg->input_mode[i] = (InputMode) iclamp(cfg->input_mode[i], 0, INPUT_MODE_COUNT - 1);
+  }
+
+  // Back to OFS rather than clamped to the nearest end. Every value in range
+  // is a parameter someone chose, so there is no "nearest" that means anything
+  // - a record that does not name one has no selection, and the default is
+  // what a module with no selection comes up on.
+  if (cfg->selected_param >= CH_PARAM_COUNT)
+  {
+    cfg->selected_param = CH_PARAM_OFS;
   }
 
   for (uint8_t c = 0; c < N_CHANNELS; c++)

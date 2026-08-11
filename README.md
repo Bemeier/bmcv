@@ -387,6 +387,11 @@ scene - pink while held, dipping out once at each threshold and brighter for the
 wider one, then a pink flash on release. Holding while turning is the
 fine-adjust modifier and clears nothing.
 
+Which parameter is selected is saved with the patch, so the module comes back
+on the page it was left on, and a preset recalls the one it was stored with. A
+module with nothing saved - or a patch written before this was kept - comes up
+on **OFS**.
+
 ## Still to do
 
 - [x] Refactor update code & state access

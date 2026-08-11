@@ -112,7 +112,7 @@ uint8_t ui_channel_freq_hue(int16_t value)
 static void ui_channel_param(const ChannelSetup* ch, UxState* state)
 {
   ChannelConfig* chcfg = &state->engine_config->channel_state[ch->id];
-  int8_t param         = state->ui->selected_param;
+  int8_t param         = (int8_t) state->engine_config->selected_param;
   int16_t delta        = enc_delta(&state->ui->in, ch->encoder);
   int8_t alt           = btn_down(&state->ui->in, ch->button);
   int8_t scene         = state->engine_state->active_scene;
@@ -196,7 +196,7 @@ void ui_channel_update(const ChannelSetup* ch, UxState* state)
     // every scene. The two are the same act on different scope, so they flash
     // the same colour and differ in how long it lasts.
     int8_t scene = long_pressed ? -1 : state->engine_state->active_scene;
-    channel_reset_param(ch->id, state->engine_config, scene, state->ui->selected_param);
+    channel_reset_param(ch->id, state->engine_config, scene, (int8_t) state->engine_config->selected_param);
     ui_feedback_emit(state->ui, long_pressed ? FB_CLEAR_ALL : FB_CLEAR, TGT_CHANNEL, ch->id);
     return;
   }

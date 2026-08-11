@@ -108,6 +108,38 @@ TEST_CASE(a_stored_config_is_loaded_instead_of_the_defaults)
   CHECK(!error_any(&m.engine_state)); // nothing went wrong, so no error shown
 }
 
+// A module comes back on the parameter page it was left on. This is what the
+// field moved out of UiState for: UiState is the half that is deliberately not
+// saved, so while it lived there every power cycle landed on a fixed page.
+TEST_CASE(the_selected_parameter_survives_a_power_cycle)
+{
+  FakeFram fram;
+  memset(&fram, 0, sizeof(fram));
+  PresetIo io = {.store = fake_store, .load = fake_load, .user = &fram};
+
+  BmcvInstance m;
+  bmcv_instance_init(&m, &io, 0);
+  CHECK(m.engine_config.selected_param == CH_PARAM_OFS); // nothing stored yet
+
+  // The user picks a page, and the autosave slot takes it.
+  m.engine_config.selected_param = CH_PARAM_PHS;
+  CHECK(ux_preset_store(&m.ux, CONFIG_AUTOSAVE_SLOT) == 1);
+
+  // Power cycle: a brand new instance over the same storage.
+  BmcvInstance again;
+  bmcv_instance_init(&again, &io, 0);
+  CHECK(again.engine_config.selected_param == CH_PARAM_PHS);
+}
+
+// ...and with nothing stored at all it is OFS, not whatever a zeroed byte
+// would have made it.
+TEST_CASE(a_first_boot_selects_the_offset_parameter)
+{
+  BmcvInstance m;
+  bmcv_instance_init(&m, NULL, 0);
+  CHECK(m.engine_config.selected_param == CH_PARAM_OFS);
+}
+
 // The point of the whole exercise.
 TEST_CASE(two_instances_run_independent_clocks)
 {
@@ -267,6 +299,8 @@ int main(void)
 {
   RUN_TEST(a_fresh_instance_comes_up_with_first_boot_defaults);
   RUN_TEST(a_stored_config_is_loaded_instead_of_the_defaults);
+  RUN_TEST(the_selected_parameter_survives_a_power_cycle);
+  RUN_TEST(a_first_boot_selects_the_offset_parameter);
   RUN_TEST(two_instances_run_independent_clocks);
   RUN_TEST(two_instances_do_not_share_error_flags);
   RUN_TEST(two_instances_do_not_share_input_or_ui_state);

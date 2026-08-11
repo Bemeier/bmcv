@@ -25,7 +25,7 @@
 // where you then say how to read the old one. Here rather than in presets.h
 // for the same reason as the slot count: the migration is core code and must
 // not include a driver header to learn the version it is migrating to.
-#define CONFIG_STATE_VERSION 4
+#define CONFIG_STATE_VERSION 5
 
 typedef enum
 {
@@ -132,6 +132,18 @@ typedef struct __attribute__((packed))
   uint16_t quantize_mask;
   InputMode input_mode[N_INPUTS];
   ChannelConfig channel_state[N_CHANNELS];
+
+  // Which parameter the encoders edit when no shift mode is running, and the
+  // one field here that is about the panel rather than about the sound. It
+  // lives with the patch rather than in UiState because UiState is the half
+  // that is deliberately not saved - a module coming back on the page it was
+  // left on is the whole point, and scene_a/scene_b/current_preset are already
+  // stored the same way for the same reason.
+  //
+  // Appended rather than filed with the scalars at the top, so a v4 record is
+  // exactly this struct without its last byte and the migration is a copy
+  // rather than a field-by-field transcription.
+  uint8_t selected_param; // ChannelParameters
 } EngineConfig;
 
 // TODO: Configure quantization pre/post LFO?

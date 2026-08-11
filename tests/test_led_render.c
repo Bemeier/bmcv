@@ -72,8 +72,8 @@ TEST_CASE(the_selected_param_button_stands_out_from_the_dim_others)
 {
   Fixture f;
   fixture_init(&f);
-  f.ui_state.shift_state    = SHIFT_STATE_NONE;
-  f.ui_state.selected_param = CH_PARAM_AMP;
+  f.ui_state.shift_state         = SHIFT_STATE_NONE;
+  f.engine_config.selected_param = CH_PARAM_AMP;
 
   ui_render(&f.ux);
 
@@ -89,8 +89,8 @@ TEST_CASE(parameter_buttons_go_dark_while_a_shift_mode_is_running)
 {
   Fixture f;
   fixture_init(&f);
-  f.ui_state.shift_state    = SHIFT_STATE_MON;
-  f.ui_state.selected_param = CH_PARAM_AMP;
+  f.ui_state.shift_state         = SHIFT_STATE_MON;
+  f.engine_config.selected_param = CH_PARAM_AMP;
 
   ui_render(&f.ux);
   CHECK(!lit(led_of_ctrl_button(&f, CH_PARAM_AMP)));
@@ -414,9 +414,9 @@ TEST_CASE(the_frequency_hue_does_not_pulse)
 {
   Fixture f;
   fixture_init(&f);
-  f.ui_state.shift_state        = SHIFT_STATE_NONE;
-  f.ui_state.selected_param     = CH_PARAM_FRQ;
-  f.ui_state.param_display_hold = UI_EDIT_DISPLAY;
+  f.ui_state.shift_state         = SHIFT_STATE_NONE;
+  f.engine_config.selected_param = CH_PARAM_FRQ;
+  f.ui_state.param_display_hold  = UI_EDIT_DISPLAY;
 
   f.ui_state.blink_slow = 1;
   f.ui_state.blink_mark = 1;
@@ -439,7 +439,7 @@ TEST_CASE(the_selected_parameter_shows_on_touch_and_decays_back_to_the_output_le
   Fixture f;
   fixture_init(&f);
   f.ui_state.shift_state                                                             = SHIFT_STATE_NONE;
-  f.ui_state.selected_param                                                          = CH_PARAM_AMP;
+  f.engine_config.selected_param                                                     = CH_PARAM_AMP;
   f.engine_state.channels_output_level[1]                                            = -DAC_5V; // red as a base
   f.engine_config.channel_state[1].params[f.engine_state.active_scene][CH_PARAM_AMP] = ADC_5V / 2;
 

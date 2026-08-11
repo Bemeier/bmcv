@@ -38,9 +38,46 @@ typedef struct __attribute__((packed))
   ChannelConfigV2 channel_state[N_CHANNELS];
 } EngineConfigV2;
 
-// v3 is byte for byte the current layout. What changed at v4 is what
-// shape_mode's numbers mean, which no amount of layout checking would catch -
-// hence the version bump, and hence this table.
+// v3 and v4 share one layout: the current EngineConfig without its trailing
+// selected_param. What changed at v4 is what shape_mode's numbers mean, which
+// no amount of layout checking would catch; what changed at v5 is that the
+// selected parameter became part of the patch. ChannelConfig itself has not
+// moved since v3, so this reuses it rather than restating it.
+typedef struct __attribute__((packed))
+{
+  uint8_t clock_div;
+  uint8_t scene_a;
+  uint8_t scene_b;
+  uint8_t current_preset;
+  uint16_t quantize_mask;
+  InputMode input_mode[N_INPUTS];
+  ChannelConfig channel_state[N_CHANNELS];
+} EngineConfigV4;
+
+// The one thing v5 added. A record written before it had no selected
+// parameter at all, so it gets the same default a module with no stored
+// config gets, rather than CH_PARAM_FRQ by way of a zeroed byte.
+static void migrate_v4_to_v5(const EngineConfigV4* old, EngineConfig* cfg)
+{
+  cfg->clock_div      = old->clock_div;
+  cfg->scene_a        = old->scene_a;
+  cfg->scene_b        = old->scene_b;
+  cfg->current_preset = old->current_preset;
+  cfg->quantize_mask  = old->quantize_mask;
+
+  for (uint8_t i = 0; i < N_INPUTS; i++)
+  {
+    cfg->input_mode[i] = old->input_mode[i];
+  }
+  for (uint8_t c = 0; c < N_CHANNELS; c++)
+  {
+    cfg->channel_state[c] = old->channel_state[c];
+  }
+
+  cfg->selected_param = CH_PARAM_OFS;
+}
+
+// What changed at v4 is what shape_mode's numbers mean.
 //
 // v3 carried the stepped algorithm three times over, at three hold values:
 //
@@ -61,7 +98,7 @@ static int8_t migrate_shape_mode(int8_t old_mode)
   return shape_v3_to_v4[old_mode];
 }
 
-static void migrate_v3_to_v4(EngineConfig* cfg)
+static void migrate_v3_to_v4(EngineConfigV4* cfg)
 {
   for (uint8_t c = 0; c < N_CHANNELS; c++)
   {
@@ -69,7 +106,7 @@ static void migrate_v3_to_v4(EngineConfig* cfg)
   }
 }
 
-static void migrate_v2_to_v3(const EngineConfigV2* old, EngineConfig* cfg)
+static void migrate_v2_to_v3(const EngineConfigV2* old, EngineConfigV4* cfg)
 {
   memset(cfg, 0, sizeof(*cfg));
 
@@ -119,7 +156,7 @@ static void migrate_v2_to_v3(const EngineConfigV2* old, EngineConfig* cfg)
 // Deliberately in the way. Bumping the version without deciding what happens to
 // the records already written is how eight slots got thrown away three times;
 // this makes that a compile error rather than a discovery on someone's bench.
-_Static_assert(CONFIG_STATE_VERSION == 4, "record format changed: add the migration below, then update this assert");
+_Static_assert(CONFIG_STATE_VERSION == 5, "record format changed: add the migration below, then update this assert");
 
 int8_t config_migrate(uint16_t version, uint16_t length, const void* data, EngineConfig* out)
 {
@@ -128,6 +165,10 @@ int8_t config_migrate(uint16_t version, uint16_t length, const void* data, Engin
     return 0;
   }
 
+  // Each arm brings the record up to the v4 layout and then hands it to
+  // migrate_v4_to_v5, rather than each one knowing how to produce the current
+  // struct. v3 and v4 are the same bytes, so the only difference between those
+  // two arms is the shape-mode remap between them.
   switch (version)
   {
   case CONFIG_STATE_VERSION:
@@ -136,23 +177,39 @@ int8_t config_migrate(uint16_t version, uint16_t length, const void* data, Engin
     memcpy(out, data, sizeof(EngineConfig));
     break;
 
-  case 3:
-    if (length != sizeof(EngineConfig))
+  case 4:
+  {
+    if (length != sizeof(EngineConfigV4))
       return 0;
-    memcpy(out, data, sizeof(EngineConfig));
+    EngineConfigV4 old;
+    memcpy(&old, data, sizeof(old));
+    migrate_v4_to_v5(&old, out);
+    break;
+  }
+
+  case 3:
+  {
+    if (length != sizeof(EngineConfigV4))
+      return 0;
+    EngineConfigV4 old;
+    memcpy(&old, data, sizeof(old));
     // Before config_validate, which would clamp SEMI and HARD onto PWM - the
     // right numeric range and the wrong shape.
-    migrate_v3_to_v4(out);
+    migrate_v3_to_v4(&old);
+    migrate_v4_to_v5(&old, out);
     break;
+  }
 
   case 2:
   {
     if (length != sizeof(EngineConfigV2))
       return 0;
     EngineConfigV2 old;
+    EngineConfigV4 v4;
     memcpy(&old, data, sizeof(old));
-    migrate_v2_to_v3(&old, out);
-    migrate_v3_to_v4(out);
+    migrate_v2_to_v3(&old, &v4);
+    migrate_v3_to_v4(&v4);
+    migrate_v4_to_v5(&v4, out);
     break;
   }
 

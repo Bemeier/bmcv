@@ -73,11 +73,11 @@ TEST_CASE(tapping_a_param_button_in_normal_mode_selects_that_param)
 {
   Fixture f;
   fixture_init(&f);
-  f.ui_state.shift_state    = SHIFT_STATE_NONE;
-  f.ui_state.selected_param = CH_PARAM_FRQ;
+  f.ui_state.shift_state         = SHIFT_STATE_NONE;
+  f.engine_config.selected_param = CH_PARAM_FRQ;
 
   fixture_press(&f, ctrl_btn(&f, CH_PARAM_AMP), MS(40));
-  CHECK(f.ui_state.selected_param == CH_PARAM_AMP);
+  CHECK(f.engine_config.selected_param == CH_PARAM_AMP);
 }
 
 TEST_CASE(holding_a_scene_button_activates_it_momentarily_and_release_restores)
@@ -110,9 +110,9 @@ TEST_CASE(turning_an_encoder_edits_the_selected_param_of_the_active_scene)
 {
   Fixture f;
   fixture_init(&f);
-  f.ui_state.shift_state      = SHIFT_STATE_NONE;
-  f.ui_state.selected_param   = CH_PARAM_OFS;
-  f.engine_state.active_scene = 0;
+  f.ui_state.shift_state         = SHIFT_STATE_NONE;
+  f.engine_config.selected_param = CH_PARAM_OFS;
+  f.engine_state.active_scene    = 0;
 
   int16_t before = f.engine_config.channel_state[0].params[0][CH_PARAM_OFS];
   fixture_encoder(&f, f.ux_setup->channels[0].encoder, 2);
@@ -187,9 +187,9 @@ TEST_CASE(pressing_the_encoder_clears_the_param_only_when_it_was_not_turned)
 {
   Fixture f;
   fixture_init(&f);
-  f.ui_state.shift_state      = SHIFT_STATE_NONE;
-  f.ui_state.selected_param   = CH_PARAM_OFS;
-  f.engine_state.active_scene = 0;
+  f.ui_state.shift_state         = SHIFT_STATE_NONE;
+  f.engine_config.selected_param = CH_PARAM_OFS;
+  f.engine_state.active_scene    = 0;
 
   fixture_set_param(&f, 0, 0, CH_PARAM_OFS, 4321);
   fixture_press(&f, f.ux_setup->channels[0].button, MS(40));
@@ -211,9 +211,9 @@ TEST_CASE(a_tap_clears_the_param_in_one_scene_and_a_hold_clears_it_in_all)
 {
   Fixture f;
   fixture_init(&f);
-  f.ui_state.shift_state      = SHIFT_STATE_NONE;
-  f.ui_state.selected_param   = CH_PARAM_OFS;
-  f.engine_state.active_scene = 0;
+  f.ui_state.shift_state         = SHIFT_STATE_NONE;
+  f.engine_config.selected_param = CH_PARAM_OFS;
+  f.engine_state.active_scene    = 0;
 
   for (uint8_t s = 0; s < N_SCENES; s++)
     fixture_set_param(&f, 0, s, CH_PARAM_OFS, 4321);

@@ -221,7 +221,7 @@ int32_t bmcv_sim_mode_count(void) { return SHIFT_STATE_COUNT; }
 
 float bmcv_sim_engine_fps(const BmcvSim* s) { return s->m.engine_state.engine_fps; }
 float bmcv_sim_dac_fps(const BmcvSim* s) { return s->m.engine_state.dac_fps; }
-int32_t bmcv_sim_selected_param(const BmcvSim* s) { return s->m.ui_state.selected_param; }
+int32_t bmcv_sim_selected_param(const BmcvSim* s) { return s->m.engine_config.selected_param; }
 int32_t bmcv_sim_active_scene(const BmcvSim* s) { return s->m.engine_state.active_scene; }
 float bmcv_sim_bpm(const BmcvSim* s) { return s->m.engine_state.clock.bpm; }
 float bmcv_sim_active_bpm(const BmcvSim* s) { return s->m.engine_state.clock.beat_freq_smooth * 60.0f; }
