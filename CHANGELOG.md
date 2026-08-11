@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.8.0 (2026-08-11)
+
+### Feat
+
+- **ui**: save the selected parameter with the patch, defaulting to OFS
+
 ## v0.7.2 (2026-08-10)
 
 ### Fix
