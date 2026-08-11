@@ -131,6 +131,13 @@ typedef struct
   float engine_fps;
   float dac_fps;
 
+  // How often the framebuffer actually reaches the LED driver. Not the same as
+  // the rate it is rendered at: the flush is gated on the WS2811 DMA being
+  // free, so a busy transfer drops frames silently and this is the only thing
+  // that says how many. Anything on the panel that moves - the FRQ pulse most
+  // of all - can only be as fast as this number allows.
+  float led_fps;
+
 } EngineState;
 
 #endif /* INC_LIB_ENGINE_STATE_H_ */

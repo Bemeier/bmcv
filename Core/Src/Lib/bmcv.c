@@ -167,6 +167,7 @@ void bmcv_poll_tasks()
 }
 
 static uint32_t last_dac_poll;
+static uint32_t last_led_flush;
 static uint32_t last_engine_us; // start of the tick being interpolated across
 static uint32_t next_engine_us; // when the next one is due
 static uint8_t engine_started;  // so the first tick is not counted as a resync
@@ -395,6 +396,8 @@ void bmcv_main(uint32_t now_us)
     led_poll = 0;
     bmcv_flush_leds();
     ws2811_update();
+    bmcv.engine_state.led_fps = fps_smooth(bmcv.engine_state.led_fps, now_us - last_led_flush);
+    last_led_flush            = now_us;
   }
 }
 
