@@ -80,10 +80,10 @@ jobs:
     steps:
       # An empty ref is checkout's own default, so this builds the dispatched
       # tag when there is one and the triggering branch otherwise.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag }}
-      - uses: extractions/setup-just@v2
+      - uses: extractions/setup-just@v4
 
       - name: Cross toolchain
         if: matrix.apt
@@ -104,7 +104,7 @@ jobs:
         run: command -v zstd >/dev/null || brew install zstd
 
       - name: Cache the Rack SDK
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/Rack-SDK-${{ matrix.arch }}
           key: rack-sdk-${{ env.RACK_SDK_VERSION }}-${{ matrix.arch }}
@@ -124,7 +124,7 @@ jobs:
           mv vcv/dist/*.vcvplugin \
              "vcv/dist/BMCV-${{ inputs.tag }}-${{ matrix.arch }}.vcvplugin"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: vcvplugin-${{ matrix.arch }}
           path: vcv/dist/*.vcvplugin
@@ -148,7 +148,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: dist
           pattern: vcvplugin-*

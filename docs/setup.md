@@ -104,8 +104,15 @@ just web                 # serves web/ at http://localhost:8000
 `$EMSDK_DIR` (default `~/emsdk`) and installs its `latest` toolchain -
 self-contained, needs nothing from the system beyond what emsdk's own
 installer wants (Python 3, and on Linux, the usual build-essential
-headers). `just wasm-check`/`web-check` additionally need **Node** to run
-headless against the built module - any reasonably recent LTS.
+headers). `just wasm-check`/`web-check`/`dfu-check` additionally need
+**Node** to run headless against the built module.
+
+`.tool-versions` pins Node 24, which is what CI installs - see
+`node-version` in [`ci.yml`](../.github/workflows/ci.yml), and raise the two
+together. [mise](https://mise.jdx.dev) and asdf both read that file, so a
+checkout gets the right one by cd-ing into it; without either, any Node 24
+will do. Nothing here needs a package manager - the three checks are plain
+ES modules run straight from the repo, and there is no `package.json`.
 
 ## VCV Rack plugin
 

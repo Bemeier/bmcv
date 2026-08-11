@@ -24,9 +24,9 @@ jobs:
     name: tests + flows
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: sudo apt-get update && sudo apt-get install -y ninja-build
-      - uses: extractions/setup-just@v2
+      - uses: extractions/setup-just@v4
 
       - name: Unit tests
         run: just configure-native && just test
@@ -43,13 +43,16 @@ jobs:
     name: wasm + frontend
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: sudo apt-get update && sudo apt-get install -y ninja-build
-      - uses: extractions/setup-just@v2
-      - uses: actions/setup-node@v4
+      - uses: extractions/setup-just@v4
+      # Kept in step with .tool-versions, which is what a local checkout gets.
+      # web/smoke.mjs, frontend-check.mjs and update/dfu-check.mjs are the only
+      # things here that need Node, and they run on whatever this says.
+      - uses: actions/setup-node@v7
         with:
-          node-version: '20'
-      - uses: mymindstorm/setup-emsdk@v14
+          node-version: '24'
+      - uses: mymindstorm/setup-emsdk@v15
         with:
           version: 'latest'
           actions-cache-folder: 'emsdk-cache'
@@ -69,13 +72,13 @@ jobs:
     env:
       CUBE_G4_VERSION: v1.6.1
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: sudo apt-get update && sudo apt-get install -y gcc-arm-none-eabi ninja-build
-      - uses: extractions/setup-just@v2
+      - uses: extractions/setup-just@v4
 
       - name: Cache STM32Cube FW
         id: cube-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/STM32CubeG4
           key: cube-g4-${{ env.CUBE_G4_VERSION }}
@@ -119,7 +122,7 @@ jobs:
       # with its symbols still attached, which is what a debugger or a live
       # variable viewer needs to make sense of a module running that release.
       # Both come out of this one build, so the symbols describe the image.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: firmware-bin
           path: |
@@ -131,8 +134,8 @@ jobs:
     name: clang-format
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: extractions/setup-just@v2
+      - uses: actions/checkout@v7
+      - uses: extractions/setup-just@v4
       - run: sudo apt-get update && sudo apt-get install -y clang-format-18
       - run: CLANG_FORMAT=clang-format-18 just fmt-check
 
@@ -141,7 +144,7 @@ jobs:
     runs-on: ubuntu-24.04
     if: github.event_name == 'pull_request'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - run: pip install commitizen==4.17.0
@@ -171,12 +174,12 @@ jobs:
       # the new release's binary otherwise.
       actions: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - run: pip install commitizen==4.17.0
-      - uses: extractions/setup-just@v2
-      - uses: actions/download-artifact@v4
+      - uses: extractions/setup-just@v4
+      - uses: actions/download-artifact@v8
         with:
           name: firmware-bin
           path: dist
