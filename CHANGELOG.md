@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.9.0 (2026-08-11)
+
+### Feat
+
+- **ui**: rework the FRQ ring - prime-limit colour, off-grid wash, rate pulse
+- **debug**: publish led_fps, the rate the panel is actually redrawn
+- **midi**: publish the channel outputs, inputs and clock as MIDI
+
 ## v0.8.0 (2026-08-11)
 
 ### Feat
