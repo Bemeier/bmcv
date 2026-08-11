@@ -10,6 +10,7 @@
 //   inputs.js     the input faders, gate buttons and clock generator
 //   readouts.js   the mode/scene/tempo readouts and the channel table
 //   storage.js    mirroring the preset store into localStorage
+//   midi.js       the module's MIDI output, onto a Web MIDI port
 //   const.js      the handful of numbers more than one of them needs
 //
 // The panel is built entirely from panel.json, which is generated from the
@@ -25,6 +26,7 @@ import { drawScopes } from './scope.js';
 import { runTicks } from './inputs.js';
 import { drawReadouts, setStatus } from './readouts.js';
 import { forget, persist, restore } from './storage.js';
+import { drawMidi, initMidi, pumpMidi } from './midi.js';
 
 /* ---- startup ------------------------------------------------------------ */
 
@@ -46,6 +48,10 @@ document.getElementById('reset-fram').addEventListener('click', () => {
   setSliderFromPos(SLIDER_START_POS);
   setStatus('FRAM cleared');
 });
+
+// Not awaited: it ends in a permission prompt on some browsers and is absent on
+// others, and neither should hold up the module coming to life.
+initMidi();
 
 /* ---- frame loop --------------------------------------------------------- */
 
@@ -74,11 +80,16 @@ function frame(now) {
 
   runTicks(ticks);
 
+  // Straight after the ticks that produced the messages, and before the drawing
+  // - a frame's worth of canvas work between the two would be latency added to
+  // every control change for no reason.
+  pumpMidi();
+
   drawEncoderIndicators();
   drawLeds();
   drawScopes();
 
-  if (now - lastReadoutT > READOUT_INTERVAL_MS) { lastReadoutT = now; drawReadouts(); }
+  if (now - lastReadoutT > READOUT_INTERVAL_MS) { lastReadoutT = now; drawReadouts(); drawMidi(); }
   if (now - lastPersistT > PERSIST_INTERVAL_MS) { lastPersistT = now; persist(); }
 
   requestAnimationFrame(frame);

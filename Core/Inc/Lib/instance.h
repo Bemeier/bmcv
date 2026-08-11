@@ -6,6 +6,7 @@
 #include "hw_setup.h"
 #include "hw_state.h"
 #include "input_fold.h"
+#include "midi_out.h"
 #include "ui_state.h"
 #include "ux_setup.h"
 #include "ux_state.h"
@@ -32,6 +33,11 @@ typedef struct
 
   UxState ux;
   InputFrames input;
+
+  // What the module publishes on the MIDI bus. Here rather than in EngineState
+  // because that struct is the signal path and this is not - a host that never
+  // drains the queue simply never sends anything.
+  MidiOut midi_out;
 } BmcvInstance;
 
 // Bring the module up to its power-on state: wire the UxState, initialise the

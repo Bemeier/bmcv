@@ -54,6 +54,31 @@
     </div>
 
     <div class="panel-box">
+      <h2>MIDI out</h2>
+      <div class="readout">
+        <span class="label">port</span>
+        <select id="midi-port"><option value="">off</option></select>
+      </div>
+      <div class="readout"><span class="label">status</span><span id="midi-status" class="value">—</span></div>
+      <div class="readout"><span class="label">clock</span><span id="midi-clock" class="value">—</span></div>
+      <table id="midi-cc"></table>
+      <p class="note">
+        What the module is actually saying on MIDI channel&nbsp;1, at the 7-bit
+        resolution a CC has. The full &plusmn;10&nbsp;V maps onto 0&ndash;127, so
+        0&nbsp;V is 64 and a channel clamped to a narrower range uses the part of
+        the bar it can reach &mdash; a value sitting at either rail is clipping,
+        marked as such. Values are sent only when they change.
+      </p>
+      <p class="note">
+        Clock is forwarded at 24&nbsp;PPQN, but only while an input jack is the
+        clock source: when MIDI is the clock, the far end is already the master.
+        Sending needs a MIDI port to send <em>to</em> &mdash; the IAC driver on
+        macOS, loopMIDI on Windows, ALSA virmidi on Linux &mdash; but the table
+        works without one.
+      </p>
+    </div>
+
+    <div class="panel-box">
       <button id="reset">Reset module</button>
       <button id="reset-fram">Reset FRAM</button>
       <span id="status" class="muted"></span>

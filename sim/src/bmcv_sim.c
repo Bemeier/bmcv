@@ -7,6 +7,7 @@
 #include "hw_setup.h"
 #include "input_fold.h"
 #include "instance.h"
+#include "midi_out.h"
 #include "presets.h"
 #include "sim_rt.h"
 #include "slot_store.h"
@@ -271,6 +272,26 @@ const char* bmcv_sim_shape_mode_name(int32_t mode)
   if (mode < 0 || mode >= SHAPE_MODE_COUNT)
     return NULL;
   return shape_mode_names[mode];
+}
+
+/* ---- midi --------------------------------------------------------------- */
+
+// MidiMsg is exactly the four bytes the flat API promises, so the drain writes
+// straight into the caller's buffer rather than transcribing field by field.
+_Static_assert(sizeof(MidiMsg) == BMCV_SIM_MIDI_MSG_BYTES, "midi message size");
+
+int32_t bmcv_sim_midi_drain(BmcvSim* s, void* dst, int32_t max_msgs)
+{
+  if (!s || !dst || max_msgs <= 0)
+    return 0;
+
+  // The queue cannot hold more than this, and the count crosses the wasm
+  // boundary as an int32 that a frontend computed - the same reason
+  // bmcv_sim_run caps its tick count rather than trusting it.
+  if (max_msgs > MIDI_OUT_QUEUE_LEN)
+    max_msgs = MIDI_OUT_QUEUE_LEN;
+
+  return midi_out_drain(&s->m.midi_out, (MidiMsg*) dst, (uint8_t) max_msgs);
 }
 
 /* ---- persistence -------------------------------------------------------- */

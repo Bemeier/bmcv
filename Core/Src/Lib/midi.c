@@ -5,8 +5,10 @@
 #include "version.h"
 
 extern USBD_HandleTypeDef hUsbDeviceFS;
+// The transmit buffer, filled fresh by each midi_send_msgs call. Static because
+// USBD_MIDI_SendReport hands the pointer to the USB stack and the transfer
+// outlives the call.
 static uint8_t buffUsbReport[MIDI_EPIN_SIZE] = {0};
-static uint8_t buffUsbReportNextIndex        = 0;
 
 // Host-to-module control traffic. All four are set from the USB interrupt and
 // read from the main loop, so they are volatile and nothing else. The identity
@@ -72,27 +74,26 @@ void midi_poll_control()
   sysex_identity_requested = false;
 }
 
-void MIDI_addToUSBReport(uint8_t cable, uint8_t message, uint8_t param1, uint8_t param2)
+void midi_send_msgs(const MidiMsg* msgs, uint8_t n)
 {
-  buffUsbReport[buffUsbReportNextIndex++] = (cable << 4) | (message >> 4);
-  buffUsbReport[buffUsbReportNextIndex++] = (message);
-  buffUsbReport[buffUsbReportNextIndex++] = (param1);
-  buffUsbReport[buffUsbReportNextIndex++] = (param2);
+  if (n == 0)
+    return;
+  if (n > MIDI_MSGS_PER_TRANSFER)
+    n = MIDI_MSGS_PER_TRANSFER;
 
-  if (buffUsbReportNextIndex == MIDI_EPIN_SIZE)
+  for (uint8_t i = 0; i < n; i++)
   {
-    while (USBD_MIDI_GetState(&hUsbDeviceFS) != MIDI_IDLE)
-    {
-    };
-    USBD_MIDI_SendReport(&hUsbDeviceFS, buffUsbReport, MIDI_EPIN_SIZE);
-    buffUsbReportNextIndex = 0;
+    // Cable 0, and the Code Index Number from the status byte's high nibble:
+    // 0xB for a control change, 0xF for a System Real-Time byte, which is what
+    // the spec asks for in both cases. A Real-Time message is one byte and the
+    // other two go out as the zero padding the class expects.
+    buffUsbReport[i * 4 + 0] = (uint8_t) (msgs[i].status >> 4);
+    buffUsbReport[i * 4 + 1] = msgs[i].status;
+    buffUsbReport[i * 4 + 2] = msgs[i].d1;
+    buffUsbReport[i * 4 + 3] = msgs[i].d2;
   }
+
+  USBD_MIDI_SendReport(&hUsbDeviceFS, buffUsbReport, (uint16_t) (n * 4));
 }
 
 uint8_t midi_idle() { return USBD_MIDI_GetState(&hUsbDeviceFS) == MIDI_IDLE; }
-
-void update_midi()
-{
-  USBD_MIDI_SendReport(&hUsbDeviceFS, buffUsbReport, MIDI_EPIN_SIZE);
-  buffUsbReportNextIndex = 0;
-}

@@ -5,7 +5,6 @@
 #include "dac_adc_hal.h"
 #include "engine.h"
 #include "engine_state.h"
-#include "helpers.h"
 #include "hw_setup.h"
 #include "input_fold.h"
 #include "instance.h"
@@ -22,11 +21,10 @@ static ADC_TypeDef* slider_adc;
 static volatile uint16_t slider_adc_value;
 
 // Task scheduler
-static uint8_t task      = 0;
-static uint8_t dac_poll  = 1;
-static uint8_t mcp_poll  = 0;
-static uint8_t led_poll  = 0;
-static uint8_t midi_poll = 0;
+static uint8_t task     = 0;
+static uint8_t dac_poll = 1;
+static uint8_t mcp_poll = 0;
+static uint8_t led_poll = 0;
 
 // The module. One struct holding config, signal path, interaction state, the
 // input layer and the wiring between them - see instance.h. The firmware has
@@ -153,14 +151,19 @@ void bmcv_poll_tasks()
   {
     mcp_poll = 1;
   }
-  else if (task == 2)
-  {
-    midi_poll = 1;
-  }
-  else
+  else if (task >= 3)
   {
     task = 0;
   }
+
+  // The MIDI slot that used to sit at task == 2 is gone, and the cycle keeps
+  // its length of three so the MCP poll rate is unchanged. Draining the MIDI
+  // queue is now gated on the endpoint being free instead - see bmcv_tick.
+  //
+  // This timer runs at about 303Hz, so a third of it was ~101Hz: below the rate
+  // midi_out publishes at, which overflowed the queue whenever more than a
+  // couple of channels were moving, and put 10ms of jitter on a clock message
+  // whose whole interval is 20.8ms at 120BPM.
 }
 
 static uint32_t last_dac_poll;
@@ -184,26 +187,21 @@ static uint8_t engine_started;  // so the first tick is not counted as a resync
 #define DAC_SUBSTEPS 4
 #define DAC_CHUNK_US (ENGINE_TICK_US / (DAC_SUBSTEPS * DAC_CHANNELS))
 
-// The four CV inputs, sent out of the USB port as MIDI control changes: channel
-// 1, CC 0x10..0x13, each input's ADC reading scaled to 0..127.
+// Ship whatever midi_out has queued: the eight channel outputs and four CV
+// inputs as control changes, plus the clock. What to say is decided in
+// midi_out.c, which is core code with no USB in it; this is only the transport.
 //
-// It reads like a debugging aid left running, and it may be one - it is the
-// only thing the USB MIDI stack is used for, nothing asks for it and nothing
-// documents it. It is kept because it costs a USB frame every third poll and
-// somebody may be patching the module into a DAW with it; it is behind a
-// switch, and named, so that turning it off is one line rather than an
-// archaeology exercise.
-#define BMCV_MIDI_CC_INPUTS 1
-
-static void midi_publish_inputs(void)
+// It replaces a loop that sent the four inputs on CC 0x10..0x13 and was the
+// only use the USB MIDI stack had - undocumented, and its CCs now belong to the
+// channels. See docs/midi.md for the mapping.
+//
+// One transfer's worth per call, and only when the endpoint is free. Anything
+// that does not fit stays queued for the next pass; a transfer holds 16 events,
+// which is more than one publish slot produces.
+static void midi_publish(void)
 {
-#if BMCV_MIDI_CC_INPUTS
-  for (uint8_t ch = 0; ch < DAC_CHANNELS; ch++)
-  {
-    MIDI_addToUSBReport(0, 0xB0, 0x10 + ch, sclamp(get_adc(ch) / 32, 0, 127));
-  }
-  update_midi();
-#endif
+  MidiMsg msgs[MIDI_MSGS_PER_TRANSFER];
+  midi_send_msgs(msgs, midi_out_drain(&bmcv.midi_out, msgs, MIDI_MSGS_PER_TRANSFER));
 }
 
 // Exponential average, so a single slow loop does not make the readout jump.
@@ -341,6 +339,15 @@ void bmcv_main(uint32_t now_us)
 
     [[maybe_unused]] const uint32_t t_engine_end = PROFILE_NOW();
 
+    // Outside the engine span, so that span stays comparable with the builds
+    // before this existed. It only fills a queue - what leaves the endpoint is
+    // decided in the housekeeping block below.
+    //
+    // Here rather than in bmcv_instance_tick because the firmware does not use
+    // that call, for the reason instance.h gives: it interleaves the profiling
+    // above between the two halves.
+    midi_out_publish(&bmcv.midi_out, &bmcv.engine_state, &bmcv.input.curr, now_us);
+
     /* ---- hardware out --------------------------------------------- */
     // Advance the pair the DAC service slides between, rather than writing the
     // buffer here: what reaches the pins is now interpolated between two ticks,
@@ -373,10 +380,14 @@ void bmcv_main(uint32_t now_us)
   /* ---- housekeeping ----------------------------------------------- */
   // Outside the tick: both are gated on their own transport being idle, and
   // neither should be able to hold up the engine or be held up by it.
-  if (midi_poll && midi_idle())
+  // Whenever the endpoint is free, rather than on a timer slot: what to send
+  // and how often is midi_out's decision, and the transport should only be
+  // asking how much of it fits. An empty queue costs a state read and a
+  // compare, which is what the LED flush below does with its DMA for the same
+  // reason.
+  if (midi_idle())
   {
-    midi_poll = 0;
-    midi_publish_inputs();
+    midi_publish();
   }
 
   if (led_poll && ws2811_dma_completed())

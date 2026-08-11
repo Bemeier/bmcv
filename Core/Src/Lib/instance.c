@@ -23,6 +23,7 @@ void bmcv_instance_init(BmcvInstance* m, const PresetIo* io, uint32_t now_us)
   m->ux.presets       = io;
 
   Clock_Init(&m->engine_state.clock);
+  midi_out_init(&m->midi_out);
 
   // No selected_param here: it comes out of the stored config below, or out of
   // config_defaults when there is none, so that a module comes back on the page
@@ -69,5 +70,10 @@ uint8_t bmcv_instance_tick(BmcvInstance* m, const InputSample* sample, uint32_t 
 {
   uint8_t dirty = input_fold(&m->input, &m->ux, sample, now_us);
   engine_tick(&m->ux, now_us, dirty);
+
+  // After engine_tick, so it reads the levels this tick produced and the clock
+  // events it acted on rather than the previous tick's.
+  midi_out_publish(&m->midi_out, &m->engine_state, &m->input.curr, now_us);
+
   return dirty;
 }

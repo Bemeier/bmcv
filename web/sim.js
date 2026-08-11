@@ -52,6 +52,15 @@ export const SHAPE_NAMES = (() => {
 
 const storageSize = _('storage_size')();
 
+// One drained MIDI message, matching MidiMsg in Core/Inc/Lib/midi_out.h.
+const MIDI_MSG_BYTES = 4;
+
+// The module's queue is 32 deep, so nothing is ever left behind by draining
+// this many. Allocated once, at load, and reused every frame - the alternative
+// is a malloc/free pair per frame for a buffer that never changes size.
+const MIDI_DRAIN_MAX = 32;
+const midiBuf = Module._malloc(MIDI_DRAIN_MAX * MIDI_MSG_BYTES);
+
 export const sim = {
   /* ---- input ------------------------------------------------------------ */
 
@@ -97,6 +106,28 @@ export const sim = {
 
   muted: c => _('channel_muted')(handle, c),
   shapeMode: c => _('channel_shape_mode')(handle, c),
+
+  /* ---- midi ------------------------------------------------------------- */
+
+  // Take what the module has queued for the MIDI bus, as an array of
+  // Uint8Arrays ready to hand to a MIDIOutput. The scratch buffer is allocated
+  // once and reused - this runs every frame.
+  //
+  // Each record is four bytes (status, d1, d2, len), and `len` says how many of
+  // the first three are real: 1 for a clock byte, 3 for a control change. So a
+  // caller needs no MIDI parser, only the slice.
+  drainMidi() {
+    const n = _('midi_drain')(handle, midiBuf, MIDI_DRAIN_MAX);
+    if (n === 0) return [];
+
+    const raw = u8(midiBuf, n * MIDI_MSG_BYTES);
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const at = i * MIDI_MSG_BYTES;
+      out.push(raw.slice(at, at + raw[at + 3]));
+    }
+    return out;
+  },
 
   /* ---- persistence ------------------------------------------------------ */
   //

@@ -1,7 +1,7 @@
 // Headless check that the frontend actually loads and runs.
 //
 // web/smoke.mjs covers the wasm boundary; this covers everything on top of it.
-// It stands up enough of a DOM to import all nine modules for real, against the
+// It stands up enough of a DOM to import all ten modules for real, against the
 // real bmcv.wasm and the real panel.json, then drives a few frames and asserts
 // the module responded. That catches the whole class of mistakes a static check
 // cannot - a missing export, a module-scope reference to something not defined
@@ -53,10 +53,13 @@ function makeNode(tag = 'div') {
     getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 400 }),
     querySelector(sel) { return this.byClass(sel); },
     querySelectorAll(sel) {
-      // The one real query the frontend makes is for the channel table's rows,
-      // which only exist because innerHTML was assigned - so that assignment
-      // has to actually build something. Anything else gets a single stub.
-      if (sel.startsWith('tr')) return (this._rows ?? []).filter(r => r.attrs.has('data-ch'));
+      // The real queries the frontend makes are for table rows, which only
+      // exist because innerHTML was assigned - so that assignment has to
+      // actually build something. Anything else gets a single stub.
+      if (sel.startsWith('tr')) {
+        const attr = sel.match(/\[(data-[\w-]+)\]/)?.[1];
+        return (this._rows ?? []).filter(r => !attr || r.attrs.has(attr));
+      }
       const n = this.byClass(sel);
       return n ? [n] : [];
     },
@@ -75,9 +78,9 @@ function makeNode(tag = 'div') {
   };
   node.parentElement = null;
 
-  // Just enough HTML parsing to build the channel table: a row per <tr>, a
-  // cell per <td>/<th>, carrying data-ch through. Without this the table's rows
-  // would not exist and drawReadouts would never be exercised.
+  // Just enough HTML parsing to build the tables: a row per <tr>, a cell per
+  // <td>/<th>, carrying any data-* attribute through. Without this the rows
+  // would not exist and the draw functions would never be exercised.
   let html = '';
   Object.defineProperty(node, 'innerHTML', {
     get: () => html,
@@ -88,8 +91,7 @@ function makeNode(tag = 'div') {
         const open = chunk.match(/<tr([^>]*)>/);
         if (!open) continue;
         const row = makeNode('tr');
-        const id = open[1].match(/data-ch="(\d+)"/);
-        if (id) row.attrs.set('data-ch', id[1]);
+        for (const [, k, v] of open[1].matchAll(/(data-[\w-]+)="([^"]*)"/g)) row.attrs.set(k, v);
         row.children = [...chunk.matchAll(/<t[dh][^>]*>/g)].map(() => makeNode('td'));
         node._rows.push(row);
       }
@@ -192,6 +194,7 @@ const { drawScopes } = await import('./scope.js');
 const { drawLeds } = await import('./leds.js');
 const { drawReadouts } = await import('./readouts.js');
 const { runTicks } = await import('./inputs.js');
+const { drawMidi, pumpMidi } = await import('./midi.js');
 
 check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec loaded through fetch');
 check(SHIFT_NAMES[0] === 'STA' && SHIFT_NAMES.at(-1) === '---', `shift names came from the firmware (${SHIFT_NAMES.join(',')})`);
@@ -235,6 +238,8 @@ try {
   drawLeds();
   drawScopes();
   drawReadouts();
+  pumpMidi();
+  drawMidi();
 } catch (e) {
   drawError = e;
 }
@@ -244,6 +249,18 @@ if (drawError) console.error(drawError.stack);
 // ...and actually wrote something, rather than quietly doing nothing.
 check(el('r-shift').textContent === '---', `the mode readout is populated (${el('r-shift').textContent})`);
 check(el('r-bpm').textContent !== '', `the bpm readout is populated (${el('r-bpm').textContent})`);
+
+// The MIDI table is fed by draining the module's own queue, so a populated row
+// proves the whole path: midi_out published, the wasm boundary handed the bytes
+// over, and the frontend parsed them back into a CC value.
+const midiRows = el('midi-cc')._rows.filter(r => r.attrs.has('data-cc'));
+const midiVals = midiRows.map(r => r.children[2].textContent);
+check(midiRows.length === 12, `the midi table has 12 rows (got ${midiRows.length})`);
+
+// Every one of them, not merely some: the first publish slot states the whole
+// block, so a gap here means a CC never made it across the wasm boundary.
+const unset = midiVals.filter(v => !/^\d+$/.test(v)).length;
+check(unset === 0, `all 12 midi values reached the readout (ch 0 = ${midiVals[0]}, ${unset} unset)`);
 
 /* ---- persistence round-trips ---------------------------------------------- */
 

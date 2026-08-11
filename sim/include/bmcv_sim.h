@@ -159,6 +159,25 @@ enum
 };
 const float* bmcv_sim_effective(const BmcvSim* s);
 
+/* ---- midi --------------------------------------------------------------- */
+//
+// What the module is saying on the MIDI bus: the eight channel outputs and four
+// CV inputs as control changes, plus a clock. Decided by the firmware's own
+// midi_out.c, so a host only has to carry the bytes.
+
+// One drained message: status, data 1, data 2, and how many of those three are
+// real - 1 for a System Real-Time byte, 3 for a control change.
+#define BMCV_SIM_MIDI_MSG_BYTES 4
+
+// Take up to `max_msgs` queued messages into `dst`, which needs
+// max_msgs * BMCV_SIM_MIDI_MSG_BYTES of room. Returns the number of messages
+// written, so a caller iterates `dst` with a stride of four and needs no MIDI
+// parser of its own.
+//
+// A host that never calls this simply never sends anything: the queue drops its
+// oldest-unsent when full and the values re-state themselves on the next slot.
+int32_t bmcv_sim_midi_drain(BmcvSim* s, void* dst, int32_t max_msgs);
+
 /* ---- persistence -------------------------------------------------------- */
 //
 // The whole preset store as an opaque blob, for a host to keep in a patch file

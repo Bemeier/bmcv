@@ -197,6 +197,17 @@ th:first-child, td:first-child { text-align: left; color: var(--muted); }
 th { color: var(--muted); font-weight: 500; }
 tr.muted-row td { opacity: .4; }
 
+/* The MIDI value bars: a gradient across the cell rather than a nested element,
+   so the draw path sets one property and the row stays a flat list of cells.
+   The fill colour comes from midi.js, which is the file that knows whether a
+   value is against its rail. */
+.bar-cell { background: #2b2f36; }
+
+/* On the header cell as well as the body: table-layout is fixed, which takes
+   every column width from the first row, so a width set only on the td below
+   is ignored and the four columns come out equal. */
+#midi-cc th:nth-child(4), #midi-cc td:nth-child(4) { width: 45%; }
+
 button {
   background: #2b2f36; color: var(--fg); border: 1px solid var(--line);
   border-radius: 6px; padding: .35rem .7rem; cursor: pointer; font: inherit; font-size: .85rem;

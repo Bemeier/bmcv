@@ -32,6 +32,12 @@ One **clock input**. Channel frequencies are ratios of the incoming beat rather
 than free-running rates, so everything stays in phase with the rest of a patch.
 With no clock the module free-runs at the last tempo it saw.
 
+One **USB port**, which is a MIDI port. The module publishes its eight outputs
+and four inputs as control changes and forwards its clock, so the same eight
+clock-locked LFOs modulate a DAW's plugins as readily as they modulate a rack.
+It takes MIDI Clock in as well, as the clock source when no jack is patched for
+the job. See [docs/midi.md](docs/midi.md).
+
 ## Using it
 
 **The parameter row.** The six buttons under the crossfader - FRQ, SHP, MOD,

@@ -73,6 +73,7 @@ if(EMSCRIPTEN)
       _bmcv_sim_channel_param
       _bmcv_sim_channel_shape_mode
       _bmcv_sim_shape_mode_name
+      _bmcv_sim_midi_drain
       _bmcv_sim_storage_size
       _bmcv_sim_storage_get
       _bmcv_sim_storage_set

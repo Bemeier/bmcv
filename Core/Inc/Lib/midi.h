@@ -1,11 +1,26 @@
 #ifndef INC_DRIVERS_MIDI_H_
 #define INC_DRIVERS_MIDI_H_
 
+#include "midi_out.h"
 #include "stm32g4xx_hal.h" // IWYU pragma: keep
 #include "usbd_midi.h"     // IWYU pragma: keep
 
-void MIDI_addToUSBReport(uint8_t cable, uint8_t message, uint8_t param1, uint8_t param2);
-void update_midi();
+// How many messages one transfer carries: a USB-MIDI event packet is four
+// bytes, so the endpoint's 64 hold sixteen.
+#define MIDI_MSGS_PER_TRANSFER (MIDI_EPIN_SIZE / 4)
+
+// Wrap `n` messages as USB-MIDI event packets and send them, up to
+// MIDI_MSGS_PER_TRANSFER. Sends exactly what it was given and never waits: the
+// caller checks midi_idle() first, and anything that did not fit stays in the
+// queue it came from.
+//
+// Exact-length rather than filling a fixed 64-byte buffer, which is what this
+// replaced. That version only transmitted once the buffer was full and its
+// flush sent all 64 bytes regardless of how many were written this time, so a
+// batch shorter than the last one re-sent the tail of the previous one - a
+// duplicated clock or a control change reverting to a stale value.
+void midi_send_msgs(const MidiMsg* msgs, uint8_t n);
+
 uint8_t midi_idle();
 
 // Non-zero once the host has asked the module to reboot into the ROM DFU
