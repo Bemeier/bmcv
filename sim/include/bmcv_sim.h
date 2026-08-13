@@ -85,8 +85,10 @@ uint32_t bmcv_sim_now_us(const BmcvSim* s);
 // 8 floats, volts.
 const float* bmcv_sim_outputs_v(const BmcvSim* s);
 
-// 63 bytes, r,g,b per LED in chain order.
-const uint8_t* bmcv_sim_leds_rgb(const BmcvSim* s);
+// 63 entries, r,g,b per LED in chain order, in the framebuffer's own 8.8 fixed
+// point (LED_UNIT per duty step) - not the driver's bytes. A display wants the
+// colour that was meant, at full precision; see led_curve.h.
+const uint16_t* bmcv_sim_leds_rgb(const BmcvSim* s);
 
 // 8 * BMCV_SIM_SCOPE_LEN floats in volts, channel-major. Index
 // [ch * BMCV_SIM_SCOPE_LEN + i]; the newest sample is at head-1 (mod len).

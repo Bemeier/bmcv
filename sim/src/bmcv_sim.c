@@ -39,7 +39,7 @@ struct BmcvSim
   uint32_t now_us;
 
   float outputs_v[N_CHANNELS];
-  uint8_t leds_rgb[LED_COUNT * 3];
+  uint16_t leds_rgb[LED_COUNT * 3];
 
   float effective[N_CHANNELS * BMCV_EFF_COUNT];
   float scope[N_CHANNELS * BMCV_SIM_SCOPE_LEN];
@@ -168,7 +168,10 @@ static void capture(BmcvSim* s)
 
   for (uint8_t i = 0; i < LED_COUNT; i++)
   {
-    const LedRgb* led      = &s->m.engine_state.leds[i];
+    const LedRgb* led = &s->m.engine_state.leds[i];
+    // Undithered and unrounded: a screen has no reason to quantise to what a
+    // WS2812 takes, and sampling the dither at 60Hz would show its noise rather
+    // than the colour it averages to.
     s->leds_rgb[i * 3]     = led->r;
     s->leds_rgb[i * 3 + 1] = led->g;
     s->leds_rgb[i * 3 + 2] = led->b;
@@ -201,7 +204,7 @@ uint32_t bmcv_sim_now_us(const BmcvSim* s) { return s ? s->now_us : 0; }
 /* ---- output ------------------------------------------------------------- */
 
 const float* bmcv_sim_outputs_v(const BmcvSim* s) { return s->outputs_v; }
-const uint8_t* bmcv_sim_leds_rgb(const BmcvSim* s) { return s->leds_rgb; }
+const uint16_t* bmcv_sim_leds_rgb(const BmcvSim* s) { return s->leds_rgb; }
 const float* bmcv_sim_scope(const BmcvSim* s) { return s->scope; }
 const float* bmcv_sim_input_scope(const BmcvSim* s) { return s->input_scope; }
 const float* bmcv_sim_effective(const BmcvSim* s) { return s->effective; }

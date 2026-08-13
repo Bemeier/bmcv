@@ -48,6 +48,7 @@ const F = Object.fromEntries(NAMES.map(n => [n, Module[`_bmcv_sim_${n}`]]));
 
 const f32 = (ptr, len) => new Float32Array(Module.HEAPF32.buffer, ptr, len);
 const u8 = (ptr, len) => new Uint8Array(Module.HEAPU8.buffer, ptr, len);
+const u16 = (ptr, len) => new Uint16Array(Module.HEAPU8.buffer, ptr, len);
 
 /* ---- a module boots and runs -------------------------------------------- */
 
@@ -96,8 +97,8 @@ const spec = JSON.parse(readFileSync(join(here, 'panel.json'), 'utf8'));
 check(spec.leds.length === 21 && spec.buttons.length === 24 && spec.encoders.length === 8,
   'panel spec has 24 buttons, 21 leds, 8 encoders');
 
-const leds = u8(F.leds_rgb(sim), 21 * 3);
-check(leds.length === 21 * 3, 'led framebuffer view is 63 bytes');
+const leds = u16(F.leds_rgb(sim), 21 * 3);
+check(leds.length === 21 * 3, 'led framebuffer view is 63 entries');
 
 /* ---- driving it changes what comes out ---------------------------------- */
 
@@ -129,28 +130,45 @@ check(scope.slice(0, 4096).some(v => v !== 0), 'scope captured channel 0');
 
 /* ---- the LED curve is one curve ----------------------------------------- */
 
-// web/leds.js and sim/include/led_color.h turn framebuffer bytes into a colour
+// web/leds.js and sim/include/led_color.h turn the framebuffer into a colour
 // the same way, so that the browser and the VCV Rack module show the same
-// module. Nothing links them, so this reads the C constants out of the header
-// and compares. Two frontends that disagree about brightness is the kind of
-// difference nobody notices until they are side by side.
+// module. Both are meant to be reading Core/Inc/Lib/led_curve.h, and the C side
+// does; the JS can only mirror it. Nothing links them, so this reads the
+// #defines and compares. Two frontends that disagree about the die weights is
+// the kind of difference nobody notices until they are side by side - and the
+// whole point of the curve living in one file is that the ramp gets tuned here
+// and then flashed.
 {
-  const header = readFileSync(join(here, '..', 'sim', 'include', 'led_color.h'), 'utf8');
+  const header = readFileSync(join(here, '..', 'Core', 'Inc', 'Lib', 'led_curve.h'), 'utf8');
   const define = name => {
-    const m = header.match(new RegExp(`^#define ${name}\\s+(\\S+)`, 'm'));
-    return m ? m[1] : null;
+    const m = header.match(new RegExp(`^#define ${name}\\s+(.+)$`, 'm'));
+    return m ? m[1].trim() : null;
   };
   const js = readFileSync(join(here, 'leds.js'), 'utf8');
   const jsConst = name => {
     const m = js.match(new RegExp(`^const ${name} = ([0-9.]+)`, 'm'));
     return m ? m[1] : null;
   };
+  // The C side writes 0.80f and 2.20f; the JS cannot. Compare the numbers.
+  const same = name => {
+    const c = define(name), j = jsConst(name);
+    return c !== null && j !== null && parseFloat(c) === parseFloat(j);
+  };
 
-  // The header says VAL_MED rather than a number, which is the point - it is
-  // the renderer's own brightness cap, not a value picked for the screen.
-  check(define('LED_FULL_VALUE') === 'VAL_MED', 'led_color.h caps at VAL_MED');
-  check(jsConst('LED_FULL') === '32', 'web/leds.js agrees (VAL_MED is 32)');
-  check(define('LED_GAMMA') === `${jsConst('LED_GAMMA')}f`, 'both use the same gamma');
+  check(define('LED_FRAC_BITS') === '8' && jsConst('LED_UNIT') === '256', 'both use an 8.8 framebuffer');
+  check(same('LED_W_RED') && same('LED_W_GREEN') && same('LED_W_BLUE'), 'both use the same die weights');
+  check(same('LED_Y_RED') && same('LED_Y_GREEN') && same('LED_Y_BLUE'), 'both use the same screen primaries');
+  check(same('LED_DISPLAY_GAMMA'), 'both use the same display gamma');
+
+  // The header names a palette constant rather than a number, which is the
+  // point - it is the renderer's own brightness cap, not a value picked for the
+  // screen. The JS can only carry the number, so this pins both ends.
+  check(define('LED_DISPLAY_FULL') === '((float) VAL_HIG * LED_PALETTE_REF)', 'led_curve.h draws a balanced VAL_HIG as full scale');
+  check(define('LED_CV_CEIL') === '((float) VAL_HIG)', 'the ramp ceiling is VAL_HIG');
+  // The C side names a weight rather than a number here, so this pins both the
+  // name it points at and the number the JS carries for it.
+  check(define('LED_PALETTE_REF') === 'LED_W_GREEN', 'the palette is referenced to green');
+  check(jsConst('LED_PALETTE_REF') === jsConst('LED_W_GREEN'), 'web/leds.js mirrors that');
 }
 
 /* ---- a hold latches a shift mode ---------------------------------------- */

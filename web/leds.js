@@ -61,22 +61,59 @@ export function registerLed(index, node, kind, k = 1) {
   entries.push({ node, grad, k });
 }
 
-// led_fb.c caps brightness at VAL_MED (32) and draws base layers at VAL_LOW
-// (8), because real WS2812s are painfully bright above that. Treat VAL_MED as
-// full scale and apply a perceptual curve, or everything the renderer actually
-// draws is invisible here.
-const LED_FULL = 32;
-const LED_GAMMA = 0.45;
+// Mirrors sim/include/led_color.h, against the constants in
+// Core/Inc/Lib/led_curve.h. Both frontends have to agree or they show different
+// modules - and the ramp is meant to be tuned here and then flashed, which only
+// works if what is on screen is what the panel will do.
+//
+// The framebuffer is 8.8 fixed point duty, and the panel's own ceiling is a
+// small fraction of 255 because real WS2812s are painfully bright above it - so
+// the brightest thing the renderer draws is full scale here, or everything is
+// invisible.
+//
+// Getting from duty to a colour takes two corrections, not one. The dies are
+// not equally efficient, so duty is not light; and light is not hue, because
+// how much a die puts out and how blue something looks are different questions.
+// A blue at SAT_HIG carries a third as much green duty as blue, and green is
+// nearly four times the blue die, so by light that colour is green-dominant
+// while plainly being blue to look at. Dividing each die's light by what the
+// matching screen primary contributes puts the hue back.
+//
+// Flat, one per line, because smoke.mjs reads both these and the #defines they
+// mirror and checks the numbers match.
+const LED_UNIT = 256;
+const LED_W_RED = 0.80;
+const LED_W_GREEN = 1.75;
+const LED_W_BLUE = 0.45;
+const LED_Y_RED = 0.2126;
+const LED_Y_GREEN = 0.7152;
+const LED_Y_BLUE = 0.0722;
+const LED_PALETTE_REF = 1.75;
+const LED_DISPLAY_FULL = 64 * LED_PALETTE_REF; // VAL_HIG, balanced
+const LED_DISPLAY_GAMMA = 2.2;
+const LED_SCALE = LED_DISPLAY_FULL * LED_UNIT;
+
+const encode = (linear) =>
+  linear <= 0 ? 0 : linear >= 1 ? 1 : Math.pow(linear, 1 / LED_DISPLAY_GAMMA);
 
 // Brightness rides on opacity and hue on the fill, normalised to full range so
 // a dim red still reads as red rather than as near-black.
+//
+// Opacity comes off the *total* light, not the brightest primary: led_set_hsv
+// balances every colour to the same total for a given value, so this keeps what
+// is drawn depending on the value rather than on which dies the hue used.
 function ledStyle(r, g, b) {
-  const peak = Math.max(r, g, b);
-  if (peak === 0) return { fill: '#000', level: 0 };
-  const k = 255 / peak;
+  const sr = r * LED_W_RED / LED_Y_RED;
+  const sg = g * LED_W_GREEN / LED_Y_GREEN;
+  const sb = b * LED_W_BLUE / LED_Y_BLUE;
+  const peak = Math.max(sr, sg, sb);
+  if (peak <= 0) return { fill: '#000', level: 0 };
+
+  const light = r * LED_W_RED + g * LED_W_GREEN + b * LED_W_BLUE;
+  const ch = (s) => Math.round(encode(s / peak) * 255);
   return {
-    fill: `rgb(${Math.round(r * k)},${Math.round(g * k)},${Math.round(b * k)})`,
-    level: Math.min(1, Math.pow(peak / LED_FULL, LED_GAMMA)),
+    fill: `rgb(${ch(sr)},${ch(sg)},${ch(sb)})`,
+    level: encode(light / LED_SCALE),
   };
 }
 
@@ -92,7 +129,8 @@ export function drawLeds() {
     if (!nodes) continue;
 
     const r = rgb[i * 3], g = rgb[i * 3 + 1], b = rgb[i * 3 + 2];
-    const key = (r << 16) | (g << 8) | b;
+    // 16 bits per primary now, so the old 8-bit-per-channel key would collide.
+    const key = `${r},${g},${b}`;
     if (key === lastFill[i]) continue;  // 40+ setAttribute calls a frame otherwise
     lastFill[i] = key;
 

@@ -20,29 +20,25 @@
 // it becomes true - a pulse that keeps going says something is still happening.
 #define UI_HELD_DIP MS(90)
 
-// The assignment marker is not a blink but a mark: mostly off, with a short
-// flash on a long period. That is what lets an element keep showing its own
-// state and still say "you can pick me" - a 50% duty blink cannot, because for
-// half the time the element is showing the wrong thing.
-#define MARK_BLINK_PERIOD 1600000
-#define MARK_BLINK_ON 200000
-
 // How long the encoders keep showing the selected parameter before decaying
 // back to the output level.
 #define UI_EDIT_DISPLAY MS(2000)
 
-// While FRQ is being shown, each ring pulses at its own output rate, so the row
-// says which channels are fast as well as which ratio each one is on.
+// A ring that shows a division pulses at the rate that division produces, so
+// the row says which channels are fast as well as which division each one is
+// on. Two pages do it: FRQ while it is being shown, and the stepped-random
+// pattern length, where the rate is the channel's own multiplied by the number
+// of steps.
 //
-// The pulse dims and never brightens: VAL_MED is the peak, so the FRQ ring
+// The pulse dims and never brightens: VAL_BASE is the peak, so the FRQ ring
 // keeps the same ceiling as every other base layer. It goes most of the way
 // down from there - a shallow breath was not readable on the hardware, and the
 // rate is the whole reason the pulse is there.
 //
 // Not to zero, though: the trough still has to show the hue and the saturation,
 // which are the other two facts the ring is carrying.
-#define FREQ_PULSE_V_MIN 6
-#define FREQ_PULSE_V_MAX VAL_MED
+#define RING_PULSE_V_MIN 6
+#define RING_PULSE_V_MAX VAL_BASE
 
 // The peak also runs slightly warm, which is what a filament does and reads as
 // more contrast than brightness alone gives.
@@ -52,7 +48,7 @@
 // swing approaching that makes a quintuplet at its peak the same colour as a
 // triplet at its trough - and the hue is carrying which division this is.
 // Below half that gap, the classes stay apart at every phase.
-#define FREQ_PULSE_HUE_SWING 4
+#define RING_PULSE_HUE_SWING 4
 
 // Above this the pulse stops following the oscillator and free-runs here
 // instead. Sampling a faster phase than the panel is drawn at aliases it into a
@@ -73,7 +69,7 @@
 // spare and is not the constraint.
 //
 // Divides 1000000 exactly, so the free-running fallback wraps cleanly.
-#define FREQ_PULSE_MAX_HZ 25u
+#define RING_PULSE_MAX_HZ 25u
 
 // Fine adjust on the frequency grid, in detents per gap between two ratios.
 #define FREQ_FINE_STEPS_PER_GAP 8
@@ -123,7 +119,6 @@ typedef struct UiState
   uint32_t param_display_hold;
 
   uint8_t blink_slow;
-  uint8_t blink_mark; // short, on a long period; see MARK_BLINK_ON
 
   UiInput in;
 } UiState;

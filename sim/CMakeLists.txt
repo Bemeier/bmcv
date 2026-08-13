@@ -30,7 +30,7 @@ add_library(bmcv_sim STATIC
   src/sim_rt.c
   src/slot_store.c
 )
-target_include_directories(bmcv_sim PUBLIC ${BMCV_LIB_INC} ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(bmcv_sim PUBLIC ${BMCV_LIB_INC} ${BMCV_ROOT}/panel ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(bmcv_sim PUBLIC m)
 target_compile_options(bmcv_sim PRIVATE -Wall -Wextra -Wmissing-prototypes)
 

@@ -3,15 +3,20 @@
 
 #include "clock_sync.h"
 #include "hw_setup.h"
+#include "led_curve.h" // IWYU pragma: keep - LED_UNIT is the unit of the fields below
 #include <stdint.h>
 
 // The engine's running state: phases, output levels, trigger edges, the scene
 // blend, the LED framebuffer. None of it is persisted and all of it is
 // reproducible from the config plus the input stream.
 
+// 8.8 fixed point duty per primary - LED_UNIT is one step of what the WS2812
+// takes. The framebuffer holds the colour that was meant and the flush is where
+// it becomes eight bits, so the fractional part survives long enough to be
+// dithered. See led_curve.h.
 typedef struct
 {
-  uint8_t r, g, b;
+  uint16_t r, g, b;
 } LedRgb;
 
 typedef struct

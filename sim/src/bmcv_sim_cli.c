@@ -443,7 +443,7 @@ int main(int argc, char** argv)
 
       if (want_leds)
       {
-        const uint8_t* leds = bmcv_sim_leds_rgb(s);
+        const uint16_t* leds = bmcv_sim_leds_rgb(s);
         for (int i = 0; i < BMCV_SIM_LEDS * 3; i++)
           printf(",%u", leds[i]);
       }

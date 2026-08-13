@@ -20,6 +20,10 @@ const handle = _('create')();
 // are just windows onto the heap, so this costs nothing.
 const f32 = (ptr, len) => new Float32Array(Module.HEAPF32.buffer, ptr, len);
 const u8 = (ptr, len) => new Uint8Array(Module.HEAPU8.buffer, ptr, len);
+// From the byte heap, not a HEAPU16: the emscripten glue only publishes the 8,
+// 32 and f32 views. The byteOffset is the pointer as-is, and every uint16 array
+// the API hands out is aligned by virtue of being one.
+const u16 = (ptr, len) => new Uint16Array(Module.HEAPU8.buffer, ptr, len);
 
 // Mirrors of the counts in bmcv_sim.h. The wasm smoke test asserts the heap
 // views line up, so a mismatch is caught without opening a browser.
@@ -86,7 +90,8 @@ export const sim = {
   /* ---- output ----------------------------------------------------------- */
 
   outputs: () => f32(_('outputs_v')(handle), N_CH),
-  leds: () => u8(_('leds_rgb')(handle), N_LEDS * 3),
+  // 8.8 fixed point duty per primary, not bytes - see led_curve.h.
+  leds: () => u16(_('leds_rgb')(handle), N_LEDS * 3),
   scope: () => f32(_('scope')(handle), N_CH * SCOPE_LEN),
   inputScope: () => f32(_('input_scope')(handle), N_IN * SCOPE_LEN),
   effective: () => f32(_('effective')(handle), N_CH * EFF.COUNT),

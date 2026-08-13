@@ -3,8 +3,19 @@
 
 #include <stdint.h>
 
-#define HUE_RED 252
-#define HUE_ORANGE 30
+/* ---- hues -------------------------------------------------------------- */
+
+// Positions on led_set_hsv's wheel, which is six regions of 43: a hue is at its
+// purest on a multiple of 43 and a blend in between. Off-vertex is often what
+// is wanted - orange and purple only exist between two - but it is worth
+// knowing which of these are vertices (red, yellow) and which are mixtures,
+// because a mixture's minor primary lands on a die of its own efficiency and
+// the result is rarely halfway.
+//
+// The simulator draws all of this faithfully now, so it is the place to judge
+// them rather than a build-flash-squint cycle.
+#define HUE_RED 0
+#define HUE_ORANGE 18
 // 43, not 65. led_set_hsv() splits the wheel into six regions of 43, so a hue
 // is pure at a multiple of 43 and a blend in between: 65 sits two thirds of the
 // way from yellow to green and comes out (0.48, 1.00, 0.00) - chartreuse. It
@@ -24,29 +35,37 @@
 // whole job is destructive should not be the same colour as a neutral setting.
 #define HUE_PINK 225
 
+/* ---- levels ------------------------------------------------------------ */
+
+// Brightness. A value is light, not duty: led_set_hsv scales each hue until it
+// puts out the value it was asked for, so these mean the same thing whatever
+// colour wears them. See LED_PALETTE_REF in led_curve.h.
 #define VAL_OFF 0
-
-// Below the base layer's brightness, for something that should be legible
-// without competing with anything: the unselected parameter buttons.
-#define VAL_DIM 2
-
+#define VAL_DIM 2 // legible without competing: the unselected parameter buttons
 #define VAL_LOW 8
-
 #define VAL_MED 32
-
 #define VAL_HIG 64
+#define VAL_MAX 128 // the top of the scale; the layered renderer stays under it
 
-#define VAL_MAX 128
+// What a base layer is drawn at, and the peg every other level is set against.
+// Named rather than spelled VAL_MED at each call site: half the palette below
+// is defined as "a step above the base" or "the same as the page underneath",
+// and those relationships are the point.
+#define VAL_BASE VAL_MED
 
+// Saturation. Worth knowing what SAT_HIG costs, now that the simulator shows it
+// honestly: it leaves about a tenth of the value on each of the other two
+// primaries, and a tenth is not a tenth once it reaches the eye - a little blue
+// shifts a hue further than a little green does, so a SAT_HIG red reads faintly
+// pink and a SAT_HIG green faintly pale. SAT_MAX is a bare die and has none of
+// that. Which is wanted is taste; the state colours are on SAT_HIG.
 #define SAT_OFF 0
-
 #define SAT_LOW 64
-
 #define SAT_MED 128
-
 #define SAT_HIG 230
-
 #define SAT_MAX 255
+
+/* ---- what a colour means ----------------------------------------------- */
 
 // Setting-state hues. A shift mode's channel and scene LEDs show which value a
 // per-channel or per-input setting is on, and the same concept gets the same
@@ -64,50 +83,65 @@
 #define HUE_STATE_MULT HUE_CYAN // multiplicative
 #define HUE_STATE_RESET HUE_RED // resets something
 
-// Frequency ratios. FRQ is a rational multiple of the beat, and the one thing
-// about a ratio worth coding as colour is its prime limit - whether it is a
-// straight division, a triplet or a quintuplet. Octaves are free, so 1/8 and 16
-// are the same green and 1/3, 3/2 and 24 are the same yellow.
+// Divisions. Anything that divides the beat - the FRQ ratio, and the number of
+// steps a stepped-random pattern loops over - is coded by its prime limit:
+// whether it is a straight division, a triplet or a quintuplet. Octaves are
+// free, so 1/8 and 16 are the same green, 1/3, 3/2 and 24 are the same yellow,
+// and a 12-step pattern is the same yellow as a 3-step one.
+//
+// Three classes is the whole of it, and the pattern lengths are chosen to stay
+// inside them - a 7-step pattern would have needed a fourth colour squeezed
+// between orange and red, and was dropped rather than crowd the scale.
+//
+// One scale for both pages, on purpose. A triplet feels like a triplet whether
+// it is what the channel runs at or how its pattern subdivides, and the point
+// of a coded colour is that it is learned once.
 //
 // Ordered along the wheel so it reads as familiar -> exotic. Red is not in this
-// scale on purpose: the old table used it for every odd division, and red means
-// an error and nothing else.
+// scale: the old table used it for every odd division, and red means an error
+// and nothing else.
+//
+// Three classes and the whole span from green to red to put them in, so they
+// are spread rather than packed at one end. Orange sat at 30 while the scale
+// was crowded, which put it 13 from yellow - close enough that the two were
+// hard to tell apart on a panel, and the pulse's own hue swing ate a third of
+// what was left. At 18 it is 25 from yellow and 18 from red, and reads as its
+// own colour.
 #define HUE_FREQ_STRAIGHT HUE_GREEN    // 2-limit: halves, quarters, octaves
 #define HUE_FREQ_TRIPLET HUE_YELLOW    // 3-limit
 #define HUE_FREQ_QUINTUPLET HUE_ORANGE // 5-limit
 
-// Semantic palette. The renderer names meanings, not colours, so "what a
-// blinking button means" is defined once instead of being re-picked in every
-// mode's switch arm.
+/* ---- the semantic palette ---------------------------------------------- */
+
+// The renderer names meanings, not colours, so "what a blinking button means"
+// is defined once instead of being re-picked in every mode's switch arm.
 //
-// Brightness discipline: LEDs read as far too bright above VAL_MED on this
-// hardware, so base and context layers stay at VAL_LOW and confirmations stop
-// at VAL_MED. VAL_HIG is for the two places where the point is being
-// unmistakably brighter than something else of the same colour: the second
-// stage of a held press, and the selected parameter button against the dim
-// row it sits in. VAL_MAX is not used by the layered renderer.
+// Brightness: a base or context layer is VAL_BASE, and anything whose job is to
+// read as brighter than the page underneath it - a confirmation, the second
+// stage of a held press, the selected parameter button - goes one step above at
+// VAL_HIG. Nothing in the layered renderer goes higher.
 //
-// White is the whole vocabulary of assignment, and nothing else uses it: a
-// short white flash over an element's own colour means "this can be picked",
-// steady white means "the thing you are holding can go here".
+// Colour: purple is selection - the source you are holding, and the flash
+// confirming where it landed - and also what "off" or "default" looks like in a
+// settings list. Pink is destructive. Red is errors, and nothing else.
 //
-// Purple is what a selection looks like - the source you are holding, and the
-// flash confirming where it landed - and what "off" or "default" looks like in
-// a settings list. Pink is destructive. Red is errors, and nothing else.
+// White is the whole vocabulary of assignment and nothing else uses it: white
+// light swelling over an element's own colour means "this can be picked", and
+// the same light over a cleared one means "the thing you are holding can go
+// here". Both come from the field in ui_sparkle.h rather than from a colour
+// here, which is why neither has an entry below.
 typedef struct
 {
   uint8_t h, s, v;
 } UiColor;
 
-#define UI_COL_MARK ((UiColor){0, SAT_OFF, VAL_LOW})                   // brief flash: "you can pick this"
-#define UI_COL_TARGET ((UiColor){0, SAT_OFF, VAL_LOW})                 // steady: "assign to this"
 #define UI_COL_DARK ((UiColor){0, SAT_OFF, VAL_OFF})                   // nothing here
-#define UI_COL_SOURCE ((UiColor){HUE_PURPLE, SAT_MAX, VAL_LOW})        // steady: already picked
-#define UI_COL_MUTED ((UiColor){HUE_PURPLE, SAT_HIG, VAL_LOW})         // steady: output gated to 0V
-#define UI_COL_UNMUTED ((UiColor){HUE_GREEN, SAT_HIG, VAL_LOW})        // steady: output passing, on the mute page
-#define UI_COL_CONFIRM_WRITE ((UiColor){HUE_PURPLE, SAT_MAX, VAL_MED}) // copy / save / assign committed
-#define UI_COL_CONFIRM_CLEAR ((UiColor){HUE_PINK, SAT_MAX, VAL_MED})   // clear committed
-#define UI_COL_CONFIRM_LOAD ((UiColor){HUE_CYAN, SAT_MAX, VAL_MED})    // preset loaded
-#define UI_COL_ERROR ((UiColor){HUE_RED, SAT_MAX, VAL_MED})            // slow blink; red is errors only
+#define UI_COL_SOURCE ((UiColor){HUE_PURPLE, SAT_MAX, VAL_BASE})       // steady: already picked
+#define UI_COL_MUTED ((UiColor){HUE_PURPLE, SAT_HIG, VAL_BASE})        // steady: output gated to 0V
+#define UI_COL_UNMUTED ((UiColor){HUE_GREEN, SAT_HIG, VAL_BASE})       // steady: output passing, on the mute page
+#define UI_COL_CONFIRM_WRITE ((UiColor){HUE_PURPLE, SAT_MAX, VAL_HIG}) // copy / save / assign committed
+#define UI_COL_CONFIRM_CLEAR ((UiColor){HUE_PINK, SAT_MAX, VAL_HIG})   // clear committed
+#define UI_COL_CONFIRM_LOAD ((UiColor){HUE_CYAN, SAT_MAX, VAL_HIG})    // preset loaded
+#define UI_COL_ERROR ((UiColor){HUE_RED, SAT_MAX, VAL_HIG})            // slow blink; red is errors only
 
 #endif /* INC_LIB_COLOR_PRESETS_H_ */

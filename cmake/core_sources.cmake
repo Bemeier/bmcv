@@ -33,6 +33,7 @@ set(BMCV_CORE_SOURCES
     ui_render.c
     ui_scene.c
     ui_select.c
+    ui_sparkle.c
     ux_setup.c
     ux_state.c
     wavetable.c

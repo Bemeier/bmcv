@@ -92,8 +92,13 @@ TEST_CASE(each_action_class_has_its_own_colour)
   CHECK(write.h != clear.h);
   CHECK(load.h != write.h && load.h != clear.h);
   CHECK(clear.h != ui_feedback_color(FB_ERROR).h);
-  // Brightness discipline: confirmations never exceed VAL_MED.
-  CHECK(write.v <= VAL_MED && clear.v <= VAL_MED && load.v <= VAL_MED);
+  // Brightness discipline: a confirmation is a flash *over* a page, so it has
+  // to clear the brightness that page is drawn at - and stop one step above it,
+  // since the step above is the whole vocabulary for "brighter than what is
+  // underneath". Asserted against VAL_BASE rather than against a number, so
+  // moving the base level cannot silently leave confirmations invisible.
+  CHECK(write.v > VAL_BASE && clear.v > VAL_BASE && load.v > VAL_BASE);
+  CHECK(write.v <= VAL_HIG && clear.v <= VAL_HIG && load.v <= VAL_HIG);
 }
 
 // Clearing one scene and clearing every scene are the same act, so they wear

@@ -29,7 +29,8 @@ list(TRANSFORM BMCV_CORE_SOURCES PREPEND ${BMCV_LIB_SRC}/)
 add_library(bmcv_core STATIC
   ${BMCV_CORE_SOURCES}
 )
-target_include_directories(bmcv_core PUBLIC ${BMCV_LIB_INC})
+# panel/ for panel_layout.h - see the note in the top-level CMakeLists.txt.
+target_include_directories(bmcv_core PUBLIC ${BMCV_LIB_INC} ${BMCV_ROOT}/panel)
 target_link_libraries(bmcv_core PUBLIC m)
 # -Wmissing-prototypes catches a non-static function with no declaration, which
 # is how three dead or internal functions here ended up externally visible.

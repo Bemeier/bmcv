@@ -8,6 +8,7 @@
 #include "hw_setup.h"
 #include "input_fold.h"
 #include "instance.h"
+#include "led_fb.h"
 #include "mcp.h"
 #include "midi.h"
 #include "presets.h"
@@ -402,13 +403,25 @@ void bmcv_main(uint32_t now_us)
 }
 
 // Push the rendered framebuffer to the LED driver. The only place LED colour
-// data crosses from the engine into hardware.
+// data crosses from the engine into hardware, and so the only place the 8.8
+// framebuffer becomes eight bits.
+//
+// The remainder each LED is owed lives here rather than in the framebuffer: it
+// is a property of this output path and of its rate, and nothing upstream of
+// the flush should be able to see that the panel cannot draw what it was asked
+// for. ui_render rebuilds at 125Hz and this runs at ~300, so most frames
+// re-quantise an unchanged framebuffer - which is exactly what spreads the
+// error.
 void bmcv_flush_leds(void)
 {
+  static LedDither dither[LED_COUNT];
+  uint8_t rgb[LED_COUNT * 3];
+
+  led_fb_quantize(bmcv.engine_state.leds, dither, rgb, LED_COUNT);
+
   for (int16_t i = 0; i < LED_COUNT; i++)
   {
-    const LedRgb* led = &bmcv.engine_state.leds[i];
-    ws2811_setled_rgb(i, led->r, led->g, led->b);
+    ws2811_setled_rgb(i, rgb[i * 3], rgb[i * 3 + 1], rgb[i * 3 + 2]);
   }
 }
 

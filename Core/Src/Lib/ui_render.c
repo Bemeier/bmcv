@@ -4,13 +4,16 @@
 #include "error.h"
 #include "helpers.h"
 #include "hw_setup.h"
+#include "led_curve.h"
 #include "led_fb.h"
+#include "stepped_random.h"       // sr_length_for_index
 #include "stepped_random_table.h" // SR_LENGTH_COUNT
 #include "ui_channel.h"
 #include "ui_feedback.h"
 #include "ui_input.h"
 #include "ui_mode.h"
 #include "ui_select.h"
+#include "ui_sparkle.h"
 #include "ui_state.h"
 #include "ux_state.h"
 #include <math.h>
@@ -30,22 +33,49 @@ static const uint8_t input_mode_color[INPUT_MODE_COUNT] = {HUE_STATE_DEFAULT, HU
 // The output clamp is two facts - polarity and range - so it uses two axes:
 // purple for bipolar and green for unipolar, dim for the half range. The one
 // place brightness carries meaning in a base layer.
+//
+// The full-range settings sit at VAL_BASE, which is where they always sat -
+// this page is where the base level came from, since it was already a step
+// above the rest and the rest were levelled up to meet it.
 static const UiColor clamp_mode_color[CLAMP_MODE_COUNT] = {
-    [CLAMP_BI_10]  = {HUE_PURPLE, SAT_HIG, VAL_MED},
+    [CLAMP_BI_10]  = {HUE_PURPLE, SAT_HIG, VAL_BASE},
     [CLAMP_BI_5]   = {HUE_PURPLE, SAT_HIG, VAL_LOW},
-    [CLAMP_UNI_10] = {HUE_GREEN, SAT_HIG, VAL_MED},
+    [CLAMP_UNI_10] = {HUE_GREEN, SAT_HIG, VAL_BASE},
     [CLAMP_UNI_5]  = {HUE_GREEN, SAT_HIG, VAL_LOW},
 };
 
-// Pattern length is a ramp of twelve values, not a handful of named modes, so
-// it reads as a position on the colour wheel: one turn across the whole set,
-// starting from the purple that every other setting's first value wears.
-static uint8_t sr_length_hue(int8_t idx) { return (uint8_t) (HUE_PURPLE + iclamp(idx, 0, SR_LENGTH_COUNT - 1) * (256 / SR_LENGTH_COUNT)); }
-
 static void set(UxState* s, int16_t led, UiColor c) { led_set_hsv(s, led, c.h, c.s, c.v); }
 
+// A sparkle level as a framebuffer value. Through the panel's own curve on the
+// way: the level is a perceived brightness, and a swell drawn linearly in duty
+// spends its whole first half looking like nothing and then arrives.
+static uint16_t sparkle_duty(float level, SparkleKind kind)
+{
+  uint16_t peak = kind == SPARKLE_TARGET ? TARGET_SPARKLE_V : MARK_SPARKLE_V;
+  return (uint16_t) (powf(level, LED_GAMMA) * (float) (peak * LED_UNIT));
+}
+
+// How much of the element's own colour to keep at that level. Brightness alone
+// took a lit element all the way to white at the top of every sparkle, which is
+// a lot of contrast to leave running and costs the element the colour that says
+// what it is - so the marker washes toward MARK_SPARKLE_KEEP instead, and the
+// saturation moves with the light rather than being spent in one go.
+static uint8_t sparkle_keep(float level)
+{
+  float keep = 255.0f - level * (255.0f - (float) MARK_SPARKLE_KEEP);
+  return (uint8_t) (keep < 0.0f ? 0.0f : keep);
+}
+
+// One element's share of the marker, laid over whatever it already shows.
+static void sparkle_over(UxState* s, int16_t led, SparkleKind kind)
+{
+  float level = ui_sparkle_level(s->hw_state->time, led, kind);
+  if (level > 0.0f)
+    led_wash(s, led, sparkle_duty(level, kind), sparkle_keep(level));
+}
+
 // One setting value, at the one brightness every base layer uses.
-static void set_state(UxState* s, int16_t led, uint8_t hue) { led_set_hsv(s, led, hue, SAT_HIG, VAL_LOW); }
+static void set_state(UxState* s, int16_t led, uint8_t hue) { led_set_hsv(s, led, hue, SAT_HIG, VAL_BASE); }
 
 /* ---- layer 1: context ------------------------------------------------- */
 
@@ -66,18 +96,24 @@ void ui_render_context(UxState* state, int16_t led, TargetKind kind, int8_t id)
     // Something is held and is looking for somewhere to go. Only the places it
     // can go light, and they light white; everything else goes dark, because an
     // element still showing its own state reads as pressable when it is not.
-    if (!ui_sel_is_candidate(state, kind, id))
-      set(state, led, UI_COL_DARK);
-    else
-      set(state, led, state->ui->blink_mark ? UI_COL_DARK : UI_COL_TARGET);
+    //
+    // Cleared first and then lit, rather than laid over: here the white is the
+    // element's whole meaning and there is nothing underneath worth keeping.
+    set(state, led, UI_COL_DARK);
+    if (ui_sel_is_candidate(state, kind, id))
+      sparkle_over(state, led, SPARKLE_TARGET);
     return;
   }
 
   // Nothing held yet: the element keeps showing its own state, and only marks
-  // itself as pickable - a brief white flash over the top rather than a colour
-  // that replaces what is underneath.
-  if (state->ui->blink_mark && ui_sel_is_candidate(state, kind, id))
-    set(state, led, UI_COL_MARK);
+  // itself as pickable - white light laid over the top rather than a colour
+  // that replaces what is underneath. Sampled from a field across the panel
+  // instead of a shared gate, so the marker travels rather than arriving
+  // everywhere at once.
+  if (!ui_sel_is_candidate(state, kind, id))
+    return;
+
+  sparkle_over(state, led, SPARKLE_MARK);
 }
 
 /* ---- layer 3: confirmation -------------------------------------------- */
@@ -96,26 +132,47 @@ void ui_render_feedback(UxState* state, int16_t led, TargetKind kind, int8_t id)
 
 /* ---- layer 2: transient value display ---------------------------------- */
 
-// Where in its own cycle a channel is, for the purpose of pulsing a ring.
+// Where in its cycle something is, for the purpose of pulsing a ring.
 //
-// The oscillator's real phase while that is slow enough to be drawn, so the row
-// shows the actual polyrhythm and each ring is in step with what that channel is
-// putting out. Past FREQ_PULSE_MAX_HZ the panel cannot resolve it: the redraw
-// would undersample the phase and alias it into a slow pulse, drawing the
-// fastest channel as one of the slowest. Those free-run at the ceiling instead,
-// all together, which reads as "off the top of the scale" rather than as a lie.
-static float freq_pulse_phase(const UxState* s, const ChannelSetup* ch)
+// The real phase while the rate is slow enough to be drawn, so the row shows
+// the actual polyrhythm and each ring is in step with what that channel is
+// doing. Past RING_PULSE_MAX_HZ the panel cannot resolve it: the redraw would
+// undersample the phase and alias it into a slow pulse, drawing the fastest
+// channel as one of the slowest. Those free-run at the ceiling instead, all
+// together, which reads as "off the top of the scale" rather than as a lie.
+//
+// The phase is wrapped here rather than trusted, because the stepped-random
+// page hands in a phase multiplied by its step count.
+static float pulse_phase(const UxState* s, float rate_hz, float phase)
 {
-  const ChannelEffective* eff = &s->engine_state->channels_effective[ch->id];
+  if (rate_hz > 0.0f && rate_hz <= (float) RING_PULSE_MAX_HZ)
+    return phase - floorf(phase);
 
-  if (eff->freq_hz > 0.0f && eff->freq_hz <= (float) FREQ_PULSE_MAX_HZ)
-    return eff->phase;
-
-  // Integer modulo first: FREQ_PULSE_MAX_HZ divides 1000000 exactly, so this
+  // Integer modulo first: RING_PULSE_MAX_HZ divides 1000000 exactly, so this
   // wraps on a whole cycle and never steps at the microsecond counter's own
   // wrap.
-  uint32_t period = 1000000u / FREQ_PULSE_MAX_HZ;
+  uint32_t period = 1000000u / RING_PULSE_MAX_HZ;
   return (float) (s->hw_state->time % period) / (float) period;
+}
+
+// A division's colour, pulsed at the rate that division produces.
+//
+// Brightness is the third fact after hue and saturation, and it is the only
+// thing on either ring that says whether a division is fast or slow. Not on a
+// blink timer: the row used to be multiplied by the fast blink, and eight rings
+// flashing in unison say nothing about any of them.
+//
+// The peak also runs slightly warm - down the wheel as it brightens, which is
+// what a filament does and reads as more contrast than brightness alone gives.
+// Subtracted rather than added so the peak is the warm end, and bounded by
+// RING_PULSE_HUE_SWING so no division class can pulse into another one's
+// colour. Every HUE_FREQ_* is well clear of zero, so this cannot wrap.
+static UiColor ring_pulse(const UxState* s, UiColor c, float rate_hz, float phase)
+{
+  float pulse = 0.5f * (1.0f + cosf(2.0f * 3.14159265f * pulse_phase(s, rate_hz, phase)));
+  c.v         = (uint8_t) (RING_PULSE_V_MIN + (RING_PULSE_V_MAX - RING_PULSE_V_MIN) * pulse);
+  c.h         = (uint8_t) (c.h - (uint8_t) (RING_PULSE_HUE_SWING * pulse));
+  return c;
 }
 
 // Only no-mode has anything transient to show: a shift mode's channel LED shows
@@ -136,24 +193,11 @@ static void render_channel_param_edit(UxState* s, const ChannelSetup* ch)
 
   // Frequency is a ratio, not a level, so it reads as a coded colour rather
   // than a bipolar bar: hue for which kind of division, saturation for how far
-  // off the grid it sits.
-  //
-  // Brightness is the third fact - a shallow pulse at the channel's own output
-  // rate, which is the only thing on the ring that says whether a ratio is fast
-  // or slow. Not on a blink timer: the row used to be multiplied by the fast
-  // blink, and eight rings flashing in unison say nothing about any of them.
+  // off the grid it sits, brightness pulsing at the rate it produces.
   if (s->engine_config->selected_param == CH_PARAM_FRQ)
   {
-    UiColor c   = ui_channel_freq_color(value);
-    float pulse = 0.5f * (1.0f + cosf(2.0f * 3.14159265f * freq_pulse_phase(s, ch)));
-    c.v         = (uint8_t) (FREQ_PULSE_V_MIN + (FREQ_PULSE_V_MAX - FREQ_PULSE_V_MIN) * pulse);
-
-    // Down the wheel toward the warm end as it brightens. Subtracted rather
-    // than added so the peak runs warm, and bounded by FREQ_PULSE_HUE_SWING so
-    // no class can pulse into another one's colour. Every FREQ_* hue is well
-    // clear of zero, so this cannot wrap.
-    c.h = (uint8_t) (c.h - (uint8_t) (FREQ_PULSE_HUE_SWING * pulse));
-    set(s, ch->led, c);
+    const ChannelEffective* eff = &s->engine_state->channels_effective[ch->id];
+    set(s, ch->led, ring_pulse(s, ui_channel_freq_color(value), eff->freq_hz, eff->phase));
   }
   else
     led_set_adcr(s, ch->led, value);
@@ -187,7 +231,7 @@ static void render_held_action(UxState* s, int16_t led, int8_t button, uint8_t h
     return;
 
   uint32_t stage_start = UI_T_DEBOUNCE;
-  uint8_t value        = VAL_LOW;
+  uint8_t value        = VAL_BASE;
 
   if (stages > 1 && held >= UI_T_LONG)
   {
@@ -257,13 +301,41 @@ static void render_channel_base(UxState* s, const ChannelSetup* ch, const UiMode
     break;
 
   case CHBASE_SR_LENGTH:
+  {
     // Dark where it would do nothing: pattern length is a stepped-mode setting,
     // and the encoder is inert on the other channels for the same reason.
-    if (shape_mode_is_stepped(cfg->shape_mode))
-      set_state(s, ch->led, sr_length_hue(cfg->sr_length_idx));
-    else
+    if (!shape_mode_is_stepped(cfg->shape_mode))
+    {
       set(s, ch->led, UI_COL_DARK);
+      break;
+    }
+
+    // A pattern length is a division of the beat in the same sense FRQ's ratio
+    // is, so it is read the same way: hue for which kind of division, and a
+    // pulse at the rate it produces.
+    //
+    // It used to be a walk around the colour wheel, one step per index. That
+    // said which of twelve positions the knob was on and nothing about what any
+    // of them did - 12 and 16 sat next to each other in two unrelated colours,
+    // where one subdivides in threes and the other does not. The prime limit is
+    // the fact worth colouring, and it is the fact the FRQ page already
+    // colours.
+    // SAT_MAX, not the SAT_HIG a base layer usually wears: this is the FRQ
+    // page's scale, and the same division has to be the same colour on both.
+    // SAT_HIG leaves a tenth of the value on the primaries the hue does not
+    // use, which on a warm hue is a blue floor - enough to pull orange and
+    // yellow together until they were hard to tell apart.
+    int length  = sr_length_for_index(cfg->sr_length_idx);
+    UiColor col = {ui_division_hue((uint32_t) length), SAT_MAX, VAL_BASE};
+
+    // The steps run at the channel's own rate times the number of them, which
+    // is what the setting is for: the same LFO subdivided finer. Phase likewise
+    // - the position within a step, not within the cycle - so a long pattern
+    // pulses fast and a short one slowly.
+    const ChannelEffective* eff = &s->engine_state->channels_effective[ch->id];
+    set(s, ch->led, ring_pulse(s, col, eff->freq_hz * (float) length, eff->phase * (float) length));
     break;
+  }
 
   case CHBASE_CLAMP:
     set(s, ch->led, clamp_mode_color[iclamp(cfg->clamp_mode, 0, CLAMP_MODE_COUNT - 1)]);
@@ -319,7 +391,7 @@ static void render_scene_base(UxState* s, const SceneSetup* scene, const UiModeD
     // release will store rather than load.
     int8_t held = btn_down(&s->ui->in, scene->button);
     int8_t save = btn_holding(&s->ui->in, scene->button, UI_T_VLONG);
-    led_set_hsv(s, scene->led, save ? HUE_RED : HUE_GREEN, SAT_MAX, held ? VAL_MED : VAL_LOW);
+    led_set_hsv(s, scene->led, save ? HUE_RED : HUE_GREEN, SAT_MAX, held ? VAL_HIG : VAL_BASE);
     break;
   }
 
@@ -368,7 +440,7 @@ static void render_ctrl_button(UxState* s, const CtrlButtonSetup* btn)
     return;
 
   if (s->ui->shift_state == btn->id)
-    led_set_hsv(s, btn->led, btn->color, SAT_MAX, s->ui->blink_slow ? VAL_MED : 0);
+    led_set_hsv(s, btn->led, btn->color, SAT_MAX, s->ui->blink_slow ? VAL_BASE : 0);
   else if (s->ui->shift_state != SHIFT_STATE_NONE)
     led_set_hsv(s, btn->led, btn->color, SAT_MAX, VAL_OFF); // a mode is running; its button is the only lit one
   else if (s->engine_config->selected_param == btn->id)
@@ -391,7 +463,7 @@ static void render_quantizer(UxState* s)
 
   for (uint16_t st = 0; st < N_SEMITONES; st++)
   {
-    uint8_t val = (s->engine_config->quantize_mask & (1u << st)) ? VAL_LOW : VAL_OFF;
+    uint8_t val = (s->engine_config->quantize_mask & (1u << st)) ? VAL_BASE : VAL_OFF;
     led_set_hsv(s, s->ux_setup->quantizer_semitones[st].led, 0, SAT_OFF, val);
   }
 }

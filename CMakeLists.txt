@@ -60,6 +60,9 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
   Middlewares/ST/STM32_USB_Device_Library/Class/MIDI/Inc
   Core/Inc/Lib
+  # ui_sparkle.c samples the LEDs' real positions on the board, which `just
+  # panel` generates from the same source as the panel artwork.
+  panel
   ${CMAKE_CURRENT_BINARY_DIR}/generated
 )
 

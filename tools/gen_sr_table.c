@@ -56,7 +56,7 @@ static float hash01(uint32_t x) { return (hash_u32(x) & 0x00FFFFFF) * (1.0f / 16
 #define SR_PROB_BINS 8
 #define SR_HOLD_MAX 0.85f
 
-static const int sr_lengths[] = {3, 4, 5, 6, 7, 8, 12, 16, 24, 32, 48, 64};
+static const int sr_lengths[] = {3, 4, 5, 6, 8, 12, 16, 24, 32, 48, 64};
 #define SR_LENGTH_COUNT ((int) (sizeof(sr_lengths) / sizeof(sr_lengths[0])))
 
 static float fclampf(float x, float lo, float hi) { return x < lo ? lo : (x > hi ? hi : x); }

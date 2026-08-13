@@ -57,16 +57,22 @@ static const struct
   uint8_t p, q;
 } freq_ratios[N_FREQ_MULTIPLIERS] = {FREQ_RATIOS(FREQ_EMIT_RATIO)};
 
-// A ratio's prime limit: the largest odd prime left in p*q once the octaves are
+// A division's prime limit: the largest odd prime left once the octaves are
 // divided out. It is the whole of what makes one division feel different from
 // another - 3/2 is a dotted eighth and aligns on a 3-beat period exactly as 3,
 // 6 and 1/3 do - so it is the only thing the hue codes.
 //
 // Green -> yellow -> orange is monotone on the hue wheel and reads as familiar
-// -> exotic. Red is deliberately not here: it means an error and nothing else.
-static uint8_t ratio_hue(uint16_t p, uint16_t q)
+// -> exotic. Red is deliberately not on it: it means an error and nothing else.
+//
+// Three classes, and the FRQ grid and the pattern lengths are both built to
+// stay inside them - neither offers a division with a 7 in it, so nothing here
+// falls through to straight that should not.
+uint8_t ui_division_hue(uint32_t n)
 {
-  uint32_t n = (uint32_t) p * q; // p and q are coprime, so this keeps both odd parts
+  if (n == 0u)
+    return HUE_FREQ_STRAIGHT; // no division at all; every limit below divides it
+
   while ((n & 1u) == 0u)
   {
     n >>= 1;
@@ -77,6 +83,10 @@ static uint8_t ratio_hue(uint16_t p, uint16_t q)
     return HUE_FREQ_TRIPLET;
   return HUE_FREQ_STRAIGHT;
 }
+
+// The two sides of a ratio multiplied: p and q are coprime, so this keeps both
+// odd parts and the limit of the pair is the limit of the product.
+static uint8_t ratio_hue(uint16_t p, uint16_t q) { return ui_division_hue((uint32_t) p * q); }
 
 // The grid entry nearest a stored value.
 static size_t freq_nearest(int16_t value)
@@ -111,7 +121,7 @@ static int32_t freq_gap(size_t idx, int16_t value)
 UiColor ui_channel_freq_color(int16_t value)
 {
   size_t idx = freq_nearest(value);
-  UiColor c  = {ratio_hue(freq_ratios[idx].p, freq_ratios[idx].q), SAT_MAX, VAL_MED};
+  UiColor c  = {ratio_hue(freq_ratios[idx].p, freq_ratios[idx].q), SAT_MAX, VAL_BASE};
 
   // Off the grid, the hue still says which ratio you are near and the colour
   // washes out to say you are not on it. Floored at SAT_MED rather than run to
