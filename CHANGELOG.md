@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.10.0 (2026-08-13)
+
+### Feat
+
+- **leds**: rebuild the colour pipeline around light rather than duty
+
 ## v0.9.0 (2026-08-11)
 
 ### Feat
