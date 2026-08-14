@@ -125,7 +125,7 @@ function initMidiLink() {
 
   const paint = m => {
     button.textContent = m.state === 'live' ? 'Disconnect MIDI'
-      : m.state === 'connecting' ? 'Connecting…' : 'Connect over MIDI';
+      : m.state === 'connecting' ? 'Finding…' : 'Connect over MIDI';
     button.disabled = m.state === 'connecting';
 
     const status = el('probe-status');
@@ -133,11 +133,15 @@ function initMidiLink() {
     if (m.state === 'live') {
       status.textContent = 'live';
       status.className = 'value ok';
-      detail.textContent = `over MIDI, ${m.snapshots} snapshots, no probe attached`;
+      detail.textContent = `over MIDI on ${m.description}, ${m.snapshots} snapshots, no probe attached`;
     } else if (m.state === 'error') {
       status.textContent = 'simulated';
       status.className = 'value warn';
       detail.textContent = m.error;
+    } else if (m.state === 'connecting') {
+      status.textContent = 'connecting';
+      status.className = 'value';
+      detail.textContent = m.stage;
     } else if (m.state === 'idle') {
       status.textContent = 'simulated';
       status.className = 'value muted';
