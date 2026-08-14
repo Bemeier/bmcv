@@ -39,6 +39,13 @@
 </p>
 
 <p class="lede">
+  <strong>Diagnose the bus</strong> asks nothing and assumes nothing: it opens
+  every port, reports its state, sends one identity request to each output, and
+  prints every byte that comes back. Use it when a module that is plainly there
+  answers nothing.
+</p>
+
+<p class="lede">
   Nothing is written to the module and nothing is stored. The burst is bounded
   in the firmware, so closing this tab stops it.
 </p>
@@ -46,6 +53,7 @@
 <p>
   <button id="run" type="button" disabled>measure the endpoint</button>
   <button id="run-snapshots" type="button">measure the snapshot rate</button>
+  <button id="run-diagnose" type="button">diagnose the bus</button>
   <span id="status" class="muted">starting up</span>
 </p>
 

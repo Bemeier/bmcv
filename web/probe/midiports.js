@@ -48,6 +48,17 @@ export async function identify(access, onStage) {
     throw new Error('this browser sees no MIDI ports at all - is the module plugged in and powered?');
   }
 
+  // Opened explicitly, and waited for.
+  //
+  // send() and setting onmidimessage both open a port implicitly, but the open
+  // is asynchronous - so a request sent immediately after can go out before the
+  // input is listening, and the reply lands on a port nobody is holding. Worse,
+  // send() on a port still opening throws, which the loop below would read as
+  // "not this one" and move past. Either way a perfectly good module answers
+  // nothing.
+  onStage?.('opening ports');
+  await Promise.all([...inputs, ...outputs].map(p => p.open().catch(() => {})));
+
   // Anything that does look like a BMCV is tried first, so the usual case
   // costs one round trip rather than a walk of the whole bus.
   const likely = p => /bmcv|bemeier/i.test(p.name ?? '');

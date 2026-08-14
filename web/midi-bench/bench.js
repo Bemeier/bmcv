@@ -10,7 +10,7 @@
 // See docs/plans/midi-transport.md, and SYSEX_CMD_BENCH_REQ in
 // Core/Inc/Lib/sysex.h for the firmware end.
 
-import { identify, SYSEX_ID, CMD_STREAM_REQ, CMD_SNAPSHOT } from '../probe/midiports.js';
+import { identify, SYSEX_ID, CMD_IDENTITY_REQ, CMD_STREAM_REQ, CMD_SNAPSHOT } from '../probe/midiports.js';
 
 const CMD_BENCH_REQ = 0x10;
 const CMD_BENCH_DATA = 0x11;
@@ -61,6 +61,77 @@ const kb = n => `${fmt(n / 1024, 1)} kB/s`;
 // By handshake, not by name - see midiports.js. A MIDI port is named by the
 // host driver and this device gives it nothing to work with.
 const findPorts = access => identify(access, stage => setStatus(stage));
+
+/* ---- what is actually on the bus ----------------------------------------- */
+
+// No theory, just bytes.
+//
+// Four attempts to find why a module that is plugged in, named, and running
+// answers nothing have each been a plausible guess, and each has been wrong in
+// a different way. This asks the bus instead: open every port, say what state
+// it is in, send the identity request to each output in turn, and print every
+// byte that arrives on any input.
+//
+// If the module answers, this shows what it said. If it does not, this shows
+// whether the request could even be sent - which is the fork the error message
+// alone cannot resolve.
+async function diagnose(access) {
+  const inputs = [...access.inputs.values()];
+  const outputs = [...access.outputs.values()];
+
+  const hex = d => [...d].map(b => b.toString(16).padStart(2, '0')).join(' ');
+
+  log(`inputs:  ${inputs.length}`);
+  for (const p of inputs) log(`  "${p.name}" [${p.manufacturer || 'no manufacturer'}] state=${p.state} connection=${p.connection}`);
+  log(`outputs: ${outputs.length}`);
+  for (const p of outputs) log(`  "${p.name}" [${p.manufacturer || 'no manufacturer'}] state=${p.state} connection=${p.connection}`);
+
+  log('');
+  log('opening every port...');
+  for (const p of [...inputs, ...outputs]) {
+    try {
+      await p.open();
+      log(`  ${p.type} "${p.name}" -> ${p.connection}`);
+    } catch (e) {
+      log(`  ${p.type} "${p.name}" -> FAILED: ${e.name} ${e.message}`);
+    }
+  }
+
+  let heard = 0;
+  for (const input of inputs) {
+    input.onmidimessage = ev => {
+      heard++;
+      const d = ev.data;
+      const tag = d.length > 24 ? `${hex(d.subarray(0, 12))} ... (${d.length} bytes)` : hex(d);
+      log(`  <- "${input.name}": ${tag}`);
+    };
+  }
+
+  for (const output of outputs) {
+    log('');
+    log(`asking "${output.name}" who it is...`);
+    const before = heard;
+    try {
+      output.send([0xf0, ...SYSEX_ID, CMD_IDENTITY_REQ, 0xf7]);
+      log('  sent F0 7D 42 4D 02 F7');
+    } catch (e) {
+      log(`  send FAILED: ${e.name} ${e.message}`);
+      continue;
+    }
+    await new Promise(r => setTimeout(r, 700));
+    if (heard === before) log('  (nothing came back)');
+  }
+
+  log('');
+  log(`total messages heard: ${heard}`);
+  if (!heard) {
+    log('Nothing at all arrived. Either the module is not running this firmware,');
+    log('or its USB IN endpoint is holding a transfer nobody collected - which a');
+    log('power cycle clears, and which the current firmware recovers from itself.');
+  }
+
+  for (const input of inputs) input.onmidimessage = null;
+}
 
 /* ---- the snapshot rate, with nothing else in the way --------------------- */
 
@@ -256,6 +327,26 @@ async function withModule(fn) {
   log(`firmware ${version}`);
   return fn(input, output);
 }
+
+el('run-diagnose')?.addEventListener('click', async () => {
+  const button = el('run-diagnose');
+  button.disabled = true;
+  ui.verdict.hidden = true;
+  ui.results.hidden = true;
+  ui.log.textContent = '';
+
+  try {
+    setStatus('asking for MIDI access');
+    const access = await navigator.requestMIDIAccess({ sysex: true });
+    setStatus('probing');
+    await diagnose(access);
+    setStatus('done - copy the log');
+  } catch (e) {
+    setStatus(`${e.name}: ${e.message}`);
+  } finally {
+    button.disabled = false;
+  }
+});
 
 el('run-snapshots')?.addEventListener('click', async () => {
   const button = el('run-snapshots');
