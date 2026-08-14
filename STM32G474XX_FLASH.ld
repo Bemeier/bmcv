@@ -76,6 +76,22 @@ SECTIONS
     . = ALIGN(4);
   } >FLASH
 
+  /* Where the module keeps its state, at an address that does not move.
+   *
+   * A debug probe reads the whole running module out of RAM in one transfer,
+   * but `bmcv` is wherever the linker put it and shifts with any change to
+   * .bss before it. A host with the ELF can ask nm; a browser holding a WebUSB
+   * handle to an ST-Link cannot. So this is pinned, just past the vector table,
+   * and the firmware says where to look. See Core/Inc/Lib/bmcv_probe.h.
+   *
+   * KEEP, because nothing in the firmware reads it and --gc-sections would be
+   * quite right to drop it.
+   */
+  .probe_info 0x08000200 :
+  {
+    KEEP(*(.probe_info))
+  } >FLASH
+
   /* The program code and other data goes into FLASH */
   .text :
   {
@@ -225,5 +241,15 @@ SECTIONS
   }
 
 }
+
+/* The address a probe reads is written down in two places - here and in
+ * bmcv_probe.h - and a reader that goes to the wrong one finds nothing and
+ * says the module is not running BMCV. Fail the link instead.
+ *
+ * This also catches the vector table growing past 0x200, which would otherwise
+ * be a silent overlap.
+ */
+ASSERT(ADDR(.probe_info) == 0x08000200, "probe info is not at BMCV_PROBE_INFO_ADDR")
+ASSERT(SIZEOF(.probe_info) == 28, "probe info is not the size bmcv_probe.h declares")
 
 

@@ -15,6 +15,40 @@ static const float US_TO_S = 1e-6f;
 #define MS(x) ((uint32_t) ((x) * 1000u))
 #define S(x) ((uint32_t) ((x) * 1000000u))
 
+// A loop's rate in Hz, smoothed, from the interval between two of its passes.
+//
+// One implementation because there are three of these - the engine tick, the
+// DAC service pass, the LED flush - and they are read side by side. Two copies
+// of it had already appeared, in engine.c and bmcv.c.
+//
+// Smoothed over a fixed span of *time* rather than a fixed number of samples,
+// which is what makes the three comparable. A constant coefficient weights one
+// sample the same wherever it came from, so the same 0.05 that settled the
+// 4kHz engine reading in five milliseconds took a fifth of a second over the
+// LED flush - three numbers on one row, each lagging by a different amount, and
+// no way to tell a slow loop from a slow readout.
+#define RATE_SMOOTH_TAU_US 250000.0f
+
+static inline float rate_smooth_hz(float prev_hz, uint32_t dt_us)
+{
+  if (dt_us == 0)
+  {
+    return prev_hz;
+  }
+
+  const float hz = 1000000.0f / (float) dt_us;
+
+  // Nothing to average against on the first pass, and ramping up from zero
+  // would show a rate the loop never ran at.
+  if (prev_hz <= 0.0f)
+  {
+    return hz;
+  }
+
+  const float alpha = (float) dt_us / (RATE_SMOOTH_TAU_US + (float) dt_us);
+  return prev_hz + (hz - prev_hz) * alpha;
+}
+
 // how close is inter it to right value
 static inline uint8_t interpolate_clamped(uint16_t left, uint16_t right, uint16_t inter)
 {

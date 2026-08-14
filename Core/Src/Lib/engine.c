@@ -51,14 +51,6 @@ static void apply_clock_events(UxState* state, uint32_t now_us)
   }
 }
 
-// Exponential average, so one slow loop does not make the readout jump.
-static float fps_smooth(float prev, uint32_t dt_us)
-{
-  if (dt_us == 0)
-    return prev;
-  return prev * 0.95f + 0.05f * (1000000.0f / (float) dt_us);
-}
-
 void engine_tick(UxState* state, uint32_t now_us, uint8_t input_dirty)
 {
   // Every tick, not just the ticks the UX layer runs on: a hold crossing its
@@ -68,7 +60,7 @@ void engine_tick(UxState* state, uint32_t now_us, uint8_t input_dirty)
   // Measured here rather than by each host, so every host reports the same
   // number computed the same way. dac_fps stays with the firmware, which is
   // the only host with a DAC service loop of its own.
-  state->engine_state->engine_fps = fps_smooth(state->engine_state->engine_fps, state->hw_state->dt);
+  state->engine_state->engine_fps = rate_smooth_hz(state->engine_state->engine_fps, state->hw_state->dt);
 
   // Any interaction dismisses a displayed error. That is UI policy, so it
   // belongs here rather than in the input layer that happens to detect the

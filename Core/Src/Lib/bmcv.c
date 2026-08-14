@@ -1,10 +1,12 @@
 #include "bmcv.h"
+#include "bmcv_probe.h"
 #include "buttons_encoders.h"
 #include "config.h"
 #include "dac_adc.h"
 #include "dac_adc_hal.h"
 #include "engine.h"
 #include "engine_state.h"
+#include "helpers.h"
 #include "hw_setup.h"
 #include "input_fold.h"
 #include "instance.h"
@@ -13,6 +15,7 @@
 #include "midi.h"
 #include "presets.h"
 #include "stm32g474xx.h"
+#include "version.h"
 #include "ws2811.h"
 #include <stdint.h>
 
@@ -32,6 +35,23 @@ static uint8_t led_poll = 0;
 // exactly one; a simulator has one per instance. Declared in bmcv.h, and
 // external only so a debugger can name it.
 BmcvInstance bmcv;
+
+// ...and a note in flash saying where that is, for a debugger that has no ELF
+// to ask - see bmcv_probe.h. The linker script pins the section to
+// BMCV_PROBE_INFO_ADDR and asserts that it landed there.
+//
+// `used` because nothing in the firmware reads it and -ffunction-sections plus
+// --gc-sections would otherwise be entirely right to throw it away.
+#define STRINGIFY_(x) #x
+#define STRINGIFY(x) STRINGIFY_(x)
+
+__attribute__((section(".probe_info"), used)) const BmcvProbeInfo bmcv_probe_info = {
+    .magic         = BMCV_PROBE_MAGIC,
+    .info_version  = BMCV_PROBE_INFO_VERSION,
+    .instance_size = (uint16_t) sizeof(BmcvInstance),
+    .instance_addr = (uint32_t) &bmcv,
+    .version       = STRINGIFY(FW_VERSION_MAJOR) "." STRINGIFY(FW_VERSION_MINOR) "." STRINGIFY(FW_VERSION_PATCH),
+};
 
 // What one tick costs, measured with the Cortex-M4's DWT cycle counter: a
 // free-running 32-bit counter in the debug block that increments once per CPU
@@ -206,14 +226,6 @@ static void midi_publish(void)
   midi_send_msgs(msgs, midi_out_drain(&bmcv.midi_out, msgs, MIDI_MSGS_PER_TRANSFER));
 }
 
-// Exponential average, so a single slow loop does not make the readout jump.
-static float fps_smooth(float prev, uint32_t dt_us)
-{
-  if (dt_us == 0)
-    return prev;
-  return prev * 0.95f + 0.05f * (1000000.0f / (float) dt_us);
-}
-
 // The engine produces one set of levels per ENGINE_TICK_US. The DAC service
 // ships a frame about four times as often, and every one of those extra frames
 // used to re-send the value unchanged - a staircase whose steps are one tick
@@ -278,7 +290,7 @@ void bmcv_main(uint32_t now_us)
     // ones interpolated for this instant rather than for the last tick.
     dac_write_interpolated(now_us);
     dacadc_dma_next();
-    bmcv.engine_state.dac_fps = fps_smooth(bmcv.engine_state.dac_fps, now_us - last_dac_poll);
+    bmcv.engine_state.dac_fps = rate_smooth_hz(bmcv.engine_state.dac_fps, now_us - last_dac_poll);
     last_dac_poll             = now_us;
   }
 
@@ -397,7 +409,7 @@ void bmcv_main(uint32_t now_us)
     led_poll = 0;
     bmcv_flush_leds();
     ws2811_update();
-    bmcv.engine_state.led_fps = fps_smooth(bmcv.engine_state.led_fps, now_us - last_led_flush);
+    bmcv.engine_state.led_fps = rate_smooth_hz(bmcv.engine_state.led_fps, now_us - last_led_flush);
     last_led_flush            = now_us;
   }
 }
