@@ -49,7 +49,13 @@ const STALL_MS = 750;
 // it on every poll.
 const MAILBOX_MS = 40;
 
-const RATE_SMOOTHING = 0.1;
+// Snapshots are counted over a window rather than smoothed from the gap between
+// them, which is what probe.js does. The gap is only the truth when arrivals are
+// evenly spaced, and a pushed stream's are not: a burst of ten with no gap
+// between them reads as a thousand a second, and a smoothed average of that
+// against long silences reported sixty while the panel was visibly updating
+// about once. Counting cannot say that.
+const RATE_WINDOW_MS = 500;
 
 // Which pair of ports on the bus is a BMCV?
 //
@@ -137,6 +143,10 @@ class MidiLink {
     this.lastAt = 0;
     this.contiguous = 0;
 
+    // Arrivals since the window opened, and when it opened.
+    this.windowCount = 0;
+    this.windowAt = 0;
+
     // The simulation as it was before a module took the page over, exactly as
     // probe.js keeps it: watching hardware must not cost you the patch you were
     // working on.
@@ -180,6 +190,8 @@ class MidiLink {
 
       this.lastAt = 0;
       this.contiguous = 0;
+      this.windowCount = 0;
+      this.windowAt = 0;
       this.input.onmidimessage = ev => this.#onMessage(ev);
 
       for (let i = 0; i < CREDITS; i++) this.#request();
@@ -283,11 +295,17 @@ class MidiLink {
     this.contiguous++;
 
     const now = performance.now();
-    if (this.lastAt) {
-      const hz = 1000 / Math.max(1, now - this.lastAt);
-      this.hz += (hz - this.hz) * RATE_SMOOTHING;
-    }
     this.lastAt = now;
+
+    if (!this.windowAt) this.windowAt = now;
+    this.windowCount++;
+
+    const span = now - this.windowAt;
+    if (span >= RATE_WINDOW_MS) {
+      this.hz = (this.windowCount * 1000) / span;
+      this.windowCount = 0;
+      this.windowAt = now;
+    }
 
     if (this.state !== 'live') {
       clearTimeout(this.watchdog);

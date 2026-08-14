@@ -150,6 +150,36 @@ and a module *pushes*, so the two connect and stay alive differently, and
 unifying them before knowing whether this transport stays would be guessing at
 the shape. If it graduates, that is the first thing to do.
 
+### Then it got much worse, and that was a dropped command
+
+Second run: the meter said 60 Hz and the panel updated about once a second.
+
+Both were true. `sysex_feed` returned *the first* command recognised in a
+transfer and ignored the rest - survivable while the only commands were a reboot
+and a version request, both rare and both sent alone. It stopped being
+survivable the moment the page sent a 61-byte remote input mailbox alongside
+small stream requests: a mailbox is 84 packet bytes, so it always spans two
+transfers, and whatever was queued behind it shares the second one. A host stack
+packs what it has. The stream request in that transfer simply vanished.
+
+So credit ran out, the module fell silent, and the page's stall timer re-armed it
+around once a second - which is exactly what was on screen. The meter read 60
+because it smoothed the *gap between arrivals*, and within a burst that gap is
+near zero. Two independent misreadings agreeing on a wrong story.
+
+There was a second half to the same bug: `sysex_payload()` handed back whatever
+was in the parser's buffer *after* the transfer, so a mailbox followed by any
+other message in the same transfer decoded from the wrong bytes.
+
+`sysex_feed` now reports every message as it completes, through a handler, with
+its payload still intact - which fixes both halves and lets the parser go back to
+resetting itself cleanly at F7. `two_messages_in_one_transfer_are_both_reported`
+covers exactly the packing that broke it.
+
+The meter now counts arrivals over a window instead of smoothing the gaps. The
+gap is only the truth when arrivals are evenly spaced, and a pushed stream's are
+not.
+
 ## Still to do
 
 **Try it on hardware.** Flash, open the page, press "Connect over MIDI".

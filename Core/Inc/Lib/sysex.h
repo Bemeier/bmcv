@@ -79,11 +79,22 @@ typedef struct
 
 void sysex_reset(SysexParser* p);
 
+// Called once for each complete message recognised, as it completes, with its
+// payload - everything after the three ID bytes and the command - still intact.
+typedef void (*SysexHandler)(SysexCmd cmd, const uint8_t* payload, uint8_t len, void* user);
+
 // Feed one USB MIDI OUT transfer: `len` bytes of 4-byte USB-MIDI event packets.
-// Returns the first command recognised in this transfer, or SYSEX_CMD_NONE.
-// The whole buffer is parsed either way, so a message split across two
-// transfers still completes on the second.
-SysexCmd sysex_feed(SysexParser* p, const uint8_t* packets, uint8_t len);
+// A message split across two transfers completes on the second.
+//
+// Every message in the transfer is reported, not just the first. That used to
+// be "returns the first command recognised", which was survivable while the
+// only commands were a reboot and a version request - both rare, both sent
+// alone. It stopped being survivable the moment a host sent a 61-byte remote
+// input mailbox (84 packet bytes, so always spanning two transfers) alongside
+// small requests: a host stack is free to pack whatever it has into one
+// transfer, and the second command in it simply vanished. What that looked like
+// was a module going quiet a few times a second for no visible reason.
+void sysex_feed(SysexParser* p, const uint8_t* packets, uint8_t len, SysexHandler on_cmd, void* user);
 
 // Bytes sysex_identity_reply() writes: F0 7D 42 4D 02 <major> <minor> <patch>
 // F7 is nine bytes, which packs into three USB-MIDI event packets.
@@ -120,11 +131,6 @@ uint8_t sysex_identity_reply(uint8_t* out, uint8_t cable, uint8_t major, uint8_t
 // static assert in midi.c, which sees both - this header stays clear of
 // firmware types so its tests keep running without them.
 #define SYSEX_REMOTE_INPUT_BYTES 48
-
-// The payload of the message just recognised: everything after the three ID
-// bytes and the command. Empty for the commands that carry nothing. Valid until
-// the next sysex_feed().
-const uint8_t* sysex_payload(const SysexParser* p, uint8_t* len);
 
 /* ---- seven-bit encoding -------------------------------------------------- */
 //

@@ -33,6 +33,34 @@ static uint8_t pack(uint8_t* out, const uint8_t* msg, uint8_t n, uint8_t cable)
   return o;
 }
 
+// Everything sysex_feed reported for one transfer, in order.
+typedef struct
+{
+  SysexCmd cmds[8];
+  uint8_t payload[8][SYSEX_MAX_LEN];
+  uint8_t lens[8];
+  uint8_t n;
+} Collected;
+
+static void collect(SysexCmd cmd, const uint8_t* payload, uint8_t len, void* user)
+{
+  Collected* c = (Collected*) user;
+  if (c->n >= 8)
+    return;
+  c->cmds[c->n] = cmd;
+  c->lens[c->n] = len;
+  if (len)
+    memcpy(c->payload[c->n], payload, len);
+  c->n++;
+}
+
+static uint8_t feed_packets(SysexParser* p, const uint8_t* packets, uint8_t len, Collected* out)
+{
+  memset(out, 0, sizeof *out);
+  sysex_feed(p, packets, len, collect, out);
+  return out->n;
+}
+
 static SysexCmd feed_message(SysexParser* p, const uint8_t* msg, uint8_t n)
 {
   // Four packet bytes per three of message, and the longest one here is the
@@ -41,7 +69,10 @@ static SysexCmd feed_message(SysexParser* p, const uint8_t* msg, uint8_t n)
   uint8_t packets[128];
   memset(packets, 0, sizeof packets);
   uint8_t len = pack(packets, msg, n, 0);
-  return sysex_feed(p, packets, len);
+
+  Collected got;
+  feed_packets(p, packets, len, &got);
+  return got.n ? got.cmds[0] : SYSEX_CMD_NONE;
 }
 
 static const uint8_t enter_update[] = {0xF0, 0x7D, 0x42, 0x4D, 0x01, 0xF7};
@@ -96,7 +127,8 @@ TEST_CASE(ignores_ordinary_midi_traffic)
       0x0B, 0xB0, 0x07, 0x64, // control change
       0x0E, 0xE0, 0x00, 0x40, // pitch bend
   };
-  CHECK(sysex_feed(&p, traffic, sizeof traffic) == SYSEX_CMD_NONE);
+  Collected got;
+  CHECK(feed_packets(&p, traffic, sizeof traffic, &got) == 0);
 
   // And the channel is still usable afterwards.
   CHECK(feed_message(&p, enter_update, sizeof enter_update) == SYSEX_CMD_ENTER_UPDATE);
@@ -111,11 +143,13 @@ TEST_CASE(zero_padding_is_not_a_message)
   // zeroes. Code index 0 is reserved, so those packets have to be skipped.
   uint8_t packets[64];
   memset(packets, 0, sizeof packets);
-  CHECK(sysex_feed(&p, packets, sizeof packets) == SYSEX_CMD_NONE);
+  Collected got;
+  CHECK(feed_packets(&p, packets, sizeof packets, &got) == 0);
 
   uint8_t len = pack(packets, enter_update, sizeof enter_update, 0);
   (void) len;
-  CHECK(sysex_feed(&p, packets, sizeof packets) == SYSEX_CMD_ENTER_UPDATE);
+  CHECK(feed_packets(&p, packets, sizeof packets, &got) == 1);
+  CHECK(got.cmds[0] == SYSEX_CMD_ENTER_UPDATE);
 }
 
 TEST_CASE(a_message_split_across_transfers_still_completes)
@@ -128,9 +162,11 @@ TEST_CASE(a_message_split_across_transfers_still_completes)
   pack(packets, enter_update, sizeof enter_update, 0);
 
   // First packet alone carries F0 7D 42 - nothing to act on yet.
-  CHECK(sysex_feed(&p, packets, 4) == SYSEX_CMD_NONE);
+  Collected got;
+  CHECK(feed_packets(&p, packets, 4, &got) == 0);
   // Second completes it.
-  CHECK(sysex_feed(&p, packets + 4, 4) == SYSEX_CMD_ENTER_UPDATE);
+  CHECK(feed_packets(&p, packets + 4, 4, &got) == 1);
+  CHECK(got.cmds[0] == SYSEX_CMD_ENTER_UPDATE);
 }
 
 TEST_CASE(a_truncated_message_does_not_wedge_the_parser)
@@ -141,7 +177,8 @@ TEST_CASE(a_truncated_message_does_not_wedge_the_parser)
   // A start with no end, then a fresh message. The two must not be glued into
   // one, and the second must still be recognised.
   uint8_t opener[4] = {0x04, 0xF0, 0x7D, 0x42};
-  CHECK(sysex_feed(&p, opener, sizeof opener) == SYSEX_CMD_NONE);
+  Collected got;
+  CHECK(feed_packets(&p, opener, sizeof opener, &got) == 0);
   CHECK(feed_message(&p, enter_update, sizeof enter_update) == SYSEX_CMD_ENTER_UPDATE);
 }
 
@@ -392,17 +429,100 @@ TEST_CASE(a_remote_input_message_is_recognised_and_carries_its_payload)
   n += (uint8_t) sysex7_encode(msg + n, mailbox, sizeof mailbox);
   msg[n++] = 0xF7;
 
+  uint8_t packets[128];
+  memset(packets, 0, sizeof packets);
+  const uint8_t plen = pack(packets, msg, n, 0);
+
   SysexParser p;
   sysex_reset(&p);
-  CHECK(feed_message(&p, msg, n) == SYSEX_CMD_REMOTE_INPUT);
 
-  uint8_t len;
-  const uint8_t* payload = sysex_payload(&p, &len);
-  CHECK(len == sysex7_encoded_len(SYSEX_REMOTE_INPUT_BYTES));
+  Collected got;
+  CHECK(feed_packets(&p, packets, plen, &got) == 1);
+  CHECK(got.cmds[0] == SYSEX_CMD_REMOTE_INPUT);
+  CHECK(got.lens[0] == sysex7_encoded_len(SYSEX_REMOTE_INPUT_BYTES));
 
   uint8_t back[SYSEX_REMOTE_INPUT_BYTES];
-  CHECK(sysex7_decode(back, payload, len) == sizeof mailbox);
+  CHECK(sysex7_decode(back, got.payload[0], got.lens[0]) == sizeof mailbox);
   CHECK(memcmp(mailbox, back, sizeof mailbox) == 0);
+}
+
+// The bug that made a live module stutter, and the reason sysex_feed reports
+// every message rather than the first.
+//
+// A host stack packs whatever it has into a transfer. A mailbox is 84 packet
+// bytes, so it always spans two - and the tail of it shares the second with
+// whatever small request was queued behind it. Reporting only the first meant
+// the stream request in that transfer was silently dropped, the module ran out
+// of credit, and what came out the other end was a module that went quiet a few
+// times a second.
+TEST_CASE(two_messages_in_one_transfer_are_both_reported)
+{
+  uint8_t mailbox[SYSEX_REMOTE_INPUT_BYTES] = {0};
+
+  uint8_t msg[192];
+  uint8_t n = 0;
+  msg[n++]  = 0xF0;
+  msg[n++]  = SYSEX_ID_NONCOMMERCIAL;
+  msg[n++]  = SYSEX_ID_B;
+  msg[n++]  = SYSEX_ID_M;
+  msg[n++]  = SYSEX_CMD_REMOTE_INPUT;
+  n += (uint8_t) sysex7_encode(msg + n, mailbox, sizeof mailbox);
+  msg[n++] = 0xF7;
+
+  // A stream request immediately behind it, in the same run of bytes.
+  msg[n++] = 0xF0;
+  msg[n++] = SYSEX_ID_NONCOMMERCIAL;
+  msg[n++] = SYSEX_ID_B;
+  msg[n++] = SYSEX_ID_M;
+  msg[n++] = SYSEX_CMD_STREAM_REQ;
+  msg[n++] = 0xF7;
+
+  uint8_t packets[256];
+  memset(packets, 0, sizeof packets);
+  const uint8_t plen = pack(packets, msg, n, 0);
+
+  SysexParser p;
+  sysex_reset(&p);
+
+  Collected got;
+  CHECK(feed_packets(&p, packets, plen, &got) == 2);
+  CHECK(got.cmds[0] == SYSEX_CMD_REMOTE_INPUT);
+  CHECK(got.cmds[1] == SYSEX_CMD_STREAM_REQ);
+
+  // And the mailbox is the mailbox, not whatever the message after it left in
+  // the buffer - the second half of the same bug.
+  CHECK(got.lens[0] == sysex7_encoded_len(SYSEX_REMOTE_INPUT_BYTES));
+  CHECK(got.lens[1] == 0);
+}
+
+// Many small ones too, since that is what a host does with a backlog.
+TEST_CASE(a_run_of_requests_is_reported_in_full)
+{
+  uint8_t msg[64];
+  uint8_t n = 0;
+  for (uint8_t r = 0; r < 4; r++)
+  {
+    msg[n++] = 0xF0;
+    msg[n++] = SYSEX_ID_NONCOMMERCIAL;
+    msg[n++] = SYSEX_ID_B;
+    msg[n++] = SYSEX_ID_M;
+    msg[n++] = SYSEX_CMD_STREAM_REQ;
+    msg[n++] = 0xF7;
+  }
+
+  uint8_t packets[128];
+  memset(packets, 0, sizeof packets);
+  const uint8_t plen = pack(packets, msg, n, 0);
+
+  SysexParser p;
+  sysex_reset(&p);
+
+  Collected got;
+  CHECK(feed_packets(&p, packets, plen, &got) == 4);
+  for (uint8_t i = 0; i < 4; i++)
+  {
+    CHECK(got.cmds[i] == SYSEX_CMD_STREAM_REQ);
+  }
 }
 
 // A payload of the wrong size is somebody else's message that happens to
@@ -514,7 +634,9 @@ TEST_CASE(a_bench_request_is_recognised)
   const uint8_t req[] = {
       0x04, 0xF0, SYSEX_ID_NONCOMMERCIAL, SYSEX_ID_B, 0x07, SYSEX_ID_M, SYSEX_CMD_BENCH_REQ, 0xF7,
   };
-  CHECK(sysex_feed(&p, req, sizeof(req)) == SYSEX_CMD_BENCH_REQ);
+  Collected got;
+  CHECK(feed_packets(&p, req, sizeof(req), &got) == 1);
+  CHECK(got.cmds[0] == SYSEX_CMD_BENCH_REQ);
 }
 
 // The burst is bounded so a browser tab that goes away cannot leave the module
@@ -544,6 +666,8 @@ int main(void)
   RUN_TEST(an_instance_sized_payload_is_57_transfers);
   RUN_TEST(a_stream_honours_the_cable_number);
   RUN_TEST(a_remote_input_message_is_recognised_and_carries_its_payload);
+  RUN_TEST(two_messages_in_one_transfer_are_both_reported);
+  RUN_TEST(a_run_of_requests_is_reported_in_full);
   RUN_TEST(a_remote_input_message_of_the_wrong_size_is_refused);
   RUN_TEST(a_bare_command_with_a_payload_is_refused);
   RUN_TEST(a_bench_message_is_exactly_one_transfer);

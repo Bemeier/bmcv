@@ -46,9 +46,14 @@ static uint32_t stream_sent           = 0;
 // Overrides the __weak stub in the MIDI class, and runs in the USB interrupt.
 // It does the least it can get away with: parse, latch, return. Acting on
 // ENTER_UPDATE here would tear down the USB stack from inside its own ISR.
-void USBD_MIDI_DataInHandler(uint8_t* usb_rx_buffer, uint8_t usb_rx_buffer_length)
+// One recognised message. Called from sysex_feed, which calls it once per
+// message in the transfer - a host is free to pack several into one, and a
+// second command going unnoticed is what made the stream stutter.
+static void on_sysex(SysexCmd cmd, const uint8_t* payload, uint8_t len, void* user)
 {
-  switch (sysex_feed(&sysex_parser, usb_rx_buffer, usb_rx_buffer_length))
+  (void) user;
+
+  switch (cmd)
   {
   case SYSEX_CMD_ENTER_UPDATE:
     sysex_dfu_requested = true;
@@ -64,19 +69,22 @@ void USBD_MIDI_DataInHandler(uint8_t* usb_rx_buffer, uint8_t usb_rx_buffer_lengt
     stream_asked++;
     break;
   case SYSEX_CMD_REMOTE_INPUT:
-  {
-    uint8_t len;
-    const uint8_t* payload = sysex_payload(&sysex_parser, &len);
-
     // The length was checked before the command was recognised, so this cannot
     // decode to anything other than a whole mailbox.
     sysex7_decode((uint8_t*) &remote_staged, payload, len);
     remote_pending = true;
     break;
-  }
   default:
     break;
   }
+}
+
+// Overrides the __weak stub in the MIDI class, and runs in the USB interrupt.
+// It does the least it can get away with: parse, latch, return. Acting on
+// ENTER_UPDATE here would tear down the USB stack from inside its own ISR.
+void USBD_MIDI_DataInHandler(uint8_t* usb_rx_buffer, uint8_t usb_rx_buffer_length)
+{
+  sysex_feed(&sysex_parser, usb_rx_buffer, usb_rx_buffer_length, on_sysex, NULL);
 
   MidiRealtimeEvents rt = midi_realtime_feed(usb_rx_buffer, usb_rx_buffer_length);
   if (rt.clock)

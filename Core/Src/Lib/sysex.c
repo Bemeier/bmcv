@@ -52,13 +52,7 @@ static SysexCmd sysex_classify(const SysexParser* p)
   }
 }
 
-const uint8_t* sysex_payload(const SysexParser* p, uint8_t* len)
-{
-  *len = p->len > 4 ? (uint8_t) (p->len - 4) : 0;
-  return p->buf + 4;
-}
-
-static SysexCmd sysex_byte(SysexParser* p, uint8_t b)
+static SysexCmd sysex_byte(SysexParser* p, uint8_t b, SysexHandler on_cmd, void* user)
 {
   if (b == 0xF0)
   {
@@ -76,19 +70,14 @@ static SysexCmd sysex_byte(SysexParser* p, uint8_t b)
   if (b == 0xF7)
   {
     SysexCmd cmd = sysex_classify(p);
-
-    // The buffer is deliberately left intact rather than reset: a command that
-    // carries a payload is no use without it, and the caller reads it through
-    // sysex_payload() after this returns. The next F0 clears it, and nothing
-    // can append to it meanwhile because in_message gates sysex_push().
-    //
-    // The limitation that follows: if one transfer carried two of our messages,
-    // sysex_feed() returns the first command and this buffer holds the last.
-    // Only one command carries a payload and it is 84 packet bytes, so it
-    // cannot share a 64-byte transfer with anything - but a second
-    // payload-carrying command would have to revisit this.
-    p->in_message = false;
-    p->overflow   = false;
+    if (cmd != SYSEX_CMD_NONE && on_cmd)
+    {
+      // Handed over here, while the buffer still holds this message, rather
+      // than left for the caller to fetch afterwards. A transfer can carry
+      // several messages and the buffer only ever holds the last of them.
+      on_cmd(cmd, p->buf + 4, (uint8_t) (p->len - 4), user);
+    }
+    sysex_reset(p);
     return cmd;
   }
 
@@ -105,10 +94,8 @@ static SysexCmd sysex_byte(SysexParser* p, uint8_t b)
   return SYSEX_CMD_NONE;
 }
 
-SysexCmd sysex_feed(SysexParser* p, const uint8_t* packets, uint8_t len)
+void sysex_feed(SysexParser* p, const uint8_t* packets, uint8_t len, SysexHandler on_cmd, void* user)
 {
-  SysexCmd found = SYSEX_CMD_NONE;
-
   for (uint8_t i = 0; (uint16_t) i + 4u <= (uint16_t) len; i += 4)
   {
     uint8_t n;
@@ -134,13 +121,9 @@ SysexCmd sysex_feed(SysexParser* p, const uint8_t* packets, uint8_t len)
 
     for (uint8_t k = 0; k < n; k++)
     {
-      SysexCmd cmd = sysex_byte(p, packets[i + 1 + k]);
-      if (cmd != SYSEX_CMD_NONE && found == SYSEX_CMD_NONE)
-        found = cmd;
+      sysex_byte(p, packets[i + 1 + k], on_cmd, user);
     }
   }
-
-  return found;
 }
 
 uint8_t sysex_identity_reply(uint8_t* out, uint8_t cable, uint8_t major, uint8_t minor, uint8_t patch)
