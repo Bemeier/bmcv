@@ -406,11 +406,24 @@ void bmcv_main(uint32_t now_us)
   // asking how much of it fits. An empty queue costs a state read and a
   // compare, which is what the LED flush below does with its DMA for the same
   // reason.
-  // midi_bench_active() is the throughput spike holding the endpoint - see
-  // SYSEX_CMD_BENCH_REQ. Control changes are dropped rather than queued for the
-  // couple of seconds it runs: midi_out only emits on change, so what is
-  // skipped here is re-sent as soon as the burst ends.
-  if (midi_idle() && !midi_bench_active())
+  // Not while a snapshot is partway out of the endpoint.
+  //
+  // USB-MIDI allows exactly one thing to interleave a SysEx on a cable: System
+  // Real-Time. A control change landing between two of a snapshot's fifty-seven
+  // transfers is a protocol violation, and what a host does with it is abandon
+  // the message it was assembling. The module then believes it sent a snapshot
+  // that the page never saw, so the page never asks for another and the stream
+  // stops dead. That is what "works for a moment, then goes quiet" was.
+  //
+  // Control changes wait rather than being lost: midi_out only emits on change,
+  // and a queue that overflows marks those entries CC_NEVER so the next slot
+  // says them again. What it costs is output latency while streaming, since a
+  // snapshot occupies the endpoint for about eleven milliseconds at a time and
+  // control changes get the gap between two of them.
+  //
+  // midi_bench_active() is the throughput spike, holding the endpoint for the
+  // same reason - see SYSEX_CMD_BENCH_REQ.
+  if (midi_idle() && !midi_bench_active() && !midi_stream_active())
   {
     midi_publish();
   }

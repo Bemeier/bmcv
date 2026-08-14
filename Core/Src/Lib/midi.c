@@ -206,7 +206,10 @@ void midi_poll_control()
     return;
   }
 
-  if (!sysex_identity_requested || !midi_idle())
+  // Not mid-snapshot, for the reason bmcv.c gives about control changes: a
+  // second SysEx started inside the first is not something a host can make
+  // sense of. The request keeps until the snapshot has finished.
+  if (!sysex_identity_requested || !midi_idle() || snapshot_sending)
     return; // the IN endpoint is busy; the request keeps until the next pass
 
   uint8_t reply[SYSEX_IDENTITY_REPLY_LEN];

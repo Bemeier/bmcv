@@ -180,6 +180,41 @@ The meter now counts arrivals over a window instead of smoothing the gaps. The
 gap is only the truth when arrivals are evenly spaced, and a pushed stream's are
 not.
 
+### And then it stopped after eight snapshots, which was a protocol violation
+
+Third run, and the measurement that found it: **74 snapshots/s over 0.1
+seconds.** About eight arrived, evenly spaced 11.3ms apart, and then nothing at
+all for the remaining eight seconds. The transport was never slow. The stream
+was stopping.
+
+`midi_publish()` was sending the engine's control changes into the middle of a
+snapshot. USB-MIDI allows exactly one thing to interleave a SysEx on a cable:
+System Real-Time. A control change between two of a snapshot's fifty-seven
+transfers is a protocol violation, and what a host does with it is abandon the
+message it was assembling. So the module believed it had sent a snapshot the
+page never saw, the page never asked for another, and credit ran out for good.
+
+On the simulator page the stall timer re-armed it about once a second, which is
+precisely the choppiness that was reported. On the bench page, which has no
+stall timer, it simply stopped - which is what made it obvious.
+
+`midi_stream_active()` had been written for this and then never called. The
+guard now exists in both places that can reach the endpoint: control changes in
+`bmcv.c`, and the identity reply in `midi_poll_control()`.
+
+**What it costs.** Control changes wait for the gap between snapshots rather
+than being lost - `midi_out` only emits on change, and a queue that overflows
+marks those entries `CC_NEVER` so the next slot says them again. A snapshot
+holds the endpoint for about eleven milliseconds, so that is the output latency
+streaming adds. Whether that is acceptable while a module is in a DAW is a real
+question, and one of the reasons streaming is a mode you ask for rather than
+something always on.
+
+**Why the first bench never saw it:** it suppressed `midi_publish()` for the
+duration, deliberately, so the number would be the endpoint's rather than the
+endpoint's minus whatever else was talking. The suppression that made the
+measurement clean is the same one the real path was missing.
+
 ## Still to do
 
 **Try it on hardware.** Flash, open the page, press "Connect over MIDI".
