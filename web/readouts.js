@@ -29,7 +29,8 @@ function ratioText(r) {
 // else is the phase *offset* that was dialled in, so that is the column.
 const EFF_COLS = [
   ['mode', (_c, ch) => SHAPE_NAMES[sim.shapeMode(ch)] ?? '—'],
-  ['freq', c => c[EFF.FREQ_HZ] >= 10 ? c[EFF.FREQ_HZ].toFixed(1) : c[EFF.FREQ_HZ].toFixed(3)],
+  // No absolute frequency column: the ratio is what was dialled in and what the
+  // channel is locked to, and the Hz it works out to is the tempo times that.
   ['ratio', c => ratioText(c[EFF.FREQ_RATIO])],
   ['shape', c => c[EFF.SHAPE].toFixed(2)],
   ['mod', c => c[EFF.MOD].toFixed(2)],

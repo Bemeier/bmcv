@@ -33,11 +33,20 @@ const RT_STOP = 0xFC;
 const el = id => document.getElementById(id);
 
 const ui = {
+  box: el('midi'),
   select: el('midi-port'),
   status: el('midi-status'),
   clock: el('midi-clock'),
   table: el('midi-cc'),
 };
+
+// The CC table is a picture of what is going out of a port. With no port there
+// is nothing going out, so it is a picture of nothing - twelve rows of 64 that
+// look like data. The port and the status stay; everything that only means
+// something once a port is chosen is hidden with this.
+function setSending(on) {
+  ui.box.classList.toggle('sending', on);
+}
 
 let access = null;
 let port = null;
@@ -71,19 +80,28 @@ function refreshPorts() {
   } else if (keep) {
     // The port went away underneath us - stop sending to it.
     port = null;
-    setStatus('port disconnected', 'warn');
+    setStatus('port gone', 'warn');
+    setSending(false);
   }
 }
 
 function selectPort(id) {
   port = id ? access.outputs.get(id) ?? null : null;
-  setStatus(port ? `sending to ${port.name}` : 'off');
+  // Just the verb. The port's name is already in the picker directly above,
+  // and repeating it made the longest string on the page out of the least
+  // interesting fact on it.
+  //
+  // Coloured the way the probe's source line is - muted for idle, green for
+  // carrying something, amber for a problem - so the two status readouts in
+  // this box mean the same thing by the same colour.
+  setStatus(port ? 'sending' : 'off', port ? 'ok' : 'muted');
+  setSending(!!port);
 }
 
 export async function initMidi() {
   if (!navigator.requestMIDIAccess) {
     ui.select.disabled = true;
-    setStatus('no WebMIDI in this browser', 'warn');
+    setStatus('unsupported', 'warn');
     return;
   }
 
@@ -94,7 +112,7 @@ export async function initMidi() {
     access = await navigator.requestMIDIAccess();
   } catch (err) {
     ui.select.disabled = true;
-    setStatus(`access refused: ${err.message}`, 'bad');
+    setStatus('refused', 'warn');
     return;
   }
 
@@ -102,7 +120,7 @@ export async function initMidi() {
   access.onstatechange = refreshPorts;
   ui.select.addEventListener('change', () => selectPort(ui.select.value));
 
-  setStatus(access.outputs.size ? 'off' : 'no MIDI outputs on this machine', 'warn');
+  setStatus(access.outputs.size ? 'off' : 'no outputs', access.outputs.size ? 'muted' : 'warn');
 }
 
 /* ---- what is going out -------------------------------------------------- */
@@ -143,26 +161,34 @@ export function pumpMidi() {
       // A port that has gone away throws on send. Drop it and let the next
       // statechange repopulate the list.
       port = null;
-      setStatus('send failed, port dropped', 'bad');
+      setStatus('send failed', 'warn');
     }
   }
 }
 
 /* ---- the readout -------------------------------------------------------- */
 
-ui.table.innerHTML =
-  '<tr><th>src</th><th>cc</th><th>val</th><th>level</th></tr>' +
-  ROWS.map(([name, cc], i) =>
-    `<tr data-cc="${i}"><td>${name}</td><td>${cc}</td><td>—</td><td class="bar-cell"></td></tr>`).join('');
-const ccRows = [...ui.table.querySelectorAll('tr[data-cc]')];
+// Twelve narrow meters rather than twelve table rows.
+//
+// A control change is one number between 0 and 127, and what is worth seeing is
+// where twelve of them are relative to each other and which are moving. A row
+// of vertical tracks with a mark riding up and down each shows that at a
+// glance; a table of filled horizontal bars was twelve reading tasks, and the
+// fill was carrying colour and weight that the value did not deserve.
+//
+// The mark is a line, not a bar, for the same reason: it says where the value
+// is without also drawing everything below it.
+ui.table.innerHTML = ROWS.map(([name, cc], i) =>
+  `<div class="meter" data-cc="${i}">
+     <div class="meter-track"><i></i></div>
+     <span class="meter-name">${name.replace(' ', '')}</span>
+     <span class="meter-cc">${cc}</span>
+   </div>`).join('');
 
-const BAR_TRACK = '#2b2f36';
-const BAR_FILL = '#5b8ff9';
-
-// Pinned to 0 or 127: the channel's clamp is cutting the swing off. Worth
-// marking rather than hiding - clipping against the clamp is a thing you might
-// be doing on purpose.
-const BAR_RAILED = '#f2b134';
+const meters = [...ui.table.querySelectorAll('.meter')].map(m => ({
+  mark: m.querySelector('i'),
+  root: m,
+}));
 
 const setText = (node, value) => { if (node.textContent !== value) node.textContent = value; };
 
@@ -179,14 +205,18 @@ const CLOCK_TEXT = {
 export function drawMidi() {
   setText(ui.clock, CLOCK_TEXT[clockRunning]);
 
-  for (let i = 0; i < ccRows.length; i++) {
-    const cells = ccRows[i].children;
+  for (let i = 0; i < meters.length; i++) {
+    const { mark, root } = meters[i];
     const v = sent[i];
-    setText(cells[2], v === null ? '—' : String(v));
 
-    const pct = ((v ?? 0) / 127) * 100;
-    const fill = v === 0 || v === 127 ? BAR_RAILED : BAR_FILL;
-    cells[3].style.background =
-      `linear-gradient(to right, ${fill} ${pct}%, ${BAR_TRACK} ${pct}%)`;
+    // 0 at the bottom, 127 at the top, which is the way the value reads on a
+    // fader and the way the input scopes below it are drawn.
+    mark.style.bottom = `${((v ?? 64) / 127) * 100}%`;
+
+    // Pinned to either end: the channel's clamp is cutting the swing off.
+    // Worth marking rather than hiding - clipping against a clamp is a thing
+    // you might be doing on purpose.
+    root.classList.toggle('railed', v === 0 || v === 127);
+    root.classList.toggle('silent', v === null);
   }
 }

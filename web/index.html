@@ -8,10 +8,6 @@
 </head>
 <body>
 
-<header>
-  <h1>BMCV <span class="sub">simulator</span></h1>
-</header>
-
 <main>
   <section id="panel-pane">
     <div id="panel-wrap"><svg id="panel" xmlns="http://www.w3.org/2000/svg"></svg></div>
@@ -25,70 +21,74 @@
 
   <section id="side">
     <div id="side-grid">
-    <div class="readouts">
-      <div class="readout"><span class="label">mode</span><span id="r-shift" class="value">—</span></div>
-      <div class="readout"><span class="label">param</span><span id="r-param" class="value">—</span></div>
-      <div class="readout"><span class="label">scene</span><span id="r-scene" class="value">—</span></div>
-      <div class="readout"><span class="label">bpm in</span><span id="r-bpm-in" class="value">—</span></div>
-      <div class="readout"><span class="label">bpm run</span><span id="r-bpm" class="value">—</span></div>
-    </div>
-
     <div class="panel-box">
-      <h2>Outputs</h2>
-      <canvas id="scope" width="1000" height="440"></canvas>
-      <p class="note">Laid out like the panel: each cell spans &plusmn;10&nbsp;V, with grid lines at &plusmn;5&nbsp;V and 0&nbsp;V.</p>
-    </div>
-
-    <div class="panel-box">
-      <h2>Inputs</h2>
-      <div class="scope-stack">
-        <canvas id="inscope"></canvas>
-        <div id="in-overlay"></div>
+      <div class="scopes">
+        <div class="scope-col">
+          <canvas id="scope" width="1000" height="440"></canvas>
+          <div class="bracket"><i></i><span>outputs</span><i></i></div>
+        </div>
+        <div class="scope-col">
+          <div class="scope-stack">
+            <canvas id="inscope"></canvas>
+            <div id="in-overlay"></div>
+          </div>
+          <div class="bracket"><i></i><span>inputs</span><i></i></div>
+        </div>
       </div>
-      <p class="note">Laid out like the jacks, top-left is IN0; each trace is what the engine latched, over &plusmn;10&nbsp;V.</p>
     </div>
 
     <div class="panel-box">
-      <h2>Channels <span class="muted">(effective, after the scene crossfade)</span></h2>
       <table id="params"></table>
-    </div>
-
-    <div class="panel-box">
-      <h2>MIDI out</h2>
-      <div class="readout">
-        <span class="label">port</span>
-        <select id="midi-port"><option value="">off</option></select>
+      <div class="readouts rates">
+        <div class="readout"><span class="label">mode</span><span id="r-shift" class="value">—</span></div>
+        <div class="readout"><span class="label">param</span><span id="r-param" class="value">—</span></div>
+        <div class="readout"><span class="label">scene</span><span id="r-scene" class="value">—</span></div>
+        <div class="readout"><span class="label">bpm in</span><span id="r-bpm-in" class="value">—</span></div>
+        <div class="readout"><span class="label">bpm run</span><span id="r-bpm" class="value">—</span></div>
       </div>
-      <div class="readout"><span class="label">status</span><span id="midi-status" class="value">—</span></div>
-      <div class="readout"><span class="label">clock</span><span id="midi-clock" class="value">—</span></div>
-      <table id="midi-cc"></table>
-      <p class="note">
-        What the module is actually saying on MIDI channel&nbsp;1, at the 7-bit
-        resolution a CC has. The full &plusmn;10&nbsp;V maps onto 0&ndash;127, so
-        0&nbsp;V is 64 and a channel clamped to a narrower range uses the part of
-        the bar it can reach &mdash; a value sitting at either rail is clipping,
-        marked as such. Values are sent only when they change.
-      </p>
-      <p class="note">
-        Clock is forwarded at 24&nbsp;PPQN, but only while an input jack is the
-        clock source: when MIDI is the clock, the far end is already the master.
-        Sending needs a MIDI port to send <em>to</em> &mdash; the IAC driver on
-        macOS, loopMIDI on Windows, ALSA virmidi on Linux &mdash; but the table
-        works without one.
-      </p>
     </div>
 
-    <div class="panel-box">
-      <button id="reset">Reset module</button>
-      <button id="reset-fram">Reset FRAM</button>
-      <span id="status" class="muted"></span>
-      <p class="note">
-        <b>Reset module</b> reboots it, keeping the stored presets.
-        <b>Reset FRAM</b> wipes those and the browser copy. The module autosaves
-        its config to its last preset slot every couple of seconds and the
-        simulator mirrors that into browser storage, so a patch survives a
-        reload.
-      </p>
+    <div class="panel-box" id="system">
+      <div class="readouts">
+        <div class="readout">
+          <span class="label">source</span><span id="probe-status" class="value muted">simulated</span>
+        </div>
+      </div>
+      <p id="probe-detail" class="note"></p>
+
+      <div class="buttons">
+        <button id="probe-connect">Connect a module</button>
+        <button id="reset">Reset module</button>
+        <button id="reset-fram">Reset FRAM</button>
+        <span id="status" class="muted"></span>
+      </div>
+
+
+      <!-- Everything below is one half or the other. A page showing hardware has
+           nothing to say about a MIDI port it is not driving, and a page running
+           the simulation has nothing to report about a probe. -->
+
+      <div class="when-live">
+        <div class="readouts rates">
+          <div class="readout"><span class="label">probe</span><span id="r-probe-hz" class="value">—</span></div>
+          <div class="readout"><span class="label">engine</span><span id="r-engine-fps" class="value">—</span></div>
+          <div class="readout"><span class="label">dac</span><span id="r-dac-fps" class="value">—</span></div>
+          <div class="readout"><span class="label">leds</span><span id="r-led-fps" class="value">—</span></div>
+        </div>
+      </div>
+
+      <div class="when-sim" id="midi">
+        <div class="readouts">
+          <div class="readout">
+            <span class="label">MIDI out port</span>
+            <select id="midi-port"><option value="">off</option></select>
+          </div>
+          <div class="readout"><span class="label">status</span><span id="midi-status" class="value">—</span></div>
+          <div class="readout when-midi"><span class="label">clock</span><span id="midi-clock" class="value">—</span></div>
+        </div>
+        <div id="midi-cc" class="when-midi"></div>
+        <p class="note when-midi">Everything on MIDI channel&nbsp;1.</p>
+      </div>
     </div>
     </div>
   </section>

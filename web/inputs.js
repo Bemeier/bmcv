@@ -23,9 +23,9 @@ for (const i of IN_ORDER) {
   const cell = document.createElement('div');
   cell.className = 'in-cell';
   cell.innerHTML = `
-    <div class="vslider" title="IN${i} level"><div class="track"></div><div class="fill"></div><div class="zero"></div><div class="knob"></div></div>
-    <div class="spacer"></div>
-    <div class="in-ctl"><button type="button" title="send one ${GATE_V}V gate pulse">pulse</button></div>`;
+    <div class="vslider" title="IN${i} level"><div class="fill"></div><div class="zero"></div><div class="knob"></div></div>
+    <div class="in-ctl"><button type="button" title="send one ${GATE_V}V gate pulse">pulse</button></div>
+    <div class="spacer"></div>`;
   overlay.appendChild(cell);
 
   const fader = cell.querySelector('.vslider');
