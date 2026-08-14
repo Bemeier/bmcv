@@ -13,7 +13,14 @@ export const CMD_SNAPSHOT = 0x22;
 // How long one output gets to produce an answer before moving on. Two USB
 // frames would do; this is loose enough for a busy machine and still leaves a
 // bus with a dozen ports identified inside a second.
-const IDENTIFY_MS = 150;
+const IDENTIFY_MS = 250;
+
+// The whole bus is walked twice before giving up. A module that is mid-snapshot
+// when the request lands defers its reply until that snapshot is out - about
+// eleven milliseconds - and a busy machine can stretch that. One extra round
+// costs a fraction of a second and turns an intermittent failure to find a
+// working module into a non-event.
+const IDENTIFY_ROUNDS = 2;
 
 // Which pair of ports on the bus is a BMCV?
 //
@@ -46,40 +53,44 @@ export async function identify(access, onStage) {
   const likely = p => /bmcv|bemeier/i.test(p.name ?? '');
   outputs.sort((a, b) => (likely(b) ? 1 : 0) - (likely(a) ? 1 : 0));
 
-  for (const output of outputs) {
-    onStage?.(`asking ${output.name}`);
+  for (let round = 0; round < IDENTIFY_ROUNDS; round++) {
+    for (const output of outputs) {
+      onStage?.(round ? `asking ${output.name} again` : `asking ${output.name}`);
 
-    const answer = await new Promise(resolve => {
-      const timer = setTimeout(() => resolve(null), IDENTIFY_MS);
+      const answer = await new Promise(resolve => {
+        const timer = setTimeout(() => resolve(null), IDENTIFY_MS);
 
-      for (const input of inputs) {
-        input.onmidimessage = ev => {
-          const d = ev.data;
-          if (d.length < 9 || d[0] !== 0xf0) return;
-          if (d[1] !== SYSEX_ID[0] || d[2] !== SYSEX_ID[1] || d[3] !== SYSEX_ID[2]) return;
-          if (d[4] !== CMD_IDENTITY_REQ) return;
+        for (const input of inputs) {
+          input.onmidimessage = ev => {
+            const d = ev.data;
+            if (d.length < 9 || d[0] !== 0xf0) return;
+            if (d[1] !== SYSEX_ID[0] || d[2] !== SYSEX_ID[1] || d[3] !== SYSEX_ID[2]) return;
+            if (d[4] !== CMD_IDENTITY_REQ) return;
 
+            clearTimeout(timer);
+            resolve({ input, version: `${d[5]}.${d[6]}.${d[7]}` });
+          };
+        }
+
+        try {
+          output.send([0xf0, ...SYSEX_ID, CMD_IDENTITY_REQ, 0xf7]);
+        } catch {
           clearTimeout(timer);
-          resolve({ input, version: `${d[5]}.${d[6]}.${d[7]}` });
-        };
-      }
+          resolve(null); // a port that will not take a message is not the one
+        }
+      });
 
-      try {
-        output.send([0xf0, ...SYSEX_ID, CMD_IDENTITY_REQ, 0xf7]);
-      } catch {
-        clearTimeout(timer);
-        resolve(null); // a port that will not take a message is not the one
-      }
-    });
-
-    for (const input of inputs) input.onmidimessage = null;
-    if (answer) return { input: answer.input, output, version: answer.version };
+      for (const input of inputs) input.onmidimessage = null;
+      if (answer) return { input: answer.input, output, version: answer.version };
+    }
   }
 
   const names = ps => ps.map(p => p.name || '(unnamed)').join(', ');
   throw new Error(
     `no BMCV answered. Outputs tried: ${names(outputs)}. Inputs listened to: ${names(inputs)}. `
-    + 'If the module is plugged in, it is probably running firmware without the identity command.',
+    + 'A module that is plugged in and named here but silent has usually been left with its '
+    + 'USB endpoint holding a transfer nobody collected - power-cycle it. Otherwise it is '
+    + 'running firmware without the identity command.',
   );
 }
 

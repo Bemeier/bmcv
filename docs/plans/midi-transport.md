@@ -215,6 +215,38 @@ duration, deliberately, so the number would be the endpoint's rather than the
 endpoint's minus whatever else was talking. The suppression that made the
 measurement clean is the same one the real path was missing.
 
+### Then it could not be found at all, which was two more of the same mistake
+
+Fourth run: `no BMCV answered. Outputs tried: BMCV, loopMIDI Port.` The port is
+named BMCV - so the naming theory that motivated the handshake was wrong all
+along, though the handshake is still the right mechanism and it is what made the
+failure legible.
+
+Two causes, both introduced by the fix above.
+
+**Identity was starvable.** Guarding the reply on `!snapshot_sending` was
+correct - a second SysEx started inside the first is not something a host can
+parse - but a snapshot holds the endpoint for eleven milliseconds and cannot be
+interrupted once begun, so a request arriving mid-snapshot waits for a gap that
+a topped-up stream never leaves. A module streaming perfectly well became
+undiscoverable. `midi_stream_poll` now declines to *start* a snapshot while a
+control reply is pending; interrupting one is still forbidden, starting one is
+now polite.
+
+**The endpoint could wedge permanently.** A host that stops reading leaves a
+transfer outstanding for ever, and a tab closing mid-snapshot does exactly that.
+The state stays BUSY, nothing can be sent again - identity included - and the
+module is silent until power-cycled. Nothing on its side notices, so it needs a
+watchdog rather than an error path: `midi_tx_recover()` flushes the endpoint and
+drops the half-sent snapshot after 50ms of a transfer going nowhere.
+
+This is the same failure `probe-bridge.md` records from the other end, where a
+refreshed page left the ST-Link mid-reply and the next session hung. Both are a
+host disappearing without saying so; both want recovery without being asked.
+
+Discovery also walks the bus twice now, since a deferred reply plus a busy
+machine can outlast a single 250ms window.
+
 ## Still to do
 
 **Try it on hardware.** Flash, open the page, press "Connect over MIDI".
