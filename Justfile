@@ -133,9 +133,14 @@ wasm: (_ensure "build-wasm" "configure-wasm")
 	bash -c 'source "{{EMSDK}}/emsdk_env.sh" >/dev/null 2>&1 && cmake --build build-wasm'
 
 # Serve web/ so the browser will load the wasm module (file:// will not).
+#
+# scripts/serve.py rather than `python3 -m http.server`, for one header:
+# no-store. Without it a browser is free to reuse a cached ES module without
+# asking, so an edit to a .js file can simply not appear - which reads as the
+# change not working rather than as the change not being loaded.
 web PORT="8000": wasm
 	@echo "http://localhost:{{PORT}}/"
-	python3 -m http.server {{PORT}} --directory web
+	python3 scripts/serve.py {{PORT}} web
 
 # Headless check that the wasm module loads and its exports behave, so a broken
 # build is caught without opening a browser.
@@ -367,3 +372,17 @@ sr-table: (_ensure "build-native" "configure-native")
 panel HW_REPO="pcb": (_ensure "build-native" "configure-native")
 	cmake --build build-native --target dump_hw_setup
 	python3 tools/gen_panel_spec.py --hw-repo {{HW_REPO}}
+
+# Regenerate sim/include/layout_target.h: where every field of BmcvInstance sits
+# in the module's RAM, read out of the firmware ELF's own debug info and written
+# as static assertions. sim/src/bmcv_sim.c includes it, so the wasm build - and
+# therefore `just check` - fails if the two compilers stop agreeing about the
+# struct. That agreement is what lets a debug probe's raw snapshot of `bmcv` be
+# decoded by the wasm build; see docs/plans/probe-bridge.md.
+#
+# Needs a current build-rel: run `just build-rel` first, or the assertions
+# describe the firmware you last built rather than the one you are editing.
+# Output is checked in - review the diff.
+layout-check ELF="build-rel/BMCVFirmware.elf":
+	{{ARM_GCC_DIR}}/bin/arm-none-eabi-gdb-py3 -batch -x tools/dump_layout.py {{ELF}} \
+	  | python3 tools/gen_layout_asserts.py > sim/include/layout_target.h

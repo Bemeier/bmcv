@@ -8,10 +8,8 @@
 #include "ui_select.h"
 #include <string.h>
 
-void bmcv_instance_init(BmcvInstance* m, const PresetIo* io, uint32_t now_us)
+void bmcv_instance_wire(BmcvInstance* m, const PresetIo* io)
 {
-  memset(m, 0, sizeof(*m));
-
   m->hw_setup = HwSetup_Get();
   m->ux_setup = UxSetup_InitFromHw(m->hw_setup);
 
@@ -21,6 +19,20 @@ void bmcv_instance_init(BmcvInstance* m, const PresetIo* io, uint32_t now_us)
   m->ux.engine_state  = &m->engine_state;
   m->ux.ui            = &m->ui_state;
   m->ux.presets       = io;
+
+  // input_frames_init sets this too, as part of baselining the input layer.
+  // Here as well because this is the list of every pointer in the instance, and
+  // a list with a hole in it is worse than no list: an imported instance whose
+  // hw_state still pointed into another module's RAM would read plausible
+  // rubbish rather than fail.
+  m->ux.hw_state = &m->input.curr;
+}
+
+void bmcv_instance_init(BmcvInstance* m, const PresetIo* io, uint32_t now_us)
+{
+  memset(m, 0, sizeof(*m));
+
+  bmcv_instance_wire(m, io);
 
   Clock_Init(&m->engine_state.clock);
   midi_out_init(&m->midi_out);

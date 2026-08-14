@@ -38,7 +38,8 @@ const NAMES = [
   'scope_head', 'shift_state', 'selected_param', 'active_scene', 'bpm',
   'have_beat', 'scene_contribution', 'channel_muted', 'error_flags',
   'channel_param', 'storage_size', 'storage_get', 'storage_set',
-  'input_scope', 'effective', 'mode_name', 'mode_count', 'engine_fps', 'dac_fps',
+  'input_scope', 'effective', 'mode_name', 'mode_count', 'engine_fps', 'dac_fps', 'led_fps',
+  'instance_size', 'export', 'import',
 ];
 const missing = NAMES.filter(n => typeof Module[`_bmcv_sim_${n}`] !== 'function');
 check(missing.length === 0, `all ${NAMES.length} exports present${missing.length ? ` (missing: ${missing})` : ''}`);
@@ -171,6 +172,43 @@ check(scope.slice(0, 4096).some(v => v !== 0), 'scope captured channel 0');
   check(jsConst('LED_PALETTE_REF') === jsConst('LED_W_GREEN'), 'web/leds.js mirrors that');
 }
 
+/* ---- the probe reads where the firmware says ----------------------------- */
+
+// web/probe/probe.js goes to a fixed flash address to ask a module where its
+// state lives, and Core/Inc/Lib/bmcv_probe.h is what puts it there. The two
+// numbers have to match exactly and nothing links them: a JS constant one digit
+// out reads a page of ordinary code, finds no magic, and reports a working
+// module as "not a BMCV". Same arrangement as the LED curve above.
+{
+  const header = readFileSync(join(here, '..', 'Core', 'Inc', 'Lib', 'bmcv_probe.h'), 'utf8');
+  const define = name => {
+    const m = header.match(new RegExp(`^#define ${name}\\s+(.+?)u?$`, 'm'));
+    return m ? m[1].trim() : null;
+  };
+
+  const js = readFileSync(join(here, 'probe', 'probe.js'), 'utf8');
+  const jsConst = name => {
+    const m = js.match(new RegExp(`^export const ${name} = (0x[0-9a-f]+|[0-9]+)`, 'm'));
+    return m ? m[1] : null;
+  };
+  // The JS drops the BMCV_ prefix - it is already in a file called probe.js
+  // inside a project called bmcv - so the names are matched rather than equal.
+  const same = name => {
+    const c = define(`BMCV_${name}`), j = jsConst(name);
+    return c !== null && j !== null && Number(c) === Number(j);
+  };
+
+  check(same('PROBE_INFO_ADDR'), `the probe looks where the firmware publishes (${define('BMCV_PROBE_INFO_ADDR')})`);
+  check(same('PROBE_MAGIC'), 'and expects the same magic');
+  check(same('PROBE_INFO_VERSION'), 'and the same descriptor version');
+
+  // The struct is indexed by hand on the JS side, so its size is part of the
+  // agreement rather than an implementation detail.
+  const declared = header.match(/_Static_assert\(sizeof\(BmcvProbeInfo\) == (\d+)/);
+  const inJs = js.match(/const PROBE_INFO_BYTES = (\d+)/);
+  check(declared && inJs && declared[1] === inJs[1], `both read ${inJs ? inJs[1] : '?'} bytes of descriptor`);
+}
+
 /* ---- a hold latches a shift mode ---------------------------------------- */
 
 const qnt = spec.buttons.find(b => b.roles.ctrl_name === 'QNT');
@@ -208,6 +246,32 @@ F.storage_get(sim, buf);
 check(F.storage_set(sim, buf, size) === 1, 'storage round-trips');
 check(F.storage_set(sim, buf, size - 1) === 0, 'a wrong-sized blob is rejected');
 Module._free(buf);
+
+/* ---- snapshots ----------------------------------------------------------- */
+//
+// The path a debug probe takes: a whole BmcvInstance in, every reading out. The
+// C side is covered by tests/test_sim_import.c; what this adds is that the three
+// exports exist and that a blob survives the trip through the heap, which is
+// where a frontend would meet them.
+
+const instSize = F.instance_size();
+check(instSize > 0, `an instance is ${instSize} bytes`);
+
+const snap = Module._malloc(instSize);
+F.export(sim, snap);
+check(F.import(sim2, snap, instSize) === 1, 'a snapshot is adopted');
+check(F.import(sim2, snap, instSize - 1) === 0, 'a short snapshot is refused');
+
+// sim2 was running its own patch a moment ago; after the import it has to be
+// reporting sim's. Comparing the LED framebuffer rather than a scalar: it is
+// rendered from the imported state rather than copied out of it, so it only
+// matches if the pointers inside the instance were re-aimed at the new one.
+const ledsA = u16(F.leds_rgb(sim), 21 * 3);
+const ledsB = u16(F.leds_rgb(sim2), 21 * 3);
+check(ledsA.every((v, i) => v === ledsB[i]), 'an imported module lights up like the one it came from');
+check(F.now_us(sim2) === F.now_us(sim), 'and adopts its clock');
+
+Module._free(snap);
 
 F.destroy(sim);
 F.destroy(sim2);

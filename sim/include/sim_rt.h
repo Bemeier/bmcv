@@ -128,4 +128,25 @@ void sim_input_take_trigs(InputSample* s, SimTrigLatch* t);
 // range, which is the end of the panel scene B anchors to.
 void sim_input_slider(InputSample* s, float pos01);
 
+// Re-baseline a host's sample against a hardware frame it did not produce.
+//
+// For adopting another module's state - see bmcv_sim_import(). An InputSample
+// is the host's, not the instance's, so a snapshot brings a HwState saying the
+// encoders are at one position while the host's sample still says another. The
+// next fold would read the difference as a turn: import a module with its ENC 3
+// forty detents along and the first tick applies forty detents of edit to a
+// patch nobody touched.
+//
+// Encoder positions and button levels are copied straight through by
+// input_fold, so those come back exactly. The slider does not: input_fold sums
+// slider CV into it, so what comes back is the raw position only while no input
+// is in INPUT_SLIDER mode, and is off by that CV when one is. Taking it anyway
+// beats leaving the crossfader somewhere the snapshot never was - the error is
+// one tick's worth of CV and self-corrects, where a stale slider is a scene
+// jump that does not.
+//
+// Gate latches are the caller's: an edge caught before the adoption belongs to
+// the module that was replaced.
+void sim_input_adopt(InputSample* s, const HwState* hw_state);
+
 #endif /* BMCV_SIM_RT_H_ */

@@ -113,12 +113,25 @@ int32_t bmcv_sim_shift_state(const BmcvSim* s);
 const char* bmcv_sim_mode_name(int32_t shift_state);
 int32_t bmcv_sim_mode_count(void);
 
-// Measured loop rates, as the firmware computes them: the engine tick rate and
-// the DAC service rate. In the simulator both are driven by bmcv_sim_run's
-// dt_us, so they report what the host asked for rather than what a board
-// achieves - useful as a check that a frontend's timing maths is right.
+// Measured loop rates, as the module computes them. Only the first is a number
+// every host has.
+//
+// engine_fps is measured inside engine_tick (see engine.c), so it exists
+// wherever the engine runs. In the simulator it is driven by bmcv_sim_run's
+// dt_us and reports what the host asked for rather than what a board achieves -
+// useful as a check that a frontend's timing maths is right.
+//
+// dac_fps and led_fps are **zero in the simulator and always will be**. They
+// measure peripherals rather than loops: the firmware's DAC service pass and
+// the flush to the WS2811, which is gated on that driver's DMA being free.
+// Neither peripheral exists off the board, so neither number can be invented
+// here - which is the point. Read over a debug probe they are the two worth
+// having, and led_fps most of all: it is the ceiling on how fast anything drawn
+// on the panel can actually move, and the only thing that says how many frames
+// a busy transfer is dropping.
 float bmcv_sim_engine_fps(const BmcvSim* s);
 float bmcv_sim_dac_fps(const BmcvSim* s);
+float bmcv_sim_led_fps(const BmcvSim* s);
 int32_t bmcv_sim_selected_param(const BmcvSim* s);
 int32_t bmcv_sim_active_scene(const BmcvSim* s);
 
@@ -136,6 +149,24 @@ int32_t bmcv_sim_error_flags(const BmcvSim* s);
 // One channel parameter (CH_PARAM_FRQ..CH_PARAM_OFS) in the active scene: the
 // number that was dialled in, not the one in use.
 int32_t bmcv_sim_channel_param(const BmcvSim* s, int32_t channel, int32_t param);
+
+// Where the panel is, as the engine last saw it - the folded hardware frame,
+// not the sample a host most recently pushed in.
+//
+// A frontend that draws its own controls from its own bookkeeping is keeping a
+// second copy of the panel's position, and the two part company the moment
+// anything but that frontend moves it: a snapshot from a physical module has
+// its encoders wherever someone left them, and a drawing that tracks only
+// mouse drags would sit at zero and stay there. Reading them back means the
+// drawn panel follows the module, whichever one it is.
+//
+// Encoder position is free-running and wraps, exactly as the hardware's does;
+// what it is good for is the difference between two of them. The slider comes
+// back as 0..1 over its travel, matching bmcv_sim_set_slider01 - though not
+// exactly through it, since an input in slider mode sums CV into what the
+// engine reads.
+int32_t bmcv_sim_encoder_pos(const BmcvSim* s, int32_t encoder);
+float bmcv_sim_slider01(const BmcvSim* s);
 
 // The channel's waveshape mode, and the name of one. Not per scene: shape is a
 // channel property. Names are here rather than in a frontend for the same
@@ -179,6 +210,53 @@ const float* bmcv_sim_effective(const BmcvSim* s);
 // A host that never calls this simply never sends anything: the queue drops its
 // oldest-unsent when full and the values re-state themselves on the next slot.
 int32_t bmcv_sim_midi_drain(BmcvSim* s, void* dst, int32_t max_msgs);
+
+/* ---- snapshots ----------------------------------------------------------- */
+//
+// The whole running module as a flat blob: not the preset store below, which is
+// what survives a power cycle, but everything - phases, LED framebuffer, clock,
+// interaction state, the lot.
+//
+// This exists because a physical module's is reachable. The firmware keeps its
+// one instance in a single global at a fixed address (`bmcv`, see bmcv.h), so a
+// debug probe can read those bytes out of RAM while the module plays and hand
+// them here. Every accessor above then reports the hardware instead of the
+// simulation, using the firmware's own code to interpret its own struct - no
+// duplicate decoder, and nothing for a frontend to know about the layout.
+//
+// The blob is a BmcvInstance exactly as this build lays it out, so it is only
+// interchangeable with a module whose build agrees byte for byte.
+// sim/include/layout_target.h is what holds the two together, and `just
+// layout-check` is what regenerates it; the size below is the cheap first
+// check, and a caller talking to real hardware should confirm the firmware
+// version as well before believing any of it.
+
+int32_t bmcv_sim_instance_size(void);
+
+// Copy this module's state out. `dst` needs bmcv_sim_instance_size() bytes.
+void bmcv_sim_export(const BmcvSim* s, void* dst);
+
+// Adopt a snapshot: the state becomes what the blob says, the pointers inside
+// it are re-pointed at this instance, and every published reading is recomputed
+// from it - so the effect is visible without ticking, which is the point, since
+// a snapshot of a running module must not be advanced by a host.
+//
+// Returns 1 if it was taken, 0 if `len` is not the instance size. A blob that
+// passes the length check but came from a build with a different layout cannot
+// be detected here and will read as plausible nonsense; see above.
+//
+// The simulator's clock follows the snapshot's own timestamp, so
+// bmcv_sim_now_us() reports where the module that produced it had got to rather
+// than how long this process has been running.
+//
+// Running an imported instance is allowed and is how a module gets cloned into
+// the simulator to carry on playing. The panel positions this host last set are
+// re-baselined onto the ones that arrived, so the first tick after an import
+// sees no input - without that, importing a module whose encoder sits forty
+// detents from this host's would apply forty detents of edit. Volts on the
+// input jacks stay the host's, because those are its patch and not the
+// module's.
+int32_t bmcv_sim_import(BmcvSim* s, const void* src, int32_t len);
 
 /* ---- persistence -------------------------------------------------------- */
 //

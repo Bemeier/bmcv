@@ -62,6 +62,7 @@ if(EMSCRIPTEN)
       _bmcv_sim_mode_count
       _bmcv_sim_engine_fps
       _bmcv_sim_dac_fps
+      _bmcv_sim_led_fps
       _bmcv_sim_selected_param
       _bmcv_sim_active_scene
       _bmcv_sim_bpm
@@ -71,9 +72,14 @@ if(EMSCRIPTEN)
       _bmcv_sim_channel_muted
       _bmcv_sim_error_flags
       _bmcv_sim_channel_param
+      _bmcv_sim_encoder_pos
+      _bmcv_sim_slider01
       _bmcv_sim_channel_shape_mode
       _bmcv_sim_shape_mode_name
       _bmcv_sim_midi_drain
+      _bmcv_sim_instance_size
+      _bmcv_sim_export
+      _bmcv_sim_import
       _bmcv_sim_storage_size
       _bmcv_sim_storage_get
       _bmcv_sim_storage_set

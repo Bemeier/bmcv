@@ -91,6 +91,18 @@ target_sources(test_slot_store PRIVATE ${BMCV_ROOT}/sim/src/slot_store.c)
 target_include_directories(test_slot_store PRIVATE ${BMCV_ROOT}/sim/include)
 target_include_directories(test_sim_rt PRIVATE ${BMCV_ROOT}/sim/include)
 
+# The flat C API itself, exercised where a debugger can reach it. Covers the
+# snapshot path a debug probe uses - see docs/plans/probe-bridge.md - which is
+# the one place a BmcvInstance arrives as bytes rather than being built in
+# place, and so the one place its internal pointers can be left dangling.
+bmcv_add_test(test_sim_import)
+target_sources(test_sim_import PRIVATE
+  ${BMCV_ROOT}/sim/src/bmcv_sim.c
+  ${BMCV_ROOT}/sim/src/sim_rt.c
+  ${BMCV_ROOT}/sim/src/slot_store.c
+)
+target_include_directories(test_sim_import PRIVATE ${BMCV_ROOT}/sim/include)
+
 # Checks the generated panel layout against the firmware's index tables.
 # Needs panel/panel_layout.h, which `just panel` produces.
 bmcv_add_test(test_panel_spec)

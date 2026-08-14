@@ -56,6 +56,11 @@ export const SHAPE_NAMES = (() => {
 
 const storageSize = _('storage_size')();
 
+// One BmcvInstance, and a buffer to move one through. Allocated at load and
+// reused, because on a probe-backed page this carries a snapshot every frame.
+const instanceSize = _('instance_size')();
+const snapshotBuf = Module._malloc(instanceSize);
+
 // One drained MIDI message, matching MidiMsg in Core/Inc/Lib/midi_out.h.
 const MIDI_MSG_BYTES = 4;
 
@@ -112,6 +117,17 @@ export const sim = {
   muted: c => _('channel_muted')(handle, c),
   shapeMode: c => _('channel_shape_mode')(handle, c),
 
+  // The module's own measured loop rates. ledFps is hardware-only - it counts
+  // flushes to the WS2811, which the simulator has none of - and reads 0 here.
+  engineFps: () => _('engine_fps')(handle),
+  dacFps: () => _('dac_fps')(handle),
+  ledFps: () => _('led_fps')(handle),
+
+  // Where the panel is, as the engine last read it - so a drawn control follows
+  // whichever module is driving the page rather than only this one's mouse.
+  encoderPos: e => _('encoder_pos')(handle, e),
+  slider01: () => _('slider01')(handle),
+
   /* ---- midi ------------------------------------------------------------- */
 
   // Take what the module has queued for the MIDI bus, as an array of
@@ -132,6 +148,29 @@ export const sim = {
       out.push(raw.slice(at, at + raw[at + 3]));
     }
     return out;
+  },
+
+  /* ---- snapshots -------------------------------------------------------- */
+  //
+  // The whole running module as bytes, which is how a physical one gets onto
+  // this page: its firmware keeps its instance in a single global, so a debug
+  // probe reads those bytes out of RAM and `importInstance` makes every reading
+  // above report the hardware. See docs/plans/probe-bridge.md.
+  //
+  // The scratch buffer is allocated once, not per import: this runs on every
+  // frame that a probe is connected.
+
+  instanceSize,
+
+  importInstance(bytes) {
+    if (bytes.length !== instanceSize) return false;
+    u8(snapshotBuf, instanceSize).set(bytes);
+    return _('import')(handle, snapshotBuf, instanceSize) === 1;
+  },
+
+  exportInstance() {
+    _('export')(handle, snapshotBuf);
+    return u8(snapshotBuf, instanceSize).slice();
   },
 
   /* ---- persistence ------------------------------------------------------ */

@@ -40,6 +40,18 @@ typedef struct
   MidiOut midi_out;
 } BmcvInstance;
 
+// Point every pointer in the instance at the right part of the instance, and at
+// this host's setup tables and preset store. Everything else here is plain data.
+//
+// Split out of bmcv_instance_init because it is also what makes an instance
+// that arrived as bytes usable: a snapshot lifted out of another module's RAM
+// carries that module's addresses, which mean nothing here. See
+// bmcv_sim_import(). `io` may be NULL, as it may be for init.
+//
+// Wiring only - it initialises nothing and overwrites no state, so it is safe
+// to call on a full instance.
+void bmcv_instance_wire(BmcvInstance* m, const PresetIo* io);
+
 // Bring the module up to its power-on state: wire the UxState, initialise the
 // clock and the channels, load the stored config through `io` (or apply the
 // first-boot defaults if there is none), validate it, and baseline the input

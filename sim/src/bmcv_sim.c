@@ -7,6 +7,10 @@
 #include "hw_setup.h"
 #include "input_fold.h"
 #include "instance.h"
+// Asserts that BmcvInstance has the same shape here that it has in the module's
+// RAM, so a raw snapshot read over a debug probe decodes with these accessors.
+// Generated from the firmware ELF; `just layout-check`.
+#include "layout_target.h" // IWYU pragma: keep
 #include "midi_out.h"
 #include "presets.h"
 #include "sim_rt.h"
@@ -225,6 +229,7 @@ int32_t bmcv_sim_mode_count(void) { return SHIFT_STATE_COUNT; }
 
 float bmcv_sim_engine_fps(const BmcvSim* s) { return s->m.engine_state.engine_fps; }
 float bmcv_sim_dac_fps(const BmcvSim* s) { return s->m.engine_state.dac_fps; }
+float bmcv_sim_led_fps(const BmcvSim* s) { return s->m.engine_state.led_fps; }
 int32_t bmcv_sim_selected_param(const BmcvSim* s) { return s->m.engine_config.selected_param; }
 int32_t bmcv_sim_active_scene(const BmcvSim* s) { return s->m.engine_state.active_scene; }
 float bmcv_sim_bpm(const BmcvSim* s) { return s->m.engine_state.clock.bpm; }
@@ -263,6 +268,30 @@ int32_t bmcv_sim_channel_param(const BmcvSim* s, int32_t channel, int32_t param)
 static const char* const shape_mode_names[] = {"LFO", "STEPPED", "PWM"};
 _Static_assert(sizeof shape_mode_names / sizeof shape_mode_names[0] == SHAPE_MODE_COUNT, "one name per shape mode");
 
+int32_t bmcv_sim_encoder_pos(const BmcvSim* s, int32_t encoder)
+{
+  if (!s || encoder < 0 || encoder >= N_ENCODERS)
+    return 0;
+  return s->m.ux.hw_state->encoder_state[encoder];
+}
+
+float bmcv_sim_slider01(const BmcvSim* s)
+{
+  if (!s)
+    return 0.0f;
+
+  const float span = (float) (SLIDER_MAX_VALUE - SLIDER_MIN_VALUE);
+  float pos        = ((float) s->m.ux.hw_state->slider_state - (float) SLIDER_MIN_VALUE) / span;
+
+  // The frame is clamped to the raw range before it gets here, so this only
+  // ever has to defend against a snapshot from a build whose range differs.
+  if (pos < 0.0f)
+    pos = 0.0f;
+  if (pos > 1.0f)
+    pos = 1.0f;
+  return pos;
+}
+
 int32_t bmcv_sim_channel_shape_mode(const BmcvSim* s, int32_t channel)
 {
   if (channel < 0 || channel >= N_CHANNELS)
@@ -295,6 +324,47 @@ int32_t bmcv_sim_midi_drain(BmcvSim* s, void* dst, int32_t max_msgs)
     max_msgs = MIDI_OUT_QUEUE_LEN;
 
   return midi_out_drain(&s->m.midi_out, (MidiMsg*) dst, (uint8_t) max_msgs);
+}
+
+/* ---- snapshots ----------------------------------------------------------- */
+
+int32_t bmcv_sim_instance_size(void) { return (int32_t) sizeof(BmcvInstance); }
+
+void bmcv_sim_export(const BmcvSim* s, void* dst)
+{
+  if (!s || !dst)
+    return;
+  memcpy(dst, &s->m, sizeof(s->m));
+}
+
+int32_t bmcv_sim_import(BmcvSim* s, const void* src, int32_t len)
+{
+  if (!s || !src || len != (int32_t) sizeof(BmcvInstance))
+    return 0;
+
+  memcpy(&s->m, src, sizeof(s->m));
+
+  // The blob's pointers are wherever the module that produced it kept its
+  // instance. Every one of them is re-pointed here; nothing else in it moves.
+  bmcv_instance_wire(&s->m, &s->io);
+
+  // The input layer stamps each frame with the time the module folded it, so
+  // the snapshot carries its own clock and there is no need to guess one. It
+  // also means a host that alternates importing and running does not jump the
+  // engine's timers backwards.
+  s->now_us = s->m.input.curr.time;
+
+  // The sample is this host's, so it survived the copy and now disagrees with
+  // the frame that arrived - which the next fold would read as input. See
+  // sim_input_adopt(). A pending gate goes with the module that was replaced.
+  sim_input_adopt(&s->sample, &s->m.input.curr);
+  sim_trig_reset(&s->trig);
+
+  // Straight away rather than on the next run(): the published readings are the
+  // whole reason to import, and a snapshot is not something a host may advance
+  // a tick to see.
+  capture(s);
+  return 1;
 }
 
 /* ---- persistence -------------------------------------------------------- */

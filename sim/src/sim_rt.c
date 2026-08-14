@@ -117,3 +117,25 @@ void sim_input_slider(InputSample* s, float pos01)
     pos01 = 1.0f;
   s->slider_raw = (uint16_t) (SLIDER_MIN_VALUE + pos01 * (float) (SLIDER_MAX_VALUE - SLIDER_MIN_VALUE) + 0.5f);
 }
+
+void sim_input_adopt(InputSample* s, const HwState* hw_state)
+{
+  if (!s || !hw_state)
+    return;
+
+  s->slider_raw = hw_state->slider_state;
+
+  for (uint8_t b = 0; b < N_BUTTONS; b++)
+  {
+    s->button_down[b] = hw_state->button_state[b];
+  }
+
+  for (uint8_t e = 0; e < N_ENCODERS; e++)
+  {
+    s->encoder_pos[e] = hw_state->encoder_state[e];
+  }
+
+  // Not cv_raw: the CV a host is feeding in is the host's patch, and nothing
+  // downstream reads a stale one as a change the way an encoder position is
+  // read as a turn. The next frame overwrites it regardless.
+}
