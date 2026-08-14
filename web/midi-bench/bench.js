@@ -97,6 +97,39 @@ async function diagnose(access) {
     }
   }
 
+  // Listen before asking anything.
+  //
+  // The module publishes its channel outputs as control changes continuously,
+  // whether or not anybody has spoken to it. So this separates the two failures
+  // that look identical from outside: control changes arriving means the IN
+  // endpoint works and only the reply is broken; total silence means the
+  // endpoint is producing nothing at all, and no amount of SysEx will help.
+  //
+  // The previous run of this tool already said which it was - one message
+  // heard, and that one was loopMIDI's own echo - and it was misread.
+  const passive = new Map(inputs.map(p => [p.name, 0]));
+  const sample = new Map();
+
+  for (const input of inputs) {
+    input.onmidimessage = ev => {
+      passive.set(input.name, passive.get(input.name) + 1);
+      if (!sample.has(input.name)) sample.set(input.name, hex(ev.data.subarray(0, 8)));
+    };
+  }
+
+  log('');
+  log('listening for 3s, saying nothing...');
+  await new Promise(r => setTimeout(r, 3000));
+
+  for (const [name, n] of passive) {
+    log(`  "${name}": ${n} messages${n ? ` (first: ${sample.get(name)})` : ''}`);
+  }
+  if ((passive.get('BMCV') ?? 0) === 0) {
+    log('  BMCV sent nothing unprompted. It publishes its channel outputs as');
+    log('  control changes continuously, so silence here means the IN endpoint');
+    log('  is dead rather than the SysEx reply being lost.');
+  }
+
   let heard = 0;
   for (const input of inputs) {
     input.onmidimessage = ev => {
