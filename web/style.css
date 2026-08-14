@@ -1,43 +1,108 @@
+/* Checked in under web/fonts/ rather than linked to a font host: the page is
+   served straight out of this directory, so it works offline and from a file://
+   copy, and a visitor's browser never announces itself to a third party. Both
+   are variable fonts - one file covers every weight, which is why there is no
+   separate bold. See web/fonts/LICENSE.txt. */
+@font-face {
+  font-family: 'Roboto Condensed';
+  src: url('fonts/roboto-condensed-latin.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Roboto Mono';
+  src: url('fonts/roboto-mono-latin.woff2') format('woff2');
+  font-weight: 100 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   color-scheme: dark;
   --bg: #14161a;
-  --panel: #22252b;
-  --box: #1b1e23;
-  --line: #333840;
+  /* The one surface: the panel's ground and the scope cells. Barely a fill -
+     enough to settle them over whatever the backdrop is doing, not enough to
+     hide it. Neutral, because the traces and the LEDs supply all the colour.
+
+     Read from here by web/const.js as well, so it is a literal rather than a
+     var() of something else: it has to survive getComputedStyle into a canvas
+     fillStyle. */
+  --surface: rgba(0, 0, 0, .15);
+  --line: #5e5e5e;
   --fg: #dfe3ea;
   --muted: #8b929d;
   --accent: #6fc3ff;
+  --warn: #e3b341;
+
+  /* Condensed because a panel is lettered condensed: it takes tracking without
+     the line getting long, which is what makes small uppercase labels work.
+     The fallbacks are named so a first paint before the file lands is close in
+     width rather than reflowing the whole page when it arrives. */
+  --font: 'Roboto Condensed', 'Arial Narrow', ui-sans-serif, Helvetica, Arial, sans-serif;
+  --mono: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* One tracking value for every label, button and heading on the page. Wide
+     letter-spacing on small uppercase text is the whole of this look; getting
+     it slightly different in five places is what makes a page feel assembled
+     rather than designed. */
+  --track: .14em;
+}
+
+/* Small, uppercase, widely tracked, and never quite white: the way a panel is
+   silkscreened. Applied by name so the same rule covers a readout's label, a
+   section heading and a button face. */
+.label,
+button {
+  font-size: .68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--track);
 }
 
 * { box-sizing: border-box; }
 
+/* The colour behind everything, and what shows if the photograph does not
+   load. On html rather than body so that body's own background can stay
+   transparent - see body::before. */
+html { background: var(--bg); }
+
 body {
   margin: 0;
-  padding: 1.5rem;
-  background: var(--bg);
+  padding: 2.25rem 2.5rem;
   color: var(--fg);
-  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  font: 400 14px/1.65 var(--font);
 }
 
-header { margin-bottom: 1.25rem; }
-h1 { margin: 0; font-size: 1.4rem; font-weight: 600; letter-spacing: .02em; }
-h1 .sub { color: var(--muted); font-weight: 400; }
-.tagline { margin: .35rem 0 0; color: var(--muted); max-width: 60ch; }
-
-h2 {
-  margin: 0 0 .6rem;
-  font-size: .8rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: .08em;
-  color: var(--muted);
+/* The backdrop: a photograph, dimmed, on its own fixed layer.
+ *
+ * Two layers over it, read top down:
+ *
+ *   1. a grey wash, heaviest at the top and gone by the bottom, so the readouts
+ *      and the panel sit against something even and the skyline opens up below;
+ *   2. a flat dim over the whole thing, because a photograph at full strength
+ *      competes with eight scope traces and wins.
+ *
+ * A fixed pseudo-element rather than `background-attachment: fixed` on the
+ * body, which is the obvious way to do it and repaints the whole image on every
+ * scroll - on the same main thread the probe's poll loop is already competing
+ * for. This gets its own compositor layer and scrolling costs nothing. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(to bottom, rgba(34, 38, 45, .93) 0%, rgba(34, 38, 45, .38) 55%, rgba(34, 38, 45, 0) 100%),
+    linear-gradient(rgba(16, 18, 22, .58), rgba(16, 18, 22, .58)),
+    url('bg-tokyo.jpg') center / cover no-repeat;
 }
-h2 .muted { text-transform: none; letter-spacing: 0; font-weight: 400; }
 
 main {
   display: grid;
   grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
-  gap: 1.5rem;
+  gap: 2.5rem;
   align-items: start;
   max-width: 2000px;
 }
@@ -49,43 +114,67 @@ main {
 #side-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 1rem;
+  gap: 2.25rem;
   align-items: start;
 }
-#side-grid > .readouts { grid-column: 1 / -1; }
 
 /* Only split once there is room for the scope *and* a 2x2 input grid beside
    it. Below this the side panels stay stacked, full width, where 2x2 fits
    comfortably. */
 @media (min-width: 1800px) {
   main { grid-template-columns: minmax(320px, 420px) minmax(0, 1fr); }
-  #side-grid { grid-template-columns: minmax(0, 1fr) minmax(440px, 32rem); }
-  /* The scope keeps the left column; everything else stacks on the right. */
-  #side-grid > .panel-box:nth-of-type(1) { grid-row: span 3; }
+
+  /* Two columns: the scopes across the top, then the two panels of numbers
+     sharing the row below, each half the width rather than squeezed into a
+     sidebar. Channels and Module used to sit in a 440px column beside the
+     scope - a table of eight columns in 440px, on a display with room for four
+     times that. */
+  #side-grid { grid-template-columns: minmax(0, 1fr) minmax(440px, 1fr); }
+  #side-grid > .panel-box:nth-of-type(1) { grid-column: 1 / -1; }
 }
 
 /* ---- panel ------------------------------------------------------------- */
 
-#panel-wrap {
-  background: var(--box);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: .75rem;
-}
-#panel { width: 100%; height: auto; display: block; touch-action: none; }
+/* The panel gets a ground to sit on, unlike everything else on the page.
 
+   It had none while the artwork was an opaque PNG that supplied its own. Now
+   that the artwork is mostly transparent, what shows through it is the
+   backdrop photograph, and a skyline behind the encoder cutouts is not a
+   panel. The same surface the scope cells get, and the same rule colour every
+   other line on the page is drawn in. */
+#panel-wrap {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: .8rem;
+}
+
+/* The ratio of the real panel, from panel.json - 81mm x 128.5mm.
+ *
+ * Stated here so the space is reserved before anything runs. The SVG has no
+ * size until spec.js has fetched panel.json and panel.js has set a viewBox off
+ * it, so on load the column was collapsing to nothing and everything below
+ * jumped down a screen when the fetch landed. */
+#panel {
+  width: 100%; height: auto; display: block; touch-action: none;
+  aspect-ratio: 81 / 128.5;
+}
+
+/* A fixed line, not a minimum. This text appears and disappears on hover, and
+   at min-height a hint long enough to wrap grew the element and pushed the help
+   text below it down - a flicker on the way in and another on the way out. */
 .hint {
-  min-height: 1.5em;
-  margin: .5rem 0 0;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: .8rem;
+  height: 1.5em;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  margin: 1rem 0 0;
+  font-family: var(--mono);
+  font-size: .78rem;
+  letter-spacing: .02em;
   color: var(--accent);
 }
-.help { margin: .5rem 0 0; font-size: .8rem; color: var(--muted); }
-kbd {
-  background: #2b2f36; border: 1px solid var(--line); border-radius: 4px;
-  padding: 0 .3em; font-size: .9em;
-}
+.help { margin: .9rem 0 0; font-size: .78rem; line-height: 1.7; max-width: 52ch; color: var(--muted); }
+kbd { background: rgba(255, 255, 255, .09); padding: .05em .35em; font-size: .9em; }
 
 /* Interactive SVG parts */
 .hit { cursor: pointer; }
@@ -96,43 +185,96 @@ kbd {
 
 #side { min-width: 0; }
 
-.panel-box {
-  background: var(--box);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: .9rem 1rem;
-}
+/* Layout only. These were cards - background, border, rounded corners, padding -
+   which put three nested rectangles between the page and a number: the box, the
+   readout inside it, and the value inside that. The grid's own gap does the
+   separating now, and what is left of .panel-box is a grid child. */
+.panel-box { min-width: 0; }
 
-.readouts { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 0; }
+
+.readouts { display: flex; gap: .6rem; flex-wrap: wrap; margin-bottom: 0; }
+/* Neither outline nor fill. What makes these read as cells is the label above
+   the number and the space between them - the box was doing nothing the layout
+   was not already doing. */
 .readout {
   flex: 1 1 120px;
-  background: var(--box);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: .5rem .75rem;
+  padding: .7rem .9rem .7rem 0;
 }
-.readout .label {
-  display: block; font-size: .7rem; text-transform: uppercase;
-  letter-spacing: .08em; color: var(--muted);
-}
+/* The label sits well above its number rather than against it: the gap is what
+   makes the pair read as one thing with a caption, and it is the cheapest
+   space on the page to give away. */
+.readout .label { display: block; margin-bottom: .35rem; color: var(--muted); }
 .readout .value {
-  display: block; font-size: 1.15rem; font-weight: 600;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  display: block;
+  font: 500 1.2rem/1.15 var(--mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.01em;
 }
 
-#scope {
-  width: 100%; display: block; border-radius: 6px; background: #101216;
-  max-width: 1100px;   /* beyond this the traces just get wider, not clearer */
+/* Both scopes, as one instrument.
+ *
+ * The outputs are 4x2 cells and the inputs 2x2, so for a cell to mean the same
+ * thing in either the output canvas has to be exactly twice as wide as the
+ * input one and the same height. That was two panels sized to match by hand -
+ * 1100px against 550px - which held only while nothing else moved, and stopped
+ * holding the moment the boxes were given a share of a row instead of a fixed
+ * width. Here the ratio is the layout: 2fr against 1fr of the same space, so it
+ * survives any width the grid hands them.
+ *
+ * Deliberately not wrapping. Wrapped, the input canvas would take the full
+ * width and its cells would be twice the size of the output's - the one thing
+ * this arrangement exists to prevent.
+ */
+.scopes {
+  display: flex; flex-wrap: nowrap; align-items: flex-start;
+  gap: .6rem;
+  max-width: 1660px;   /* beyond this the traces just get wider, not clearer */
 }
+
+/* Same idea, and the same numbers scope.js sizes them to: the outputs at
+   OUT_ASPECT, the inputs half as wide over the same height. Without these the
+   canvases hold their 1000x440 attribute size until the first resize callback
+   and the whole right-hand column settles a beat later than the page. */
+/* The columns carry the 2:1 that keeps a cell the same rectangle in either
+   grid; the canvases just fill theirs. */
+.scope-col { min-width: 0; }
+.scope-col:first-child { flex: 2 1 0; }
+.scope-col:last-child { flex: 1 1 0; }
+
+#scope {
+  width: 100%;
+  display: block;
+  aspect-ratio: 100 / 44;
+}
+
+/* A dimension line, the way a panel drawing labels a span: a rule under the
+   thing it measures, turned up at both ends, with the name of the span sitting
+   in a gap in the middle. It says which eight cells are the outputs and which
+   four are the inputs without a heading over either. */
+.bracket {
+  display: flex; align-items: center; gap: .55rem;
+  margin-top: .55rem;
+  color: var(--muted);
+  font-size: .58rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: var(--track);
+}
+.bracket i {
+  flex: 1;
+  height: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.bracket i:first-of-type { border-left: 1px solid var(--line); }
+.bracket i:last-of-type { border-right: 1px solid var(--line); }
 
 /* The input scopes are one canvas on a 2x2 grid, exactly like the output
    scopes, with the controls overlaid on the cells rather than wrapped in boxes
    of their own. */
 /* Its height is matched to the output scope's in scope.js, so the two boxes end
    level whatever widths the grid gives them. */
-.scope-stack { position: relative; max-width: 550px; min-width: 300px; }
+.scope-stack { position: relative; width: 100%; }
 .scope-stack canvas {
-  width: 100%; display: block; border-radius: 6px; background: #101216;
+  width: 100%; display: block;
+  aspect-ratio: 100 / 88;
 }
 
 #in-overlay {
@@ -149,69 +291,253 @@ kbd {
 .in-cell .spacer { flex: 1; pointer-events: none; }
 /* One row, not a column: the clock cell carries a bpm box as well as a pulse
    button, and stacking them cost a line of the cell for nothing. */
+/* Bottom left of the cell, and centred against each other rather than against
+   the cell: the pulse button and the bpm field want to sit on one line, not in
+   the middle of a scope trace. The left margin keeps them clear of the fader.
+   Every control in the row is the same height, or they read as one having
+   slipped off a common baseline. */
 .in-ctl {
-  display: flex; flex-flow: row wrap; justify-content: flex-end; align-items: flex-end;
+  display: flex; flex-flow: row wrap; align-items: center;
+  align-self: flex-end;
+  margin-left: .5rem;
   gap: .25rem .35rem; pointer-events: none;
 }
+.in-ctl button,
+.in-ctl input[type=number] { height: 1.4rem; }
+
+.in-ctl input[type=number]::-webkit-outer-spin-button,
+.in-ctl input[type=number]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
 .in-ctl > * { pointer-events: auto; }
-.in-ctl button { padding: .05rem .4rem; font-size: .7rem; opacity: .85; }
-.in-ctl button:hover { opacity: 1; }
+/* The gate buttons sit inside a scope cell with a few millimetres to spare, so
+   they keep the uppercase face but drop most of the tracking and all of the
+   padding - the page's button proportions do not fit in an overlay. */
+.in-ctl button {
+  padding: 0 .5rem;
+  font-size: .58rem;
+  letter-spacing: .06em;
+  opacity: .85;
+  background: rgba(20, 22, 27, .7);
+}
+.in-ctl button:not(:disabled):hover { opacity: 1; }
 .in-ctl .clock { display: flex; align-items: center; gap: .25rem; font-size: .7rem; color: var(--muted); }
 .in-ctl input[type=number] {
-  width: 3.9em; background: rgba(34,38,45,.85); color: var(--fg);
-  border: 1px solid var(--line); border-radius: 4px; padding: 0 .25rem;
-  font: inherit; font-size: .7rem; font-family: ui-monospace, monospace;
+  width: 3.4em; background: rgba(20, 22, 27, .7); color: var(--fg);
+  border: 1px solid var(--line); padding: 0 .25rem;
+  font: inherit; font-size: .7rem; font-family: var(--mono);
+  /* No spinner. It is two arrows a few pixels tall inside a control that is
+     already only 1.4rem, sitting on top of a scope trace - unhittable, and
+     drawn in whatever grey the browser fancies. The field takes typing and the
+     wheel, which is how a tempo gets set anyway. */
+  appearance: textfield;
+  -moz-appearance: textfield;
 }
 
 /* Vertical fader, filled from the centre so 0V reads as "no offset". A native
    range input fills from its minimum, which put a solid bar at -10V. */
+/* No rail. It ran the full height of the cell and straight through the IN0-IN3
+   label in the corner; the knob and the fill from centre say where the level is
+   without one. */
 .vslider { position: relative; width: 14px; flex: 0 0 14px; cursor: ns-resize; touch-action: none; }
-.vslider .track {
-  position: absolute; left: 5px; top: 0; width: 4px; height: 100%;
-  background: #262b33; border-radius: 2px;
-}
-.vslider .fill { position: absolute; left: 5px; width: 4px; background: var(--accent); border-radius: 2px; }
+.vslider .fill { position: absolute; left: 5px; width: 4px; background: var(--accent); }
 .vslider .zero { position: absolute; left: 1px; width: 12px; height: 1px; background: #4a515b; top: 50%; }
 .vslider .knob {
   position: absolute; left: 0; width: 14px; height: 7px; margin-top: -3.5px;
-  background: #5a626e; border: 1px solid #c8ccd4; border-radius: 2px;
+  background: #5a626e; border: 1px solid #c8ccd4;
 }
 .vslider[data-disabled="1"] { opacity: .3; pointer-events: none; }
 
 .row { display: flex; align-items: center; gap: .5rem; font-size: .8rem; color: var(--muted); }
 .row input[type=range] { flex: 1; }
-.row output { font-family: ui-monospace, monospace; width: 5.5em; text-align: right; color: var(--fg); }
+.row output { font-family: var(--mono); width: 5.5em; text-align: right; color: var(--fg); }
 
-.note { margin: .5rem 0 0; font-size: .75rem; color: var(--muted); }
-code { background: #2b2f36; border-radius: 3px; padding: 0 .25em; font-size: .9em; }
+.note { margin: .9rem 0 0; font-size: .78rem; line-height: 1.7; max-width: 68ch; color: var(--muted); }
+code { background: #2b2f36; padding: 0 .25em; font-size: .9em; }
 
 /* Fixed layout and tabular figures: the columns used to resize on every value
    change, which made the whole table jitter. */
 table {
   width: 100%; border-collapse: collapse; table-layout: fixed;
-  font-size: .78rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: .78rem; font-family: var(--mono);
   font-variant-numeric: tabular-nums;
 }
-th, td { padding: .2rem .35rem; text-align: right; border-bottom: 1px solid var(--line); }
+/* Rows twice as tall as they were. A dense grid of numbers is the one place on
+   this page where space genuinely helps you read: the eye needs a line to
+   travel along, and 0.2rem of padding was not giving it one. */
+th, td { padding: .45rem .5rem; text-align: right; border-bottom: 1px solid var(--line); }
 th:first-child, td:first-child { text-align: left; color: var(--muted); }
-th { color: var(--muted); font-weight: 500; }
+th {
+  color: var(--muted);
+  font: 600 .6rem/1 var(--font);
+  text-transform: uppercase;
+  letter-spacing: var(--track);
+  padding-bottom: .6rem;
+}
 tr.muted-row td { opacity: .4; }
 
-/* The MIDI value bars: a gradient across the cell rather than a nested element,
-   so the draw path sets one property and the row stays a flat list of cells.
-   The fill colour comes from midi.js, which is the file that knows whether a
-   value is against its rail. */
-.bar-cell { background: #2b2f36; }
+/* Twelve control changes as twelve narrow meters. The only thing that moves is
+   the mark's `bottom`, so the draw path writes one property per meter and the
+   browser does not relayout anything. */
+#midi-cc { display: flex; gap: .5rem; align-items: flex-end; margin-top: 1rem; }
+.meter { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: .4rem; }
+
+.meter-track {
+  position: relative;
+  width: 3px;
+  height: 64px;
+  background: rgba(255, 255, 255, .07);
+}
+
+/* The mark, and the whole of the readout: a line at the height of the value.
+   Wider than its track on both sides so it reads as an index against a scale
+   rather than as a segment of a bar. */
+.meter-track i {
+  position: absolute;
+  left: -3px; right: -3px;
+  height: 2px;
+  margin-bottom: -1px;
+  background: var(--fg);
+}
+.meter.railed .meter-track i { background: var(--warn); }
+/* Nothing said yet - the module is silent on this CC. Parked mid-scale, where
+   0V would be, and faded rather than hidden so the row keeps its shape. */
+.meter.silent .meter-track i { opacity: .18; }
+
+.meter-name {
+  font-size: .58rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .06em;
+  color: var(--muted);
+}
+
+/* Which control change the meter above is, under the name of what it carries.
+   It was in the hover title, which is the one place a number nobody can guess
+   should not be: CC 16 is not derivable from "ch 0". */
+.meter-cc {
+  margin-top: -.3rem;
+  font-size: .52rem;
+  font-family: var(--mono);
+  color: var(--muted);
+  opacity: .65;
+}
 
 /* On the header cell as well as the body: table-layout is fixed, which takes
    every column width from the first row, so a width set only on the td below
    is ignored and the four columns come out equal. */
 #midi-cc th:nth-child(4), #midi-cc td:nth-child(4) { width: 45%; }
 
-button {
-  background: #2b2f36; color: var(--fg); border: 1px solid var(--line);
-  border-radius: 6px; padding: .35rem .7rem; cursor: pointer; font: inherit; font-size: .85rem;
+/* The port picker is a control in a row of controls, so it wears the button's
+   face rather than the operating system's. appearance:none drops the native
+   chrome; the arrow is drawn as a background so there is no extra element. */
+/* Shaped like a button, but not lettered like one. A button's face is a label
+   we wrote and can uppercase; a select shows data - a version tag, a port name -
+   and `v0.10.0` rendered as `V0.10.0` is the control editing its own contents.
+   The weight and border carry the family resemblance instead. */
+#midi-port {
+  appearance: none;
+  background:
+    linear-gradient(45deg, transparent 50%, var(--muted) 50%) calc(100% - 1.05rem) 55% / 5px 5px no-repeat,
+    linear-gradient(-45deg, transparent 50%, var(--muted) 50%) calc(100% - .7rem) 55% / 5px 5px no-repeat;
+  color: var(--fg);
+  border: 1px solid var(--line);
+  padding: .55rem 2.2rem .55rem 1.1rem;
+  margin-top: .35rem;
+  width: 100%;
+  cursor: pointer;
+  font: 500 .78rem/1 var(--font);
+  letter-spacing: .04em;
 }
-button:hover { background: #353a43; }
+#midi-port:hover { border-color: var(--accent); color: var(--accent); }
+/* The open list is drawn by the OS, which does not inherit any of the above -
+   naming the colours here is what keeps it from being a white popup. */
+#midi-port option { background: #1b1e23; color: var(--fg); text-transform: none; letter-spacing: normal; }
+
+/* Outlined and quiet by default, so the one button that does something
+   irreversible or connects hardware can be the only coloured thing in its row.
+   Colour on hover rather than a lighter grey: it says which control you are
+   about to use without another rectangle. */
+button {
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid var(--line);
+  padding: .55rem 1.1rem;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: color .12s, border-color .12s, background-color .12s;
+}
+/* :not(:disabled) on every hover rule. A disabled button still receives hover,
+   and an id selector outranks `button:disabled:hover` however that rule is
+   written - so Reset FRAM went on lighting up amber while it was out of
+   service, offering to do something it would refuse. */
+button:not(:disabled):hover { color: var(--accent); border-color: var(--accent); }
+
+/* The primary action, and the only filled control on the page. */
+#probe-connect {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #06090c;
+}
+#probe-connect:not(:disabled):hover { background: #93d4ff; border-color: #93d4ff; color: #06090c; }
+
+/* Wiping the preset store is the one thing here that cannot be undone, so it
+   warns on approach rather than looking like its neighbour. */
+#reset-fram:not(:disabled):hover { color: var(--warn); border-color: var(--warn); }
+
+button:disabled { opacity: .35; cursor: default; }
 
 .muted { color: var(--muted); font-size: .8rem; }
+
+/* The transient "module reset" / "FRAM cleared" message, beside the buttons it
+   belongs to and in the same voice as their faces. */
+#status {
+  font-size: .68rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: var(--track);
+  color: var(--accent);
+}
+
+/* Status words. `warn` was already in use from midi.js and had no rule, so it
+   read exactly like a normal value - which is the one thing a warning must not
+   do. */
+/* The rate row inside the module box: four narrow columns rather than the wide
+   top-of-page readouts, and smaller, because these are diagnostics rather than
+   the numbers you play by. */
+.rates { margin: .6rem 0 .2rem; }
+.rates .value { font-size: .95rem; }
+/* Narrow enough that four or five fit on one line. The default 120px basis put
+   the fourth rate on a row of its own. */
+.rates .readout { flex: 1 1 0; min-width: 0; padding: .45rem .5rem; }
+
+/* The module box holds both halves of a mutually exclusive pair, and shows the
+   half that applies. A page watching hardware has nothing to say about a MIDI
+   port it is not driving; a page running the simulation has nothing to report
+   about a probe rate. Done in CSS off the class mode.js already sets, so
+   neither half needs a line of JavaScript to appear or disappear. */
+body.live .when-sim,
+body:not(.live) .when-live { display: none; }
+
+/* And inside the MIDI half, the part that only means anything once a port is
+   selected - see setSending() in midi.js. */
+#midi:not(.sending) .when-midi { display: none; }
+
+/* Buttons on one line, wrapping, with the status message trailing them rather
+   than on a line of its own. */
+.buttons {
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: .6rem; margin: 1.25rem 0 .25rem;
+}
+
+.value.ok { color: #7fd88f; }
+.value.warn { color: var(--warn); }
+
+/* While a physical module is driving the page, the panel is a display. Saying
+   so with the cursor as well as in the box, because the first thing anyone
+   does with a panel is try to click it. */
+/* The input controls drive the simulator's jacks. A physical module's are
+   whatever is patched into it, and a fader here would move nothing - so they
+   go rather than sitting there inert. */
+body.live #in-overlay { display: none; }
+
+body.live #panel .hit,
+body.live #panel .enc-ring,
+body.live #panel .slider-hit { cursor: not-allowed; }

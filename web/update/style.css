@@ -1,108 +1,209 @@
 /* Deliberately not shared with the simulator's stylesheet. This page has to
-   keep working when the simulator build is broken - that is the whole reason
-   it is a separate page - so it owns everything it needs. Same palette, so the
-   two still look like one project. */
+   keep working when the simulator build is broken - that is the whole reason it
+   is a separate page - so it owns everything it needs. Same palette, same type,
+   same shapes, so the two still look like one project.
+
+   The two files it does reach outside itself for, the fonts and the backdrop,
+   are checked-in assets rather than build output: nothing here depends on the
+   wasm having compiled. */
+
+@font-face {
+  font-family: 'Roboto Condensed';
+  src: url('../fonts/roboto-condensed-latin.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Roboto Mono';
+  src: url('../fonts/roboto-mono-latin.woff2') format('woff2');
+  font-weight: 100 700;
+  font-style: normal;
+  font-display: swap;
+}
 
 :root {
   color-scheme: dark;
   --bg: #14161a;
-  --box: #1b1e23;
-  --line: #333840;
+  --line: #5e5e5e;
   --fg: #dfe3ea;
   --muted: #8b929d;
   --accent: #6fc3ff;
-  --warn: #f0b45a;
+  --warn: #e3b341;
   --bad: #ff7b6b;
   --good: #7fd88f;
+
+  --font: 'Roboto Condensed', 'Arial Narrow', ui-sans-serif, Helvetica, Arial, sans-serif;
+  --mono: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --track: .14em;
 }
 
 * { box-sizing: border-box; }
 
+html { background: var(--bg); }
+
 body {
   margin: 0 auto;
-  padding: 1.5rem;
-  max-width: 46rem;
-  background: var(--bg);
+  padding: 2.25rem 2.5rem 4rem;
+  max-width: 52rem;
   color: var(--fg);
-  font: 15px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+  font: 400 14px/1.65 var(--font);
 }
 
-header { margin-bottom: 1.5rem; }
-h1 { margin: 0; font-size: 1.4rem; font-weight: 600; letter-spacing: .02em; }
-h1 .sub { color: var(--muted); font-weight: 400; }
-.tagline { margin: .35rem 0 0; color: var(--muted); }
+/* The same fixed, dimmed backdrop the simulator has - see its style.css for
+   why it is a pseudo-element rather than a body background. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(to bottom, rgba(34, 38, 45, .93) 0%, rgba(34, 38, 45, .38) 55%, rgba(34, 38, 45, 0) 100%),
+    linear-gradient(rgba(16, 18, 22, .58), rgba(16, 18, 22, .58)),
+    url('../bg-tokyo.jpg') center / cover no-repeat;
+}
 
-h2 {
-  margin: 0 0 .6rem;
-  font-size: .8rem;
+/* Small, uppercase, widely tracked: the same face the simulator gives its
+   labels and buttons. */
+h2,
+button,
+.label {
+  font-size: .68rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: .08em;
-  color: var(--muted);
+  letter-spacing: var(--track);
 }
 
+/* The simulator dropped its title - a panel with CH0 on every cell does not
+   need to be told what it is. This page keeps one, because it is arrived at
+   directly and by someone about to overwrite their firmware, and it should say
+   so before anything else does. */
+header { margin-bottom: 2.5rem; }
+h1 {
+  margin: 0;
+  font-size: 1.5rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em;
+}
+h1 .sub { color: var(--muted); font-weight: 400; }
+.tagline { margin: .5rem 0 0; color: var(--muted); }
+
+h2 { margin: 0 0 1rem; color: var(--muted); }
+
+/* No cards. A rule across the top and room underneath separates one step from
+   the next, which is all the card was doing - and a numbered heading already
+   says where one step ends. */
 .step {
-  background: var(--box);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 1rem 1.1rem;
-  margin-bottom: 1rem;
+  border-top: 1px solid var(--line);
+  padding: 1.75rem 0 0;
+  margin-bottom: 2.25rem;
 }
 .step[hidden] { display: none; }
-
 .step > :last-child { margin-bottom: 0; }
-.step p { margin: .5rem 0; }
+.step p { margin: .6rem 0; max-width: 68ch; }
 
+/* Outlined and quiet, with the one button that acts filled - same hierarchy as
+   the simulator's Connect. :not(:disabled) on every hover rule, or a disabled
+   button lights up offering to do something it will refuse. */
 button {
-  font: inherit;
+  font-family: var(--font);
   color: var(--fg);
-  background: #2b2f37;
+  background: transparent;
   border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: .45rem .9rem;
+  padding: .55rem 1.1rem;
   cursor: pointer;
+  transition: color .12s, border-color .12s, background-color .12s;
 }
-button:hover:not(:disabled) { border-color: var(--accent); }
-button:disabled { opacity: .45; cursor: default; }
-button.primary { background: #2d4a5e; border-color: #3f6d8a; }
+button:not(:disabled):hover { color: var(--accent); border-color: var(--accent); }
 
-input[type=file] { font: inherit; color: var(--muted); max-width: 100%; }
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #06090c;
+}
+button.primary:not(:disabled):hover { background: #93d4ff; border-color: #93d4ff; color: #06090c; }
+
+button:disabled { opacity: .35; cursor: default; }
+
+/* The two ways in to a firmware image, wearing the same face as the buttons
+   that act on it. Both are controls the browser draws by default, and both look
+   like a different application when left that way.
+
+   The simulator's port picker has the same treatment - deliberately restated
+   rather than shared, for the reason at the top of this file. */
+/* Shaped like a button, but not lettered like one. A button's face is a label
+   we wrote and can uppercase; a select shows data - a version tag, a port name -
+   and `v0.10.0` rendered as `V0.10.0` is the control editing its own contents.
+   The weight and border carry the family resemblance instead. */
+select {
+  appearance: none;
+  background:
+    linear-gradient(45deg, transparent 50%, var(--muted) 50%) calc(100% - 1.05rem) 55% / 5px 5px no-repeat,
+    linear-gradient(-45deg, transparent 50%, var(--muted) 50%) calc(100% - .7rem) 55% / 5px 5px no-repeat;
+  color: var(--fg);
+  border: 1px solid var(--line);
+  padding: .55rem 2.2rem .55rem 1.1rem;
+  min-width: 22rem;
+  max-width: 100%;
+  cursor: pointer;
+  font: 500 .78rem/1 var(--font);
+  letter-spacing: .04em;
+}
+select:not(:disabled):hover { border-color: var(--accent); color: var(--accent); }
+select:disabled { opacity: .35; cursor: default; }
+/* The open list is drawn by the OS and inherits none of the above; naming the
+   colours is what keeps it from being a white popup. */
+select option { background: #1b1e23; color: var(--fg); text-transform: none; letter-spacing: normal; }
+
+/* The filename sits beside the button, so it stays quiet and monospaced while
+   the button itself matches every other button on the page. */
+input[type=file] {
+  font: 400 .72rem/1 var(--mono);
+  color: var(--muted);
+  max-width: 100%;
+}
+input[type=file]::file-selector-button {
+  font: 600 .68rem/1 var(--font);
+  text-transform: uppercase;
+  letter-spacing: var(--track);
+  color: var(--fg);
+  background: transparent;
+  border: 1px solid var(--line);
+  padding: .55rem 1.1rem;
+  margin-right: .7rem;
+  cursor: pointer;
+  transition: color .12s, border-color .12s;
+}
+input[type=file]:hover::file-selector-button { color: var(--accent); border-color: var(--accent); }
 
 .muted { color: var(--muted); }
 .warn { color: var(--warn); }
 .bad { color: var(--bad); }
 .good { color: var(--good); }
 
-.note { color: var(--muted); font-size: .88rem; }
+.note { color: var(--muted); font-size: .78rem; line-height: 1.7; max-width: 68ch; }
 
 .row { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; }
 
 progress {
   width: 100%;
-  height: .6rem;
+  height: .5rem;
   accent-color: var(--accent);
 }
 
 #log {
-  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: 12px/1.6 var(--mono);
   color: var(--muted);
-  background: #101216;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: .6rem .7rem;
+  background: rgba(0, 0, 0, .35);
+  padding: .8rem .9rem;
   max-height: 12rem;
   overflow-y: auto;
   white-space: pre-wrap;
 }
 
-dl { margin: .5rem 0; }
-dt { font-weight: 600; margin-top: .7rem; }
-dd { margin: .2rem 0 0; color: var(--muted); }
+dl { margin: .8rem 0; }
+dt { font-weight: 700; margin-top: 1rem; }
+dd { margin: .25rem 0 0; color: var(--muted); }
 
-kbd {
-  font: inherit;
-  background: #2b2f37;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  padding: 0 .3em;
-}
+code { background: rgba(255, 255, 255, .09); padding: 0 .25em; font-family: var(--mono); font-size: .9em; }
+kbd { font: inherit; background: rgba(255, 255, 255, .09); padding: .05em .35em; }

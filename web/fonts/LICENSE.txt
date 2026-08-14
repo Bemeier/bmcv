@@ -1,0 +1,15 @@
+Roboto Condensed and Roboto Mono
+Copyright the Roboto Project Authors (https://github.com/googlefonts/roboto)
+
+Licensed under the Apache License, Version 2.0:
+https://www.apache.org/licenses/LICENSE-2.0
+
+The latin-subset variable builds Google Fonts serves, checked in rather than
+linked so the page fetches nothing from anyone else's server - it works offline,
+it works from a file:// copy, and a visitor's browser never tells Google it
+opened it. Redistribution is permitted by the licence above; this file is the
+attribution that licence asks for.
+
+Fetched from, and re-fetchable at:
+  https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700&family=Roboto+Mono:wght@400;500
+(request it with a current browser's User-Agent, or the API answers with ttf.)

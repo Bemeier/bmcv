@@ -6,6 +6,7 @@
 
 import { spec, px } from './spec.js';
 import { sim } from './sim.js';
+import { mode } from './mode.js';
 import { initLeds, registerLed } from './leds.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -49,8 +50,8 @@ const describe = b => {
 /* ---- interaction -------------------------------------------------------- */
 
 function bindButton(node, b) {
-  const down = ev => { ev.preventDefault(); node.setPointerCapture(ev.pointerId); sim.setButton(b.index, 1); };
-  const up = () => sim.setButton(b.index, 0);
+  const down = ev => { ev.preventDefault(); if (mode.live) return; node.setPointerCapture(ev.pointerId); sim.setButton(b.index, 1); };
+  const up = () => { if (!mode.live) sim.setButton(b.index, 0); };
   node.addEventListener('pointerdown', down);
   node.addEventListener('pointerup', up);
   node.addEventListener('pointercancel', up);
@@ -61,20 +62,71 @@ function bindButton(node, b) {
 // Cosmetic needle angles. The firmware's encoders are relative and endless, so
 // this only shows that something turned - but it has to move by exactly what
 // was sent, which is why every turn goes through turnEncoder().
-const encAngle = new Map();
+// What the panel's own parts are drawn in.
+//
+// The artwork underneath is a dark, mostly transparent PNG, so these are lines
+// and washes over the page rather than a rendering of an aluminium panel: one
+// thin light outline everywhere, and fills that only exist to say a control is
+// there. The LEDs supply all the colour.
+const PART = {
+  // Always one device pixel, however far the panel is scaled - which is the
+  // whole reason for non-scaling-stroke. A width in millimetres looked right at
+  // one size and like a marker pen at another.
+  line: '#8b929d',
+  lineWidth: 1,
+
+  // Enough to lift a control off the artwork, no more. A lit button gets less,
+  // because its LED is about to do the work; an unlit one has nothing else to
+  // make it visible.
+  fillLit: 'rgba(255, 255, 255, .05)',
+  fillUnlit: 'rgba(255, 255, 255, .14)',
+  fillEncoder: 'rgba(255, 255, 255, .07)',
+  fillCap: 'rgba(255, 255, 255, .10)',
+  fillKnob: 'rgba(255, 255, 255, .16)',
+
+  // A jack is a hole, so it is darker than the panel rather than lighter.
+  jack: 'rgba(0, 0, 0, .45)',
+  jackTip: 'rgba(255, 255, 255, .13)',
+
+  // The parameter a control edits, and the shift mode it belongs to. The first
+  // is what you read while playing; the second is reference.
+  label: '#ffffff',
+  labelSecondary: '#dfe3ea',
+};
+
+// How far an LED's spill reaches past the part it sits behind, as a multiple of
+// that part's radius.
+//
+// Cut by about a sixth when the artwork went dark and mostly transparent. The halo is
+// a soft disc that fades outwards, so on a light panel most of its reach was
+// lost against the background; over a dark page all of it shows, and at the old
+// radius the spill from twenty-one LEDs was the brightest thing on the screen.
+//
+// This is reach, not brightness - the colour and intensity still come from the
+// framebuffer, so a dim LED stays dim. See leds.js.
+const HALO_ENCODER = 1.22;
+const HALO_BUTTON = 1.30;
+
+// Every outline on the panel, so none of them can drift from the others.
+const outline = { stroke: PART.line, 'stroke-width': PART.lineWidth, 'vector-effect': 'non-scaling-stroke' };
+
 const encIndicators = new Map();
 
+// One detent of spoke rotation. Four spokes, so 12deg is a quarter turn every
+// 7.5 detents - fast enough to read as movement, slow enough not to alias.
+const DEG_PER_DETENT = 12;
+
 function turnEncoder(index, detents) {
+  if (mode.live) return;
   sim.addEncoder(index, detents);
-  encAngle.set(index, (encAngle.get(index) ?? 0) + detents * 12);
 }
 
 function bindEncoder(ring, cap, e) {
   // Push is the centre cap; turning is the ring. Holding Shift while turning
   // asserts the push too, which is the press-and-turn the firmware treats as a
   // fine-adjust modifier.
-  const capDown = ev => { ev.preventDefault(); cap.setPointerCapture(ev.pointerId); sim.setButton(e.push_button, 1); };
-  const capUp = () => sim.setButton(e.push_button, 0);
+  const capDown = ev => { ev.preventDefault(); if (mode.live) return; cap.setPointerCapture(ev.pointerId); sim.setButton(e.push_button, 1); };
+  const capUp = () => { if (!mode.live) sim.setButton(e.push_button, 0); };
   cap.addEventListener('pointerdown', capDown);
   cap.addEventListener('pointerup', capUp);
   cap.addEventListener('pointercancel', capUp);
@@ -83,6 +135,7 @@ function bindEncoder(ring, cap, e) {
 
   ring.addEventListener('pointerdown', ev => {
     ev.preventDefault();
+    if (mode.live) return;
     ring.setPointerCapture(ev.pointerId);
     dragging = true; lastY = ev.clientY; accum = 0;
     shifted = ev.shiftKey;
@@ -124,13 +177,23 @@ function bindSlider(hit, knob, cx, cy, travel, horizontal) {
   let dragging = false;
   hit.style.cursor = horizontal ? 'ew-resize' : 'ns-resize';
 
-  const setFromPos = pos => {
-    sim.setSlider01(1 - pos);
+  // Drawing and publishing are separate because a physical module needs the
+  // first without the second: its handle is where its owner put it, and this
+  // page has no business telling the engine otherwise.
+  const drawAt = pos => {
     if (horizontal) knob.setAttribute('x', cx - travel / 2 - 2 + pos * travel);
     else knob.setAttribute('y', cy + travel / 2 - 2 - pos * travel);
   };
 
+  drawKnob = drawAt;
+
+  const setFromPos = pos => {
+    sim.setSlider01(1 - pos);
+    drawAt(pos);
+  };
+
   const apply = ev => {
+    if (mode.live) return;
     const r = svg.getBoundingClientRect();
     // Client px -> viewBox mm, then to 0..1. Right / up is 1.0.
     let pos;
@@ -172,8 +235,8 @@ el('image', {
 for (const list of [spec.outputs, spec.inputs]) {
   for (const j of list) {
     const [x, y] = px(j.pos_mm);
-    el('circle', { cx: x, cy: y, r: 3, fill: '#0d0f12', stroke: '#7d848f', 'stroke-width': .4 });
-    el('circle', { cx: x, cy: y, r: 1.1, fill: '#2a2f36' });
+    el('circle', { cx: x, cy: y, r: 3, fill: PART.jack, ...outline });
+    el('circle', { cx: x, cy: y, r: 1.1, fill: PART.jackTip });
   }
 }
 
@@ -188,10 +251,10 @@ for (const e of spec.encoders) {
 
   // The WS2812 sits behind the encoder, so its light spills around the body
   // rather than through it: a ring in the layer behind everything.
-  registerLed(e.led, el('circle', { cx: x, cy: y, r: ENC_R * 1.45, fill: '#000', 'fill-opacity': 0 }, haloLayer), 'halo');
+  registerLed(e.led, el('circle', { cx: x, cy: y, r: ENC_R * HALO_ENCODER, fill: '#000', 'fill-opacity': 0 }, haloLayer), 'halo');
 
   const g = el('g');
-  el('circle', { cx: x, cy: y, r: ENC_R, fill: '#6b7078', 'fill-opacity': .16, stroke: '#101317', 'stroke-width': .45 }, g);
+  el('circle', { cx: x, cy: y, r: ENC_R, fill: PART.fillEncoder, ...outline }, g);
 
   // ...plus a faint wash across the face, so the colour bleeds through the
   // knob instead of stopping at its edge.
@@ -212,14 +275,13 @@ for (const e of spec.encoders) {
     el('line', {
       x1: x + Math.sin(a) * (ENC_CAP_R + 0.3), y1: y - Math.cos(a) * (ENC_CAP_R + 0.3),
       x2: x + Math.sin(a) * (ENC_R - 0.5), y2: y - Math.cos(a) * (ENC_R - 0.5),
-      stroke: '#101317', 'stroke-width': .55, 'stroke-linecap': 'round',
+      ...outline, 'stroke-linecap': 'round',
     }, spokes);
   }
   encIndicators.set(e.index, spokes);
 
   const cap = el('circle', {
-    cx: x, cy: y, r: ENC_CAP_R, fill: '#6b7078', 'fill-opacity': .3,
-    stroke: '#101317', 'stroke-width': .4, class: 'hit',
+    cx: x, cy: y, r: ENC_CAP_R, fill: PART.fillCap, ...outline, class: 'hit',
   }, g);
 
   bindEncoder(ring, cap, e);
@@ -227,6 +289,7 @@ for (const e of spec.encoders) {
 
 // Crossfader. The artwork draws the slot, so only the handle is drawn here.
 let setSliderFromPos;
+let drawKnob;
 {
   const s = spec.slider;
   const [x, y] = px(s.pos_mm);
@@ -236,8 +299,8 @@ let setSliderFromPos;
   // The same grey the encoder bodies wear, so the two read as the same kind of
   // part rather than the fader being the brightest thing on the panel.
   const knob = horizontal
-    ? el('rect', { x: x - travel / 2 - 2, y: y - 3.3, width: 4, height: 6.6, rx: 1.1, fill: '#6b7078', stroke: '#101317', 'stroke-width': .4 })
-    : el('rect', { x: x - 4.4, y: y + travel / 2 - 2, width: 8.8, height: 4, rx: 1.2, fill: '#6b7078', stroke: '#101317', 'stroke-width': .4 });
+    ? el('rect', { x: x - travel / 2 - 2, y: y - 3.3, width: 4, height: 6.6, rx: 1.1, fill: PART.fillKnob, ...outline })
+    : el('rect', { x: x - 4.4, y: y + travel / 2 - 2, width: 8.8, height: 4, rx: 1.2, fill: PART.fillKnob, ...outline });
   const hit = horizontal
     ? el('rect', { x: x - travel / 2 - 3, y: y - 5.5, width: travel + 6, height: 11, fill: 'transparent', class: 'slider-hit' })
     : el('rect', { x: x - 5.5, y: y - travel / 2 - 3, width: 11, height: travel + 6, fill: 'transparent', class: 'slider-hit' });
@@ -259,12 +322,12 @@ for (const b of spec.buttons) {
   const g = el('g');
 
   if (lit) {
-    registerLed(b.led, el('circle', { cx: x, cy: y, r: r * 1.55, fill: '#000', 'fill-opacity': 0 }, haloLayer), 'halo');
+    registerLed(b.led, el('circle', { cx: x, cy: y, r: r * HALO_BUTTON, fill: '#000', 'fill-opacity': 0 }, haloLayer), 'halo');
   }
   el('circle', {
     cx: x, cy: y, r,
-    fill: b.kind === 'tactile' ? '#2b3038' : '#c2c7ce',
-    stroke: '#101317', 'stroke-width': .35,
+    fill: lit ? PART.fillLit : PART.fillUnlit,
+    ...outline,
   }, g);
   if (lit) {
     registerLed(b.led, el('circle', {
@@ -276,15 +339,20 @@ for (const b of spec.buttons) {
   // a button's function is ever reassigned. The parameter goes above and the
   // shift mode below; the three action buttons only latch a mode, so they get
   // the lower slot alone.
+  //
+  // No halo behind them. They carried a pale stroke under the fill to lift them
+  // off a light artwork, which at this size read as a smudge around every word;
+  // over a dark one it would be a white word inside a white outline. Light text
+  // on a dark panel needs neither.
   const label = (text, dy, size, fill) => {
     const t = el('text', {
       x, y: y + dy, 'font-size': size, fill, 'text-anchor': 'middle', 'pointer-events': 'none',
-      'font-weight': 700, stroke: '#e9e9e6', 'stroke-width': 0.32, 'paint-order': 'stroke',
+      'font-weight': 700,
     }, g);
     t.textContent = text;
   };
-  if (b.roles.param_name) label(b.roles.param_name, -r - 1.6, 2.7, '#15181c');
-  if (b.roles.ctrl_name) label(b.roles.ctrl_name, r + 3.3, 2.3, '#3a4048');
+  if (b.roles.param_name) label(b.roles.param_name, -r - 1.7, 3.1, PART.label);
+  if (b.roles.ctrl_name) label(b.roles.ctrl_name, r + 3.4, 2.65, PART.labelSecondary);
 
   const hit = el('circle', { cx: x, cy: y, r: r + 1.4, fill: 'transparent', class: 'hit' }, g);
   bindButton(hit, b);
@@ -296,9 +364,28 @@ for (const b of spec.buttons) {
 // undo it. main.js calls this once startup has settled.
 export { setSliderFromPos };
 
+// Put the drawn handle where the module says the crossfade is. For probe mode:
+// the fader on the board moves and this one has to follow.
+//
+// Not used for the local simulator, where it would be a downgrade rather than a
+// refinement. What comes back is the slider *after* input_fold has summed any
+// CV routed to it, so an input in slider mode would drag the drawn handle about
+// while the physical one sat still. On hardware that is the closest thing to
+// the truth available - the raw position never leaves the input layer - and
+// here the raw position is what this page set in the first place.
+export function drawSliderFromModule() {
+  drawKnob(1 - sim.slider01());
+}
+
+// Drawn from the module's own encoder positions rather than from a tally of
+// mouse drags. The two agree while this page is the only thing turning them,
+// and part company the moment it is not: a physical module's encoders are
+// wherever its owner left them, and a spoke pattern tracking drags alone would
+// sit at zero however much the real knob moved.
 export function drawEncoderIndicators() {
   for (const e of spec.encoders) {
     const [cx, cy] = px(e.pos_mm);
-    encIndicators.get(e.index).setAttribute('transform', `rotate(${encAngle.get(e.index) ?? 0} ${cx} ${cy})`);
+    const deg = sim.encoderPos(e.index) * DEG_PER_DETENT;
+    encIndicators.get(e.index).setAttribute('transform', `rotate(${deg} ${cx} ${cy})`);
   }
 }
