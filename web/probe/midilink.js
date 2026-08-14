@@ -28,10 +28,20 @@ const CMD_SNAPSHOT = 0x22;
 // bus with a dozen ports identified inside a second.
 const IDENTIFY_MS = 150;
 
-// The module stops streaming SYSEX_STREAM_TIMEOUT_US (2s) after the last
-// request, so this has to be comfortably under that. It is also what stops a
-// module talking to a tab that has gone away.
-const KEEPALIVE_MS = 500;
+// One request buys one snapshot, so this page paces the module rather than the
+// other way round: it asks again once it has finished with the last one. That
+// is the debug probe's arrangement - read, finish, read again - and it is why
+// the probe's rate is steady where a free-running module's was not.
+//
+// Two outstanding at the start, so the module can begin the next snapshot while
+// this thread is still decoding the previous one and the USB does not sit idle
+// for a round trip. The firmware caps it at SYSEX_STREAM_MAX_CREDITS anyway.
+const CREDITS = 2;
+
+// Nothing else keeps the stream alive, so a stall has to be noticed rather than
+// waited on. If a request or a snapshot goes missing the credit is gone and the
+// module falls silent, so re-arm after a quiet spell.
+const STALL_MS = 750;
 
 // The mailbox goes out on a timer rather than on every gesture: it carries a
 // sequence number the module reads as a heartbeat, so it has to keep arriving
@@ -172,8 +182,8 @@ class MidiLink {
       this.contiguous = 0;
       this.input.onmidimessage = ev => this.#onMessage(ev);
 
-      this.#request();
-      this.timers.push(setInterval(() => this.#request(), KEEPALIVE_MS));
+      for (let i = 0; i < CREDITS; i++) this.#request();
+      this.timers.push(setInterval(() => this.#checkStall(), STALL_MS));
       this.timers.push(setInterval(() => this.#sendMailbox(), MAILBOX_MS));
 
       // Nothing is live until a snapshot actually arrives - a module that is
@@ -222,6 +232,16 @@ class MidiLink {
     this.output?.send([0xf0, ...SYSEX_ID, CMD_STREAM_REQ, 0xf7]);
   }
 
+  // Credit is the only thing keeping the stream running, so a dropped message
+  // in either direction stops it for good rather than costing one frame. Cheap
+  // to put back: an extra request the module does not need is dropped by its
+  // own cap.
+  #checkStall() {
+    if (this.state !== 'live') return;
+    if (performance.now() - this.lastAt < STALL_MS) return;
+    for (let i = 0; i < CREDITS; i++) this.#request();
+  }
+
   #sendMailbox() {
     if (!this.output) return;
     const encoded = sim.sysex7Encode(sim.remoteBlob());
@@ -243,14 +263,21 @@ class MidiLink {
     // The browser's own MIDI stack did the reassembly - it does not deliver a
     // SysEx until its F7 arrives - so there is no framing code on this side at
     // all. What is left is: undo the seven-bit encoding, hand it over.
-    const raw = sim.sysex7Decode(d.subarray(5, d.length - 1));
+    const wire = d.subarray(5, d.length - 1);
 
-    if (!sim.importInstance(raw)) {
+    if (!sim.importSysex7(wire)) {
       this.#teardown();
       this.#restore();
-      this.#set('error', `the module sent ${raw.length} bytes and this page expects ${sim.instanceSize} - it is running firmware built from different sources than this page`);
+      this.#set('error',
+        `the module sent ${wire.length} encoded bytes and this page expects ${sim.wireSize} - `
+        + 'it is running firmware built from different sources than this page');
       return;
     }
+
+    // Ask for the next one only now, with this one decoded and adopted. That is
+    // the whole of the pacing: the module cannot get ahead of what this thread
+    // has actually managed to draw.
+    this.#request();
 
     this.snapshots++;
     this.contiguous++;

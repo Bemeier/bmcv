@@ -98,10 +98,23 @@ SysexCmd sysex_feed(SysexParser* p, const uint8_t* packets, uint8_t len);
 // other, and the ROM bootloader would not honour a policy anyway.
 uint8_t sysex_identity_reply(uint8_t* out, uint8_t cable, uint8_t major, uint8_t minor, uint8_t patch);
 
-// How long the module keeps streaming after the last request. Generous enough
-// that a browser can ask once a second without stuttering, short enough that a
-// closed tab stops it before anyone notices.
-#define SYSEX_STREAM_TIMEOUT_US 2000000u
+// How many snapshots the module will run ahead of the host's requests.
+//
+// One request buys one snapshot, so the host paces the module rather than the
+// other way round - a module that streams flat out sends faster than a browser
+// can decode and draw, and what that produces is not a higher frame rate but a
+// main thread that never catches up and a rate that swings with whatever else
+// the page is doing. The debug probe never had this problem because it is
+// polled: a read is asked for, finished, and only then asked for again.
+//
+// More than one, so the module can begin the next snapshot while the host is
+// still working on the last and the USB does not idle for a round trip. Not
+// many more, or the pacing is lost again and stale frames queue up behind the
+// live one.
+//
+// This also replaces the timeout that used to stop a stream: a host that goes
+// away stops asking, credit runs out, and the module falls silent on its own.
+#define SYSEX_STREAM_MAX_CREDITS 2
 
 // The remote input mailbox, in raw bytes. Held to sizeof(RemoteInput) by a
 // static assert in midi.c, which sees both - this header stays clear of

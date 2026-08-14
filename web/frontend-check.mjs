@@ -556,6 +556,12 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   check(recovered.length === snapshot.length, 'a snapshot survives the encoding at full size');
   check(recovered.every((b, i) => b === snapshot[i]), 'and byte for byte');
   check(sim.importInstance(recovered), 'and is still an instance this build accepts');
+
+  // The path a MIDI-backed page actually takes, which skips the two allocations
+  // and the extra copies the pair above make. It has to agree with them exactly.
+  check(wire.length === sim.wireSize, `the wire form is ${sim.wireSize} bytes`);
+  check(sim.importSysex7(wire), 'a snapshot imports straight from its wire form');
+  check(!sim.importSysex7(wire.subarray(0, wire.length - 1)), 'and a truncated one is refused');
 }
 check(SHIFT_NAMES[0] === 'STA' && SHIFT_NAMES.at(-1) === '---', `shift names came from the firmware (${SHIFT_NAMES.join(',')})`);
 check(SHAPE_NAMES.length > 1 && SHAPE_NAMES[0] === 'LFO', `shape names came from the firmware (${SHAPE_NAMES.join(',')})`);

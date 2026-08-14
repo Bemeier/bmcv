@@ -36,11 +36,12 @@ _Static_assert(sizeof(RemoteInput) == SYSEX_REMOTE_INPUT_BYTES, "the mailbox is 
 static volatile bool remote_pending = false;
 static RemoteInput remote_staged;
 
-// Streaming state. `stream_until_us` is a deadline rather than a flag for the
-// reason RemoteInput.seq is a heartbeat: a browser tab that goes away must not
-// leave the module talking to nobody.
-static volatile uint32_t stream_until_us = 0;
-static volatile bool stream_requested    = false;
+// Streaming credit. Two counters rather than one that both sides adjust: the
+// interrupt only ever increments `asked` and the main loop only ever increments
+// `sent`, so neither has to do a read-modify-write the other could land in the
+// middle of. Outstanding credit is the difference.
+static volatile uint32_t stream_asked = 0;
+static uint32_t stream_sent           = 0;
 
 // Overrides the __weak stub in the MIDI class, and runs in the USB interrupt.
 // It does the least it can get away with: parse, latch, return. Acting on
@@ -60,7 +61,7 @@ void USBD_MIDI_DataInHandler(uint8_t* usb_rx_buffer, uint8_t usb_rx_buffer_lengt
     bench_remaining = SYSEX_BENCH_MESSAGES;
     break;
   case SYSEX_CMD_STREAM_REQ:
-    stream_requested = true;
+    stream_asked++;
     break;
   case SYSEX_CMD_REMOTE_INPUT:
   {
@@ -131,22 +132,26 @@ static bool snapshot_sending = false;
 
 void midi_stream_poll(uint32_t now_us, const BmcvInstance* m)
 {
-  if (stream_requested)
-  {
-    stream_requested = false;
-    stream_until_us  = now_us + SYSEX_STREAM_TIMEOUT_US;
-  }
+  (void) now_us;
 
   // A burst owns the endpoint while it runs; it is a measurement, and sharing
   // it with snapshots would measure something else.
   if (bench_remaining || !midi_idle())
     return;
 
-  if ((int32_t) (now_us - stream_until_us) >= 0)
-    return; // nobody has asked recently enough
+  // A host that asked while the module was busy elsewhere, or that asked far
+  // more often than it collected, does not get to bank the difference: credit
+  // beyond the window is dropped so that what goes out is the module as it is
+  // now rather than a queue of frames from a moment ago.
+  const uint32_t asked = stream_asked;
+  if (asked - stream_sent > SYSEX_STREAM_MAX_CREDITS)
+    stream_sent = asked - SYSEX_STREAM_MAX_CREDITS;
 
   if (!snapshot_sending)
   {
+    if (asked == stream_sent)
+      return; // nobody is waiting for one
+
     // Taken here, between engine ticks, so the copy is internally consistent.
     // The probe's read cannot say that: it runs while the core does, so a blob
     // can straddle a tick. This is the one thing this transport does better.
@@ -161,9 +166,11 @@ void midi_stream_poll(uint32_t now_us, const BmcvInstance* m)
 
   if (n == 0)
   {
-    // Finished. The next pass starts a fresh snapshot, so the rate is whatever
-    // the endpoint allows rather than anything this code decides.
+    // Finished, and one credit is spent. The next one starts as soon as the
+    // host asks again, which it does once it has finished with this one - so
+    // the rate is what the host can actually absorb.
     snapshot_sending = false;
+    stream_sent++;
     return;
   }
 
