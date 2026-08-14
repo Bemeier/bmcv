@@ -124,7 +124,7 @@ TEST_CASE(holding_the_button_in_mon_blocks_the_amp_mode_encoder)
   fixture_init(&f);
   f.ui_state.shift_state = SHIFT_STATE_MON;
 
-  ChannelInputAmpMode start = f.engine_config.channel_state[6].input_amp_mode;
+  int8_t start = f.engine_config.channel_state[6].input_amp_mode;
 
   fixture_hold(&f, ch_btn(&f, 6), MS(30));
   fixture_encoder(&f, ch_enc(&f, 6), +1);

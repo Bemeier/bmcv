@@ -6,12 +6,15 @@
 // Historical layouts
 //
 // Each is the EngineConfig as that version's config.h declared it - the same
-// fields in the same order with the same types, enum-typed members included,
-// because an enum's width is the compiler's business and has to be reproduced
-// rather than assumed. (It is not the same everywhere: arm-none-eabi defaults
-// to -fshort-enums and a host compiler does not, so ChannelConfig is 91 bytes
-// on the module and 97 in a test. That is exactly why these are declared this
-// way instead of by byte offset - each target reproduces its own history.)
+// fields in the same order with the same widths - declared as a struct rather
+// than by byte offset so that each target reproduces its own history.
+//
+// The mode fields are int8_t here for the same reason they are in config.h: an
+// enum's width is the compiler's business, and these structs describe bytes
+// that were written to a chip. Every one of these records was written by the
+// firmware, where -fshort-enums made them a byte, so a byte is what they are -
+// which is what they had always been on the module and what they now also are
+// in a host build. sim/include/layout_target.h holds the current struct to it.
 // ---------------------------------------------------------------------------
 
 // v2, up to and including "Review pass: enforce the layering". ChannelConfig
@@ -22,8 +25,8 @@ typedef struct __attribute__((packed))
   int8_t src_input;
   int8_t src_trig;
   int8_t shape_mode;
-  ChannelInputAmpMode input_amp_mode;
-  ChannelQuantizeMode quantize_mode;
+  int8_t input_amp_mode;
+  int8_t quantize_mode;
   int16_t params[N_SCENES][CH_PARAM_COUNT];
 } ChannelConfigV2;
 
@@ -34,7 +37,7 @@ typedef struct __attribute__((packed))
   uint8_t scene_b;
   uint8_t current_preset;
   uint16_t quantize_mask;
-  InputMode input_mode[N_INPUTS];
+  int8_t input_mode[N_INPUTS];
   ChannelConfigV2 channel_state[N_CHANNELS];
 } EngineConfigV2;
 
@@ -50,7 +53,7 @@ typedef struct __attribute__((packed))
   uint8_t scene_b;
   uint8_t current_preset;
   uint16_t quantize_mask;
-  InputMode input_mode[N_INPUTS];
+  int8_t input_mode[N_INPUTS];
   ChannelConfig channel_state[N_CHANNELS];
 } EngineConfigV4;
 

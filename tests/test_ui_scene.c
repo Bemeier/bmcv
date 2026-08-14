@@ -73,7 +73,7 @@ TEST_CASE(sys_cycles_an_input_mode_and_wraps_round)
   fixture_init(&f);
   f.ui_state.shift_state = SHIFT_STATE_SYS;
 
-  InputMode start = f.engine_config.input_mode[1];
+  int8_t start = f.engine_config.input_mode[1];
 
   fixture_press(&f, scene_btn(&f, 1), MS(30));
   CHECK(f.engine_config.input_mode[1] == (start + 1) % INPUT_MODE_COUNT);

@@ -53,8 +53,8 @@ TEST_CASE(out_of_range_modes_are_brought_into_range)
 {
   Fixture f;
   fixture_init(&f);
-  f.engine_config.channel_state[0].quantize_mode  = (ChannelQuantizeMode) 77;
-  f.engine_config.channel_state[0].input_amp_mode = (ChannelInputAmpMode) -3;
+  f.engine_config.channel_state[0].quantize_mode  = 77;
+  f.engine_config.channel_state[0].input_amp_mode = -3;
   f.engine_config.scene_a                         = 200;
   f.engine_config.scene_b                         = 99;
   f.engine_config.input_mode[2]                   = (InputMode) 41;
@@ -116,8 +116,8 @@ TEST_CASE(every_field_is_index_safe_after_validation)
   for (uint8_t c = 0; c < N_ENCODERS; c++)
   {
     f.engine_config.channel_state[c].shape_mode     = (int8_t) (c * 37 - 60);
-    f.engine_config.channel_state[c].quantize_mode  = (ChannelQuantizeMode) (c * 13 - 20);
-    f.engine_config.channel_state[c].input_amp_mode = (ChannelInputAmpMode) (c * 9 - 15);
+    f.engine_config.channel_state[c].quantize_mode  = (int8_t) (c * 13 - 20);
+    f.engine_config.channel_state[c].input_amp_mode = (int8_t) (c * 9 - 15);
     f.engine_config.channel_state[c].src_input      = (int8_t) (c * 31 - 50);
     f.engine_config.channel_state[c].src_trig       = (int8_t) (c * 29 - 45);
   }

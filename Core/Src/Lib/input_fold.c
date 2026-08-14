@@ -70,7 +70,7 @@ uint8_t input_fold(InputFrames* in, UxState* ux, const InputSample* sample, uint
   int32_t slider_cv = 0;
   for (uint8_t g = 0; g < N_INPUTS; g++)
   {
-    InputMode mode = ux->engine_config->input_mode[g];
+    const InputMode mode = (InputMode) ux->engine_config->input_mode[g];
 
     if (mode == INPUT_CLOCK)
     {

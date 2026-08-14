@@ -12,6 +12,18 @@
 // values are written to a chip and read back by a possibly different build, so
 // they are validated on load (config_validate.h) and may only ever be
 // appended to.
+//
+// **No struct member below is enum-typed.** A mode is stored as an int8_t with
+// the enum named in a comment, and the enum exists for its values only. Two
+// reasons, and the second is the one that bites:
+//
+//   - Appending a mode cannot change the record layout, so old presets keep
+//     loading.
+//   - An enum's width is the compiler's, not ours. arm-none-eabi-gcc defaults
+//     to -fshort-enums and gives it a byte; clang gives it four. That made
+//     ChannelConfig 91 bytes on the module and 97 in every host build, so the
+//     four builds did not agree on the shape of the one struct they all
+//     persist. sim/include/layout_target.h is what now holds them to it.
 
 // How many stored configs there are, and which slot the periodic autosave
 // writes to. Here rather than in presets.h because the core needs the count
@@ -36,9 +48,9 @@ typedef enum
   INPUT_MODE_COUNT
 } InputMode;
 
-// Persisted as a plain int8_t in ChannelConfig, so appending modes here does
-// NOT change the FRAM layout and existing presets keep loading. Only ever
-// append - inserting or reordering would silently remap saved channels.
+// Only ever append - inserting or reordering would silently remap saved
+// channels. Stored as an int8_t, like every other mode here; see the top of
+// this file for why none of them are enum-typed where they are persisted.
 typedef enum
 {
   SHAPE_LFO,     // wavetable
@@ -105,9 +117,9 @@ typedef struct __attribute__((packed))
 {
   int8_t src_input;
   int8_t src_trig;
-  int8_t shape_mode;
-  ChannelInputAmpMode input_amp_mode;
-  ChannelQuantizeMode quantize_mode;
+  int8_t shape_mode;     // ChannelShapeMode
+  int8_t input_amp_mode; // ChannelInputAmpMode
+  int8_t quantize_mode;  // ChannelQuantizeMode
   int16_t params[N_SCENES][CH_PARAM_COUNT];
 
   // Per channel rather than per scene, both of them deliberately.
@@ -130,7 +142,7 @@ typedef struct __attribute__((packed))
   uint8_t scene_b;
   uint8_t current_preset;
   uint16_t quantize_mask;
-  InputMode input_mode[N_INPUTS];
+  int8_t input_mode[N_INPUTS]; // InputMode
   ChannelConfig channel_state[N_CHANNELS];
 
   // Which parameter the encoders edit when no shift mode is running, and the

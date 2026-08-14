@@ -55,7 +55,7 @@ void config_validate(EngineConfig* cfg)
 
   for (uint8_t i = 0; i < N_INPUTS; i++)
   {
-    cfg->input_mode[i] = (InputMode) iclamp(cfg->input_mode[i], 0, INPUT_MODE_COUNT - 1);
+    cfg->input_mode[i] = (int8_t) iclamp(cfg->input_mode[i], 0, INPUT_MODE_COUNT - 1);
   }
 
   // Back to OFS rather than clamped to the nearest end. Every value in range
@@ -72,8 +72,8 @@ void config_validate(EngineConfig* cfg)
     ChannelConfig* ch = &cfg->channel_state[c];
 
     ch->shape_mode     = (int8_t) iclamp(ch->shape_mode, 0, SHAPE_MODE_COUNT - 1);
-    ch->quantize_mode  = (ChannelQuantizeMode) iclamp(ch->quantize_mode, 0, QUANTIZE_MODE_COUNT - 1);
-    ch->input_amp_mode = (ChannelInputAmpMode) iclamp(ch->input_amp_mode, 0, INPUT_AMP_MODE_COUNT - 1);
+    ch->quantize_mode  = (int8_t) iclamp(ch->quantize_mode, 0, QUANTIZE_MODE_COUNT - 1);
+    ch->input_amp_mode = (int8_t) iclamp(ch->input_amp_mode, 0, INPUT_AMP_MODE_COUNT - 1);
 
     ch->sr_length_idx = (int8_t) iclamp(ch->sr_length_idx, 0, SR_LENGTH_COUNT - 1);
     ch->clamp_mode    = (int8_t) iclamp(ch->clamp_mode, 0, CLAMP_MODE_COUNT - 1);

@@ -26,8 +26,8 @@ typedef struct __attribute__((packed))
   int8_t src_input;
   int8_t src_trig;
   int8_t shape_mode;
-  ChannelInputAmpMode input_amp_mode;
-  ChannelQuantizeMode quantize_mode;
+  int8_t input_amp_mode;
+  int8_t quantize_mode;
   int16_t params[N_SCENES][CH_PARAM_COUNT];
 } ChannelConfigV2;
 
@@ -38,7 +38,7 @@ typedef struct __attribute__((packed))
   uint8_t scene_b;
   uint8_t current_preset;
   uint16_t quantize_mask;
-  InputMode input_mode[N_INPUTS];
+  int8_t input_mode[N_INPUTS];
   ChannelConfigV2 channel_state[N_CHANNELS];
 } EngineConfigV2;
 
@@ -54,7 +54,7 @@ typedef struct __attribute__((packed))
   uint8_t scene_b;
   uint8_t current_preset;
   uint16_t quantize_mask;
-  InputMode input_mode[N_INPUTS];
+  int8_t input_mode[N_INPUTS];
   ChannelConfig channel_state[N_CHANNELS];
 } EngineConfigV4;
 

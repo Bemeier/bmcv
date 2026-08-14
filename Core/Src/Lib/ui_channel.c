@@ -293,13 +293,13 @@ void ui_channel_update(const ChannelSetup* ch, UxState* state)
     // assignment for the same value.
     if (ui_sel_pending(state->ui))
       break;
-    chcfg->quantize_mode = (ChannelQuantizeMode) step_setting(chcfg->quantize_mode, delta, QUANTIZE_MODE_COUNT);
+    chcfg->quantize_mode = (int8_t) step_setting(chcfg->quantize_mode, delta, QUANTIZE_MODE_COUNT);
     break;
 
   case ENC_AMPMODE:
     if (pressing)
       break; // the button is picking a source, not modifying the encoder
-    chcfg->input_amp_mode = (ChannelInputAmpMode) step_setting(chcfg->input_amp_mode, delta, INPUT_AMP_MODE_COUNT);
+    chcfg->input_amp_mode = (int8_t) step_setting(chcfg->input_amp_mode, delta, INPUT_AMP_MODE_COUNT);
     break;
 
   case ENC_MUTE:
