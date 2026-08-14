@@ -32,6 +32,15 @@ add_subdirectory(cmake/stm32cubemx)
 # version.h is generated from VERSION rather than checked in, so a `cz bump`
 # (see .cz.toml) can never drift from what midi.c reports over SysEx - there
 # is exactly one file for it to touch.
+#
+# The dependency is not implicit. file(STRINGS) reads VERSION now, at configure
+# time, and tells CMake nothing about having done so - so a bump left every
+# later `just build-rel` re-emitting the version that was current when the build
+# directory was first configured. The module went on reporting 0.9.0 over SysEx
+# after the 0.10.0 bump, and would have gone on doing it until someone
+# reconfigured for an unrelated reason. Naming VERSION here is what makes a bump
+# re-run this block.
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/VERSION")
 file(STRINGS "${CMAKE_SOURCE_DIR}/VERSION" BMCV_VERSION LIMIT_COUNT 1)
 if(NOT BMCV_VERSION MATCHES "^([0-9]+)\\.([0-9]+)\\.([0-9]+)")
   message(FATAL_ERROR "VERSION must contain MAJOR.MINOR.PATCH, got: '${BMCV_VERSION}'")
