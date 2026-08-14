@@ -43,9 +43,6 @@ static RemoteInput remote_staged;
 static volatile uint32_t stream_asked = 0;
 static uint32_t stream_sent           = 0;
 
-// Overrides the __weak stub in the MIDI class, and runs in the USB interrupt.
-// It does the least it can get away with: parse, latch, return. Acting on
-// ENTER_UPDATE here would tear down the USB stack from inside its own ISR.
 // One recognised message. Called from sysex_feed, which calls it once per
 // message in the transfer - a host is free to pack several into one, and a
 // second command going unnoticed is what made the stream stutter.
@@ -133,65 +130,32 @@ uint8_t midi_take_remote_input(RemoteInput* dst)
 // there is no second buffer holding the encoded form - but it does mean the
 // copy has to sit still for the ~57 transfers it takes to leave, which is why
 // it is a copy and not the live instance.
-// How long a transfer may sit unfinished before the endpoint is assumed wedged.
-// Two USB frames would be generous; this is far past any honest delay.
-#define MIDI_TX_STUCK_US 50000u
-
 static uint8_t snapshot[sizeof(BmcvInstance)];
 static uint16_t snapshot_len = 0;
 static SysexStream snapshot_stream;
 static bool snapshot_sending = false;
 
-// Take the endpoint back when a transfer will plainly never finish.
+// There was a watchdog here that flushed the IN endpoint when a transfer had
+// gone uncollected for 50ms, meant to recover a module left holding a transfer
+// by a host that vanished. It is gone, and the reason is worth keeping.
 //
-// A host that stops reading leaves one outstanding for ever - a tab closing
-// mid-snapshot does exactly that, and the module has no way to be told. What
-// follows is worse than a stalled stream: the endpoint stays BUSY, so nothing
-// can be sent again, including the identity reply a host needs to find this
-// module at all. The module goes silent until it is power-cycled.
+// It was written for a wedge that had been reasoned about but never observed,
+// and it did its recovering by calling USBD_LL_FlushEP and then setting the
+// class handle's state to MIDI_IDLE - reaching past the HAL to contradict
+// bookkeeping the PCD still owned. What it actually produced was a module that
+// answered nothing at all, ever: any reply the host was slow to drain got
+// flushed out from under it, and the endpoint did not reliably come back.
 //
-// The same failure the ST-Link path documents from the other side - a page that
-// goes away with a read in flight - and it wants the same answer: recover
-// without being asked.
-static void midi_tx_recover(void)
-{
-  USBD_MIDI_HandleTypeDef* h = (USBD_MIDI_HandleTypeDef*) hUsbDeviceFS.pClassData;
-  if (!h)
-    return;
-
-  USBD_LL_FlushEP(&hUsbDeviceFS, MIDI_EPIN_ADDR);
-  h->state = MIDI_IDLE;
-
-  // Whatever was partway out is gone, and so is the snapshot it belonged to.
-  // Starting the next one from the beginning is the only coherent thing to do;
-  // half a SysEx is not something a host can use.
-  snapshot_sending = false;
-}
-
+// A speculative fix for an unobserved failure, which caused a total one. If a
+// real wedge ever turns up, the thing to reach for is the class's own reset
+// path, not a poke at its state behind its back.
 void midi_stream_poll(uint32_t now_us, const BmcvInstance* m)
 {
-  static uint8_t stuck_armed  = 0;
-  static uint32_t stuck_since = 0;
-
-  if (!midi_idle())
-  {
-    if (!stuck_armed)
-    {
-      stuck_armed = 1;
-      stuck_since = now_us;
-    }
-    else if ((uint32_t) (now_us - stuck_since) > MIDI_TX_STUCK_US)
-    {
-      midi_tx_recover();
-      stuck_armed = 0;
-    }
-    return;
-  }
-  stuck_armed = 0;
+  (void) now_us;
 
   // A burst owns the endpoint while it runs; it is a measurement, and sharing
   // it with snapshots would measure something else.
-  if (bench_remaining)
+  if (bench_remaining || !midi_idle())
     return;
 
   // A host that asked while the module was busy elsewhere, or that asked far
