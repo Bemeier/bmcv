@@ -92,7 +92,7 @@ target_include_directories(test_slot_store PRIVATE ${BMCV_ROOT}/sim/include)
 target_include_directories(test_sim_rt PRIVATE ${BMCV_ROOT}/sim/include)
 
 # The flat C API itself, exercised where a debugger can reach it. Covers the
-# snapshot path a debug probe uses - see docs/plans/probe-bridge.md - which is
+# snapshot path a live link uses - see docs/live-module.md - which is
 # the one place a BmcvInstance arrives as bytes rather than being built in
 # place, and so the one place its internal pointers can be left dangling.
 bmcv_add_test(test_sim_import)

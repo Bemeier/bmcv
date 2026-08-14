@@ -38,7 +38,7 @@ void midi_poll_control();
 //
 // The same two directions the debug probe offers, over the MIDI endpoint the
 // module already enumerates - no probe on the programming header. See
-// docs/plans/midi-transport.md.
+// docs/live-module.md.
 
 // Collect a remote input mailbox if one arrived since the last call. Call from
 // the main loop between ticks, never from the tick: this is what keeps a USB

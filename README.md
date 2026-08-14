@@ -82,6 +82,19 @@ the same UX layer, the same LED renderer - so what they do is what the module
 does. See [docs/architecture.md](docs/architecture.md) for how that is arranged
 and what each directory is for.
 
+## Trying it *with* hardware
+
+The same page will show a physical module instead of the simulation, and send
+input back to it - the panel, the scopes, the LEDs and the channel table all
+driven by the board on your bench. Plug the module into USB and press **Connect
+over USB**; nothing else is needed.
+
+It works because the whole module is one struct and the wasm on the page is the
+firmware's own code, so it decodes a real module's memory with no parser, no
+unit conversions and no copy of anything on the JavaScript side. An ST-Link is
+supported too, and is the one route that still works on a module whose firmware
+has stopped answering. See [docs/live-module.md](docs/live-module.md).
+
 ### Installing the Rack module without building it
 
 Every [release](https://github.com/Bemeier/bmcv/releases) carries a

@@ -6,7 +6,7 @@
 // separated a dead endpoint from a lost reply. Both distinctions were invisible
 // from the simulator page, and both had been guessed at for several rounds.
 //
-// See docs/midi-link.md.
+// See docs/live-module.md.
 
 import { identify, SYSEX_ID, CMD_IDENTITY_REQ, CMD_STREAM_REQ, CMD_SNAPSHOT } from '../probe/midiports.js';
 

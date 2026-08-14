@@ -61,7 +61,7 @@ void bmcv_sim_fire_gate(BmcvSim* s, int32_t input);
 // written into a different module's memory - the write direction of the debug
 // probe bridge, where the page in front of you drives the board on the bench.
 // See RemoteInput in Core/Inc/Lib/input_fold.h for what the far end does with
-// it, and docs/plans/remote-input.md for why it is shaped this way.
+// it, and docs/live-module.md for why it is shaped this way.
 //
 // Nothing here touches this instance. A host drives one or the other.
 //
@@ -112,7 +112,7 @@ int32_t bmcv_sim_remote_size(void);
 /* ---- talking to one over MIDI ------------------------------------------- */
 //
 // The module can also carry all of this over the USB MIDI port it already
-// enumerates, with no debug probe - see docs/plans/midi-transport.md. Anything
+// enumerates, with no debug probe - see docs/live-module.md. Anything
 // between an F0 and an F7 has to be seven-bit, so both directions are encoded.
 //
 // The codec is exposed rather than reimplemented in the frontend because the

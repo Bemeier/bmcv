@@ -236,7 +236,7 @@ export const sim = {
   // The whole running module as bytes, which is how a physical one gets onto
   // this page: its firmware keeps its instance in a single global, so a debug
   // probe reads those bytes out of RAM and `importInstance` makes every reading
-  // above report the hardware. See docs/plans/probe-bridge.md.
+  // above report the hardware. See docs/live-module.md.
   //
   // The scratch buffer is allocated once, not per import: this runs on every
   // frame that a probe is connected.

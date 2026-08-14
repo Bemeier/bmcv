@@ -7,7 +7,7 @@
 // curve, the unit conversions or the parameter maths, and there cannot be one,
 // because this file never looks inside the blob.
 //
-// See docs/plans/probe-bridge.md, and Core/Inc/Lib/bmcv_probe.h for what the
+// See docs/live-module.md, and Core/Inc/Lib/bmcv_probe.h for what the
 // firmware publishes about itself.
 
 import { sim } from '../sim.js';

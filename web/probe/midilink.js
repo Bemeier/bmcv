@@ -7,7 +7,7 @@
 // Nothing here decodes anything, exactly as in probe.js. The wasm is handed the
 // bytes and asked what they mean, and the seven-bit codec that gets them there
 // is the module's own sysex.c compiled to wasm rather than a copy written out
-// in JS. See docs/plans/midi-transport.md.
+// in JS. See docs/live-module.md.
 //
 // The shape differs from probe.js in one way that matters: an ST-Link is polled
 // and a module *pushes*. There is no read loop here - snapshots arrive, and the
