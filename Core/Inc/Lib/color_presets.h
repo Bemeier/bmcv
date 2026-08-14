@@ -42,6 +42,27 @@
 // colour wears them. See LED_PALETTE_REF in led_curve.h.
 #define VAL_OFF 0
 #define VAL_DIM 2 // legible without competing: the unselected parameter buttons
+
+// The lowest duty a single die is asked for before it is lifted to it.
+//
+// The balancing above equalises *light*, and does it correctly: every control
+// hue at VAL_DIM comes out at the same 3.5 units. What it cannot know is that a
+// die does not behave down there. Below about two duty steps a WS2812 is on the
+// bend of its own curve and emits less than the linear model says - and a hue
+// mixed from two dies reaches that bend twice as fast, because the same light
+// is split between them.
+//
+// Measured at VAL_DIM: red asks one die for 4.34 and looks right; yellow asks
+// two for 1.37 each and looks half-lit, though the arithmetic says they match.
+// Green, being the efficient die, gets away with 1.89. So the mixtures are the
+// ones that suffer, and yellow - two dies, near enough evenly split - suffers
+// most.
+//
+// Lifting rather than scaling, and only the primaries that are already on: what
+// is wrong is the bottom of one die's curve, not the ratio between them. It
+// costs a little hue accuracy at the very bottom of the range, where there is
+// no hue accuracy to speak of anyway.
+#define LED_MIN_ON_DUTY 2.0f
 #define VAL_LOW 8
 #define VAL_MED 32
 #define VAL_HIG 64

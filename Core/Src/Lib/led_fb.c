@@ -58,6 +58,23 @@ static void balance(LedRgb* led, uint16_t r, uint16_t g, uint16_t b, uint16_t v)
   if (peak * k > ceiling)
     k = ceiling / peak;
 
+  // ...and where the brightest primary would land too far down its own curve to
+  // show what it was asked for, scale until it does. See LED_MIN_ON_DUTY.
+  //
+  // The whole triple, not each primary: flooring them individually lifts the
+  // trace of red that a saturated green carries as a rounding artefact up to
+  // the same duty as the green itself, and turns it yellow. Scaling leaves
+  // every ratio exactly where it was, so the hue is the hue - it is only
+  // brighter.
+  //
+  // Which means the lift lands where the problem is. A hue on one die already
+  // clears the floor and does not move; a hue split between two reaches it at
+  // twice the value and gets scaled up. Yellow, the evenest split, moves most.
+  const float floor_duty = LED_MIN_ON_DUTY * (float) LED_UNIT;
+  const float peak_duty  = peak * k;
+  if (peak_duty > 0.0f && peak_duty < floor_duty)
+    k *= floor_duty / peak_duty;
+
   led->r = (uint16_t) ((float) r * k + 0.5f);
   led->g = (uint16_t) ((float) g * k + 0.5f);
   led->b = (uint16_t) ((float) b * k + 0.5f);
