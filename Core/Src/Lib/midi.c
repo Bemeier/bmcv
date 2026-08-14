@@ -21,10 +21,6 @@ static volatile bool sysex_identity_requested = false;
 static volatile bool midi_clock_flag          = false;
 static volatile bool midi_reset_flag          = false;
 
-// SPIKE - see SYSEX_CMD_BENCH_REQ. Counts down to zero and stops on its own.
-static volatile uint16_t bench_remaining = 0;
-static uint16_t bench_seq                = 0;
-
 // The remote input mailbox, on its way in. Staged here rather than written
 // straight into the instance because this runs in the USB interrupt, which can
 // preempt input_fold halfway through reading it - and a mailbox that is half
@@ -64,10 +60,6 @@ static void on_sysex(SysexCmd cmd, const uint8_t* payload, uint8_t len, void* us
     break;
   case SYSEX_CMD_IDENTITY_REQ:
     sysex_identity_requested = true;
-    break;
-  case SYSEX_CMD_BENCH_REQ:
-    bench_seq       = 0;
-    bench_remaining = SYSEX_BENCH_MESSAGES;
     break;
   case SYSEX_CMD_STREAM_REQ:
     stream_asked++;
@@ -118,8 +110,6 @@ uint8_t midi_read_reset_trig()
 }
 
 uint8_t midi_dfu_requested() { return sysex_dfu_requested; }
-
-uint8_t midi_bench_active() { return bench_remaining != 0; }
 
 uint8_t midi_take_remote_input(RemoteInput* dst)
 {
@@ -174,9 +164,7 @@ void midi_stream_poll(uint32_t now_us, const BmcvInstance* m)
 {
   (void) now_us;
 
-  // A burst owns the endpoint while it runs; it is a measurement, and sharing
-  // it with snapshots would measure something else.
-  if (bench_remaining || !midi_idle())
+  if (!midi_idle())
     return;
 
   // A host that asked while the module was busy elsewhere, or that asked far
@@ -230,23 +218,6 @@ uint8_t midi_stream_active() { return snapshot_sending; }
 
 void midi_poll_control()
 {
-  // SPIKE. First claim on the endpoint while a burst is running, and the reason
-  // bmcv.c holds its control changes back meanwhile: what is being measured is
-  // how fast this endpoint can be filled, and traffic sharing it would be
-  // measured as the transport being slower than it is.
-  if (bench_remaining && midi_idle())
-  {
-    // Static for the same reason buffUsbReport is: USBD_MIDI_SendReport hands
-    // the pointer to USBD_LL_Transmit and returns, so the buffer has to outlive
-    // the call.
-    static uint8_t packets[SYSEX_BENCH_PACKET_BYTES];
-    uint8_t len = sysex_bench_message(packets, 0, bench_seq++);
-
-    USBD_MIDI_SendReport(&hUsbDeviceFS, packets, len);
-    bench_remaining--;
-    return;
-  }
-
   // Not mid-snapshot, for the reason bmcv.c gives about control changes: a
   // second SysEx started inside the first is not something a host can make
   // sense of. The request keeps until the snapshot has finished.

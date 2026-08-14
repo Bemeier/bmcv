@@ -8,11 +8,12 @@
 
 import { requestDfuDevice, describeImageProblem, FLASH_START, DfuError } from './dfuse.js';
 
+import { identify } from '../probe/midiports.js';
+
 // F0 7D 42 4D <cmd> F7 - see Core/Inc/Lib/sysex.h. 0x7D is the non-commercial
 // manufacturer ID; 'B','M' after it is what keeps this from colliding with
 // every other project using the same ID.
 const SYSEX_ENTER_UPDATE = [0xf0, 0x7d, 0x42, 0x4d, 0x01, 0xf7];
-const SYSEX_IDENTITY_REQ = [0xf0, 0x7d, 0x42, 0x4d, 0x02, 0xf7];
 
 const el = (id) => document.getElementById(id);
 
@@ -50,34 +51,6 @@ function setStatus(node, message, cls) {
 
 // --- module side, over MIDI ------------------------------------------------
 
-function isModule(port) {
-  return /bmcv/i.test(port.name ?? '');
-}
-
-// Ask the module what version it is running, and give up quickly if nothing
-// answers. The reply is nine SysEx bytes; we only care about the last three
-// before the terminator.
-function requestVersion(input, output) {
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => {
-      input.onmidimessage = null;
-      resolve(null);
-    }, 500);
-
-    input.onmidimessage = (event) => {
-      const d = event.data;
-      if (d.length < 9 || d[0] !== 0xf0 || d[1] !== 0x7d || d[2] !== 0x42 || d[3] !== 0x4d || d[4] !== 0x02) {
-        return;
-      }
-      clearTimeout(timer);
-      input.onmidimessage = null;
-      resolve(`${d[5]}.${d[6]}.${d[7]}`);
-    };
-
-    output.send(SYSEX_IDENTITY_REQ);
-  });
-}
-
 async function connectMidi() {
   if (!navigator.requestMIDIAccess) {
     setStatus(ui.midiStatus, 'no WebMIDI in this browser', 'warn');
@@ -94,19 +67,31 @@ async function connectMidi() {
     return;
   }
 
-  const output = [...access.outputs.values()].find(isModule);
-  const input = [...access.inputs.values()].find(isModule);
-
-  if (!output) {
+  // Found by handshake rather than by name, and with the ports opened first.
+  //
+  // Both matter and neither is obvious. A MIDI port is named by the host
+  // driver, not by the device - this module publishes no jack strings at all,
+  // so there is nothing to name it after and nothing to match on. And send()
+  // and onmidimessage open a port implicitly but *asynchronously*, so a request
+  // issued straight away can go out before anything is listening and the reply
+  // lands on a port nobody holds. Both of those cost a long evening on the
+  // simulator page; see web/probe/midiports.js.
+  let found;
+  try {
+    found = await identify(access);
+  } catch (err) {
     setStatus(ui.midiStatus, 'module not found', 'warn');
-    log('No BMCV on the MIDI bus. Check the cable and that the case is powered, or use the FN2 route.', 'warn');
+    log(err.message, 'warn');
+    log('Use the FN2 route instead: hold FN2 while powering the case on.', 'warn');
     return;
   }
 
+  const { output } = found;
   midiOutput = output;
   ui.btnReboot.disabled = false;
 
-  const version = input ? await requestVersion(input, output) : null;
+  // identify() got this out of the module while proving it was the module.
+  const version = found.version;
   if (version) {
     setStatus(ui.midiStatus, `connected, running ${version}`, 'good');
     log(`Module connected, firmware ${version}.`);

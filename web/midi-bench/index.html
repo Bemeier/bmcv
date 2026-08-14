@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>BMCV — MIDI throughput</title>
+<title>BMCV — MIDI link diagnostics</title>
 <link rel="stylesheet" href="../style.css">
 <style>
   body { max-width: 46rem; margin: 0 auto; padding: 2rem 1.5rem; }
@@ -21,19 +21,11 @@
 </head>
 <body>
 
-<h1>MIDI throughput</h1>
+<h1>MIDI link diagnostics</h1>
 
 <p class="lede">
-  <strong>Measure the endpoint</strong> asks for a burst of
-  <span id="n-msgs">—</span> SysEx messages and times them. Each is 48 MIDI
-  bytes, which is exactly one 64-byte transfer, so what comes out is the raw
-  ceiling of the transport.
-</p>
-
-<p class="lede">
-  <strong>Measure the snapshot rate</strong> runs the real thing instead: it
-  asks for whole module snapshots the way the simulator page does, but decodes
-  nothing and draws nothing. If snapshots are fast here and slow on the
+  <strong>Measure the snapshot rate</strong> asks for whole module snapshots the
+  way the simulator page does, but decodes nothing and draws nothing. If snapshots are fast here and slow on the
   simulator page, the transport is fine and the cost is in decoding and drawing
   them. If they are slow here too, it is the transport or the firmware.
 </p>
@@ -46,12 +38,11 @@
 </p>
 
 <p class="lede">
-  Nothing is written to the module and nothing is stored. The burst is bounded
-  in the firmware, so closing this tab stops it.
+  Nothing is written to the module and nothing is stored. The module streams
+  only while this page keeps asking, so closing the tab stops it.
 </p>
 
 <p>
-  <button id="run" type="button" disabled>measure the endpoint</button>
   <button id="run-snapshots" type="button">measure the snapshot rate</button>
   <button id="run-diagnose" type="button">diagnose the bus</button>
   <span id="status" class="muted">starting up</span>
@@ -59,16 +50,6 @@
 
 <div class="verdict" id="verdict" hidden></div>
 
-<table id="results" hidden>
-  <tr><th>messages</th><td class="n" id="r-msgs"></td><td class="note" id="r-lost"></td></tr>
-  <tr><th>elapsed</th><td class="n" id="r-time"></td><td class="note">first to last arrival</td></tr>
-  <tr><th>messages/s</th><td class="n" id="r-rate"></td><td class="note">= transfers/s on the endpoint</td></tr>
-  <tr><th>payload</th><td class="n" id="r-payload"></td><td class="note">MIDI bytes/s, what a decoder receives</td></tr>
-  <tr><th>on the wire</th><td class="n" id="r-wire"></td><td class="note">USB bytes/s, including packet headers</td></tr>
-  <tr><th>useful bytes/s</th><td class="n" id="r-useful"></td><td class="note">after 7-bit encoding is undone</td></tr>
-  <tr><th>full snapshots/s</th><td class="n" id="r-full"></td><td class="note">2368 B every frame</td></tr>
-  <tr><th>chunked deltas/s</th><td class="n" id="r-delta"></td><td class="note">~20 × 32 B changed, measured</td></tr>
-</table>
 
 <div id="log"></div>
 

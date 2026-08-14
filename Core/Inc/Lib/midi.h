@@ -34,11 +34,6 @@ uint8_t midi_dfu_requested();
 // enough to call every pass; it does nothing until there is something to say.
 void midi_poll_control();
 
-// SPIKE - non-zero while a throughput burst is running, so the engine's own
-// MIDI output can stand aside and let the measurement have the endpoint. See
-// SYSEX_CMD_BENCH_REQ.
-uint8_t midi_bench_active();
-
 /* ---- driving and watching the module over its own USB port --------------- */
 //
 // The same two directions the debug probe offers, over the MIDI endpoint the

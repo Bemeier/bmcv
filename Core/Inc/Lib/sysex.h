@@ -40,19 +40,6 @@ typedef enum
   // sysex_identity_reply().
   SYSEX_CMD_IDENTITY_REQ = 0x02,
 
-  // SPIKE, not a feature. Send a fixed burst of SYSEX_BENCH_MESSAGES packets as
-  // fast as the endpoint will take them, so a browser can time them and say what
-  // this transport is actually worth. See docs/plans/midi-transport.md.
-  //
-  // The answer decides whether the module can publish its own state over its
-  // USB port instead of over a debug probe, and it is the one number the whole
-  // question hangs on. Everything else about that design is arithmetic; this is
-  // measurement.
-  SYSEX_CMD_BENCH_REQ = 0x10,
-
-  // What the burst is made of. Never sent unless asked for.
-  SYSEX_CMD_BENCH_DATA = 0x11,
-
   // Host -> module. The remote input mailbox, 48 raw bytes seven-bit encoded to
   // 55. Merged by input_fold exactly as one written over a debug probe is; see
   // RemoteInput in input_fold.h. This is the whole of the write direction.
@@ -196,30 +183,5 @@ void sysex_stream_begin(SysexStream* s, uint8_t cmd, const uint8_t* raw, uint16_
 uint8_t sysex_stream_next(SysexStream* s, uint8_t* out, uint8_t cable);
 
 uint8_t sysex_stream_done(const SysexStream* s);
-
-/* ---- the throughput spike ------------------------------------------------ */
-
-// How many messages one request sends. Bounded rather than a start/stop pair on
-// purpose: a browser tab that goes away mid-run cannot leave the module
-// streaming at a host that is not listening, which would need a power cycle to
-// stop. Ask again for a longer run.
-#define SYSEX_BENCH_MESSAGES 2000
-
-// One bench message is 48 MIDI bytes, which is exactly 16 USB-MIDI event
-// packets, which is exactly one 64-byte transfer on the endpoint. That
-// alignment is the point: the browser counts whole messages, and each one it
-// counts is one transfer the hardware actually did, so bytes/second on the wire
-// needs no assumption about how the stack packed anything.
-//
-//   F0 7D 42 4D 11 <seq lo7> <seq hi7> <40 payload> F7
-#define SYSEX_BENCH_MSG_BYTES 48
-#define SYSEX_BENCH_PACKET_BYTES 64
-
-// Build message `seq` of a burst. `out` needs SYSEX_BENCH_PACKET_BYTES.
-// Returns bytes written, always SYSEX_BENCH_PACKET_BYTES.
-//
-// The payload varies with seq so a run cannot be measured as fast because
-// something downstream coalesced or dropped identical messages.
-uint8_t sysex_bench_message(uint8_t* out, uint8_t cable, uint16_t seq);
 
 #endif /* INC_LIB_SYSEX_H_ */

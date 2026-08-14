@@ -432,10 +432,7 @@ void bmcv_main(uint32_t now_us)
   // says them again. What it costs is output latency while streaming, since a
   // snapshot occupies the endpoint for about eleven milliseconds at a time and
   // control changes get the gap between two of them.
-  //
-  // midi_bench_active() is the throughput spike, holding the endpoint for the
-  // same reason - see SYSEX_CMD_BENCH_REQ.
-  if (midi_idle() && !midi_bench_active() && !midi_stream_active())
+  if (midi_idle() && !midi_stream_active())
   {
     midi_publish();
   }
