@@ -1,8 +1,8 @@
 # Spike: the module's own USB port as the transport
 
-Status: **step 1 built, waiting on a bench run.** Nothing here is a feature. The
-branch is `spike/midi-transport` and is meant to be measured and then largely
-thrown away.
+Status: **measured, and it passes comfortably.** The bench is on
+`spike/midi-transport`; what it decided is below. The bench command itself is
+still throwaway.
 
 Question: can the module publish its state over the USB MIDI port it already
 enumerates, instead of over a debug probe on the programming header? That would
@@ -52,106 +52,113 @@ percentage suggests, but it still wins by a lot:
 Both after 7-bit SysEx encoding (×8/7) and USB-MIDI packing (3 payload bytes per
 4-byte event packet).
 
-## Measurement 2: what the endpoint is actually worth — NOT YET DONE
+## Measurement 2: what the endpoint is worth — DONE
 
-This is what the branch is for, and it is the number everything hangs on. The
-transport facts are known:
+**5283 transfers/s. 330 kB/s on the wire, 217 kB/s of useful payload.**
 
-- The MIDI endpoints are **bulk, 64 bytes** (`MIDI_EPIN_SIZE 0x40`), `bInterval`
-  ignored.
-- The IN endpoint is **single-buffered**: `midi_idle()` must be true before the
-  next send, and the main loop refills it.
+Measured on Chromium, engine running at 4 kHz throughout, module's own control
+changes stood down for the duration.
 
-What is *not* known is what a browser's Web MIDI stack, the OS class driver and
-the host controller sustain between them. None of that is in this repo and none
-of it is guessable, so the spike measures it rather than arguing about it.
+| | |
+|---|---|
+| messages/s (= transfers/s) | 5283 |
+| per 1 ms USB frame | 5.3 transfers |
+| on the wire | 330 kB/s — 28% of full-speed bulk theoretical |
+| useful, after 7-bit encoding is undone | 217 kB/s |
+| **whole snapshots/s** | **93.7** |
+| chunked deltas/s | 326 |
 
-### How
+The transport facts behind it: the MIDI endpoints are bulk, 64 bytes
+(`MIDI_EPIN_SIZE 0x40`), and the IN endpoint is single-buffered — `midi_idle()`
+must be true before the next send, and the main loop refills it. Five transfers
+a frame means the host schedules bulk aggressively and the main loop keeps up
+with it *while ticking the engine*, which is the part that could not be assumed.
 
-`SYSEX_CMD_BENCH_REQ` (0x10) makes the module send `SYSEX_BENCH_MESSAGES` (2000)
-SysEx messages as fast as the endpoint takes them. Each is **48 MIDI bytes =
-16 USB-MIDI event packets = exactly one 64-byte transfer**, so counting messages
-in the browser counts transfers on the endpoint, and bytes/second needs no
-assumption about how anything packed anything. `tests/test_sysex.c` holds the
-firmware to that alignment - it is the one way this experiment could produce a
-confident wrong answer.
+### What it changes
 
-The burst is **bounded in the firmware** rather than being a start/stop pair: a
-tab that goes away mid-run cannot leave the module streaming at nobody, which
-would need a power cycle to stop. Ask again for a longer run.
+**93.7 whole snapshots a second beats the probe's ~70.** So the delta scheme
+that the 5%-changed measurement was collected to justify is **not needed**, and
+with it goes almost everything expensive about the read direction:
 
-`bmcv.c` holds back its own control changes while a burst is running
-(`midi_bench_active()`), so what is measured is the endpoint's ceiling and not
-the endpoint sharing itself with the engine.
+- no shadow copy of the instance
+- no chunk differ, no chunk indices
+- **no keyframe or resync logic** — the hard part, and the one most likely to
+  produce a wrong-looking module rather than an error
 
-```
-just build-flash-rel      # flash a module with the bench command
-just web                  # then open /midi-bench/
-```
+What is left is: copy the instance, 7-bit encode, frame, stream. The delta
+scheme stays on the shelf as headroom if the endpoint ever needs sharing more
+carefully, not as a prerequisite.
 
-The page reports messages/s, payload and wire bytes/s, and converts those into
-the two numbers that matter: whole snapshots/s and chunked deltas/s, against the
-probe's ~70.
+**One SysEx per snapshot.** 2707 encoded bytes is one SysEx message, and Web
+MIDI does not deliver a message until its F7 arrives — so the browser's own MIDI
+stack does the reassembly and the JS side has *no framing code at all*. It
+receives one message and hands it to `bmcv_sim_import`. The "one decoder"
+property is not merely preserved, it is trivial.
 
-### Reading the result
+**Sharing with musical MIDI is a smaller problem than feared.** `midi_out`
+reconsiders every 2 ms and emits only on change, so its worst case is ~500
+transfers/s — 9% of the pipe. Streaming with control changes fully active still
+lands near 85 snapshots/s. No priority scheme needed; the two can just share.
 
-- **delta ≥ 50/s** — comfortable; build it.
-- **delta 20–50/s** — workable. Below the probe but well above what a panel
-  needs to look alive. Whole snapshots would not be.
-- **delta 5–20/s** — marginal; only a delta scheme gets there at all.
-- **delta < 5/s** — a readout, not a display. Stop.
-
-## If it passes: what to build, in order
+## What to build
 
 ### 1. The write direction (small, and useful on its own)
 
 **~50 lines.** The remote input mailbox already exists and the module already
-merges it in `input_fold`; all that is missing is a SysEx that carries 48 bytes
-into `bmcv.input.remote`. At 2 transfers per update this is free at any rate the
-measurement could plausibly report.
+merges it in `input_fold`; all that is missing is a SysEx carrying 48 bytes into
+`bmcv.input.remote`. Two transfers per update against a budget of 5283 a second.
 
 Worth doing even if the read direction never happens: it means a module with
 nothing but a USB cable in it can be driven from the page.
 
-Needs `SYSEX_MAX_LEN` (16) revisited - the parser currently skips anything
-longer without buffering it.
+Needs `SYSEX_MAX_LEN` (16) revisited — the parser currently skips anything
+longer without buffering it, so a 48-byte payload needs a streaming path.
 
 ### 2. The read direction
 
-Bigger, and the honest cost against the probe's *zero* firmware lines:
+**~80 lines, not the 150–250 this doc first estimated**, because at 93.7 whole
+snapshots a second there is nothing to be clever about:
 
-- A shadow copy of the instance to diff against (2368 B), plus the outgoing
-  frame (2368 B). RAM is fine: 7.5% of 128 KB used today.
-- Chunk differ, 7-bit encoder, SysEx framer, send state machine.
-- Keyframe and resync: a host that joins mid-stream, or misses a chunk, needs a
-  way back to a known state. Periodic full snapshot, or on request.
-- 150–250 lines, on the same core running the engine at 4 kHz.
+- Copy `bmcv` into a static buffer at a tick boundary.
+- 7-bit encode it and stream it out as one SysEx across ~57 transfers, driven
+  from the same `midi_idle()` gate the bench used.
+- Browser hands the message to `bmcv_sim_import`. No framing code on that side.
 
-**One thing it would do better than the probe.** Diffing against a copy taken at
-a tick boundary makes a reassembled snapshot internally consistent. The probe's
-read never is - `probe-bridge.md` documents that a blob can straddle a tick and
-warns against relying on cross-field consistency. This transport could offer
-what that one cannot.
+RAM: one 2368 B snapshot buffer, and the encode can be done on the fly from it
+rather than into a second 2707 B buffer. CPU is roughly 2% of the core at full
+rate — but that is arithmetic, and `BMCV_PROFILE` should be the thing that says
+so, not this paragraph.
 
-**And one it would do worse.** It shares the IN endpoint with the engine's own
-MIDI output, which `midi_out` reconsiders every 2 ms. A snapshot stream large
-enough to be useful will delay control changes. Needs a priority rule, or for
-streaming to be a mode you turn on rather than something that runs always.
+**Streaming must time out**, the same way the remote input mailbox does and for
+the same reason: a tab that goes away must not leave the module streaming at
+nobody. The host asks periodically; the module stops when it stops hearing.
+`REMOTE_TIMEOUT_US` is the precedent, and the symmetry is worth keeping.
+
+**One thing it does better than the probe.** A snapshot copied at a tick
+boundary is internally consistent. The probe's read never is — `probe-bridge.md`
+documents that a blob can straddle a tick and warns against relying on
+cross-field consistency. This transport can offer what that one cannot.
 
 ## Open questions
 
-1. **Firefox.** Half the reason to do this is escaping Chromium, but I have not
-   verified the current state of Firefox's Web MIDI SysEx permission. Worth
-   checking before the result is used to justify anything - if SysEx is awkward
-   there, the main non-technical argument for MIDI weakens a lot.
-2. **Does the probe stay?** If MIDI is fast enough, the probe path is still the
-   only one that costs the firmware nothing and the only one that works on a
-   module whose firmware is wedged. Probably both, with the frontend showing
-   whichever is connected - `mode.captureHz` already exists so the scopes follow
-   whatever rate a transport manages.
-3. **Streaming always, or on request?** Bears on the endpoint conflict above,
-   and on whether a module in a DAW is quietly spending its MIDI bandwidth on
-   nobody.
-4. **Is 32 bytes the right chunk?** 16 B chunks touch 28 of 151; 64 B touch 14
-   of 38. 32 looked best on the numbers above but it was not tuned, and the
-   index width trades against it.
+1. **Is it worth it, now that Firefox is not the reason?** The Chromium-only
+   restriction was half the case for MIDI and it has been set aside. What is
+   left is "no ST-Link, no WinUSB binding, works on a module already in a DAW"
+   — real, but a smaller prize than "runs in every browser". The read direction
+   costs firmware on the hot path where the probe costs none, and that trade
+   should be made deliberately rather than because the number came out well.
+2. **Does the probe stay?** Almost certainly: it is the only path that costs the
+   firmware nothing and the only one that works on a module whose firmware is
+   wedged. Both, with the frontend showing whichever is connected —
+   `mode.captureHz` already exists so the scopes follow whatever rate a
+   transport manages.
+3. **Streaming always, or on request?** Bears on whether a module in a DAW
+   quietly spends 90% of its MIDI bandwidth on nobody. Leaning: on request,
+   with the timeout above.
+
+## Settled, and no longer worth asking
+
+- ~~Firefox's SysEx permission~~ — out of scope; Chromium only, by decision.
+- ~~Chunk size tuning~~ — no chunking. Whole snapshots are fast enough.
+- ~~A priority rule for the shared endpoint~~ — `midi_out`'s worst case is 9%
+  of the pipe. They can just share.
