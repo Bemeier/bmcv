@@ -112,6 +112,16 @@ export const sim = {
   remoteOffset: _('remote_offset')(),
   remoteSize: _('remote_size')(),
 
+  // Ask a physical module to start again, and optionally to forget its stored
+  // presets first - the same two things the buttons do to the simulation, sent
+  // to whichever module the page is showing. Stamp it, then hand the bytes to
+  // the transport.
+  remoteReset: wipeStorage => _('remote_reset')(handle, wipeStorage ? 1 : 0),
+
+  commandOffset: _('command_offset')(),
+  commandSize: _('command_size')(),
+  commandBlob: () => u8(_('command_blob')(handle), sim.commandSize).slice(),
+
   /* ---- over MIDI --------------------------------------------------------- */
   //
   // Anything between an F0 and an F7 has to be seven-bit, so a mailbox going out

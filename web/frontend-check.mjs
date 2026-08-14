@@ -246,20 +246,20 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
 // a cell that draws a fixed number of samples therefore shows two spans that
 // differ by a factor of a hundred - which is what it used to do, silently.
 {
-  const { mode } = await import('./mode.js');
+  const { mode, SIM, MIDI } = await import('./mode.js');
   const { drawScopes, spanSamples } = await import('./scope.js');
 
-  mode.drivenBy(null);
+  mode.drivenBy(SIM);
   check(spanSamples() === 1500, `the simulator draws 375ms of ticks (${spanSamples()} samples)`);
 
-  mode.drivenBy(30);
+  mode.drivenBy(MIDI, 30);
   check(spanSamples() === 60, `a probe at 30/s draws two seconds (${spanSamples()} samples)`);
 
   // The rate is measured, so the window has to follow it rather than a constant.
-  mode.drivenBy(10);
+  mode.drivenBy(MIDI, 10);
   check(spanSamples() === 20, `and follows the measured rate (${spanSamples()} samples)`);
 
-  mode.drivenBy(null);
+  mode.drivenBy(SIM);
   check(spanSamples() === 1500, 'and disconnecting puts the span back');
   drawScopes();
 
@@ -268,16 +268,16 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   // Carried, it capped how much of the buffer the scopes would draw: after a
   // session of ~900 snapshots the simulator drew 900 of its 1500 samples and
   // the trace stopped 60% of the way across every cell.
-  mode.drivenBy(30, 900);
+  mode.drivenBy(MIDI, 30, 900);
   check(mode.contiguous === 900, 'a live probe reports its own sample count');
-  mode.drivenBy(null, 900);
+  mode.drivenBy(SIM);
   check(mode.contiguous === Infinity, 'and disconnecting discards it, whatever is passed');
 
   // The aliasing marker is drawn straight onto the canvas, so what is checked
   // here is that asking the question does not throw with a probe's sample rate
   // in effect - the branch only runs when live, and only there reads effective
   // frequencies out of the wasm heap.
-  mode.drivenBy(30);
+  mode.drivenBy(MIDI, 30);
   let aliasThrew = null;
   try { drawScopes(); } catch (e) { aliasThrew = e; }
   check(!aliasThrew, `the aliasing check runs${aliasThrew ? ` (${aliasThrew.message})` : ''}`);
@@ -285,13 +285,13 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   // Coming back to a backgrounded tab: the buffer still holds whatever was in
   // it, but only a few samples were taken since. Drawing the rest would put
   // history from minutes ago on an axis that claims to be two seconds wide.
-  mode.drivenBy(30, 3);
+  mode.drivenBy(MIDI, 30, 3);
   check(mode.contiguous === 3, 'a resumed probe reports how little it has sampled');
   let gapThrew = null;
   try { drawScopes(); } catch (e) { gapThrew = e; }
   check(!gapThrew, `and the scopes draw only that${gapThrew ? ` (${gapThrew.message})` : ''}`);
 
-  mode.drivenBy(null);
+  mode.drivenBy(SIM);
   check(mode.contiguous === Infinity, 'the simulator has no such gap');
 }
 
@@ -331,23 +331,38 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   check(!midi.classList.contains('sending'), 'the CC table is hidden with no port selected');
 }
 
-/* ---- the two halves of the module box are exclusive ----------------------- */
+/* ---- the three sources, and what each one shows --------------------------- */
 
-// MIDI and the probe rates share one box and are shown one at a time, off the
-// body class mode.js sets. The reset buttons stay visible but stop working,
-// because a page showing hardware would reset a simulation it is not running.
+// The page is always in exactly one of three sources, and the body carries a
+// class per source so the stylesheet can show the MIDI-out controls or the link
+// statistics without any of it being decided in JavaScript.
+//
+// The reset buttons stay available in all three. They used to be disabled
+// whenever a module was driving the page, because resetting a simulation nobody
+// was looking at would have appeared to do nothing; they now act on whichever
+// module is being shown, and say which that is.
 {
-  const { mode } = await import('./mode.js');
+  const { mode, SIM, MIDI, PROBE } = await import('./mode.js');
   const cls = document.body.classList;
   const reset = document.getElementById('reset');
   const resetFram = document.getElementById('reset-fram');
 
-  check(!cls.contains('live'), 'the simulator is the default source');
-  check(!reset.disabled && !resetFram.disabled, 'and both resets work');
+  const usable = () => !reset.disabled && !resetFram.disabled;
+  const saysSimulation = () => /simulation/.test(reset.title) && /simulation/.test(resetFram.title);
+  const saysModule = () => /module/.test(reset.title) && /module/.test(resetFram.title);
 
-  mode.drivenBy(30);
-  check(cls.contains('live'), 'a connected module marks the page live');
-  check(reset.disabled && resetFram.disabled, 'and takes the resets out of service');
+  check(!cls.contains('live') && cls.contains('mode-sim'), 'the simulation is the default source');
+  check(usable() && saysSimulation(), 'and the resets are available, aimed at the simulation');
+
+  mode.drivenBy(MIDI, 30);
+  check(cls.contains('live') && cls.contains('mode-midi'), 'a module over USB marks the page live');
+  check(!cls.contains('mode-sim') && !cls.contains('mode-probe'), 'and only that source');
+  check(usable() && saysModule(), 'the resets stay available, now aimed at the module');
+
+  mode.drivenBy(PROBE, 70);
+  check(cls.contains('live') && cls.contains('mode-probe'), 'a module over a probe is its own source');
+  check(!cls.contains('mode-midi'), 'and not confused with the other one');
+  check(usable() && saysModule(), 'with the resets still aimed at the module');
 
   // The rest of it is CSS, and the bug was CSS: an id selector outranked
   // `button:disabled:hover`, so Reset FRAM went on lighting up amber while it
@@ -360,9 +375,15 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   check(bareHovers.length === 0,
     `every button hover rule excludes disabled${bareHovers.length ? ` (${bareHovers.join(' / ')})` : ''}`);
 
-  mode.drivenBy(null);
-  check(!cls.contains('live'), 'disconnecting hands the page back');
-  check(!reset.disabled && !resetFram.disabled, 'and the resets with it');
+  // Every source the module knows about has a name to show for it, or a
+  // readout somewhere says "undefined".
+  const { SOURCE_NAME } = await import('./mode.js');
+  check([SIM, MIDI, PROBE].every(k => typeof SOURCE_NAME[k] === 'string' && SOURCE_NAME[k]),
+    'every source has a name a person can read');
+
+  mode.drivenBy(SIM);
+  check(!cls.contains('live') && cls.contains('mode-sim'), 'disconnecting hands the page back');
+  check(usable() && saysSimulation(), 'and the resets point at the simulation again');
 }
 
 /* ---- the rate readouts are wired ----------------------------------------- */

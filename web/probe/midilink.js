@@ -14,8 +14,9 @@
 // only thing on a timer is the request that keeps them coming.
 
 import { sim } from '../sim.js';
-import { mode } from '../mode.js';
-import { identify, SYSEX_ID, CMD_REMOTE_INPUT, CMD_STREAM_REQ, CMD_SNAPSHOT } from './midiports.js';
+import { MIDI } from '../mode.js';
+import { Session } from './session.js';
+import { identify, SYSEX_ID, CMD_REMOTE_INPUT, CMD_REMOTE_COMMAND, CMD_STREAM_REQ, CMD_SNAPSHOT } from './midiports.js';
 
 // One request buys one snapshot, so this page paces the module rather than the
 // other way round: it asks again once it has finished with the last one. That
@@ -38,81 +39,51 @@ const STALL_MS = 750;
 // it on every poll.
 const MAILBOX_MS = 40;
 
-// Snapshots are counted over a window rather than smoothed from the gap between
-// them, which is what probe.js does. The gap is only the truth when arrivals are
-// evenly spaced, and a pushed stream's are not: a burst of ten with no gap
-// between them reads as a thousand a second, and a smoothed average of that
-// against long silences reported sixty while the panel was visibly updating
-// about once. Counting cannot say that.
-const RATE_WINDOW_MS = 500;
-
 class MidiLink {
   constructor() {
-    this.state = 'idle'; // idle | connecting | live | error
-    this.error = null;
-    this.stage = '';     // which port is being asked, during discovery
-    this.version = null; // what the module said it is running
-    this.snapshots = 0;
-    this.onchange = () => {};
+    this.session = new Session(MIDI, { sendCommand: () => this.#sendCommand() });
 
     this.access = null;
     this.input = null;
     this.output = null;
+    this.version = null;
     this.timers = [];
-
-    this.hz = 0;
-    this.lastAt = 0;
-    this.contiguous = 0;
-
-    // Arrivals since the window opened, and when it opened.
-    this.windowCount = 0;
-    this.windowAt = 0;
-
-    // The simulation as it was before a module took the page over, exactly as
-    // probe.js keeps it: watching hardware must not cost you the patch you were
-    // working on.
-    this.saved = null;
 
     if (typeof window !== 'undefined') {
       window.addEventListener('pagehide', () => this.#teardown());
     }
   }
 
-  #set(state, error = null) {
-    this.state = state;
-    this.error = error;
-    mode.drivenBy(state === 'live' ? this.hz : null, this.contiguous);
-    this.onchange(this);
-  }
+  // The session owns everything that is not about MIDI, and the UI reads these
+  // off the link rather than reaching through it.
+  get state() { return this.session.state; }
+  get error() { return this.session.error; }
+  get stage() { return this.session.stage; }
+  get snapshots() { return this.session.snapshots; }
+  get hz() { return this.session.hz; }
+
+  set onchange(fn) { this.session.onchange = () => fn(this); }
+  get onchange() { return this.session.onchange; }
 
   /* ---- connecting -------------------------------------------------------- */
 
   async connect() {
     if (this.state === 'connecting' || this.state === 'live') return;
-    this.#set('connecting');
+    this.session.set('connecting');
 
     try {
       // sysex: true is the whole point, and it is a separate permission from
       // plain MIDI - a browser that grants one may still refuse the other.
       this.access = await navigator.requestMIDIAccess({ sysex: true });
 
-      const found = await identify(this.access, stage => {
-        this.stage = stage;
-        this.onchange(this);
-      });
+      const found = await identify(this.access, stage => this.session.setStage(stage));
 
       this.input = found.input;
       this.output = found.output;
       this.version = found.version;
-      this.stage = '';
+      this.session.setStage('');
 
-      this.saved = sim.exportInstance();
-      sim.remoteClear();
-
-      this.lastAt = 0;
-      this.contiguous = 0;
-      this.windowCount = 0;
-      this.windowAt = 0;
+      this.session.begin();
       this.input.onmidimessage = ev => this.#onMessage(ev);
 
       for (let i = 0; i < CREDITS; i++) this.#request();
@@ -125,13 +96,14 @@ class MidiLink {
       this.watchdog = setTimeout(() => {
         if (this.state === 'connecting') {
           this.#teardown();
-          this.#set('error', 'the module did not send anything - is it running firmware with snapshot streaming?');
+          this.session.end();
+          this.session.set('error', 'the module did not send anything - is it running firmware with snapshot streaming?');
         }
       }, 2000);
     } catch (e) {
       this.#teardown();
-      this.#restore();
-      this.#set('error', e.message);
+      this.session.end();
+      this.session.set('error', e.message);
     }
   }
 
@@ -142,8 +114,8 @@ class MidiLink {
     try { this.#sendMailbox(); } catch { /* the port may already be gone */ }
 
     this.#teardown();
-    this.#restore();
-    this.#set('idle');
+    this.session.end();
+    this.session.set('idle');
   }
 
   #teardown() {
@@ -151,12 +123,6 @@ class MidiLink {
     this.timers = [];
     clearTimeout(this.watchdog);
     if (this.input) this.input.onmidimessage = null;
-  }
-
-  #restore() {
-    if (!this.saved) return;
-    sim.importInstance(this.saved);
-    this.saved = null;
   }
 
   /* ---- the two directions ------------------------------------------------ */
@@ -181,6 +147,16 @@ class MidiLink {
     this.output.send([0xf0, ...SYSEX_ID, CMD_REMOTE_INPUT, ...encoded, 0xf7]);
   }
 
+  // Reset, or reset and forget storage. Sent once when asked for rather than on
+  // the mailbox timer: it is an edge the module acts on when its sequence
+  // number changes, so repeating it would change nothing and sending it late
+  // would be a button that appears not to work.
+  #sendCommand() {
+    if (!this.output) return;
+    const encoded = sim.sysex7Encode(new Uint8Array(sim.commandBlob()));
+    this.output.send([0xf0, ...SYSEX_ID, CMD_REMOTE_COMMAND, ...encoded, 0xf7]);
+  }
+
   // What to show once it is running: which port it turned out to be, since the
   // name is exactly the thing that could not be relied on to find it.
   get description() {
@@ -200,8 +176,8 @@ class MidiLink {
 
     if (!sim.importSysex7(wire)) {
       this.#teardown();
-      this.#restore();
-      this.#set('error',
+      this.session.end();
+      this.session.set('error',
         `the module sent ${wire.length} encoded bytes and this page expects ${sim.wireSize} - `
         + 'it is running firmware built from different sources than this page');
       return;
@@ -212,28 +188,9 @@ class MidiLink {
     // has actually managed to draw.
     this.#request();
 
-    this.snapshots++;
-    this.contiguous++;
-
-    const now = performance.now();
-    this.lastAt = now;
-
-    if (!this.windowAt) this.windowAt = now;
-    this.windowCount++;
-
-    const span = now - this.windowAt;
-    if (span >= RATE_WINDOW_MS) {
-      this.hz = (this.windowCount * 1000) / span;
-      this.windowCount = 0;
-      this.windowAt = now;
-    }
-
-    if (this.state !== 'live') {
-      clearTimeout(this.watchdog);
-      this.#set('live');
-    } else {
-      mode.drivenBy(this.hz, this.contiguous);
-    }
+    this.lastAt = performance.now();
+    clearTimeout(this.watchdog);
+    this.session.adopted();
   }
 }
 

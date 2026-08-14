@@ -21,6 +21,7 @@
 
 import { MAX_CATCHUP_TICKS, TICK_US } from './const.js';
 import { sim } from './sim.js';
+import { activeSession } from './probe/session.js';
 import { drawEncoderIndicators, drawSliderFromModule, setSliderFromPos, SLIDER_START_POS } from './panel.js';
 import { drawLeds } from './leds.js';
 import { drawScopes } from './scope.js';
@@ -28,7 +29,7 @@ import { runTicks } from './inputs.js';
 import { drawReadouts, setStatus } from './readouts.js';
 import { forget, persist, restore } from './storage.js';
 import { drawMidi, initMidi, pumpMidi } from './midi.js';
-import { mode } from './mode.js';
+import { mode, SIM } from './mode.js';
 import { drawProbeRates, initProbe } from './probe/ui.js';
 
 /* ---- startup ------------------------------------------------------------ */
@@ -42,27 +43,47 @@ setSliderFromPos(SLIDER_START_POS);
 const resetButton = document.getElementById('reset');
 const resetFramButton = document.getElementById('reset-fram');
 
-resetButton.addEventListener('click', () => {
-  sim.reset(false);          // reboot, keeping the stored presets
+// Both act on whatever module the page is showing.
+//
+// In the simulation that is the wasm instance in this tab. With a module
+// connected it is the module, over whichever link is carrying it - the command
+// goes into the same mailbox either way and the module performs it itself, so
+// nothing here needs to know which transport is in use.
+//
+// They used to be disabled whenever a module was driving the page, because
+// resetting the simulation nobody was looking at would have appeared to do
+// nothing. Now they do the thing the label promises in all three modes, and the
+// label says which module is about to be affected.
+function askModule(wipeStorage) {
+  if (mode.live) {
+    sim.remoteReset(wipeStorage);
+    activeSession()?.sendCommand();
+    return true;
+  }
+
+  sim.reset(wipeStorage);
+  if (wipeStorage) forget();
   setSliderFromPos(SLIDER_START_POS);
-  setStatus('module reset');
+  return false;
+}
+
+resetButton.addEventListener('click', () => {
+  const remote = askModule(false);
+  setStatus(remote ? 'asked the module to reset' : 'simulation reset');
 });
 
 resetFramButton.addEventListener('click', () => {
-  sim.reset(true);           // wipe the module's own preset slots too
-  forget();
-  setSliderFromPos(SLIDER_START_POS);
-  setStatus('FRAM cleared');
+  const remote = askModule(true);
+  setStatus(remote ? 'asked the module to reset and clear its FRAM' : 'simulation reset, stored presets cleared');
 });
 
-// Both of these reset the simulator, which is not what the page is showing
-// while a module is driving it: the next snapshot lands a few milliseconds
-// later and overwrites the reset, and disconnecting restores the simulation
-// that was running before the probe was connected. So they would appear to do
-// nothing, which is worse than being unavailable.
-mode.onChange(live => {
-  resetButton.disabled = live;
-  resetFramButton.disabled = live;
+// What the buttons are about to affect, said on the buttons themselves. The
+// difference between wiping a simulation and wiping a module's FRAM is worth
+// more than a tooltip.
+mode.onChange(source => {
+  const target = source === SIM ? 'the simulation' : 'the connected module';
+  resetButton.title = `Restart ${target}, keeping stored presets`;
+  resetFramButton.title = `Restart ${target} and forget every preset it has stored`;
 });
 
 // Not awaited: it ends in a permission prompt on some browsers and is absent on

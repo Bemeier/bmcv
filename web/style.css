@@ -473,12 +473,12 @@ button {
 button:not(:disabled):hover { color: var(--accent); border-color: var(--accent); }
 
 /* The primary action, and the only filled control on the page. */
-#probe-connect {
+#connect-midi {
   background: var(--accent);
   border-color: var(--accent);
   color: #06090c;
 }
-#probe-connect:not(:disabled):hover { background: #93d4ff; border-color: #93d4ff; color: #06090c; }
+#connect-midi:not(:disabled):hover { background: #93d4ff; border-color: #93d4ff; color: #06090c; }
 
 /* Wiping the preset store is the one thing here that cannot be undone, so it
    warns on approach rather than looking like its neighbour. */

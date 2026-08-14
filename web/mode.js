@@ -1,35 +1,62 @@
-// What is driving the page: the simulation, or a physical module over a probe.
+// What is driving the page, and at what rate.
 //
-// Its own module, tiny, because the things that need to ask are the panel's
-// input handlers, the frame loop and the scopes, and none of them should have
-// to import the whole probe stack - nor the probe import them - to find out.
+// Three sources, and the page is always in exactly one of them:
+//
+//   SIM    the simulation in this tab. Its MIDI output can be pointed at a real
+//          port, which is the only thing optional about this mode.
+//   MIDI   a physical module, over the USB port it already enumerates.
+//   PROBE  a physical module, over an ST-Link on the programming header.
+//
+// The last two are the same picture by different means, so most of the page
+// only wants to know `live`. What the two differ in is worth saying out loud
+// where it matters - see web/probe/ui.js - and nowhere else.
+//
+// Its own module, tiny and dependency-free, because the things that need to ask
+// are the panel's input handlers, the frame loop, the scopes and the readouts,
+// and none of them should have to import a transport to find out.
 
 import { TICK_US } from './const.js';
+
+export const SIM = 'sim';
+export const MIDI = 'midi';
+export const PROBE = 'probe';
+
+// What each source is called where a person reads it.
+export const SOURCE_NAME = {
+  [SIM]: 'simulation',
+  [MIDI]: 'module over USB',
+  [PROBE]: 'module over probe',
+};
 
 // The simulator captures one scope sample per engine tick.
 const LOCAL_CAPTURE_HZ = 1e6 / TICK_US;
 
-let live = false;
+let current = SIM;
 let captureHz = LOCAL_CAPTURE_HZ;
 let contiguous = Infinity;
 
-// Told only when `live` flips, not on every snapshot. Which half of the module
-// box is shown is CSS off a body class, so this is for the things CSS cannot
-// do - disabling a button that would otherwise look ready and do nothing.
+// Told only when the source changes, not on every snapshot. Which parts of the
+// page are shown is CSS off a body class, so this is for what CSS cannot do -
+// relabelling a button, or saying what a reset is about to affect.
 const listeners = [];
 
 export const mode = {
-  // True while a physical module is driving the page. What the panel shows then
-  // arrives from hardware, and what is done to it goes back out - see
-  // web/input.js, which is the only place that has to care which module a
-  // gesture belongs to.
+  // Which of the three. Prefer `live` unless the difference actually matters.
+  get current() {
+    return current;
+  },
+
+  // True while a physical module is driving the page, by either route. What the
+  // panel shows then arrives from hardware, and what is done to it goes back
+  // out - see web/input.js.
   get live() {
-    return live;
+    return current !== SIM;
   },
 
   // Scope samples per second. Not a constant, because it is a property of
-  // whatever is filling the buffer: an engine tick in the simulator, a probe
-  // read on hardware, and those differ by more than two orders of magnitude.
+  // whatever is filling the buffer: an engine tick in the simulator, a snapshot
+  // over a link on hardware, and those differ by more than two orders of
+  // magnitude.
   get captureHz() {
     return captureHz;
   },
@@ -47,36 +74,40 @@ export const mode = {
     return contiguous;
   },
 
-  // One call rather than two settable properties, so the two facts can never
+  // Call with what to do about the current source now, and again whenever it
+  // changes.
+  onChange(fn) {
+    listeners.push(fn);
+    fn(current);
+  },
+
+  // One call rather than separate settable properties, so the facts can never
   // disagree - a page that thought it was live at 4kHz would draw fifty seconds
   // of scope and call it a third of one.
   //
-  // `hz` is null to hand the page back to the simulator.
-  // Call with what to do about it now, and again whenever it changes.
-  onChange(fn) {
-    listeners.push(fn);
-    fn(live);
-  },
-
-  drivenBy(hz, samplesSinceGap = Infinity) {
-    const wasLive = live;
-    live = hz !== null;
-    captureHz = hz ?? LOCAL_CAPTURE_HZ;
+  // Pass SIM to hand the page back to the simulation.
+  drivenBy(source, hz = null, samplesSinceGap = Infinity) {
+    const was = current;
+    current = source;
+    captureHz = source === SIM ? LOCAL_CAPTURE_HZ : (hz || 1);
 
     // Forced, not taken on trust. The simulator fills the buffer every tick and
     // cannot have a gap in it, so handing the page back has to clear whatever
-    // count the probe left behind - and the probe hands its own count over on
-    // the way out. It did: disconnecting after ~900 snapshots left the
-    // simulator drawing 900 of its 1500 samples, a trace that stopped 60% of
-    // the way across the cell and stayed there.
-    contiguous = hz === null ? Infinity : samplesSinceGap;
+    // count a link left behind - and a link hands its own count over on the way
+    // out. It did: disconnecting after ~900 snapshots left the simulator
+    // drawing 900 of its 1500 samples, a trace that stopped 60% of the way
+    // across the cell and stayed there.
+    contiguous = source === SIM ? Infinity : samplesSinceGap;
 
-    // Only when it changes. The probe calls this on every snapshot to publish
-    // its measured rate, which is a hundred times a second; touching the class
-    // list that often is a style recalculation the browser did not need.
-    if (live !== wasLive) {
-      document.body.classList.toggle('live', live);
-      for (const fn of listeners) fn(live);
+    // Only when it changes. A link calls this on every snapshot to publish its
+    // measured rate, which is ninety times a second; touching the class list
+    // that often is a style recalculation the browser did not need.
+    if (current === was) return;
+
+    document.body.classList.toggle('live', current !== SIM);
+    for (const name of [SIM, MIDI, PROBE]) {
+      document.body.classList.toggle(`mode-${name}`, current === name);
     }
+    for (const fn of listeners) fn(current);
   },
 };

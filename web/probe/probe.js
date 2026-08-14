@@ -11,7 +11,8 @@
 // firmware publishes about itself.
 
 import { sim } from '../sim.js';
-import { mode } from '../mode.js';
+import { PROBE } from '../mode.js';
+import { Session } from './session.js';
 import { Stlink, VERIFY_EVERY } from './stlink.js';
 
 // Mirrors of Core/Inc/Lib/bmcv_probe.h. The two are checked against each other
@@ -46,10 +47,6 @@ function yieldToEventLoop() {
     channel.port2.postMessage(0);
   });
 }
-
-// How hard to smooth the measured rate. The scopes redraw against it, and a
-// number that jumped with every late frame would make a steady trace breathe.
-const RATE_SMOOTHING = 0.1;
 
 // What to tell someone about a failure they now have to act on. Only the
 // timeout gets an addition, because it is the only one whose fix is not in the
@@ -95,32 +92,15 @@ export function decodeInfo(bytes) {
 
 class Probe {
   constructor() {
+    this.session = new Session(PROBE, { sendCommand: () => this.#sendCommand() });
+
     this.link = new Stlink();
     this.info = null;
-    this.state = 'idle'; // idle | connecting | live | error
-    // What open() is doing right now, so "connecting" is never just a word.
-    this.stage = '';
-    this.error = null;
     this.voltage = null;
-    this.snapshots = 0;
-
-    this.onchange = () => {};
 
     this.timer = null;
     this.stopping = false;
     this.inFlight = false;
-
-    // Measured, not declared. A poll is several USB round trips and the browser
-    // schedules the gaps between them; what comes out is nearer 25/s than 30 on
-    // a good day and drops under load. The scopes plot samples at even spacing,
-    // so if this number is wrong the time axis is wrong with it and a clean sine
-    // reads as a wobbling one.
-    this.hz = 0;
-    this.lastPollAt = 0;
-
-    // Samples taken back to back at that rate. Reset whenever the sampling
-    // stops and starts again, so the scopes do not draw across the join.
-    this.contiguous = 0;
 
     // Hidden tabs are throttled, not stopped, which is worse than stopping:
     // polls keep landing about once a second and fill the scope buffer with
@@ -146,21 +126,17 @@ class Probe {
         this.link.close().catch(() => {});
       });
     }
-
-    // The simulation as it was before a module took the page over. Watching
-    // hardware must not cost you the patch you were working on: the first
-    // import overwrites the whole instance, and without this the simulator
-    // would come back holding the module's state and autosave it over the
-    // browser's copy a couple of seconds later.
-    this.saved = null;
   }
 
-  #set(state, error = null) {
-    this.state = state;
-    this.error = error;
-    mode.drivenBy(state === 'live' ? this.hz : null, this.contiguous);
-    this.onchange(this);
-  }
+  // The session owns everything that is not about SWD.
+  get state() { return this.session.state; }
+  get error() { return this.session.error; }
+  get stage() { return this.session.stage; }
+  get snapshots() { return this.session.snapshots; }
+  get hz() { return this.session.hz; }
+
+  set onchange(fn) { this.session.onchange = () => fn(this); }
+  get onchange() { return this.session.onchange; }
 
   // Nothing is drawn while the tab is hidden - requestAnimationFrame does not
   // run - so polling through it buys nothing and costs the continuity of the
@@ -173,27 +149,10 @@ class Probe {
       this.timer = null;
     } else if (this.paused) {
       this.paused = false;
-      this.#startSampling();
+      this.session.restartSampling();
       this.#schedule();
     }
-    this.onchange(this);
-  }
-
-  // Begin a fresh run of samples: forget the measured interval, since the next
-  // one would otherwise be however long the page spent in the background, and
-  // forget the history, since the scopes must not draw across the join.
-  #startSampling() {
-    this.lastPollAt = 0;
-    this.contiguous = 0;
-  }
-
-  // Whenever the page stops being live, however it stopped. Putting it here
-  // rather than in disconnect() means an unplugged cable and a clicked button
-  // leave the page in the same condition.
-  #restoreSimulation() {
-    if (!this.saved) return;
-    sim.importInstance(this.saved);
-    this.saved = null;
+    this.session.onchange(this);
   }
 
   /* ---- connecting -------------------------------------------------------- */
@@ -204,15 +163,12 @@ class Probe {
   // not powered look identical from the outside and have different fixes.
   async connect() {
     if (this.state === 'connecting' || this.state === 'live') return;
-    this.#set('connecting');
+    this.session.set('connecting');
 
     try {
-      this.link.onStage = stage => {
-        this.stage = stage;
-        this.onchange(this);
-      };
+      this.link.onStage = stage => this.session.setStage(stage);
       await this.link.open();
-      this.stage = '';
+      this.session.setStage('');
 
       // Before anything else, because "the target is not powered" explains
       // every subsequent failure and is otherwise invisible.
@@ -236,24 +192,16 @@ class Probe {
         );
       }
 
-      this.saved = sim.exportInstance();
-
-      // Start with empty hands. A button still down in the mailbox from a
-      // previous session would otherwise be pressed on this module the moment
-      // the first write lands.
-      sim.remoteClear();
-
-      this.#startSampling();
+      this.session.begin();
       await this.#poll(); // one now, so the panel is right before the first frame
       this.stopping = false;
-      this.#set('live');
       this.#schedule();
     } catch (e) {
       await this.link.close().catch(() => {});
-      this.#restoreSimulation();
+      this.session.end();
       // A cancelled device picker is a decision, not a fault.
       const cancelled = e.name === 'NotFoundError';
-      this.#set(cancelled ? 'idle' : 'error', cancelled ? null : describe(e));
+      this.session.set(cancelled ? 'idle' : 'error', cancelled ? null : describe(e));
     }
   }
 
@@ -269,8 +217,8 @@ class Probe {
 
     await this.link.close();
     this.info = null;
-    this.#restoreSimulation();
-    this.#set('idle');
+    this.session.end();
+    this.session.set('idle');
   }
 
   /* ---- polling ----------------------------------------------------------- */
@@ -306,6 +254,15 @@ class Probe {
     await this.link.writeMem(at + blob.length - 4, blob.subarray(blob.length - 4));
   }
 
+  // Reset, or reset and forget storage. One write, on demand: the module acts
+  // on a change of the command's sequence number, so re-sending it would do
+  // nothing and holding it back would be a button that appears not to work.
+  async #sendCommand() {
+    if (!this.info) return;
+    const blob = sim.commandBlob();
+    await this.link.writeMem(this.info.instanceAddr + sim.commandOffset, blob);
+  }
+
   async #poll() {
     // Asking the probe whether the last access landed costs a round trip, and
     // the answer only changes when the cable comes out - at which point the
@@ -314,22 +271,12 @@ class Probe {
     const verify = this.snapshots % VERIFY_EVERY === 0;
     const bytes = await this.link.readMem(this.info.instanceAddr, this.info.instanceSize, { verify });
     if (!sim.importInstance(bytes)) throw new Error('the module\'s state was the wrong length for this build');
-    this.snapshots++;
-    this.contiguous++;
 
     // After the read, so what was just imported is the module as it was before
     // this update rather than midway through applying it.
     await this.#writeRemote();
 
-    // Timed at the point the sample lands, so what is measured is the interval
-    // the scope is actually plotting rather than the one that was asked for.
-    const now = performance.now();
-    if (this.lastPollAt) {
-      const hz = 1000 / Math.max(1, now - this.lastPollAt);
-      this.hz += (hz - this.hz) * RATE_SMOOTHING;
-    }
-    this.lastPollAt = now;
-    mode.drivenBy(this.hz, this.contiguous);
+    this.session.adopted();
   }
 
   #stopPolling() {
@@ -360,8 +307,8 @@ class Probe {
       // a red banner - but a bus fault is, and the message says which.
       this.#stopPolling();
       await this.link.close().catch(() => {});
-      this.#restoreSimulation();
-      this.#set('error', describe(e));
+      this.session.end();
+      this.session.set('error', describe(e));
     } finally {
       this.inFlight = false;
     }

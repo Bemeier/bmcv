@@ -9,6 +9,7 @@ export const CMD_IDENTITY_REQ = 0x02;
 export const CMD_REMOTE_INPUT = 0x20;
 export const CMD_STREAM_REQ = 0x21;
 export const CMD_SNAPSHOT = 0x22;
+export const CMD_REMOTE_COMMAND = 0x23;
 
 // How long one output gets to produce an answer before moving on. Two USB
 // frames would do; this is loose enough for a busy machine and still leaves a

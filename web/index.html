@@ -51,27 +51,29 @@
     <div class="panel-box" id="system">
       <div class="readouts">
         <div class="readout">
-          <span class="label">source</span><span id="probe-status" class="value muted">simulated</span>
+          <span class="label">source</span><span id="source-name" class="value muted">simulation</span>
+        </div>
+        <div class="readout when-live">
+          <span class="label">link</span><span id="source-link" class="value">—</span>
         </div>
       </div>
-      <p id="probe-detail" class="note"></p>
+      <p id="source-detail" class="note"></p>
 
       <div class="buttons">
-        <button id="probe-connect">Connect a module</button>
-        <button id="midi-connect" title="over the module's own USB port, no probe">Connect over MIDI</button>
+        <button id="connect-midi" title="a module on the other end of a USB cable">Connect over USB</button>
+        <button id="connect-probe" title="a module on the other end of an ST-Link, for when it is not answering">Use a debug probe</button>
         <button id="reset">Reset module</button>
-        <button id="reset-fram">Reset FRAM</button>
+        <button id="reset-fram">Clear FRAM</button>
         <span id="status" class="muted"></span>
       </div>
 
-
-      <!-- Everything below is one half or the other. A page showing hardware has
-           nothing to say about a MIDI port it is not driving, and a page running
-           the simulation has nothing to report about a probe. -->
+      <!-- Everything below belongs to one source or another. A page showing
+           hardware has nothing to say about a MIDI port it is not driving, and
+           a page running the simulation has no link to report on. -->
 
       <div class="when-live">
         <div class="readouts rates">
-          <div class="readout"><span class="label">probe</span><span id="r-probe-hz" class="value">—</span></div>
+          <div class="readout"><span class="label">snapshots</span><span id="r-probe-hz" class="value">—</span></div>
           <div class="readout"><span class="label">engine</span><span id="r-engine-fps" class="value">—</span></div>
           <div class="readout"><span class="label">dac</span><span id="r-dac-fps" class="value">—</span></div>
           <div class="readout"><span class="label">leds</span><span id="r-led-fps" class="value">—</span></div>
