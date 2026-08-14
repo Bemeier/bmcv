@@ -270,6 +270,21 @@ Two lessons worth keeping, both about reading rather than writing:
   implicitly and asynchronously - so the reply came back before anything was
   holding the port. That is what "no BMCV answered" had been from the start.
 
+### Measured on hardware: 90.5 snapshots a second
+
+722 snapshots in 7.98 seconds, 1913 kB, 239.7 kB/s - sustained for the whole
+run, where the same measurement used to stop after eight.
+
+2712 bytes per snapshot against a message size of 2713, so every one of them
+arrived whole. Nothing truncated, nothing abandoned.
+
+That is within 3% of the 93.7/s the endpoint bench predicted from first
+principles, and **above the debug probe's ~70/s** - on a transport that needs no
+probe, no WinUSB binding and no programming header.
+
+The read direction is therefore settled: whole snapshots, no delta scheme, one
+SysEx per frame, and the browser's own MIDI stack doing the reassembly.
+
 ## Still to do
 
 **Try it on hardware.** Flash, open the page, press "Connect over MIDI".
