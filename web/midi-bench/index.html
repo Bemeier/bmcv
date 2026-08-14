@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BMCV — MIDI throughput</title>
+<link rel="stylesheet" href="../style.css">
+<style>
+  body { max-width: 46rem; margin: 0 auto; padding: 2rem 1.5rem; }
+  h1 { font-size: 1.1rem; letter-spacing: .08em; text-transform: uppercase; }
+  .lede { max-width: 40rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1.25rem 0; }
+  th, td { text-align: left; padding: .35rem .75rem .35rem 0; }
+  th { font-weight: normal; opacity: .6; }
+  td.n { font-family: var(--mono, monospace); text-align: right; width: 9rem; }
+  td.note { opacity: .6; }
+  #log { font-family: var(--mono, monospace); font-size: .8rem;
+         white-space: pre-wrap; margin-top: 1.25rem; opacity: .75; }
+  .verdict { padding: .75rem 1rem; background: rgba(255,255,255,.06); margin: 1rem 0; }
+</style>
+</head>
+<body>
+
+<h1>MIDI throughput</h1>
+
+<p class="lede">
+  Asks the module for a burst of <span id="n-msgs">—</span> SysEx messages and
+  times them. Each one is 48 MIDI bytes, which is exactly one 64-byte transfer
+  on the endpoint, so what comes out is the real ceiling for publishing module
+  state over the USB port instead of over a debug probe.
+</p>
+
+<p class="lede">
+  Nothing is written to the module and nothing is stored. The burst is bounded
+  in the firmware, so closing this tab stops it.
+</p>
+
+<p>
+  <button id="run" type="button" disabled>connect and run</button>
+  <span id="status" class="muted">starting up</span>
+</p>
+
+<div class="verdict" id="verdict" hidden></div>
+
+<table id="results" hidden>
+  <tr><th>messages</th><td class="n" id="r-msgs"></td><td class="note" id="r-lost"></td></tr>
+  <tr><th>elapsed</th><td class="n" id="r-time"></td><td class="note">first to last arrival</td></tr>
+  <tr><th>messages/s</th><td class="n" id="r-rate"></td><td class="note">= transfers/s on the endpoint</td></tr>
+  <tr><th>payload</th><td class="n" id="r-payload"></td><td class="note">MIDI bytes/s, what a decoder receives</td></tr>
+  <tr><th>on the wire</th><td class="n" id="r-wire"></td><td class="note">USB bytes/s, including packet headers</td></tr>
+  <tr><th>useful bytes/s</th><td class="n" id="r-useful"></td><td class="note">after 7-bit encoding is undone</td></tr>
+  <tr><th>full snapshots/s</th><td class="n" id="r-full"></td><td class="note">2368 B every frame</td></tr>
+  <tr><th>chunked deltas/s</th><td class="n" id="r-delta"></td><td class="note">~20 × 32 B changed, measured</td></tr>
+</table>
+
+<div id="log"></div>
+
+<script type="module" src="./bench.js"></script>
+</body>
+</html>

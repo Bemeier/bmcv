@@ -399,7 +399,11 @@ void bmcv_main(uint32_t now_us)
   // asking how much of it fits. An empty queue costs a state read and a
   // compare, which is what the LED flush below does with its DMA for the same
   // reason.
-  if (midi_idle())
+  // midi_bench_active() is the throughput spike holding the endpoint - see
+  // SYSEX_CMD_BENCH_REQ. Control changes are dropped rather than queued for the
+  // couple of seconds it runs: midi_out only emits on change, so what is
+  // skipped here is re-sent as soon as the burst ends.
+  if (midi_idle() && !midi_bench_active())
   {
     midi_publish();
   }

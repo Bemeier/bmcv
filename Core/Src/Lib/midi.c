@@ -20,6 +20,10 @@ static volatile bool sysex_identity_requested = false;
 static volatile bool midi_clock_flag          = false;
 static volatile bool midi_reset_flag          = false;
 
+// SPIKE - see SYSEX_CMD_BENCH_REQ. Counts down to zero and stops on its own.
+static volatile uint16_t bench_remaining = 0;
+static uint16_t bench_seq                = 0;
+
 // Overrides the __weak stub in the MIDI class, and runs in the USB interrupt.
 // It does the least it can get away with: parse, latch, return. Acting on
 // ENTER_UPDATE here would tear down the USB stack from inside its own ISR.
@@ -32,6 +36,10 @@ void USBD_MIDI_DataInHandler(uint8_t* usb_rx_buffer, uint8_t usb_rx_buffer_lengt
     break;
   case SYSEX_CMD_IDENTITY_REQ:
     sysex_identity_requested = true;
+    break;
+  case SYSEX_CMD_BENCH_REQ:
+    bench_seq       = 0;
+    bench_remaining = SYSEX_BENCH_MESSAGES;
     break;
   default:
     break;
@@ -62,8 +70,27 @@ uint8_t midi_read_reset_trig()
 
 uint8_t midi_dfu_requested() { return sysex_dfu_requested; }
 
+uint8_t midi_bench_active() { return bench_remaining != 0; }
+
 void midi_poll_control()
 {
+  // SPIKE. First claim on the endpoint while a burst is running, and the reason
+  // bmcv.c holds its control changes back meanwhile: what is being measured is
+  // how fast this endpoint can be filled, and traffic sharing it would be
+  // measured as the transport being slower than it is.
+  if (bench_remaining && midi_idle())
+  {
+    // Static for the same reason buffUsbReport is: USBD_MIDI_SendReport hands
+    // the pointer to USBD_LL_Transmit and returns, so the buffer has to outlive
+    // the call.
+    static uint8_t packets[SYSEX_BENCH_PACKET_BYTES];
+    uint8_t len = sysex_bench_message(packets, 0, bench_seq++);
+
+    USBD_MIDI_SendReport(&hUsbDeviceFS, packets, len);
+    bench_remaining--;
+    return;
+  }
+
   if (!sysex_identity_requested || !midi_idle())
     return; // the IN endpoint is busy; the request keeps until the next pass
 

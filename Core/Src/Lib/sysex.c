@@ -34,6 +34,8 @@ static SysexCmd sysex_classify(const SysexParser* p)
     return SYSEX_CMD_ENTER_UPDATE;
   case SYSEX_CMD_IDENTITY_REQ:
     return SYSEX_CMD_IDENTITY_REQ;
+  case SYSEX_CMD_BENCH_REQ:
+    return SYSEX_CMD_BENCH_REQ;
   default:
     return SYSEX_CMD_NONE;
   }
@@ -131,6 +133,47 @@ uint8_t sysex_identity_reply(uint8_t* out, uint8_t cable, uint8_t major, uint8_t
   out[i++] = (uint8_t) (minor & 0x7F);
   out[i++] = (uint8_t) (patch & 0x7F);
   out[i++] = 0xF7;
+
+  return i;
+}
+
+uint8_t sysex_bench_message(uint8_t* out, uint8_t cable, uint16_t seq)
+{
+  uint8_t body[SYSEX_BENCH_MSG_BYTES];
+  uint8_t n = 0;
+
+  body[n++] = 0xF0;
+  body[n++] = SYSEX_ID_NONCOMMERCIAL;
+  body[n++] = SYSEX_ID_B;
+  body[n++] = SYSEX_ID_M;
+  body[n++] = SYSEX_CMD_BENCH_DATA;
+  body[n++] = (uint8_t) (seq & 0x7F);
+  body[n++] = (uint8_t) ((seq >> 7) & 0x7F);
+
+  // Filler up to the last byte. Seven bits because everything between F0 and F7
+  // has to be data, and varying with seq so that a run cannot come out fast
+  // because something between here and the browser noticed it was sending the
+  // same message over and over.
+  while (n < SYSEX_BENCH_MSG_BYTES - 1)
+  {
+    body[n] = (uint8_t) ((seq + n) & 0x7F);
+    n++;
+  }
+  body[n++] = 0xF7;
+
+  // Three data bytes to a 4-byte event packet, which is why 48 divides into 16
+  // packets with nothing left over. Every packet is "SysEx starts or continues"
+  // except the last, which ends on its third byte.
+  const uint8_t hdr = (uint8_t) (cable << 4);
+  uint8_t i         = 0;
+
+  for (uint8_t at = 0; at < SYSEX_BENCH_MSG_BYTES; at += 3)
+  {
+    out[i++] = (uint8_t) (hdr | (at + 3 >= SYSEX_BENCH_MSG_BYTES ? 0x7 : 0x4));
+    out[i++] = body[at];
+    out[i++] = body[at + 1];
+    out[i++] = body[at + 2];
+  }
 
   return i;
 }

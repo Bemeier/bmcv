@@ -197,6 +197,77 @@ TEST_CASE(identity_reply_honours_the_cable_number)
   CHECK(out[8] == 0x37);
 }
 
+/* ---- the throughput spike ------------------------------------------------ */
+
+// The measurement is only worth what the packing is. If a bench message were
+// not exactly one transfer, the browser would still count messages and the
+// bytes-per-second it reported would be wrong by whatever the mismatch was -
+// which is the one way this experiment could produce a confident wrong answer.
+TEST_CASE(a_bench_message_is_exactly_one_transfer)
+{
+  uint8_t out[SYSEX_BENCH_PACKET_BYTES];
+  CHECK(sysex_bench_message(out, 0, 0) == SYSEX_BENCH_PACKET_BYTES);
+  CHECK(SYSEX_BENCH_MSG_BYTES % 3 == 0);
+  CHECK(SYSEX_BENCH_PACKET_BYTES == (SYSEX_BENCH_MSG_BYTES / 3) * 4);
+}
+
+TEST_CASE(a_bench_message_is_a_well_formed_sysex)
+{
+  uint8_t out[SYSEX_BENCH_PACKET_BYTES];
+  sysex_bench_message(out, 0, 0x1234);
+
+  // Every packet carries three data bytes; only the last one ends the message.
+  for (uint8_t i = 0; i + 4 <= SYSEX_BENCH_PACKET_BYTES; i += 4)
+  {
+    const uint8_t last = (i + 4 == SYSEX_BENCH_PACKET_BYTES);
+    CHECK((out[i] & 0x0F) == (last ? 0x7 : 0x4));
+  }
+
+  CHECK(out[1] == 0xF0);
+  CHECK(out[2] == SYSEX_ID_NONCOMMERCIAL);
+  CHECK(out[3] == SYSEX_ID_B);
+  CHECK(out[5] == SYSEX_ID_M);
+  CHECK(out[6] == SYSEX_CMD_BENCH_DATA);
+  CHECK(out[SYSEX_BENCH_PACKET_BYTES - 1] == 0xF7);
+
+  // The sequence number, so a browser can tell a slow run from a lossy one.
+  CHECK(out[7] == (0x1234 & 0x7F));
+  CHECK(out[9] == ((0x1234 >> 7) & 0x7F));
+
+  // Nothing between F0 and F7 may have its high bit set, or the message is not
+  // a SysEx and a host will discard the burst rather than count it.
+  for (uint8_t i = 0; i + 4 <= SYSEX_BENCH_PACKET_BYTES; i += 4)
+  {
+    for (uint8_t k = 1; k < 4; k++)
+    {
+      const uint8_t at = (uint8_t) (i + k);
+      if (at != 1 && at != SYSEX_BENCH_PACKET_BYTES - 1)
+        CHECK((out[at] & 0x80) == 0);
+    }
+  }
+}
+
+// It has to round-trip through the module's own parser, since that is what a
+// second module - or a loopback - would see.
+TEST_CASE(a_bench_request_is_recognised)
+{
+  SysexParser p;
+  sysex_reset(&p);
+
+  const uint8_t req[] = {
+      0x04, 0xF0, SYSEX_ID_NONCOMMERCIAL, SYSEX_ID_B, 0x07, SYSEX_ID_M, SYSEX_CMD_BENCH_REQ, 0xF7,
+  };
+  CHECK(sysex_feed(&p, req, sizeof(req)) == SYSEX_CMD_BENCH_REQ);
+}
+
+// The burst is bounded so a browser tab that goes away cannot leave the module
+// streaming at nobody, which would need a power cycle to stop.
+TEST_CASE(a_burst_is_bounded)
+{
+  CHECK(SYSEX_BENCH_MESSAGES > 0);
+  CHECK(SYSEX_BENCH_MESSAGES <= UINT16_MAX);
+}
+
 int main(void)
 {
   RUN_TEST(recognises_the_two_commands);
@@ -209,5 +280,9 @@ int main(void)
   RUN_TEST(a_status_byte_inside_a_message_aborts_it);
   RUN_TEST(identity_reply_is_a_well_formed_sysex);
   RUN_TEST(identity_reply_honours_the_cable_number);
+  RUN_TEST(a_bench_message_is_exactly_one_transfer);
+  RUN_TEST(a_bench_message_is_a_well_formed_sysex);
+  RUN_TEST(a_bench_request_is_recognised);
+  RUN_TEST(a_burst_is_bounded);
   return TESTKIT_SUMMARY();
 }

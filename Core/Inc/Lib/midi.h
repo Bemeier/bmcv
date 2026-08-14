@@ -32,6 +32,11 @@ uint8_t midi_dfu_requested();
 // enough to call every pass; it does nothing until there is something to say.
 void midi_poll_control();
 
+// SPIKE - non-zero while a throughput burst is running, so the engine's own
+// MIDI output can stand aside and let the measurement have the endpoint. See
+// SYSEX_CMD_BENCH_REQ.
+uint8_t midi_bench_active();
+
 // A MIDI Clock (0xF8) / Start (0xFA) byte was latched since the last call -
 // see midi_realtime.h for why Start and not Continue. Read-and-clear, the
 // same contract as adc_read_trig_state(): call once per tick and feed the
