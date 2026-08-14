@@ -47,6 +47,8 @@ static SysexCmd sysex_classify(const SysexParser* p)
     return payload == 0 ? SYSEX_CMD_STREAM_REQ : SYSEX_CMD_NONE;
   case SYSEX_CMD_REMOTE_INPUT:
     return payload == sysex7_encoded_len(SYSEX_REMOTE_INPUT_BYTES) ? SYSEX_CMD_REMOTE_INPUT : SYSEX_CMD_NONE;
+  case SYSEX_CMD_REMOTE_COMMAND:
+    return payload == sysex7_encoded_len(SYSEX_REMOTE_COMMAND_BYTES) ? SYSEX_CMD_REMOTE_COMMAND : SYSEX_CMD_NONE;
   default:
     return SYSEX_CMD_NONE;
   }

@@ -120,7 +120,13 @@ static int8_t fram_load(void* user, EngineConfig* cfg, int8_t slot)
   return preset_load(cfg, slot);
 }
 
-static const PresetIo fram_preset_io = {.store = fram_store, .load = fram_load, .user = NULL};
+static int8_t fram_clear(void* user)
+{
+  (void) user;
+  return preset_clear();
+}
+
+static const PresetIo fram_preset_io = {.store = fram_store, .load = fram_load, .clear = fram_clear, .user = NULL};
 
 void bmcv_init(uint16_t _mpc_interrupt_pin, ADC_TypeDef* _slider_adc)
 {
@@ -342,6 +348,12 @@ void bmcv_main(uint32_t now_us)
     last_engine_us = now_us;
 
     [[maybe_unused]] const uint32_t t_tick_start = PROFILE_NOW();
+
+    // Reset and forget-everything, asked for from outside. Before the input is
+    // folded because it may rebuild the whole instance, which is not something
+    // to do halfway through a tick.
+    midi_take_remote_command(&bmcv.command);
+    bmcv_instance_take_command(&bmcv, &fram_preset_io, now_us);
 
     // Anything a host has sent over MIDI, moved into the instance here rather
     // than in the USB interrupt that received it: input_fold is about to read

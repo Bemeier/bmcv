@@ -18,7 +18,7 @@
 
 #if defined(__wasm32__) || defined(__arm__)
 
-_Static_assert(sizeof(BmcvInstance) == 2368, "BmcvInstance size");
+_Static_assert(sizeof(BmcvInstance) == 2384, "BmcvInstance size");
 _Static_assert(offsetof(BmcvInstance, hw_setup) == 0, "offset: hw_setup");
 _Static_assert(sizeof(((BmcvInstance*) 0)->hw_setup) == 4, "size: hw_setup");
 _Static_assert(offsetof(BmcvInstance, ux_setup) == 4, "offset: ux_setup");
@@ -387,6 +387,16 @@ _Static_assert(offsetof(BmcvInstance, midi_out.clk_slot) == 2365, "offset: midi_
 _Static_assert(sizeof(((BmcvInstance*) 0)->midi_out.clk_slot) == 1, "size: midi_out.clk_slot");
 _Static_assert(offsetof(BmcvInstance, midi_out.clk_running) == 2366, "offset: midi_out.clk_running");
 _Static_assert(sizeof(((BmcvInstance*) 0)->midi_out.clk_running) == 1, "size: midi_out.clk_running");
+_Static_assert(offsetof(BmcvInstance, command.op) == 2368, "offset: command.op");
+_Static_assert(sizeof(((BmcvInstance*) 0)->command.op) == 1, "size: command.op");
+_Static_assert(offsetof(BmcvInstance, command._pad) == 2369, "offset: command._pad");
+_Static_assert(sizeof(((BmcvInstance*) 0)->command._pad) == 3, "size: command._pad");
+_Static_assert(offsetof(BmcvInstance, command._pad[0]) == 2369, "offset: command._pad[0]");
+_Static_assert(sizeof(((BmcvInstance*) 0)->command._pad[0]) == 1, "size: command._pad[0]");
+_Static_assert(offsetof(BmcvInstance, command.seq) == 2372, "offset: command.seq");
+_Static_assert(sizeof(((BmcvInstance*) 0)->command.seq) == 4, "size: command.seq");
+_Static_assert(offsetof(BmcvInstance, command_seq) == 2376, "offset: command_seq");
+_Static_assert(sizeof(((BmcvInstance*) 0)->command_seq) == 4, "size: command_seq");
 
 #endif /* four-byte pointers */
 

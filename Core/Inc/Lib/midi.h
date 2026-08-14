@@ -51,6 +51,10 @@ uint8_t midi_bench_active();
 // Returns non-zero when `dst` was written.
 uint8_t midi_take_remote_input(RemoteInput* dst);
 
+// The same for a reset / forget-storage command. Call from the main loop, and
+// hand what it writes to bmcv_instance_take_command.
+uint8_t midi_take_remote_command(RemoteCommand* dst);
+
 // Push snapshots of `instance` out while a host keeps asking for them. Copies
 // it when a message starts, so call this between ticks and the copy is
 // internally consistent - unlike a probe's read, which runs while the core

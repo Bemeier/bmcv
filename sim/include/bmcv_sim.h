@@ -87,6 +87,21 @@ void bmcv_sim_remote_slider01(BmcvSim* s, float pos01);
 // is not still held when the next one starts.
 void bmcv_sim_remote_clear(BmcvSim* s);
 
+// Ask the far module to start again, and optionally to forget its stored
+// presets first. `wipe_storage` matches bmcv_sim_reset's argument, so the same
+// two buttons mean the same two things whichever module they are pointed at.
+//
+// One call rather than a setter and a blob getter: unlike the input mailbox
+// this is an edge, sent once when someone asks for it, so there is no state to
+// keep between calls.
+void bmcv_sim_remote_reset(BmcvSim* s, int32_t wipe_storage);
+
+// Where the command mailbox sits inside a BmcvInstance, how big it is, and its
+// bytes - the same three the input mailbox offers, and used the same way.
+int32_t bmcv_sim_command_offset(void);
+int32_t bmcv_sim_command_size(void);
+const void* bmcv_sim_command_blob(const BmcvSim* s);
+
 // Where the mailbox sits inside a BmcvInstance, and how big it is. The layout
 // assertions in layout_target.h are what make this offset the *target's*
 // offset, so a host that has read an instance's address knows where to write

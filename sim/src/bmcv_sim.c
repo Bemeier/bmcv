@@ -43,6 +43,7 @@ struct BmcvSim
   // not s->m.input.remote: that field belongs to whatever instance is loaded
   // here, and in probe mode every snapshot overwrites it.
   RemoteInput remote_out;
+  RemoteCommand command_out;
 
   SlotStore storage;
   PresetIo io;
@@ -146,6 +147,9 @@ void bmcv_sim_fire_gate(BmcvSim* s, int32_t input)
 _Static_assert(offsetof(RemoteInput, seq) == sizeof(RemoteInput) - 4, "seq is the last word of the mailbox");
 _Static_assert(sizeof(RemoteInput) % 4 == 0, "the mailbox is a whole number of words");
 _Static_assert(offsetof(BmcvInstance, input.remote) % 4 == 0, "the mailbox starts on a word");
+_Static_assert(offsetof(RemoteCommand, seq) == sizeof(RemoteCommand) - 4, "seq is the last word of the command");
+_Static_assert(sizeof(RemoteCommand) % 4 == 0, "the command is a whole number of words");
+_Static_assert(offsetof(BmcvInstance, command) % 4 == 0, "the command starts on a word");
 
 void bmcv_sim_remote_button(BmcvSim* s, int32_t button, int32_t down)
 {
@@ -181,6 +185,23 @@ void bmcv_sim_remote_clear(BmcvSim* s)
   s->remote_out.slider_raw = REMOTE_SLIDER_NONE;
   s->remote_out.seq        = seq;
 }
+
+void bmcv_sim_remote_reset(BmcvSim* s, int32_t wipe_storage)
+{
+  if (!s)
+    return;
+
+  s->command_out.op = (uint8_t) (wipe_storage ? REMOTE_OP_RESET_WIPE : REMOTE_OP_RESET);
+
+  // Never zero, which is what a module that has never been asked anything
+  // holds - so the first command of a session cannot read as silence.
+  if (++s->command_out.seq == 0)
+    s->command_out.seq = 1;
+}
+
+int32_t bmcv_sim_command_offset(void) { return (int32_t) offsetof(BmcvInstance, command); }
+int32_t bmcv_sim_command_size(void) { return (int32_t) sizeof(RemoteCommand); }
+const void* bmcv_sim_command_blob(const BmcvSim* s) { return s ? &s->command_out : NULL; }
 
 int32_t bmcv_sim_remote_offset(void) { return (int32_t) offsetof(BmcvInstance, input.remote); }
 int32_t bmcv_sim_remote_size(void) { return (int32_t) sizeof(RemoteInput); }

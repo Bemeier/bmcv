@@ -36,6 +36,13 @@ _Static_assert(sizeof(RemoteInput) == SYSEX_REMOTE_INPUT_BYTES, "the mailbox is 
 static volatile bool remote_pending = false;
 static RemoteInput remote_staged;
 
+// The same arrangement for commands, and for the same reason: decoded in the
+// interrupt, moved into the instance by the main loop.
+_Static_assert(sizeof(RemoteCommand) == SYSEX_REMOTE_COMMAND_BYTES, "the command mailbox is what sysex.h says it is");
+
+static volatile bool command_pending = false;
+static RemoteCommand command_staged;
+
 // Streaming credit. Two counters rather than one that both sides adjust: the
 // interrupt only ever increments `asked` and the main loop only ever increments
 // `sent`, so neither has to do a read-modify-write the other could land in the
@@ -70,6 +77,10 @@ static void on_sysex(SysexCmd cmd, const uint8_t* payload, uint8_t len, void* us
     // decode to anything other than a whole mailbox.
     sysex7_decode((uint8_t*) &remote_staged, payload, len);
     remote_pending = true;
+    break;
+  case SYSEX_CMD_REMOTE_COMMAND:
+    sysex7_decode((uint8_t*) &command_staged, payload, len);
+    command_pending = true;
     break;
   default:
     break;
@@ -121,6 +132,16 @@ uint8_t midi_take_remote_input(RemoteInput* dst)
   // are built to survive - see RemoteInput.
   remote_pending = false;
   *dst           = remote_staged;
+  return 1;
+}
+
+uint8_t midi_take_remote_command(RemoteCommand* dst)
+{
+  if (!command_pending)
+    return 0;
+
+  command_pending = false;
+  *dst            = command_staged;
   return 1;
 }
 

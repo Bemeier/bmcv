@@ -22,6 +22,7 @@ typedef struct
   uint8_t occupied[FRAM_CONFIG_SLOTS];
   int stores;
   int loads;
+  int clears;
 } FakeFram;
 
 static int8_t fake_store(void* user, const EngineConfig* cfg, int8_t slot)
@@ -32,6 +33,14 @@ static int8_t fake_store(void* user, const EngineConfig* cfg, int8_t slot)
   f->slots[slot]    = *cfg;
   f->occupied[slot] = 1;
   f->stores++;
+  return 1;
+}
+
+static int8_t fake_clear(void* user)
+{
+  FakeFram* f = (FakeFram*) user;
+  memset(f->occupied, 0, sizeof(f->occupied));
+  f->clears++;
   return 1;
 }
 
@@ -295,6 +304,101 @@ TEST_CASE(two_instances_do_not_share_the_led_framebuffer)
   CHECK(differs);
 }
 
+/* ---- commands from outside the module ------------------------------------ */
+
+// The whole risk of a command is being performed twice. Both transports rewrite
+// their mailboxes continuously, so "act on a change of seq" is what stands
+// between one reset and a module that resets for ever.
+TEST_CASE(a_command_is_acted_on_once)
+{
+  FakeFram fram = {0};
+  PresetIo io   = {.store = fake_store, .load = fake_load, .clear = fake_clear, .user = &fram};
+
+  BmcvInstance m;
+  bmcv_instance_init(&m, &io, 0);
+
+  // Move the module off its power-on state so a reset is visible.
+  m.engine_config.selected_param = 3;
+  m.ui_state.shift_state         = 2;
+
+  m.command.op  = REMOTE_OP_RESET;
+  m.command.seq = 1;
+
+  CHECK(bmcv_instance_take_command(&m, &io, 1000) == 1);
+  CHECK(m.ui_state.shift_state == SHIFT_STATE_NONE);
+
+  // Same sequence number, so nothing happens however often it is seen.
+  m.ui_state.shift_state = 2;
+  for (int i = 0; i < 5; i++)
+  {
+    CHECK(bmcv_instance_take_command(&m, &io, 2000) == 0);
+  }
+  CHECK(m.ui_state.shift_state == 2);
+
+  // A new one is acted on again.
+  m.command.seq = 2;
+  CHECK(bmcv_instance_take_command(&m, &io, 3000) == 1);
+  CHECK(m.ui_state.shift_state == SHIFT_STATE_NONE);
+}
+
+// A fresh module holds seq 0 and has been asked nothing, so nothing may happen
+// before a host ever speaks - a reset on the first pass would be a module that
+// wipes itself at power-on.
+TEST_CASE(a_silent_mailbox_asks_for_nothing)
+{
+  BmcvInstance m;
+  bmcv_instance_init(&m, NULL, 0);
+
+  m.engine_config.selected_param = 3;
+  CHECK(bmcv_instance_take_command(&m, NULL, 1000) == 0);
+  CHECK(m.engine_config.selected_param == 3);
+}
+
+TEST_CASE(a_wipe_forgets_storage_before_reloading_it)
+{
+  FakeFram fram = {0};
+  PresetIo io   = {.store = fake_store, .load = fake_load, .clear = fake_clear, .user = &fram};
+
+  BmcvInstance m;
+  bmcv_instance_init(&m, &io, 0);
+
+  // Something in the autosave slot, so a plain reset would come back to it.
+  m.engine_config.selected_param = 3;
+  ux_preset_store(&m.ux, CONFIG_AUTOSAVE_SLOT);
+  CHECK(fram.occupied[CONFIG_AUTOSAVE_SLOT] == 1);
+
+  m.command.op  = REMOTE_OP_RESET;
+  m.command.seq = 1;
+  bmcv_instance_take_command(&m, &io, 1000);
+  CHECK(m.engine_config.selected_param == 3); // reloaded what was stored
+
+  m.command.op  = REMOTE_OP_RESET_WIPE;
+  m.command.seq = 2;
+  bmcv_instance_take_command(&m, &io, 2000);
+
+  CHECK(fram.clears == 1);
+  CHECK(fram.occupied[CONFIG_AUTOSAVE_SLOT] == 0);
+  // Nothing left to load, so the module is on its first-boot defaults.
+  CHECK(m.engine_config.selected_param != 3);
+}
+
+// Storage that cannot be wiped is legal - a host may simply not offer it - and
+// must not turn the reset half of the command into a crash.
+TEST_CASE(a_wipe_without_a_clear_still_resets)
+{
+  FakeFram fram = {0};
+  PresetIo io   = {.store = fake_store, .load = fake_load, .clear = NULL, .user = &fram};
+
+  BmcvInstance m;
+  bmcv_instance_init(&m, &io, 0);
+  m.ui_state.shift_state = 2;
+
+  m.command.op  = REMOTE_OP_RESET_WIPE;
+  m.command.seq = 1;
+  CHECK(bmcv_instance_take_command(&m, &io, 1000) == 1);
+  CHECK(m.ui_state.shift_state == SHIFT_STATE_NONE);
+}
+
 int main(void)
 {
   RUN_TEST(a_fresh_instance_comes_up_with_first_boot_defaults);
@@ -306,5 +410,9 @@ int main(void)
   RUN_TEST(two_instances_do_not_share_input_or_ui_state);
   RUN_TEST(two_instances_do_not_share_preset_storage);
   RUN_TEST(two_instances_do_not_share_the_led_framebuffer);
+  RUN_TEST(a_command_is_acted_on_once);
+  RUN_TEST(a_silent_mailbox_asks_for_nothing);
+  RUN_TEST(a_wipe_forgets_storage_before_reloading_it);
+  RUN_TEST(a_wipe_without_a_clear_still_resets);
   return TESTKIT_SUMMARY();
 }

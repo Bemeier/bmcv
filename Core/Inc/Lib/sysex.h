@@ -67,6 +67,12 @@ typedef enum
   // Module -> host. One whole BmcvInstance, seven-bit encoded. Sent only while
   // stream requests keep arriving.
   SYSEX_CMD_SNAPSHOT = 0x22,
+
+  // Host -> module. A RemoteCommand: reset, or reset and forget storage. Eight
+  // raw bytes, seven-bit encoded to ten. Sent when asked for rather than
+  // continuously - see RemoteCommand in instance.h for why it is not part of
+  // the input mailbox.
+  SYSEX_CMD_REMOTE_COMMAND = 0x23,
 } SysexCmd;
 
 typedef struct
@@ -131,6 +137,10 @@ uint8_t sysex_identity_reply(uint8_t* out, uint8_t cable, uint8_t major, uint8_t
 // static assert in midi.c, which sees both - this header stays clear of
 // firmware types so its tests keep running without them.
 #define SYSEX_REMOTE_INPUT_BYTES 48
+
+// The remote command mailbox, in raw bytes. Held to sizeof(RemoteCommand) by a
+// static assert in midi.c, for the same reason as above.
+#define SYSEX_REMOTE_COMMAND_BYTES 8
 
 /* ---- seven-bit encoding -------------------------------------------------- */
 //

@@ -89,3 +89,39 @@ uint8_t bmcv_instance_tick(BmcvInstance* m, const InputSample* sample, uint32_t 
 
   return dirty;
 }
+
+uint8_t bmcv_instance_take_command(BmcvInstance* m, const PresetIo* io, uint32_t now_us)
+{
+  if (m->command.seq == m->command_seq)
+    return 0;
+
+  // Read out before anything happens: bmcv_instance_init zeroes the instance,
+  // the mailbox included, and the acknowledgement has to survive that or the
+  // same command reads as new on the next pass and the module resets for ever.
+  const uint32_t seq = m->command.seq;
+  const uint8_t op   = m->command.op;
+
+  switch (op)
+  {
+  case REMOTE_OP_RESET_WIPE:
+    // Before the re-init, so the load it performs finds nothing and the module
+    // comes back on its first-boot defaults rather than reloading what was just
+    // meant to be forgotten.
+    if (io && io->clear)
+      io->clear(io->user);
+    bmcv_instance_init(m, io, now_us);
+    break;
+
+  case REMOTE_OP_RESET:
+    bmcv_instance_init(m, io, now_us);
+    break;
+
+  default:
+    break; // an op this build does not know is acknowledged and ignored
+  }
+
+  m->command.seq = seq;
+  m->command.op  = op;
+  m->command_seq = seq;
+  return 1;
+}

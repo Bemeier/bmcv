@@ -21,6 +21,12 @@ typedef struct
 {
   int8_t (*store)(void* user, const EngineConfig* cfg, int8_t slot);
   int8_t (*load)(void* user, EngineConfig* cfg, int8_t slot);
+
+  // Forget every stored preset. Optional: a NULL clear is storage that cannot
+  // be wiped, which is what a test with no backing store has, and what a host
+  // that does not want its slots reachable from outside can offer.
+  int8_t (*clear)(void* user);
+
   void* user;
 } PresetIo;
 

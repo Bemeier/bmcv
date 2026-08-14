@@ -25,6 +25,12 @@ static int8_t slot_get(void* user, EngineConfig* cfg, int8_t slot)
   return 1;
 }
 
+static int8_t slot_wipe(void* user)
+{
+  slot_store_clear((SlotStore*) user);
+  return 1;
+}
+
 void slot_store_init(SlotStore* st, PresetIo* io)
 {
   // Cleared, not just wired. `occupied` is what decides whether a slot holds a
@@ -37,6 +43,7 @@ void slot_store_init(SlotStore* st, PresetIo* io)
 
   io->store = slot_put;
   io->load  = slot_get;
+  io->clear = slot_wipe;
   io->user  = st;
 }
 
