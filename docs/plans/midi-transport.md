@@ -247,6 +247,29 @@ host disappearing without saying so; both want recovery without being asked.
 Discovery also walks the bus twice now, since a deferred reply plus a busy
 machine can outlast a single 250ms window.
 
+### Confirmed healthy
+
+The monitor, listening before it spoke: 168 control changes in three seconds,
+and `f0 7d 42 4d 02 00 0a 00 f7` - the identity reply, version 0.10.0, returned
+immediately.
+
+The run before that one heard *one* message across the whole session, and that
+one was loopMIDI echoing our own request. The module had been emitting nothing
+at all, control changes included. So the watchdog really was killing the
+endpoint, and removing it really did fix it.
+
+Two lessons worth keeping, both about reading rather than writing:
+
+- **The evidence for "the endpoint is dead, not the reply path" was in the log a
+  round before it was acted on.** "Total messages heard: 1" said it plainly. A
+  module that publishes control changes continuously and sends nothing is not a
+  SysEx problem, and three separate fixes went into the reply path after that
+  was already knowable.
+- **`connection=closed` on all four ports was in the same log.** Discovery was
+  sending and listening on ports it had never opened, and both operations open
+  implicitly and asynchronously - so the reply came back before anything was
+  holding the port. That is what "no BMCV answered" had been from the start.
+
 ## Still to do
 
 **Try it on hardware.** Flash, open the page, press "Connect over MIDI".
