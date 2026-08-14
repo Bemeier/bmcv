@@ -24,10 +24,18 @@
 <h1>MIDI throughput</h1>
 
 <p class="lede">
-  Asks the module for a burst of <span id="n-msgs">—</span> SysEx messages and
-  times them. Each one is 48 MIDI bytes, which is exactly one 64-byte transfer
-  on the endpoint, so what comes out is the real ceiling for publishing module
-  state over the USB port instead of over a debug probe.
+  <strong>Measure the endpoint</strong> asks for a burst of
+  <span id="n-msgs">—</span> SysEx messages and times them. Each is 48 MIDI
+  bytes, which is exactly one 64-byte transfer, so what comes out is the raw
+  ceiling of the transport.
+</p>
+
+<p class="lede">
+  <strong>Measure the snapshot rate</strong> runs the real thing instead: it
+  asks for whole module snapshots the way the simulator page does, but decodes
+  nothing and draws nothing. If snapshots are fast here and slow on the
+  simulator page, the transport is fine and the cost is in decoding and drawing
+  them. If they are slow here too, it is the transport or the firmware.
 </p>
 
 <p class="lede">
@@ -36,7 +44,8 @@
 </p>
 
 <p>
-  <button id="run" type="button" disabled>connect and run</button>
+  <button id="run" type="button" disabled>measure the endpoint</button>
+  <button id="run-snapshots" type="button">measure the snapshot rate</button>
   <span id="status" class="muted">starting up</span>
 </p>
 

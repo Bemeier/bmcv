@@ -10,9 +10,13 @@
 // See docs/plans/midi-transport.md, and SYSEX_CMD_BENCH_REQ in
 // Core/Inc/Lib/sysex.h for the firmware end.
 
-const SYSEX_ID = [0x7d, 0x42, 0x4d];
+import { identify, SYSEX_ID, CMD_STREAM_REQ, CMD_SNAPSHOT } from '../probe/midiports.js';
+
 const CMD_BENCH_REQ = 0x10;
 const CMD_BENCH_DATA = 0x11;
+
+// How long the snapshot measurement runs.
+const SNAPSHOT_SECONDS = 8;
 
 // Mirrors of Core/Inc/Lib/sysex.h.
 const BENCH_MESSAGES = 2000;
@@ -54,16 +58,84 @@ const kb = n => `${fmt(n / 1024, 1)} kB/s`;
 
 /* ---- finding the module -------------------------------------------------- */
 
-const isModule = port => /bmcv/i.test(port.name ?? '');
+// By handshake, not by name - see midiports.js. A MIDI port is named by the
+// host driver and this device gives it nothing to work with.
+const findPorts = access => identify(access, stage => setStatus(stage));
 
-function findPorts(access) {
-  const input = [...access.inputs.values()].find(isModule);
-  const output = [...access.outputs.values()].find(isModule);
-  if (!input || !output) {
-    const seen = [...access.inputs.values()].map(p => p.name).join(', ') || 'nothing';
-    throw new Error(`no BMCV on the MIDI bus - this browser can see: ${seen}`);
+/* ---- the snapshot rate, with nothing else in the way --------------------- */
+
+// The bench above measures what the endpoint can carry. This measures what the
+// real transport achieves, on a page that does no decoding and draws nothing.
+//
+// That gap is the whole point of running it here rather than on the simulator
+// page: if snapshots arrive quickly here and slowly there, the transport is fine
+// and the cost is in decoding and drawing them. If they are slow here too, it is
+// the transport or the firmware. Nothing else distinguishes those.
+function measureSnapshots(input, output) {
+  return new Promise(resolve => {
+    let count = 0, bytes = 0, first = 0, last = 0, short = 0;
+    const gaps = [];
+
+    const request = () => output.send([0xf0, ...SYSEX_ID, CMD_STREAM_REQ, 0xf7]);
+
+    input.onmidimessage = ev => {
+      const d = ev.data;
+      if (d.length < 6 || d[0] !== 0xf0) return;
+      if (d[1] !== SYSEX_ID[0] || d[2] !== SYSEX_ID[1] || d[3] !== SYSEX_ID[2]) return;
+      if (d[4] !== CMD_SNAPSHOT) return;
+
+      const now = performance.now();
+      if (!count) first = now;
+      else gaps.push(now - last);
+      last = now;
+      count++;
+      bytes += d.length;
+      if (d.length < 2000) short++;
+
+      // One credit back, immediately. Nothing is decoded, so this is as fast as
+      // a consumer can possibly ask - which makes it the ceiling for the paced
+      // arrangement the simulator page uses.
+      request();
+    };
+
+    // The same two the link opens with.
+    request();
+    request();
+
+    setTimeout(() => {
+      input.onmidimessage = null;
+      resolve({ count, bytes, first, last, short, gaps });
+    }, SNAPSHOT_SECONDS * 1000);
+  });
+}
+
+function reportSnapshots(r) {
+  const seconds = (r.last - r.first) / 1000;
+  const rate = seconds > 0 ? (r.count - 1) / seconds : 0;
+
+  ui.results.hidden = true;
+  ui.verdict.hidden = false;
+
+  if (r.count < 2) {
+    ui.verdict.textContent = 'The module sent no snapshots. It is running firmware without the stream command, or the request is not reaching it.';
+    return;
   }
-  return { input, output };
+
+  // The spread matters more than the average here. A steady stream and one that
+  // arrives in bursts can average the same and look completely different.
+  const sorted = [...r.gaps].sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)];
+  const worst = sorted[sorted.length - 1];
+
+  ui.verdict.textContent =
+    `${fmt(rate, 1)} snapshots/s over ${fmt(seconds, 1)}s, decoding nothing and drawing nothing. `
+    + `Gap between them: ${fmt(median, 1)}ms typical, ${fmt(worst, 0)}ms worst. `
+    + (worst > median * 5
+      ? 'That spread means they are arriving in bursts, so something is stalling the stream rather than slowing it.'
+      : 'Evenly spaced, so the transport itself is steady.');
+
+  log(`${r.count} snapshots, ${fmt(r.bytes / 1024, 0)} kB, ${kb(r.bytes / seconds)}`);
+  if (r.short) log(`${r.short} were shorter than a whole instance`);
 }
 
 /* ---- the run ------------------------------------------------------------- */
@@ -174,6 +246,37 @@ if (!navigator.requestMIDIAccess) {
   setStatus('ready');
 }
 
+// Both buttons share the connect-and-find preamble.
+async function withModule(fn) {
+  setStatus('asking for MIDI access');
+  const access = await navigator.requestMIDIAccess({ sysex: true });
+  const { input, output, version } = await findPorts(access);
+  log(`in:  ${input.name}`);
+  log(`out: ${output.name}`);
+  log(`firmware ${version}`);
+  return fn(input, output);
+}
+
+el('run-snapshots')?.addEventListener('click', async () => {
+  const button = el('run-snapshots');
+  button.disabled = true;
+  ui.verdict.hidden = true;
+  ui.results.hidden = true;
+  ui.log.textContent = '';
+
+  try {
+    await withModule(async (input, output) => {
+      setStatus(`streaming for ${SNAPSHOT_SECONDS}s`);
+      reportSnapshots(await measureSnapshots(input, output));
+      setStatus('done');
+    });
+  } catch (e) {
+    setStatus(e.message);
+  } finally {
+    button.disabled = false;
+  }
+});
+
 ui.run.addEventListener('click', async () => {
   ui.run.disabled = true;
   ui.verdict.hidden = true;
@@ -184,7 +287,7 @@ ui.run.addEventListener('click', async () => {
     setStatus('asking for MIDI access');
     const access = await navigator.requestMIDIAccess({ sysex: true });
 
-    const { input, output } = findPorts(access);
+    const { input, output } = await findPorts(access);
     log(`in:  ${input.name}`);
     log(`out: ${output.name}`);
 
