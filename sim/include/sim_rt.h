@@ -124,6 +124,11 @@ void sim_input_cv(InputSample* s, SimTrigLatch* t, const HwSetup* hw, uint8_t ja
 // before handing it to the engine.
 void sim_input_take_trigs(InputSample* s, SimTrigLatch* t);
 
+// A fraction of the crossfader's travel as the raw ADC value the input layer
+// takes. Separate from the setter below because the remote input mailbox holds
+// the same units and must not grow a second copy of this conversion.
+uint16_t sim_slider_raw(float pos01);
+
 // The crossfader, as a fraction of its travel. 0 is the bottom of the raw
 // range, which is the end of the panel scene B anchors to.
 void sim_input_slider(InputSample* s, float pos01);

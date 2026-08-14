@@ -55,6 +55,53 @@ void bmcv_sim_set_cv(BmcvSim* s, int32_t input, float volts);
 // Fire a single trigger on an input jack without synthesising a voltage ramp.
 void bmcv_sim_fire_gate(BmcvSim* s, int32_t input);
 
+/* ---- driving another module --------------------------------------------- */
+//
+// The setters above are this instance's own panel. These fill a *mailbox* to be
+// written into a different module's memory - the write direction of the debug
+// probe bridge, where the page in front of you drives the board on the bench.
+// See RemoteInput in Core/Inc/Lib/input_fold.h for what the far end does with
+// it, and docs/plans/remote-input.md for why it is shaped this way.
+//
+// Nothing here touches this instance. A host drives one or the other.
+//
+// The bytes are built here rather than in the caller for the same reason
+// bmcv_sim_import() decodes a snapshot here: a JS frontend that laid out this
+// struct itself would be a second definition of it, free to drift from the one
+// the firmware compiles.
+
+void bmcv_sim_remote_button(BmcvSim* s, int32_t button, int32_t down);
+
+// Detents to add, exactly like bmcv_sim_add_encoder. The absolute position this
+// accumulates into is an origin of this host's choosing - the far end reads
+// only how far it moves - so it may wrap and never has to match anything.
+void bmcv_sim_remote_encoder(BmcvSim* s, int32_t encoder, int32_t detents);
+
+// 0.0..1.0 to take the far module's crossfader, negative to hand it back. The
+// claim is sticky: it holds until handed back, or until the physical fader is
+// moved far enough to take itself back.
+void bmcv_sim_remote_slider01(BmcvSim* s, float pos01);
+
+// Let go of everything - buttons up, crossfader released, encoder origin reset.
+// For entering and leaving a session, so a press held when a connection ended
+// is not still held when the next one starts.
+void bmcv_sim_remote_clear(BmcvSim* s);
+
+// Where the mailbox sits inside a BmcvInstance, and how big it is. The layout
+// assertions in layout_target.h are what make this offset the *target's*
+// offset, so a host that has read an instance's address knows where to write
+// without the firmware publishing anything further.
+int32_t bmcv_sim_remote_offset(void);
+int32_t bmcv_sim_remote_size(void);
+
+// The mailbox as bytes, stamped with a fresh sequence number. Call it for every
+// write, including ones that change nothing: the far end treats the sequence as
+// a heartbeat and stops believing a mailbox that has gone quiet.
+//
+// A writer that cannot deliver all of it at once must send the last four bytes
+// - the sequence number - after the rest.
+const void* bmcv_sim_remote_blob(BmcvSim* s);
+
 /* ---- running ------------------------------------------------------------ */
 
 // The most engine time one call may advance, as a tick count. Nothing

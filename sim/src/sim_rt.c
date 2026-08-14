@@ -109,14 +109,16 @@ void sim_input_take_trigs(InputSample* s, SimTrigLatch* t)
   }
 }
 
-void sim_input_slider(InputSample* s, float pos01)
+uint16_t sim_slider_raw(float pos01)
 {
   if (pos01 < 0.0f)
     pos01 = 0.0f;
   if (pos01 > 1.0f)
     pos01 = 1.0f;
-  s->slider_raw = (uint16_t) (SLIDER_MIN_VALUE + pos01 * (float) (SLIDER_MAX_VALUE - SLIDER_MIN_VALUE) + 0.5f);
+  return (uint16_t) (SLIDER_MIN_VALUE + pos01 * (float) (SLIDER_MAX_VALUE - SLIDER_MIN_VALUE) + 0.5f);
 }
+
+void sim_input_slider(InputSample* s, float pos01) { s->slider_raw = sim_slider_raw(pos01); }
 
 void sim_input_adopt(InputSample* s, const HwState* hw_state)
 {

@@ -344,6 +344,12 @@ not have".
 
 ### 1. The write direction
 
+**Designed — see `remote-input.md`, which supersedes this section.** The mailbox
+is the conclusion below, but as levels rather than deltas, which turns out to
+remove the baseline problem, the tearing problem and the need for the firmware
+to consume anything. The reasoning below is kept because the cheap option is
+still tempting and the argument against it has not changed.
+
 Everything under it is already there. `writeMem()` works and is exercised by the
 same round trips reads use; `#calibrateBlocks` proves the transfer size; the
 frontend already knows when a module is driving the page (`mode.live`). What is

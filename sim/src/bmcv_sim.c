@@ -18,6 +18,7 @@
 #include "ui_mode.h"
 #include "ui_state.h"
 #include "ux_setup.h"
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -36,6 +37,11 @@ struct BmcvSim
 
   InputSample sample;
   SimTrigLatch trig;
+
+  // Outgoing, for a module that is not this one - see the header. Deliberately
+  // not s->m.input.remote: that field belongs to whatever instance is loaded
+  // here, and in probe mode every snapshot overwrites it.
+  RemoteInput remote_out;
 
   SlotStore storage;
   PresetIo io;
@@ -62,6 +68,7 @@ static void sim_boot(BmcvSim* s)
   bmcv_instance_init(&s->m, &s->io, 0);
 
   sim_input_slider(&s->sample, 0.0f);
+  bmcv_sim_remote_clear(s);
 }
 
 BmcvSim* bmcv_sim_create(void)
@@ -127,6 +134,67 @@ void bmcv_sim_fire_gate(BmcvSim* s, int32_t input)
   if (!s || input < 0 || input >= N_INPUTS)
     return;
   sim_trig_fire(&s->trig, s->m.hw_setup->input_adc_idx[input]);
+}
+
+/* ---- driving another module --------------------------------------------- */
+
+// What a writer needs to hold to, and cannot check for itself: the mailbox goes
+// out over a transport that moves whole 32-bit words to word addresses, and the
+// sequence number has to be the last of them so it can be sent after the fields
+// it describes.
+_Static_assert(offsetof(RemoteInput, seq) == sizeof(RemoteInput) - 4, "seq is the last word of the mailbox");
+_Static_assert(sizeof(RemoteInput) % 4 == 0, "the mailbox is a whole number of words");
+_Static_assert(offsetof(BmcvInstance, input.remote) % 4 == 0, "the mailbox starts on a word");
+
+void bmcv_sim_remote_button(BmcvSim* s, int32_t button, int32_t down)
+{
+  if (!s || button < 0 || button >= N_BUTTONS)
+    return;
+  s->remote_out.button_down[button] = down ? 1 : 0;
+}
+
+void bmcv_sim_remote_encoder(BmcvSim* s, int32_t encoder, int32_t detents)
+{
+  if (!s || encoder < 0 || encoder >= N_ENCODERS)
+    return;
+  s->remote_out.encoder_pos[encoder] = (int16_t) (s->remote_out.encoder_pos[encoder] + detents);
+}
+
+void bmcv_sim_remote_slider01(BmcvSim* s, float pos01)
+{
+  if (!s)
+    return;
+  s->remote_out.slider_raw = pos01 < 0.0f ? REMOTE_SLIDER_NONE : (int16_t) sim_slider_raw(pos01);
+}
+
+void bmcv_sim_remote_clear(BmcvSim* s)
+{
+  if (!s)
+    return;
+
+  // The sequence number survives, so that clearing is itself an update the far
+  // end acts on rather than a silence it has to time out. Restarting the count
+  // could repeat a value it has already seen and be ignored.
+  const uint32_t seq = s->remote_out.seq;
+  memset(&s->remote_out, 0, sizeof(s->remote_out));
+  s->remote_out.slider_raw = REMOTE_SLIDER_NONE;
+  s->remote_out.seq        = seq;
+}
+
+int32_t bmcv_sim_remote_offset(void) { return (int32_t) offsetof(BmcvInstance, input.remote); }
+int32_t bmcv_sim_remote_size(void) { return (int32_t) sizeof(RemoteInput); }
+
+const void* bmcv_sim_remote_blob(BmcvSim* s)
+{
+  if (!s)
+    return NULL;
+
+  // Zero means never written, so a count that wraps has to skip it rather than
+  // hand the far end a mailbox that reads as untouched.
+  if (++s->remote_out.seq == 0)
+    s->remote_out.seq = 1;
+
+  return &s->remote_out;
 }
 
 /* ---- running ------------------------------------------------------------ */

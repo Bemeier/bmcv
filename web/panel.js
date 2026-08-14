@@ -6,7 +6,7 @@
 
 import { spec, px } from './spec.js';
 import { sim } from './sim.js';
-import { mode } from './mode.js';
+import { input } from './input.js';
 import { initLeds, registerLed } from './leds.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -50,8 +50,8 @@ const describe = b => {
 /* ---- interaction -------------------------------------------------------- */
 
 function bindButton(node, b) {
-  const down = ev => { ev.preventDefault(); if (mode.live) return; node.setPointerCapture(ev.pointerId); sim.setButton(b.index, 1); };
-  const up = () => { if (!mode.live) sim.setButton(b.index, 0); };
+  const down = ev => { ev.preventDefault(); node.setPointerCapture(ev.pointerId); input.setButton(b.index, 1); };
+  const up = () => input.setButton(b.index, 0);
   node.addEventListener('pointerdown', down);
   node.addEventListener('pointerup', up);
   node.addEventListener('pointercancel', up);
@@ -61,7 +61,8 @@ function bindButton(node, b) {
 
 // Cosmetic needle angles. The firmware's encoders are relative and endless, so
 // this only shows that something turned - but it has to move by exactly what
-// was sent, which is why every turn goes through turnEncoder().
+// the module ended up at, which is why the angle is read back from it rather
+// than accumulated here.
 // What the panel's own parts are drawn in.
 //
 // The artwork underneath is a dark, mostly transparent PNG, so these are lines
@@ -116,17 +117,12 @@ const encIndicators = new Map();
 // 7.5 detents - fast enough to read as movement, slow enough not to alias.
 const DEG_PER_DETENT = 12;
 
-function turnEncoder(index, detents) {
-  if (mode.live) return;
-  sim.addEncoder(index, detents);
-}
-
 function bindEncoder(ring, cap, e) {
   // Push is the centre cap; turning is the ring. Holding Shift while turning
   // asserts the push too, which is the press-and-turn the firmware treats as a
   // fine-adjust modifier.
-  const capDown = ev => { ev.preventDefault(); if (mode.live) return; cap.setPointerCapture(ev.pointerId); sim.setButton(e.push_button, 1); };
-  const capUp = () => { if (!mode.live) sim.setButton(e.push_button, 0); };
+  const capDown = ev => { ev.preventDefault(); cap.setPointerCapture(ev.pointerId); input.setButton(e.push_button, 1); };
+  const capUp = () => input.setButton(e.push_button, 0);
   cap.addEventListener('pointerdown', capDown);
   cap.addEventListener('pointerup', capUp);
   cap.addEventListener('pointercancel', capUp);
@@ -135,30 +131,29 @@ function bindEncoder(ring, cap, e) {
 
   ring.addEventListener('pointerdown', ev => {
     ev.preventDefault();
-    if (mode.live) return;
     ring.setPointerCapture(ev.pointerId);
     dragging = true; lastY = ev.clientY; accum = 0;
     shifted = ev.shiftKey;
-    if (shifted) sim.setButton(e.push_button, 1);
+    if (shifted) input.setButton(e.push_button, 1);
   });
   ring.addEventListener('pointermove', ev => {
     if (!dragging) return;
     accum += (lastY - ev.clientY) / 6;  // ~6px per detent, up = clockwise
     lastY = ev.clientY;
     const steps = Math.trunc(accum);
-    if (steps) { accum -= steps; turnEncoder(e.index, steps); }
+    if (steps) { accum -= steps; input.addEncoder(e.index, steps); }
   });
   const stop = () => {
     if (!dragging) return;
     dragging = false;
-    if (shifted) { sim.setButton(e.push_button, 0); shifted = false; }
+    if (shifted) { input.setButton(e.push_button, 0); shifted = false; }
   };
   ring.addEventListener('pointerup', stop);
   ring.addEventListener('pointercancel', stop);
 
   // On the cap as well as the ring: the cap is a good half of the knob, and
   // having the wheel do nothing over the middle of it reads as a dead spot.
-  const wheel = ev => { ev.preventDefault(); turnEncoder(e.index, ev.deltaY < 0 ? 1 : -1); };
+  const wheel = ev => { ev.preventDefault(); input.addEncoder(e.index, ev.deltaY < 0 ? 1 : -1); };
   ring.addEventListener('wheel', wheel, { passive: false });
   cap.addEventListener('wheel', wheel, { passive: false });
 
@@ -188,12 +183,11 @@ function bindSlider(hit, knob, cx, cy, travel, horizontal) {
   drawKnob = drawAt;
 
   const setFromPos = pos => {
-    sim.setSlider01(1 - pos);
+    input.setSlider01(1 - pos);
     drawAt(pos);
   };
 
   const apply = ev => {
-    if (mode.live) return;
     const r = svg.getBoundingClientRect();
     // Client px -> viewBox mm, then to 0..1. Right / up is 1.0.
     let pos;

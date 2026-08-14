@@ -49,6 +49,13 @@ if(EMSCRIPTEN)
       _bmcv_sim_set_slider01
       _bmcv_sim_set_cv
       _bmcv_sim_fire_gate
+      _bmcv_sim_remote_button
+      _bmcv_sim_remote_encoder
+      _bmcv_sim_remote_slider01
+      _bmcv_sim_remote_clear
+      _bmcv_sim_remote_offset
+      _bmcv_sim_remote_size
+      _bmcv_sim_remote_blob
       _bmcv_sim_run
       _bmcv_sim_now_us
       _bmcv_sim_outputs_v

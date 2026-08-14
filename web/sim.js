@@ -82,6 +82,35 @@ export const sim = {
   // Volts on an input *jack*, not a converter channel.
   setCv: (input, volts) => _('set_cv')(handle, input, volts),
 
+  /* ---- driving another module ------------------------------------------- */
+  //
+  // The mailbox a physical module reads its remote panel out of. These do not
+  // touch this instance: they fill a small struct that the probe writes into
+  // the board's RAM, where its input layer merges it with the panel someone
+  // may also have their hands on. See web/input.js for who calls which, and
+  // Core/Inc/Lib/input_fold.h for the merge.
+  //
+  // The bytes are laid out by the wasm, never here - the same rule the read
+  // direction follows, and for the same reason: a copy of the struct written
+  // out in JS would be a second definition of it, free to drift.
+
+  remoteButton: (index, down) => _('remote_button')(handle, index, down ? 1 : 0),
+  remoteEncoder: (index, detents) => _('remote_encoder')(handle, index, detents),
+
+  // 0..1 to take the module's crossfader, negative to hand it back.
+  remoteSlider01: pos => _('remote_slider01')(handle, pos),
+  remoteClear: () => _('remote_clear')(handle),
+
+  remoteOffset: _('remote_offset')(),
+  remoteSize: _('remote_size')(),
+
+  // Stamped with a fresh sequence number on every call - the far end reads it
+  // as a heartbeat, so a write that changes nothing still has to happen.
+  //
+  // Copied out rather than returned as a view: this is handed to WebUSB and
+  // awaited, and a view into the wasm heap does not survive it growing.
+  remoteBlob: () => u8(_('remote_blob')(handle), sim.remoteSize).slice(),
+
   /* ---- running ---------------------------------------------------------- */
 
   // Negative and zero counts are rejected inside, and the count is capped -

@@ -441,7 +441,7 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
 // ELF so the check runs on a fresh checkout, where no firmware has been built.
 //
 // Worth testing because a wrong offset here does not fail: it yields a
-// plausible-looking address, reads 2304 bytes of whatever is there, and shows a
+// plausible-looking address, reads 2368 bytes of whatever is there, and shows a
 // module made of noise.
 {
   const { decodeInfo } = await import('./probe/probe.js');
@@ -449,14 +449,14 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   const bytes = new Uint8Array([
     0x42, 0x4d, 0x43, 0x56, // "BMCV"
     0x01, 0x00,             // descriptor version 1
-    0x00, 0x09,             // instance size, 0x0900 = 2304
+    0x40, 0x09,             // instance size, 0x0940 = 2368
     0x70, 0x0f, 0x00, 0x20, // &bmcv = 0x20000f70
     0x30, 0x2e, 0x31, 0x30, 0x2e, 0x30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // "0.10.0"
   ]);
 
   const info = decodeInfo(bytes);
   check(info.instanceAddr === 0x20000f70, `reads the instance address (0x${info.instanceAddr.toString(16)})`);
-  check(info.instanceSize === 2304, `reads the instance size (${info.instanceSize})`);
+  check(info.instanceSize === 2368, `reads the instance size (${info.instanceSize})`);
   check(info.version === '0.10.0', `reads the firmware version (${info.version})`);
 
   // The size the descriptor reports is checked against this build's before a
@@ -472,6 +472,59 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   };
   refuses(b => { b[0] = 0x41; }, 'a wrong magic is refused, not decoded');
   refuses(b => { b[4] = 2; }, 'an unknown descriptor version is refused');
+}
+
+/* ---- the remote input mailbox -------------------------------------------- */
+
+// The write direction: the bytes this page pushes into a module's RAM so its
+// input layer merges them with the panel someone may have their hands on.
+//
+// Worth checking without hardware because none of it fails loudly. The offset
+// is a plain number added to an address, so a wrong one writes a valid-looking
+// mailbox over whatever else is there; and the sequence number is what the far
+// end reads as a heartbeat, so one that stopped moving would look like a page
+// that had gone away rather than like a bug here.
+{
+  check(sim.remoteSize > 0 && sim.remoteSize % 4 === 0, `the mailbox is ${sim.remoteSize} bytes, a whole number of words`);
+  check(sim.remoteOffset % 4 === 0, `it starts on a word (offset ${sim.remoteOffset})`);
+  check(sim.remoteOffset + sim.remoteSize <= sim.instanceSize, 'and lies inside the instance');
+
+  const seqOf = b => new DataView(b.buffer, b.byteOffset, b.byteLength).getUint32(b.length - 4, true);
+
+  sim.remoteClear();
+  const first = sim.remoteBlob();
+  check(first.length === sim.remoteSize, 'the blob is the size it declares');
+
+  // Every call, not only the ones that changed something - probe.js writes on
+  // every poll precisely so the far end keeps hearing from this page.
+  const second = sim.remoteBlob();
+  check(seqOf(second) !== seqOf(first), `each blob carries a fresh sequence number (${seqOf(first)} -> ${seqOf(second)})`);
+  check(seqOf(first) !== 0 && seqOf(second) !== 0, 'and never zero, which means never written');
+
+  // The panel's gestures have to reach it. A button is the one field that is a
+  // plain level, so it shows up in the bytes exactly where the struct says.
+  const b = spec.buttons[0].index;
+  sim.remoteButton(b, 1);
+  const held = sim.remoteBlob();
+  check(held[b] === 1, `a remote press lands in the blob (button ${b})`);
+
+  sim.remoteButton(b, 0);
+  check(sim.remoteBlob()[b] === 0, 'and releasing it clears the byte');
+
+  // Clearing is what connect and disconnect do, and it must not restart the
+  // count - a repeated sequence number reads as no update at all.
+  sim.remoteButton(b, 1);
+  const before = seqOf(sim.remoteBlob());
+  sim.remoteClear();
+  const cleared = sim.remoteBlob();
+  check(cleared[b] === 0, 'clearing lets go of everything');
+  check(seqOf(cleared) > before, 'and is itself an update, not a silence');
+
+  // The two-transfer split probe.js does: fields first, sequence number after,
+  // so a mailbox that half-arrives is not acted on until it is whole.
+  const blob = sim.remoteBlob();
+  check(blob.subarray(0, blob.length - 4).length === sim.remoteSize - 4, 'the body is everything but the last word');
+  check(blob.subarray(blob.length - 4).length === 4, 'and the sequence number is that word');
 }
 check(SHIFT_NAMES[0] === 'STA' && SHIFT_NAMES.at(-1) === '---', `shift names came from the firmware (${SHIFT_NAMES.join(',')})`);
 check(SHAPE_NAMES.length > 1 && SHAPE_NAMES[0] === 'LFO', `shape names came from the firmware (${SHAPE_NAMES.join(',')})`);

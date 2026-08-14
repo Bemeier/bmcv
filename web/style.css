@@ -530,14 +530,7 @@ body:not(.live) .when-live { display: none; }
 .value.ok { color: #7fd88f; }
 .value.warn { color: var(--warn); }
 
-/* While a physical module is driving the page, the panel is a display. Saying
-   so with the cursor as well as in the box, because the first thing anyone
-   does with a panel is try to click it. */
 /* The input controls drive the simulator's jacks. A physical module's are
    whatever is patched into it, and a fader here would move nothing - so they
    go rather than sitting there inert. */
 body.live #in-overlay { display: none; }
-
-body.live #panel .hit,
-body.live #panel .enc-ring,
-body.live #panel .slider-hit { cursor: not-allowed; }

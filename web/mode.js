@@ -19,9 +19,10 @@ let contiguous = Infinity;
 const listeners = [];
 
 export const mode = {
-  // True while a physical module is driving the page. The panel is then a
-  // display: its state arrives from hardware, and anything typed into it here
-  // would be overwritten before it was drawn.
+  // True while a physical module is driving the page. What the panel shows then
+  // arrives from hardware, and what is done to it goes back out - see
+  // web/input.js, which is the only place that has to care which module a
+  // gesture belongs to.
   get live() {
     return live;
   },

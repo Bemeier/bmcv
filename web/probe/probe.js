@@ -237,6 +237,12 @@ class Probe {
       }
 
       this.saved = sim.exportInstance();
+
+      // Start with empty hands. A button still down in the mailbox from a
+      // previous session would otherwise be pressed on this module the moment
+      // the first write lands.
+      sim.remoteClear();
+
       this.#startSampling();
       await this.#poll(); // one now, so the panel is right before the first frame
       this.stopping = false;
@@ -254,6 +260,13 @@ class Probe {
   async disconnect() {
     this.#stopPolling();
     await this.#settle();
+
+    // Let go on the way out, rather than leaving the module to time this page
+    // out a quarter of a second later. Best effort: if the cable is already
+    // gone the write fails, and the timeout is what covers that case anyway.
+    sim.remoteClear();
+    await this.#writeRemote().catch(() => {});
+
     await this.link.close();
     this.info = null;
     this.#restoreSimulation();
@@ -271,6 +284,28 @@ class Probe {
     }
   }
 
+  // The page's own panel, into the module's memory.
+  //
+  // Every poll, not only when something was clicked: the sequence number is a
+  // heartbeat as well as an update, and a module that stops hearing it lets go
+  // of whatever this page was holding. That is what stops a refresh with a
+  // button down from stranding the module holding it.
+  //
+  // Two transfers, because SWD moves words and the module may fold a tick
+  // between them. The fields go first and the sequence number - the last word,
+  // by construction; bmcv_sim.c asserts it - goes after, so a half-arrived
+  // mailbox is simply not acted on yet.
+  //
+  // Cheap enough to do unconditionally: a write is a command and its data on
+  // the OUT pipe with no reply to wait for, against a read's round trip.
+  async #writeRemote() {
+    const blob = sim.remoteBlob();
+    const at = this.info.instanceAddr + sim.remoteOffset;
+
+    await this.link.writeMem(at, blob.subarray(0, blob.length - 4));
+    await this.link.writeMem(at + blob.length - 4, blob.subarray(blob.length - 4));
+  }
+
   async #poll() {
     // Asking the probe whether the last access landed costs a round trip, and
     // the answer only changes when the cable comes out - at which point the
@@ -281,6 +316,10 @@ class Probe {
     if (!sim.importInstance(bytes)) throw new Error('the module\'s state was the wrong length for this build');
     this.snapshots++;
     this.contiguous++;
+
+    // After the read, so what was just imported is the module as it was before
+    // this update rather than midway through applying it.
+    await this.#writeRemote();
 
     // Timed at the point the sample lands, so what is measured is the interval
     // the scope is actually plotting rather than the one that was asked for.
