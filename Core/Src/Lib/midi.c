@@ -1,6 +1,7 @@
 #include "midi.h"
 
 #include "midi_realtime.h"
+#include "string.h"
 #include "sysex.h"
 #include "version.h"
 
@@ -24,6 +25,23 @@ static volatile bool midi_reset_flag          = false;
 static volatile uint16_t bench_remaining = 0;
 static uint16_t bench_seq                = 0;
 
+// The remote input mailbox, on its way in. Staged here rather than written
+// straight into the instance because this runs in the USB interrupt, which can
+// preempt input_fold halfway through reading it - and a mailbox that is half
+// this update and half the last one is the one thing its design does not
+// tolerate. The main loop moves it across between ticks, where nothing can
+// interleave. See midi_take_remote_input().
+_Static_assert(sizeof(RemoteInput) == SYSEX_REMOTE_INPUT_BYTES, "the mailbox is what sysex.h says it is");
+
+static volatile bool remote_pending = false;
+static RemoteInput remote_staged;
+
+// Streaming state. `stream_until_us` is a deadline rather than a flag for the
+// reason RemoteInput.seq is a heartbeat: a browser tab that goes away must not
+// leave the module talking to nobody.
+static volatile uint32_t stream_until_us = 0;
+static volatile bool stream_requested    = false;
+
 // Overrides the __weak stub in the MIDI class, and runs in the USB interrupt.
 // It does the least it can get away with: parse, latch, return. Acting on
 // ENTER_UPDATE here would tear down the USB stack from inside its own ISR.
@@ -41,6 +59,20 @@ void USBD_MIDI_DataInHandler(uint8_t* usb_rx_buffer, uint8_t usb_rx_buffer_lengt
     bench_seq       = 0;
     bench_remaining = SYSEX_BENCH_MESSAGES;
     break;
+  case SYSEX_CMD_STREAM_REQ:
+    stream_requested = true;
+    break;
+  case SYSEX_CMD_REMOTE_INPUT:
+  {
+    uint8_t len;
+    const uint8_t* payload = sysex_payload(&sysex_parser, &len);
+
+    // The length was checked before the command was recognised, so this cannot
+    // decode to anything other than a whole mailbox.
+    sysex7_decode((uint8_t*) &remote_staged, payload, len);
+    remote_pending = true;
+    break;
+  }
   default:
     break;
   }
@@ -71,6 +103,74 @@ uint8_t midi_read_reset_trig()
 uint8_t midi_dfu_requested() { return sysex_dfu_requested; }
 
 uint8_t midi_bench_active() { return bench_remaining != 0; }
+
+uint8_t midi_take_remote_input(RemoteInput* dst)
+{
+  if (!remote_pending)
+    return 0;
+
+  // Cleared first: another message landing during the copy is a newer mailbox,
+  // and leaving the flag set means it is taken next pass rather than lost. The
+  // copy itself can be torn by that, which is exactly what the mailbox's levels
+  // are built to survive - see RemoteInput.
+  remote_pending = false;
+  *dst           = remote_staged;
+  return 1;
+}
+
+/* ---- snapshot streaming -------------------------------------------------- */
+
+// One instance, frozen. The stream encodes straight out of this as it goes, so
+// there is no second buffer holding the encoded form - but it does mean the
+// copy has to sit still for the ~57 transfers it takes to leave, which is why
+// it is a copy and not the live instance.
+static uint8_t snapshot[sizeof(BmcvInstance)];
+static uint16_t snapshot_len = 0;
+static SysexStream snapshot_stream;
+static bool snapshot_sending = false;
+
+void midi_stream_poll(uint32_t now_us, const BmcvInstance* m)
+{
+  if (stream_requested)
+  {
+    stream_requested = false;
+    stream_until_us  = now_us + SYSEX_STREAM_TIMEOUT_US;
+  }
+
+  // A burst owns the endpoint while it runs; it is a measurement, and sharing
+  // it with snapshots would measure something else.
+  if (bench_remaining || !midi_idle())
+    return;
+
+  if ((int32_t) (now_us - stream_until_us) >= 0)
+    return; // nobody has asked recently enough
+
+  if (!snapshot_sending)
+  {
+    // Taken here, between engine ticks, so the copy is internally consistent.
+    // The probe's read cannot say that: it runs while the core does, so a blob
+    // can straddle a tick. This is the one thing this transport does better.
+    memcpy(snapshot, m, sizeof snapshot);
+    snapshot_len = (uint16_t) sizeof snapshot;
+    sysex_stream_begin(&snapshot_stream, SYSEX_CMD_SNAPSHOT, snapshot, snapshot_len);
+    snapshot_sending = true;
+  }
+
+  static uint8_t packets[SYSEX_STREAM_TRANSFER_BYTES];
+  const uint8_t n = sysex_stream_next(&snapshot_stream, packets, 0);
+
+  if (n == 0)
+  {
+    // Finished. The next pass starts a fresh snapshot, so the rate is whatever
+    // the endpoint allows rather than anything this code decides.
+    snapshot_sending = false;
+    return;
+  }
+
+  USBD_MIDI_SendReport(&hUsbDeviceFS, packets, n);
+}
+
+uint8_t midi_stream_active() { return snapshot_sending; }
 
 void midi_poll_control()
 {

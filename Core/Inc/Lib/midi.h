@@ -1,6 +1,8 @@
 #ifndef INC_DRIVERS_MIDI_H_
 #define INC_DRIVERS_MIDI_H_
 
+#include "input_fold.h" // IWYU pragma: keep
+#include "instance.h"   // IWYU pragma: keep
 #include "midi_out.h"
 #include "stm32g4xx_hal.h" // IWYU pragma: keep
 #include "usbd_midi.h"     // IWYU pragma: keep
@@ -36,6 +38,28 @@ void midi_poll_control();
 // MIDI output can stand aside and let the measurement have the endpoint. See
 // SYSEX_CMD_BENCH_REQ.
 uint8_t midi_bench_active();
+
+/* ---- driving and watching the module over its own USB port --------------- */
+//
+// The same two directions the debug probe offers, over the MIDI endpoint the
+// module already enumerates - no probe on the programming header. See
+// docs/plans/midi-transport.md.
+
+// Collect a remote input mailbox if one arrived since the last call. Call from
+// the main loop between ticks, never from the tick: this is what keeps a USB
+// interrupt from rewriting the mailbox while input_fold is reading it.
+// Returns non-zero when `dst` was written.
+uint8_t midi_take_remote_input(RemoteInput* dst);
+
+// Push snapshots of `instance` out while a host keeps asking for them. Copies
+// it when a message starts, so call this between ticks and the copy is
+// internally consistent - unlike a probe's read, which runs while the core
+// does. Does nothing until a SYSEX_CMD_STREAM_REQ arrives and stops
+// SYSEX_STREAM_TIMEOUT_US after the last one.
+void midi_stream_poll(uint32_t now_us, const BmcvInstance* m);
+
+// Non-zero while a snapshot is partway out of the endpoint.
+uint8_t midi_stream_active();
 
 // A MIDI Clock (0xF8) / Start (0xFA) byte was latched since the last call -
 // see midi_realtime.h for why Start and not Continue. Read-and-clear, the

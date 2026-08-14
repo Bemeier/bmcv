@@ -526,6 +526,37 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   check(blob.subarray(0, blob.length - 4).length === sim.remoteSize - 4, 'the body is everything but the last word');
   check(blob.subarray(blob.length - 4).length === 4, 'and the sequence number is that word');
 }
+
+/* ---- the seven-bit codec, for the MIDI transport ------------------------- */
+
+// The firmware and this page have to agree about this exactly, and they do it
+// by being the same compiled source - sysex.c, in the wasm. What is checked
+// here is that the binding reaches it and that nothing is lost on the way
+// through, since a codec that is subtly wrong produces a module made of noise
+// rather than an error.
+{
+  check(sim.sysex7EncodedLen(48) === 55, 'the remote input mailbox encodes to 55 bytes');
+  check(sim.sysex7EncodedLen(sim.instanceSize) === 2707, `an instance encodes to ${sim.sysex7EncodedLen(sim.instanceSize)} bytes`);
+  check(sim.sysex7DecodedLen(sim.sysex7EncodedLen(sim.instanceSize)) === sim.instanceSize, 'and decodes back to its own size');
+
+  // Every byte value, including the high-bit ones that are the entire reason
+  // this encoding exists.
+  const raw = new Uint8Array(256).map((_, i) => i);
+  const enc = sim.sysex7Encode(raw);
+  check(enc.length === sim.sysex7EncodedLen(256), 'encoding 256 bytes gives the declared length');
+  check(enc.every(b => b < 0x80), 'nothing encoded has its high bit set');
+
+  const back = sim.sysex7Decode(enc);
+  check(back.length === 256 && back.every((b, i) => b === i), 'and it round-trips byte for byte');
+
+  // A whole snapshot through the same path a module's would take.
+  const snapshot = sim.exportInstance();
+  const wire = sim.sysex7Encode(snapshot);
+  const recovered = sim.sysex7Decode(wire);
+  check(recovered.length === snapshot.length, 'a snapshot survives the encoding at full size');
+  check(recovered.every((b, i) => b === snapshot[i]), 'and byte for byte');
+  check(sim.importInstance(recovered), 'and is still an instance this build accepts');
+}
 check(SHIFT_NAMES[0] === 'STA' && SHIFT_NAMES.at(-1) === '---', `shift names came from the firmware (${SHIFT_NAMES.join(',')})`);
 check(SHAPE_NAMES.length > 1 && SHAPE_NAMES[0] === 'LFO', `shape names came from the firmware (${SHAPE_NAMES.join(',')})`);
 

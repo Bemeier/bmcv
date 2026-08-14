@@ -343,6 +343,13 @@ void bmcv_main(uint32_t now_us)
 
     [[maybe_unused]] const uint32_t t_tick_start = PROFILE_NOW();
 
+    // Anything a host has sent over MIDI, moved into the instance here rather
+    // than in the USB interrupt that received it: input_fold is about to read
+    // this mailbox, and an interrupt writing it halfway through that read is
+    // the one thing its design does not tolerate. Nothing can interleave
+    // between these two lines.
+    midi_take_remote_input(&bmcv.input.remote);
+
     // input_fold points bmcv.ux.hw_state at the frame it just filled.
     // engine_fps is measured inside engine_tick, so every host agrees on it.
     uint8_t dirty = bmcv_state_update(now_us);
@@ -407,6 +414,14 @@ void bmcv_main(uint32_t now_us)
   {
     midi_publish();
   }
+
+  // Outside the tick, so the copy a snapshot starts from is taken between two
+  // of them and is internally consistent. After midi_publish() rather than
+  // before, so the engine's own control changes keep their claim on the
+  // endpoint - midi_out only emits on change, so what they take is a few
+  // percent of it, and a note arriving late is worse than a frame arriving
+  // late.
+  midi_stream_poll(now_us, &bmcv);
 
   if (led_poll && ws2811_dma_completed())
   {

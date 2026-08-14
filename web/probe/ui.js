@@ -6,6 +6,7 @@
 
 import { sim } from '../sim.js';
 import { probe, webusbAvailable } from './probe.js';
+import { midilink, webmidiAvailable } from './midilink.js';
 
 const el = id => document.getElementById(id);
 
@@ -95,7 +96,9 @@ export function drawProbeRates() {
 
   // Blank rather than zero when nothing is connected: this is the one number
   // that is a property of the connection rather than of the module.
-  rateEls.probe.textContent = probe.state === 'live' ? rateText(probe.hz) : '—';
+  rateEls.probe.textContent = probe.state === 'live' ? rateText(probe.hz)
+    : midilink.state === 'live' ? rateText(midilink.hz)
+    : '—';
 
   rateEls.engine.textContent = rateText(sim.engineFps());
   rateEls.dac.textContent = rateText(sim.dacFps());
@@ -105,7 +108,53 @@ export function drawProbeRates() {
   rateEls.leds.textContent = rateText(sim.ledFps());
 }
 
+// The MIDI link, which needs no probe at all. A spike - see
+// docs/plans/midi-transport.md - so it gets its own button rather than being
+// folded into the state machine above: the two connect differently enough (one
+// is polled, one is pushed) that unifying them before knowing whether this
+// stays would be guessing at the shape.
+function initMidiLink() {
+  const button = el('midi-connect');
+  if (!button) return;
+
+  if (!webmidiAvailable) {
+    button.disabled = true;
+    button.title = 'no Web MIDI in this browser';
+    return;
+  }
+
+  const paint = m => {
+    button.textContent = m.state === 'live' ? 'Disconnect MIDI'
+      : m.state === 'connecting' ? 'Connecting…' : 'Connect over MIDI';
+    button.disabled = m.state === 'connecting';
+
+    const status = el('probe-status');
+    const detail = el('probe-detail');
+    if (m.state === 'live') {
+      status.textContent = 'live';
+      status.className = 'value ok';
+      detail.textContent = `over MIDI, ${m.snapshots} snapshots, no probe attached`;
+    } else if (m.state === 'error') {
+      status.textContent = 'simulated';
+      status.className = 'value warn';
+      detail.textContent = m.error;
+    } else if (m.state === 'idle') {
+      status.textContent = 'simulated';
+      status.className = 'value muted';
+      detail.textContent = '';
+    }
+  };
+
+  midilink.onchange = paint;
+  button.addEventListener('click', () => {
+    if (midilink.state === 'live') midilink.disconnect();
+    else midilink.connect();
+  });
+}
+
 export function initProbe() {
+  initMidiLink();
+
   const button = el('probe-connect');
   if (!button) return;
 

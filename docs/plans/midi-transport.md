@@ -1,8 +1,8 @@
 # Spike: the module's own USB port as the transport
 
-Status: **measured, and it passes comfortably.** The bench is on
-`spike/midi-transport`; what it decided is below. The bench command itself is
-still throwaway.
+Status: **both directions built, untested on hardware.** The measurement that
+justified them is below. `just check` covers everything but the USB itself.
+The bench command that produced the number is still throwaway.
 
 Question: can the module publish its state over the USB MIDI port it already
 enumerates, instead of over a debug probe on the programming header? That would
@@ -100,44 +100,68 @@ reconsiders every 2 ms and emits only on change, so its worst case is ~500
 transfers/s — 9% of the pipe. Streaming with control changes fully active still
 lands near 85 snapshots/s. No priority scheme needed; the two can just share.
 
-## What to build
+## What was built
 
-### 1. The write direction (small, and useful on its own)
+### The write direction
 
-**~50 lines.** The remote input mailbox already exists and the module already
-merges it in `input_fold`; all that is missing is a SysEx carrying 48 bytes into
-`bmcv.input.remote`. Two transfers per update against a budget of 5283 a second.
+`SYSEX_CMD_REMOTE_INPUT` carries the 48-byte mailbox, seven-bit encoded to 55.
+The module already merged that mailbox in `input_fold`, so the whole write
+direction is a decode and a copy.
 
-Worth doing even if the read direction never happens: it means a module with
-nothing but a USB cable in it can be driven from the page.
+One thing it could not do naively: the decode happens in the USB interrupt,
+which can preempt `input_fold` partway through reading the mailbox — and a
+mailbox that is half this update and half the last one is the one thing its
+design does not tolerate. So the ISR stages it and `bmcv.c` moves it across
+between ticks, where nothing can interleave.
 
-Needs `SYSEX_MAX_LEN` (16) revisited — the parser currently skips anything
-longer without buffering it, so a 48-byte payload needs a streaming path.
+### The read direction
 
-### 2. The read direction
+`SYSEX_CMD_STREAM_REQ` asks; `SYSEX_CMD_SNAPSHOT` answers with a whole
+`BmcvInstance`. The request is repeated rather than an on/off pair, and the
+module stops two seconds after the last one — the same heartbeat reasoning
+`RemoteInput.seq` uses, for the same reason.
 
-**~80 lines, not the 150–250 this doc first estimated**, because at 93.7 whole
-snapshots a second there is nothing to be clever about:
+The instance is copied between ticks and streamed from that copy, so **a
+snapshot is internally consistent** — which the probe's read never is.
 
-- Copy `bmcv` into a static buffer at a tick boundary.
-- 7-bit encode it and stream it out as one SysEx across ~57 transfers, driven
-  from the same `midi_idle()` gate the bench used.
-- Browser hands the message to `bmcv_sim_import`. No framing code on that side.
+The encoding happens as the stream goes rather than into a second buffer, so
+only the 2368-byte copy is held. Firmware RAM 7.4% → 9.4% of 128 KB, flash
++1 KB.
 
-RAM: one 2368 B snapshot buffer, and the encode can be done on the fly from it
-rather than into a second 2707 B buffer. CPU is roughly 2% of the core at full
-rate — but that is arithmetic, and `BMCV_PROFILE` should be the thing that says
-so, not this paragraph.
+### One codec, not two
 
-**Streaming must time out**, the same way the remote input mailbox does and for
-the same reason: a tab that goes away must not leave the module streaming at
-nobody. The host asks periodically; the module stops when it stops hearing.
-`REMOTE_TIMEOUT_US` is the precedent, and the symmetry is worth keeping.
+`sysex7_encode`/`_decode` live in `sysex.c` and the browser reaches them
+*through the wasm* (`bmcv_sim_sysex7_*`). There is no copy of the codec in JS,
+for the same reason there is no copy of the struct layout — the two ends have
+to agree exactly, and the way to make two things agree here has always been to
+give them one implementation.
 
-**One thing it does better than the probe.** A snapshot copied at a tick
-boundary is internally consistent. The probe's read never is — `probe-bridge.md`
-documents that a blob can straddle a tick and warns against relying on
-cross-field consistency. This transport can offer what that one cannot.
+The frontend has no framing code at all: Web MIDI does not deliver a SysEx until
+its F7 arrives, so the browser's own stack reassembles the 57 transfers and
+`midilink.js` receives one message, decodes it, and hands it to
+`bmcv_sim_import`.
+
+### What is not shared with the probe path
+
+`web/probe/midilink.js` is a sibling of `probe.js`, not a refactor of it. They
+duplicate the save/restore of the running simulation and the `mode.drivenBy`
+bookkeeping — perhaps twenty lines. That was deliberate: an ST-Link is *polled*
+and a module *pushes*, so the two connect and stay alive differently, and
+unifying them before knowing whether this transport stays would be guessing at
+the shape. If it graduates, that is the first thing to do.
+
+## Still to do
+
+**Try it on hardware.** Flash, open the page, press "Connect over MIDI".
+
+Then the things only a board can show:
+
+1. The achieved snapshot rate with the engine running and control changes
+   sharing the endpoint. The arithmetic says ~85/s; nothing has measured it.
+2. Whether `midi_stream_poll` costs enough main-loop time to move `engine_fps`.
+   `BMCV_PROFILE` should answer that, not a paragraph of estimation.
+3. Whether a 2707-byte SysEx every ~11 ms upsets anything else on the MIDI bus —
+   a DAW sharing the port, for instance.
 
 ## Open questions
 

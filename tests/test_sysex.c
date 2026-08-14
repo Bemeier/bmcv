@@ -35,7 +35,10 @@ static uint8_t pack(uint8_t* out, const uint8_t* msg, uint8_t n, uint8_t cable)
 
 static SysexCmd feed_message(SysexParser* p, const uint8_t* msg, uint8_t n)
 {
-  uint8_t packets[64];
+  // Four packet bytes per three of message, and the longest one here is the
+  // remote input mailbox at 61 bytes - so 64 was enough only while every
+  // message was six bytes long.
+  uint8_t packets[128];
   memset(packets, 0, sizeof packets);
   uint8_t len = pack(packets, msg, n, 0);
   return sysex_feed(p, packets, len);
@@ -197,6 +200,260 @@ TEST_CASE(identity_reply_honours_the_cable_number)
   CHECK(out[8] == 0x37);
 }
 
+/* ---- seven-bit encoding -------------------------------------------------- */
+
+TEST_CASE(seven_bit_lengths_are_exact)
+{
+  // Exact rather than approximate, because the parser uses the encoded length
+  // to decide whether a message is ours - a length that was merely close would
+  // reject a good mailbox or accept a malformed one.
+  CHECK(sysex7_encoded_len(0) == 0);
+  CHECK(sysex7_encoded_len(1) == 2);
+  CHECK(sysex7_encoded_len(7) == 8);
+  CHECK(sysex7_encoded_len(8) == 10);
+  CHECK(sysex7_encoded_len(48) == 55);     // the remote input mailbox
+  CHECK(sysex7_encoded_len(2368) == 2707); // a whole instance
+
+  for (uint16_t n = 0; n < 600; n++)
+  {
+    CHECK(sysex7_decoded_len(sysex7_encoded_len(n)) == n);
+  }
+}
+
+TEST_CASE(seven_bit_round_trips_every_byte_value)
+{
+  uint8_t raw[256], enc[512], back[256];
+  for (uint16_t i = 0; i < 256; i++)
+  {
+    raw[i] = (uint8_t) i;
+  }
+
+  const uint16_t n = sysex7_encode(enc, raw, 256);
+  CHECK(n == sysex7_encoded_len(256));
+
+  // The whole point: nothing that goes out may have its high bit set, or it is
+  // not a SysEx and a host discards the message rather than decoding it.
+  for (uint16_t i = 0; i < n; i++)
+  {
+    CHECK((enc[i] & 0x80) == 0);
+  }
+
+  CHECK(sysex7_decode(back, enc, n) == 256);
+  CHECK(memcmp(raw, back, 256) == 0);
+}
+
+TEST_CASE(seven_bit_round_trips_awkward_lengths)
+{
+  // A partial trailing group is where an off-by-one lives.
+  uint8_t raw[32], enc[64], back[32];
+  for (uint16_t i = 0; i < sizeof raw; i++)
+  {
+    raw[i] = (uint8_t) (0x80 | i); // high bit set throughout, the harder case
+  }
+
+  for (uint16_t len = 0; len <= sizeof raw; len++)
+  {
+    const uint16_t n = sysex7_encode(enc, raw, len);
+    CHECK(n == sysex7_encoded_len(len));
+    CHECK(sysex7_decode(back, enc, n) == len);
+    CHECK(memcmp(raw, back, len) == 0);
+  }
+}
+
+/* ---- streaming ----------------------------------------------------------- */
+
+// Reassemble a streamed message the way a host's MIDI stack does, and check it
+// comes back byte for byte. This is the read direction end to end, short of the
+// USB itself.
+TEST_CASE(a_streamed_payload_round_trips)
+{
+  uint8_t raw[300];
+  for (uint16_t i = 0; i < sizeof raw; i++)
+  {
+    raw[i] = (uint8_t) (i * 7 + (i >> 3));
+  }
+
+  SysexStream s;
+  sysex_stream_begin(&s, SYSEX_CMD_SNAPSHOT, raw, sizeof raw);
+
+  uint8_t body[1024];
+  uint16_t body_len  = 0;
+  uint16_t transfers = 0;
+
+  for (;;)
+  {
+    uint8_t packets[SYSEX_STREAM_TRANSFER_BYTES];
+    const uint8_t n = sysex_stream_next(&s, packets, 0);
+    if (n == 0)
+      break;
+
+    CHECK(n % 4 == 0);
+    CHECK(n <= SYSEX_STREAM_TRANSFER_BYTES);
+    transfers++;
+
+    for (uint8_t i = 0; i + 4 <= n; i += 4)
+    {
+      uint8_t take;
+      switch (packets[i] & 0x0F)
+      {
+      case 0x4:
+        take = 3;
+        break;
+      case 0x5:
+        take = 1;
+        break;
+      case 0x6:
+        take = 2;
+        break;
+      case 0x7:
+        take = 3;
+        break;
+      default:
+        take = 0;
+        break;
+      }
+      for (uint8_t k = 0; k < take; k++)
+      {
+        body[body_len++] = packets[i + 1 + k];
+      }
+    }
+  }
+
+  CHECK(sysex_stream_done(&s));
+  CHECK(transfers > 1); // it really did span several
+
+  // F0 7D 42 4D <cmd> <encoded> F7
+  CHECK(body[0] == 0xF0);
+  CHECK(body[1] == SYSEX_ID_NONCOMMERCIAL);
+  CHECK(body[2] == SYSEX_ID_B);
+  CHECK(body[3] == SYSEX_ID_M);
+  CHECK(body[4] == SYSEX_CMD_SNAPSHOT);
+  CHECK(body[body_len - 1] == 0xF7);
+  CHECK(body_len == 6 + sysex7_encoded_len(sizeof raw));
+
+  for (uint16_t i = 1; i < body_len - 1; i++)
+  {
+    CHECK((body[i] & 0x80) == 0);
+  }
+
+  uint8_t back[sizeof raw];
+  const uint16_t got = sysex7_decode(back, body + 5, (uint16_t) (body_len - 6));
+  CHECK(got == sizeof raw);
+  CHECK(memcmp(raw, back, sizeof raw) == 0);
+}
+
+// The size that matters, and the number the throughput measurement was read
+// against: a whole instance has to be 57 transfers, or the snapshots-per-second
+// figure on the bench page means something else.
+TEST_CASE(an_instance_sized_payload_is_57_transfers)
+{
+  static uint8_t raw[2368];
+  SysexStream s;
+  sysex_stream_begin(&s, SYSEX_CMD_SNAPSHOT, raw, sizeof raw);
+
+  uint16_t transfers = 0;
+  uint8_t packets[SYSEX_STREAM_TRANSFER_BYTES];
+  while (sysex_stream_next(&s, packets, 0) != 0)
+  {
+    transfers++;
+  }
+
+  CHECK(transfers == 57);
+}
+
+TEST_CASE(a_stream_honours_the_cable_number)
+{
+  uint8_t raw[16] = {0};
+  SysexStream s;
+  sysex_stream_begin(&s, SYSEX_CMD_SNAPSHOT, raw, sizeof raw);
+
+  uint8_t packets[SYSEX_STREAM_TRANSFER_BYTES];
+  sysex_stream_next(&s, packets, 5);
+  CHECK((packets[0] >> 4) == 5);
+}
+
+/* ---- the remote input mailbox, inbound ----------------------------------- */
+
+TEST_CASE(a_remote_input_message_is_recognised_and_carries_its_payload)
+{
+  uint8_t mailbox[SYSEX_REMOTE_INPUT_BYTES];
+  for (uint16_t i = 0; i < sizeof mailbox; i++)
+  {
+    mailbox[i] = (uint8_t) (0x80 | (i * 3));
+  }
+
+  uint8_t msg[128];
+  uint8_t n = 0;
+  msg[n++]  = 0xF0;
+  msg[n++]  = SYSEX_ID_NONCOMMERCIAL;
+  msg[n++]  = SYSEX_ID_B;
+  msg[n++]  = SYSEX_ID_M;
+  msg[n++]  = SYSEX_CMD_REMOTE_INPUT;
+  n += (uint8_t) sysex7_encode(msg + n, mailbox, sizeof mailbox);
+  msg[n++] = 0xF7;
+
+  SysexParser p;
+  sysex_reset(&p);
+  CHECK(feed_message(&p, msg, n) == SYSEX_CMD_REMOTE_INPUT);
+
+  uint8_t len;
+  const uint8_t* payload = sysex_payload(&p, &len);
+  CHECK(len == sysex7_encoded_len(SYSEX_REMOTE_INPUT_BYTES));
+
+  uint8_t back[SYSEX_REMOTE_INPUT_BYTES];
+  CHECK(sysex7_decode(back, payload, len) == sizeof mailbox);
+  CHECK(memcmp(mailbox, back, sizeof mailbox) == 0);
+}
+
+// A payload of the wrong size is somebody else's message that happens to
+// collide, not ours with a typo - and acting on it would mean copying an
+// unaccountable number of bytes into the input layer.
+TEST_CASE(a_remote_input_message_of_the_wrong_size_is_refused)
+{
+  SysexParser p;
+
+  uint8_t msg[128];
+  for (uint8_t extra = 1; extra <= 3; extra++)
+  {
+    uint8_t n = 0;
+    msg[n++]  = 0xF0;
+    msg[n++]  = SYSEX_ID_NONCOMMERCIAL;
+    msg[n++]  = SYSEX_ID_B;
+    msg[n++]  = SYSEX_ID_M;
+    msg[n++]  = SYSEX_CMD_REMOTE_INPUT;
+    for (uint8_t i = 0; i < sysex7_encoded_len(SYSEX_REMOTE_INPUT_BYTES) + extra; i++)
+    {
+      msg[n++] = 0x01;
+    }
+    msg[n++] = 0xF7;
+
+    sysex_reset(&p);
+    CHECK(feed_message(&p, msg, n) == SYSEX_CMD_NONE);
+  }
+
+  // And short.
+  uint8_t n = 0;
+  msg[n++]  = 0xF0;
+  msg[n++]  = SYSEX_ID_NONCOMMERCIAL;
+  msg[n++]  = SYSEX_ID_B;
+  msg[n++]  = SYSEX_ID_M;
+  msg[n++]  = SYSEX_CMD_REMOTE_INPUT;
+  msg[n++]  = 0xF7;
+  sysex_reset(&p);
+  CHECK(feed_message(&p, msg, n) == SYSEX_CMD_NONE);
+}
+
+// The commands that carry nothing must still reject a payload, or a longer
+// message from another project that opens the same way could reboot the module.
+TEST_CASE(a_bare_command_with_a_payload_is_refused)
+{
+  SysexParser p;
+  sysex_reset(&p);
+
+  const uint8_t trailing[] = {0xF0, 0x7D, 0x42, 0x4D, SYSEX_CMD_ENTER_UPDATE, 0x00, 0xF7};
+  CHECK(feed_message(&p, trailing, sizeof trailing) == SYSEX_CMD_NONE);
+}
+
 /* ---- the throughput spike ------------------------------------------------ */
 
 // The measurement is only worth what the packing is. If a bench message were
@@ -280,6 +537,15 @@ int main(void)
   RUN_TEST(a_status_byte_inside_a_message_aborts_it);
   RUN_TEST(identity_reply_is_a_well_formed_sysex);
   RUN_TEST(identity_reply_honours_the_cable_number);
+  RUN_TEST(seven_bit_lengths_are_exact);
+  RUN_TEST(seven_bit_round_trips_every_byte_value);
+  RUN_TEST(seven_bit_round_trips_awkward_lengths);
+  RUN_TEST(a_streamed_payload_round_trips);
+  RUN_TEST(an_instance_sized_payload_is_57_transfers);
+  RUN_TEST(a_stream_honours_the_cable_number);
+  RUN_TEST(a_remote_input_message_is_recognised_and_carries_its_payload);
+  RUN_TEST(a_remote_input_message_of_the_wrong_size_is_refused);
+  RUN_TEST(a_bare_command_with_a_payload_is_refused);
   RUN_TEST(a_bench_message_is_exactly_one_transfer);
   RUN_TEST(a_bench_message_is_a_well_formed_sysex);
   RUN_TEST(a_bench_request_is_recognised);

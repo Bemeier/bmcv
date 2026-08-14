@@ -104,6 +104,40 @@ export const sim = {
   remoteOffset: _('remote_offset')(),
   remoteSize: _('remote_size')(),
 
+  /* ---- over MIDI --------------------------------------------------------- */
+  //
+  // Anything between an F0 and an F7 has to be seven-bit, so a mailbox going out
+  // and a snapshot coming back are both encoded. This is the module's own
+  // sysex.c compiled to wasm - there is no copy of the codec in JS, for the
+  // reason there is no copy of the struct layout either.
+
+  sysex7EncodedLen: n => _('sysex7_encoded_len')(n),
+  sysex7DecodedLen: n => _('sysex7_decoded_len')(n),
+
+  sysex7Encode(bytes) {
+    const need = _('sysex7_encoded_len')(bytes.length);
+    const src = Module._malloc(bytes.length);
+    const dst = Module._malloc(need);
+    u8(src, bytes.length).set(bytes);
+    const n = _('sysex7_encode')(dst, src, bytes.length);
+    const out = u8(dst, n).slice();
+    Module._free(src);
+    Module._free(dst);
+    return out;
+  },
+
+  sysex7Decode(bytes) {
+    const need = _('sysex7_decoded_len')(bytes.length);
+    const src = Module._malloc(bytes.length);
+    const dst = Module._malloc(need);
+    u8(src, bytes.length).set(bytes);
+    const n = _('sysex7_decode')(dst, src, bytes.length);
+    const out = u8(dst, n).slice();
+    Module._free(src);
+    Module._free(dst);
+    return out;
+  },
+
   // Stamped with a fresh sequence number on every call - the far end reads it
   // as a heartbeat, so a write that changes nothing still has to happen.
   //

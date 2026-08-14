@@ -15,6 +15,7 @@
 #include "presets.h"
 #include "sim_rt.h"
 #include "slot_store.h"
+#include "sysex.h"
 #include "ui_mode.h"
 #include "ui_state.h"
 #include "ux_setup.h"
@@ -195,6 +196,26 @@ const void* bmcv_sim_remote_blob(BmcvSim* s)
     s->remote_out.seq = 1;
 
   return &s->remote_out;
+}
+
+/* ---- talking to one over MIDI ------------------------------------------- */
+
+int32_t bmcv_sim_sysex7_encoded_len(int32_t raw_len) { return raw_len < 0 ? 0 : (int32_t) sysex7_encoded_len((uint16_t) raw_len); }
+
+int32_t bmcv_sim_sysex7_decoded_len(int32_t enc_len) { return enc_len < 0 ? 0 : (int32_t) sysex7_decoded_len((uint16_t) enc_len); }
+
+int32_t bmcv_sim_sysex7_encode(void* out, const void* in, int32_t len)
+{
+  if (!out || !in || len <= 0)
+    return 0;
+  return (int32_t) sysex7_encode((uint8_t*) out, (const uint8_t*) in, (uint16_t) len);
+}
+
+int32_t bmcv_sim_sysex7_decode(void* out, const void* in, int32_t len)
+{
+  if (!out || !in || len <= 0)
+    return 0;
+  return (int32_t) sysex7_decode((uint8_t*) out, (const uint8_t*) in, (uint16_t) len);
 }
 
 /* ---- running ------------------------------------------------------------ */

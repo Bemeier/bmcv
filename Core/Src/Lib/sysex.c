@@ -20,25 +20,42 @@ static void sysex_push(SysexParser* p, uint8_t b)
 }
 
 // buf holds the message body, F0 and F7 stripped.
+//
+// The length is checked per command rather than once for all of them: a command
+// byte that arrived with the wrong amount after it is somebody else's message
+// that happens to collide, not ours with a typo, and acting on it would be
+// acting on a payload we cannot account for.
 static SysexCmd sysex_classify(const SysexParser* p)
 {
-  if (p->overflow || p->len != 4)
+  if (p->overflow || p->len < 4)
     return SYSEX_CMD_NONE;
 
   if (p->buf[0] != SYSEX_ID_NONCOMMERCIAL || p->buf[1] != SYSEX_ID_B || p->buf[2] != SYSEX_ID_M)
     return SYSEX_CMD_NONE;
 
+  const uint8_t payload = (uint8_t) (p->len - 4);
+
   switch (p->buf[3])
   {
   case SYSEX_CMD_ENTER_UPDATE:
-    return SYSEX_CMD_ENTER_UPDATE;
+    return payload == 0 ? SYSEX_CMD_ENTER_UPDATE : SYSEX_CMD_NONE;
   case SYSEX_CMD_IDENTITY_REQ:
-    return SYSEX_CMD_IDENTITY_REQ;
+    return payload == 0 ? SYSEX_CMD_IDENTITY_REQ : SYSEX_CMD_NONE;
   case SYSEX_CMD_BENCH_REQ:
-    return SYSEX_CMD_BENCH_REQ;
+    return payload == 0 ? SYSEX_CMD_BENCH_REQ : SYSEX_CMD_NONE;
+  case SYSEX_CMD_STREAM_REQ:
+    return payload == 0 ? SYSEX_CMD_STREAM_REQ : SYSEX_CMD_NONE;
+  case SYSEX_CMD_REMOTE_INPUT:
+    return payload == sysex7_encoded_len(SYSEX_REMOTE_INPUT_BYTES) ? SYSEX_CMD_REMOTE_INPUT : SYSEX_CMD_NONE;
   default:
     return SYSEX_CMD_NONE;
   }
+}
+
+const uint8_t* sysex_payload(const SysexParser* p, uint8_t* len)
+{
+  *len = p->len > 4 ? (uint8_t) (p->len - 4) : 0;
+  return p->buf + 4;
 }
 
 static SysexCmd sysex_byte(SysexParser* p, uint8_t b)
@@ -59,7 +76,19 @@ static SysexCmd sysex_byte(SysexParser* p, uint8_t b)
   if (b == 0xF7)
   {
     SysexCmd cmd = sysex_classify(p);
-    sysex_reset(p);
+
+    // The buffer is deliberately left intact rather than reset: a command that
+    // carries a payload is no use without it, and the caller reads it through
+    // sysex_payload() after this returns. The next F0 clears it, and nothing
+    // can append to it meanwhile because in_message gates sysex_push().
+    //
+    // The limitation that follows: if one transfer carried two of our messages,
+    // sysex_feed() returns the first command and this buffer holds the last.
+    // Only one command carries a payload and it is 84 packet bytes, so it
+    // cannot share a 64-byte transfer with anything - but a second
+    // payload-carrying command would have to revisit this.
+    p->in_message = false;
+    p->overflow   = false;
     return cmd;
   }
 
@@ -135,6 +164,164 @@ uint8_t sysex_identity_reply(uint8_t* out, uint8_t cable, uint8_t major, uint8_t
   out[i++] = 0xF7;
 
   return i;
+}
+
+/* ---- seven-bit encoding -------------------------------------------------- */
+
+// Seven raw bytes to a group, carried as eight: their high bits collected into
+// a leading byte, then the seven with those bits cleared. A trailing partial
+// group is the same shape with fewer of each, which is what makes the two
+// length functions exact rather than approximate.
+
+uint16_t sysex7_encoded_len(uint16_t raw_len) { return (uint16_t) (raw_len + (raw_len + 6) / 7); }
+
+uint16_t sysex7_decoded_len(uint16_t enc_len) { return (uint16_t) (enc_len - (enc_len + 7) / 8); }
+
+uint16_t sysex7_encode(uint8_t* out, const uint8_t* in, uint16_t len)
+{
+  uint16_t o = 0;
+
+  for (uint16_t i = 0; i < len; i += 7)
+  {
+    const uint16_t n = (uint16_t) (len - i) < 7 ? (uint16_t) (len - i) : 7;
+
+    uint8_t high = 0;
+    for (uint16_t k = 0; k < n; k++)
+    {
+      if (in[i + k] & 0x80)
+        high |= (uint8_t) (1u << k);
+    }
+
+    out[o++] = high;
+    for (uint16_t k = 0; k < n; k++)
+    {
+      out[o++] = (uint8_t) (in[i + k] & 0x7F);
+    }
+  }
+
+  return o;
+}
+
+uint16_t sysex7_decode(uint8_t* out, const uint8_t* in, uint16_t len)
+{
+  uint16_t o = 0;
+
+  for (uint16_t i = 0; i < len; i += 8)
+  {
+    const uint16_t n = (uint16_t) (len - i) < 8 ? (uint16_t) (len - i) : 8;
+    if (n < 2)
+      break; // a lone high-bit byte with nothing to apply it to
+
+    const uint8_t high = in[i];
+    for (uint16_t k = 1; k < n; k++)
+    {
+      out[o++] = (uint8_t) (in[i + k] | ((high & (1u << (k - 1))) ? 0x80 : 0));
+    }
+  }
+
+  return o;
+}
+
+/* ---- streaming a payload out --------------------------------------------- */
+
+enum
+{
+  STREAM_HEADER,
+  STREAM_BODY,
+  STREAM_TRAILER,
+  STREAM_DONE,
+};
+
+void sysex_stream_begin(SysexStream* s, uint8_t cmd, const uint8_t* raw, uint16_t raw_len)
+{
+  s->raw       = raw;
+  s->raw_len   = raw_len;
+  s->raw_pos   = 0;
+  s->group_len = 0;
+  s->group_pos = 0;
+  s->stage     = STREAM_HEADER;
+  s->hdr_pos   = 0;
+  s->cmd       = cmd;
+}
+
+uint8_t sysex_stream_done(const SysexStream* s) { return s->stage == STREAM_DONE; }
+
+// The next byte of the message body, F0 and F7 included. Returns 0 once there
+// are none left, which the caller distinguishes by the stage rather than by the
+// value - zero is a perfectly good payload byte.
+static uint8_t stream_byte(SysexStream* s)
+{
+  static const uint8_t header[] = {0xF0, SYSEX_ID_NONCOMMERCIAL, SYSEX_ID_B, SYSEX_ID_M};
+
+  switch (s->stage)
+  {
+  case STREAM_HEADER:
+    if (s->hdr_pos < sizeof header)
+      return header[s->hdr_pos++];
+
+    s->stage = STREAM_BODY;
+    return s->cmd;
+
+  case STREAM_BODY:
+    if (s->group_pos >= s->group_len)
+    {
+      if (s->raw_pos >= s->raw_len)
+      {
+        s->stage = STREAM_TRAILER;
+        return 0xF7;
+      }
+
+      // Encode the next group on the way past, so nothing has to hold the whole
+      // encoded message.
+      const uint16_t n = (uint16_t) (s->raw_len - s->raw_pos) < 7 ? (uint16_t) (s->raw_len - s->raw_pos) : 7;
+      s->group_len     = (uint8_t) sysex7_encode(s->group, s->raw + s->raw_pos, (uint16_t) n);
+      s->group_pos     = 0;
+      s->raw_pos       = (uint16_t) (s->raw_pos + n);
+    }
+    return s->group[s->group_pos++];
+
+  default:
+    return 0;
+  }
+}
+
+uint8_t sysex_stream_next(SysexStream* s, uint8_t* out, uint8_t cable)
+{
+  if (s->stage == STREAM_DONE)
+    return 0;
+
+  const uint8_t hdr = (uint8_t) (cable << 4);
+  uint8_t o         = 0;
+
+  while (o + 4 <= SYSEX_STREAM_TRANSFER_BYTES && s->stage != STREAM_DONE)
+  {
+    uint8_t trio[3] = {0, 0, 0};
+    uint8_t n       = 0;
+
+    while (n < 3 && s->stage != STREAM_DONE)
+    {
+      trio[n++] = stream_byte(s);
+      if (s->stage == STREAM_TRAILER)
+      {
+        s->stage = STREAM_DONE; // that byte was the F7, and nothing follows it
+        break;
+      }
+    }
+
+    if (n == 0)
+      break;
+
+    // Code index 0x4 while more is coming, and 0x5/0x6/0x7 on the packet that
+    // carries the F7 - the count tells the host how many of the three are real.
+    const uint8_t cin = (s->stage == STREAM_DONE) ? (n == 1 ? 0x5 : n == 2 ? 0x6 : 0x7) : 0x4;
+
+    out[o++] = (uint8_t) (hdr | cin);
+    out[o++] = trio[0];
+    out[o++] = trio[1];
+    out[o++] = trio[2];
+  }
+
+  return o;
 }
 
 uint8_t sysex_bench_message(uint8_t* out, uint8_t cable, uint16_t seq)

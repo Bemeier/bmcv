@@ -23,9 +23,10 @@
 #define SYSEX_ID_B 0x42
 #define SYSEX_ID_M 0x4D
 
-// Long enough for the messages above and nothing more. A longer SysEx is
-// somebody else's, and is skipped without buffering the rest of it.
-#define SYSEX_MAX_LEN 16
+// Long enough for the longest message the module accepts - the remote input
+// mailbox, at 3 ID bytes + 1 command + 55 encoded - and nothing more. A longer
+// SysEx is somebody else's, and is skipped without buffering the rest of it.
+#define SYSEX_MAX_LEN 64
 
 typedef enum
 {
@@ -51,6 +52,21 @@ typedef enum
 
   // What the burst is made of. Never sent unless asked for.
   SYSEX_CMD_BENCH_DATA = 0x11,
+
+  // Host -> module. The remote input mailbox, 48 raw bytes seven-bit encoded to
+  // 55. Merged by input_fold exactly as one written over a debug probe is; see
+  // RemoteInput in input_fold.h. This is the whole of the write direction.
+  SYSEX_CMD_REMOTE_INPUT = 0x20,
+
+  // Host -> module. Keep sending snapshots. Deliberately a repeated request
+  // rather than an on/off pair, for the reason RemoteInput.seq is a heartbeat:
+  // a browser tab that goes away must not leave the module streaming at nobody.
+  // The module stops SYSEX_STREAM_TIMEOUT_US after the last one.
+  SYSEX_CMD_STREAM_REQ = 0x21,
+
+  // Module -> host. One whole BmcvInstance, seven-bit encoded. Sent only while
+  // stream requests keep arriving.
+  SYSEX_CMD_SNAPSHOT = 0x22,
 } SysexCmd;
 
 typedef struct
@@ -81,6 +97,76 @@ SysexCmd sysex_feed(SysexParser* p, const uint8_t* packets, uint8_t len);
 // is about to write. Nothing enforces it: any build is flashable over any
 // other, and the ROM bootloader would not honour a policy anyway.
 uint8_t sysex_identity_reply(uint8_t* out, uint8_t cable, uint8_t major, uint8_t minor, uint8_t patch);
+
+// How long the module keeps streaming after the last request. Generous enough
+// that a browser can ask once a second without stuttering, short enough that a
+// closed tab stops it before anyone notices.
+#define SYSEX_STREAM_TIMEOUT_US 2000000u
+
+// The remote input mailbox, in raw bytes. Held to sizeof(RemoteInput) by a
+// static assert in midi.c, which sees both - this header stays clear of
+// firmware types so its tests keep running without them.
+#define SYSEX_REMOTE_INPUT_BYTES 48
+
+// The payload of the message just recognised: everything after the three ID
+// bytes and the command. Empty for the commands that carry nothing. Valid until
+// the next sysex_feed().
+const uint8_t* sysex_payload(const SysexParser* p, uint8_t* len);
+
+/* ---- seven-bit encoding -------------------------------------------------- */
+//
+// Nothing between F0 and F7 may have its high bit set, so arbitrary bytes have
+// to be carried seven bits at a time. Seven data bytes become eight: a byte of
+// their high bits, then the seven with those bits cleared.
+//
+// Here rather than in the firmware or the frontend because both ends need it
+// and there must be one of it. The browser reaches it through the wasm - see
+// bmcv_sim_sysex7_* - so a snapshot is encoded and decoded by the same compiled
+// source, the same bargain bmcv_sim_import() already makes for the layout.
+
+// Round trip: sysex7_decoded_len(sysex7_encoded_len(n)) == n.
+uint16_t sysex7_encoded_len(uint16_t raw_len);
+uint16_t sysex7_decoded_len(uint16_t enc_len);
+
+// Return bytes written. `out` needs the matching *_len() of room, and may not
+// overlap `in`.
+uint16_t sysex7_encode(uint8_t* out, const uint8_t* in, uint16_t len);
+uint16_t sysex7_decode(uint8_t* out, const uint8_t* in, uint16_t len);
+
+/* ---- streaming a payload out --------------------------------------------- */
+//
+// A snapshot is 2368 bytes, which is 2707 encoded and 57 transfers of the
+// 64-byte endpoint. Too big to hand over in one go, so it goes out a transfer
+// at a time from the main loop, whenever the endpoint is free.
+//
+// The encoding happens as it goes rather than into a second buffer: only the
+// source has to stay put, which is why this holds a pointer rather than a copy.
+
+typedef struct
+{
+  const uint8_t* raw;
+  uint16_t raw_len;
+  uint16_t raw_pos;
+
+  uint8_t group[8]; // one encoded group, being handed out
+  uint8_t group_len;
+  uint8_t group_pos;
+
+  uint8_t stage; // header, body, trailer, done
+  uint8_t hdr_pos;
+  uint8_t cmd;
+} SysexStream;
+
+// `raw` must outlive the stream and must not change while it runs - a snapshot
+// taken at a tick boundary, not the live instance.
+void sysex_stream_begin(SysexStream* s, uint8_t cmd, const uint8_t* raw, uint16_t raw_len);
+
+// Fill one transfer: up to SYSEX_STREAM_TRANSFER_BYTES of USB-MIDI event
+// packets. Returns bytes written, or 0 when the message is finished.
+#define SYSEX_STREAM_TRANSFER_BYTES 64
+uint8_t sysex_stream_next(SysexStream* s, uint8_t* out, uint8_t cable);
+
+uint8_t sysex_stream_done(const SysexStream* s);
 
 /* ---- the throughput spike ------------------------------------------------ */
 

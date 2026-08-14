@@ -94,6 +94,24 @@ void bmcv_sim_remote_clear(BmcvSim* s);
 int32_t bmcv_sim_remote_offset(void);
 int32_t bmcv_sim_remote_size(void);
 
+/* ---- talking to one over MIDI ------------------------------------------- */
+//
+// The module can also carry all of this over the USB MIDI port it already
+// enumerates, with no debug probe - see docs/plans/midi-transport.md. Anything
+// between an F0 and an F7 has to be seven-bit, so both directions are encoded.
+//
+// The codec is exposed rather than reimplemented in the frontend because the
+// firmware and the browser have to agree on it exactly, and the way to make two
+// things agree here has always been to give them one implementation. This is
+// the module's own sysex.c, compiled to wasm.
+
+int32_t bmcv_sim_sysex7_encoded_len(int32_t raw_len);
+int32_t bmcv_sim_sysex7_decoded_len(int32_t enc_len);
+
+// Return bytes written. Buffers may not overlap.
+int32_t bmcv_sim_sysex7_encode(void* out, const void* in, int32_t len);
+int32_t bmcv_sim_sysex7_decode(void* out, const void* in, int32_t len);
+
 // The mailbox as bytes, stamped with a fresh sequence number. Call it for every
 // write, including ones that change nothing: the far end treats the sequence as
 // a heartbeat and stops believing a mailbox that has gone quiet.

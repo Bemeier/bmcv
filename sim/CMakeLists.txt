@@ -56,6 +56,10 @@ if(EMSCRIPTEN)
       _bmcv_sim_remote_offset
       _bmcv_sim_remote_size
       _bmcv_sim_remote_blob
+      _bmcv_sim_sysex7_encoded_len
+      _bmcv_sim_sysex7_decoded_len
+      _bmcv_sim_sysex7_encode
+      _bmcv_sim_sysex7_decode
       _bmcv_sim_run
       _bmcv_sim_now_us
       _bmcv_sim_outputs_v
