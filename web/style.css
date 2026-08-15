@@ -306,7 +306,7 @@ kbd { background: rgba(255, 255, 255, .09); padding: .05em .35em; font-size: .9e
   font-size: .6rem;
   letter-spacing: var(--track);
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--fg);
   white-space: nowrap;
 }
 
@@ -317,11 +317,7 @@ kbd { background: rgba(255, 255, 255, .09); padding: .05em .35em; font-size: .9e
 .bracket.horizontal i::before { width: 1px; height: 5px; left: auto; top: auto; }
 .bracket.horizontal i:first-of-type::before { left: 0; bottom: 0; }
 .bracket.horizontal i:last-of-type::before { right: 0; bottom: 0; }
-.bracket.horizontal span {
-  writing-mode: horizontal-tb;
-  transform: none;
-  color: var(--fg);
-}
+.bracket.horizontal span { writing-mode: horizontal-tb; transform: none; }
 
 /* Both declare their ratio so the page reserves the space before the first
    resize callback runs - without it everything below them jumps once on load.
@@ -770,3 +766,30 @@ body.switching .keys {
 /* Not the source readout: while a switch is in progress that line is the one
    thing on the page still saying something true. */
 body.switching #source-name { opacity: 1; }
+
+/* ---- the page's own name ------------------------------------------------- */
+
+/* Matching the update page, which is the only other page here and had a title
+   while this one did not. */
+header { margin: 0 0 2rem; }
+h1 {
+  margin: 0;
+  font-size: 1.5rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em;
+}
+h1 .sub { color: var(--muted); font-weight: 400; }
+.tagline { margin: .5rem 0 0; color: var(--muted); }
+
+/* ---- naming another control inside a description ------------------------- */
+
+/* A description that sends you to another page says which, and the name is set
+   off so the sentence does not have to spell out "the page called". Quiet: this
+   marks a word as a name, it does not ask to be clicked. */
+.help .ref {
+  font-weight: 600;
+  font-size: .82em;
+  letter-spacing: .06em;
+  padding: .1em .35em;
+  border: 1px solid var(--line);
+  color: var(--fg);
+}

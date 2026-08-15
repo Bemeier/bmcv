@@ -22,6 +22,19 @@ const ENC_CAP_R = 2.6;
 const BTN_SWITCH_R = 3.0;
 const BTN_TACTILE_R = 3.5;
 
+// The three tactile buttons are coloured plastic on the hardware, not RGB - so
+// they are drawn as a fill and nothing else. No halo and no LED registration:
+// there is no light behind them to spill, and a glow would say they were doing
+// something when the colour is simply what the cap is.
+//
+// Muted on purpose. These sit among parts that light up, and a saturated cap
+// would read as the brightest thing on a panel where brightness means state.
+const TACTILE_FILL = {
+  CLR: '#8f5d78', // pink - the page that destroys things
+  CPY: '#4f6f9c', // blue - the page that duplicates them
+  MUT: '#4d8a80', // teal
+};
+
 // 0 is the left end of travel. Scene A anchors at SLIDER_MAX_VALUE and sits on
 // the left of the panel, so the leftmost position is full scale.
 export const SLIDER_START_POS = 0;
@@ -46,18 +59,27 @@ const el = (name, attrs = {}, parent = svg) => {
 // identifies a component on a board and a semitone only means anything on one
 // of nine pages; neither answers "what happens if I press this".
 
-const hintLabel = document.getElementById('hint-label');
 const hintHelp = document.getElementById('hint-help');
 
 const IDLE = {
-  label: 'BMEK — 16hp',
   sections: [[
     'Eight channels, seven scenes',
-    'Drag an encoder\'s ring to turn it, or use the scroll wheel. Click its centre to '
-      + 'push, and hold Shift while turning for press-and-turn. Hover anything on the '
-      + 'panel to read what it does.',
+    'Eight looping voltage sources, each locked to the beat by a ratio rather than a '
+      + 'frequency, so nothing drifts out of time. Every channel\'s six parameters are '
+      + 'stored per scene, and the crossfader blends the whole patch between any two of '
+      + 'the seven - one hand, every channel at once. The nine control buttons tap to '
+      + 'choose what the encoders edit and hold to open a page. Hover anything here to '
+      + 'read what it does.',
   ]],
 };
+
+// The names of other things, boxed where a description mentions them, so a
+// sentence that sends you somewhere else says where without spelling out "the
+// page called". Built from the panel spec rather than listed, so a button
+// renamed in the hardware cannot leave a reference behind pointing at nothing.
+const REFERENCES = [...new Set(spec.buttons.flatMap(b =>
+  [b.roles?.ctrl_name, b.roles?.param_name].filter(Boolean)))];
+const REFERENCE_RE = new RegExp(`\\b(${REFERENCES.join('|')})\\b`, 'g');
 
 // Latched, not tracked.
 //
@@ -74,12 +96,16 @@ if (typeof document !== 'undefined') {
 
 function setHover(target) {
   const t = target ?? IDLE;
-  hintLabel.textContent = t.label;
 
+  // The bracket keeps saying what the module is. It named the hovered part for
+  // a while, which put the same words in two places a line apart - the heading
+  // below says it, and says it in more detail.
   hintHelp.innerHTML = t.sections
-    .map(([heading, body]) => `<h3>${heading}</h3><p>${body}</p>`)
+    .map(([heading, body]) => `<h3>${heading}</h3><p>${boxRefs(body)}</p>`)
     .join('');
 }
+
+const boxRefs = text => text.replace(REFERENCE_RE, '<b class="ref">$1</b>');
 
 // What each control button's page does, in the order the panel lays them out.
 // Condensed from the Shift Modes section of the README, which is the same
@@ -130,8 +156,7 @@ function describeButton(b) {
   // say what pressing adds.
   if (r.channel !== undefined) {
     return {
-      label: `CH ${r.channel}`,
-      sections: [[
+        sections: [[
         `Channel ${r.channel} — push`,
         'Held while turning, this is fine adjust. On its own it is whatever the open page '
           + 'does with a press: picking an input under MON, assigning a trigger under QNT, '
@@ -160,7 +185,7 @@ function describeButton(b) {
       ]);
     }
 
-    return { label: isInput ? `SCENE ${r.scene} — INPUT ${r.scene}` : `SCENE ${r.scene}`, sections };
+    return { sections };
   }
 
   // A control button: the page it opens, and the parameter it selects if it has
@@ -184,10 +209,10 @@ function describeButton(b) {
       CTRL_HELP[r.ctrl_name] ?? `The ${r.ctrl_name} page.`,
     ]);
 
-    return { label: r.ctrl_name, sections };
+    return { sections };
   }
 
-  return { label: `BUTTON ${b.index}`, sections: [] };
+  return { sections: [[`Button ${b.index}`, 'No documented function.']] };
 }
 /* ---- interaction -------------------------------------------------------- */
 
@@ -299,12 +324,15 @@ function bindEncoder(ring, cap, e) {
   cap.addEventListener('wheel', wheel, { passive: false });
 
   const target = {
-    label: `CH ${e.channel}`,
     sections: [[
       `Channel ${e.channel} — encoder`,
       'Turning it edits whichever parameter the row under the crossfader has selected, in '
         + 'the active scene - or that page\'s own setting while a shift mode is latched. '
         + 'The centre is a button; hold it while turning for fine adjust.',
+    ], [
+      'On this page',
+      'Drag the ring to turn it, or use the scroll wheel over either part. Click the '
+        + 'centre to push, and hold Shift while turning for press-and-turn.',
     ]],
   };
   for (const n of [ring, cap]) {
@@ -356,7 +384,6 @@ function bindSlider(hit, knob, cx, cy, travel, horizontal) {
   hit.addEventListener('pointerup', () => { dragging = false; });
   hit.addEventListener('pointercancel', () => { dragging = false; });
   hit.addEventListener('pointerenter', () => setHover({
-    label: 'CROSSFADER',
     sections: [[
       'Scene crossfader',
       'Blends between the two scenes assigned to A and B. Every parameter of every channel '
@@ -392,7 +419,6 @@ for (const [list, kind] of [[spec.outputs, 'out'], [spec.inputs, 'in']]) {
     const hit = el('circle', { cx: x, cy: y, r: 4.5, fill: 'transparent', class: 'jack-hit' });
     const target = kind === 'out'
       ? {
-        label: `CH ${j.channel} OUTPUT JACK`,
         sections: [[
           `Channel ${j.channel} — output`,
           'What the channel puts out, after its scene blend, anything mixed into it and its '
@@ -400,7 +426,6 @@ for (const [list, kind] of [[spec.outputs, 'out'], [spec.inputs, 'in']]) {
         ]],
       }
       : {
-        label: `INPUT ${j.index} JACK`,
         sections: [[
           `Input ${j.index} — jack`,
           'What this jack is for is set under SYS: a clock, a reset, the crossfader, or a '
@@ -496,9 +521,10 @@ for (const b of spec.buttons) {
   if (lit) {
     registerLed(b.led, el('circle', { cx: x, cy: y, r: r * HALO_BUTTON, fill: '#000', 'fill-opacity': 0 }, haloLayer), 'halo');
   }
+  const capFill = TACTILE_FILL[b.roles?.ctrl_name];
   el('circle', {
     cx: x, cy: y, r,
-    fill: lit ? PART.fillLit : PART.fillUnlit,
+    fill: capFill ?? (lit ? PART.fillLit : PART.fillUnlit),
     ...outline,
   }, g);
   if (lit) {

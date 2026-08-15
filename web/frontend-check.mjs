@@ -1049,51 +1049,81 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
 
   const enters = listeners.filter(l => l.type === 'pointerenter');
   const leaves = listeners.filter(l => l.type === 'pointerleave');
+
   check(enters.length >= spec.buttons.length + spec.encoders.length,
     `every control is hoverable (${enters.length} handlers)`);
 
-  const seen = [];
+  const headings = [];
   for (const l of enters) {
     l.fn({});
-    if (label.textContent && help.textContent) seen.push(label.textContent);
+    const hs = [...help.innerHTML.matchAll(/<h3>([^<]*)<\/h3>/g)].map(m => m[1]);
+    if (hs.length && help.textContent.trim()) headings.push(hs);
   }
-  check(seen.length === enters.length, `every hover produced a label and a description (${seen.length}/${enters.length})`);
+  check(headings.length === enters.length,
+    `every hover produced a heading and a description (${headings.length}/${enters.length})`);
+
+  const flat = headings.flat();
 
   // The things the spec knows and a person does not: a component designator, a
-  // switch number, a semitone name. None of them belong in a label that is
+  // switch number, a semitone name. None of them belong in a heading that is
   // meant to answer "what is this".
-  const noise = seen.filter(t => /^(U|SW|J)\d|^BUTTON |#$/.test(t));
-  check(noise.length === 0, `no labels name a component${noise.length ? ` (${noise.slice(0, 3).join(', ')})` : ''}`);
+  const noise = flat.filter(t => /^(U|SW|J)\d|#$/.test(t));
+  check(noise.length === 0, `no heading names a component${noise.length ? ` (${noise.slice(0, 3).join(', ')})` : ''}`);
 
-  // The four scene buttons that double as inputs say so.
-  const dual = seen.filter(t => /SCENE \d.*INPUT \d/.test(t));
+  // The four scene buttons that double as inputs say both, in two sections.
+  const dual = headings.filter(hs => hs.some(h => /^Scene \d/.test(h)) && hs.some(h => /^Input \d/.test(h)));
   check(dual.length === 4, `the four input-bearing scene buttons say both (${dual.length})`);
 
-  // And the jacks, which were not hoverable at all before.
-  check(seen.some(t => /OUTPUT JACK/.test(t)), 'output jacks are hoverable');
-  check(seen.some(t => /INPUT \d JACK/.test(t)), 'and input jacks');
+  // A control button carries a tap and a hold, which are different actions.
+  const twoSided = headings.filter(hs => hs.some(h => /\(tap\)/.test(h)) && hs.some(h => /\(hold/.test(h)));
+  const withParam = spec.buttons.filter(b => b.roles?.ctrl_name && b.roles?.param_name).length;
+  check(twoSided.length === withParam,
+    `every parameter button separates its tap from its hold (${twoSided.length}/${withParam})`);
 
-  // Every description is headed, since a control button carries two separate
-  // things and an unlabelled second paragraph reads as more of the first.
-  const headed = [];
+  // And the jacks, which were not hoverable at all before.
+  check(flat.some(t => /output$/i.test(t)), 'output jacks are hoverable');
+  check(flat.some(t => /^Input \d — jack/.test(t)), 'and input jacks');
+
+  // References to other controls are boxed, so a sentence that sends you
+  // somewhere else says where. Driven rather than asserted from the source: the
+  // point is that the boxing actually happens to real description text.
+  const names = new Set(spec.buttons.flatMap(b =>
+    [b.roles?.ctrl_name, b.roles?.param_name].filter(Boolean)));
+  const boxedTokens = new Set();
   for (const l of enters) {
     l.fn({});
-    if (/<h3>/.test(help.innerHTML)) headed.push(1);
+    for (const m of help.innerHTML.matchAll(/<b class="ref">([^<]*)<\/b>/g)) boxedTokens.add(m[1]);
   }
-  check(headed.length === enters.length, `every description is headed (${headed.length}/${enters.length})`);
 
-  // The control buttons carry two, and say so separately.
-  const ctrl = spec.buttons.filter(b => b.roles?.ctrl_name && b.roles?.param_name);
-  check(ctrl.length > 0, `there are parameter buttons to check (${ctrl.length})`);
+  check(boxedTokens.size > 0, `descriptions box the controls they name (${boxedTokens.size} distinct)`);
+
+  // And box nothing else. The matcher runs over prose, so an over-eager pattern
+  // would decorate ordinary words - which is the failure worth catching, since
+  // it looks deliberate.
+  const wrong = [...boxedTokens].filter(t => !names.has(t));
+  check(wrong.length === 0, `and nothing that is not a control${wrong.length ? ` (${wrong.join(', ')})` : ''}`);
+
+  // The three coloured caps are plastic, not RGB, so they must not be wired to
+  // an LED - a glow would say they were doing something when the colour is
+  // simply what the cap is.
+  const panelSrc = readFileSync(new URL('panel.js', import.meta.url), 'utf8');
+  for (const name of ['CLR', 'CPY', 'MUT']) {
+    check(new RegExp(`${name}: '#`).test(panelSrc), `${name} has a cap colour`);
+  }
 
   // Latched, not tracked: only leaving the panel puts the idle text back, so
-  // crossing the board does not flicker between descriptions and the module's
-  // name. There is exactly one release, and it is on the panel itself.
+  // crossing the board does not flicker. There is exactly one release.
   check(leaves.length === 1, `only one thing clears the hover (${leaves.length})`);
 
   leaves[0].fn({});
-  check(/16hp/.test(label.textContent), `leaving falls back to the module (${label.textContent})`);
-  check(!!help.textContent.trim(), 'and to something worth reading');
+  check(/seven scenes/i.test(help.textContent), 'leaving falls back to what the module is');
+
+  // The bracket says the same thing throughout. It named the hovered part for a
+  // while, which put the same words in two places a line apart.
+  const html = readFileSync(new URL('index.html', import.meta.url), 'utf8');
+  check(/id="hint-label"[^>]*>BMCV/.test(html), 'the bracket names the module, and keeps naming it');
+  check(!/hintLabel/.test(readFileSync(new URL('panel.js', import.meta.url), 'utf8')),
+    'and nothing rewrites it');
 }
 
 check(SHIFT_NAMES[0] === 'STA' && SHIFT_NAMES.at(-1) === '---', `shift names came from the firmware (${SHIFT_NAMES.join(',')})`);
