@@ -200,7 +200,7 @@ export function drawScopes() {
 
   if (inCanvas.width) {
     drawGrid(inCtx, inCanvas, {
-      cols: 2, rows: 2,
+      cols: 4, rows: 1,
       lanes: IN_ORDER,
       data: sim.inputScope(),
       head, span, valid, vRange: IN_V, pad: 4 * dpr(), trace: TRACE_IN,
@@ -213,11 +213,11 @@ export function drawScopes() {
 // getBoundingClientRect() forces a layout, so doing it per frame - which the
 // input scope used to - is a cost for nothing: the size only changes when the
 // window does.
-// The input canvas is measured after the output one and given its height, so
-// the order matters: the outputs decide the geometry and the inputs follow.
+// The inputs are one row under the outputs' two, at the same width, so they get
+// half the height rather than being matched to it.
 const fitAll = () => {
   const outH = fitCanvas(scopeCanvas, { aspect: OUT_ASPECT });
-  fitCanvas(inCanvas, { cssHeight: outH || inCanvas.getBoundingClientRect().width * 0.88 });
+  fitCanvas(inCanvas, { cssHeight: (outH || 440) / 2 });
 };
 new ResizeObserver(fitAll).observe(scopeCanvas.parentElement);
 new ResizeObserver(fitAll).observe(inCanvas.parentElement);

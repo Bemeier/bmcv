@@ -70,7 +70,7 @@ function makeNode(tag = 'div') {
       // Table rows and meters alike: both are repeated blocks that only exist
       // because innerHTML was assigned, and both are what the draw functions
       // walk. Matched by the data-* attribute in the selector, or by class.
-      if (sel.startsWith('tr') || sel.startsWith('.')) {
+      if (sel.startsWith('tr') || sel.startsWith('.') || sel.startsWith('[')) {
         const attr = sel.match(/\[(data-[\w-]+)\]/)?.[1];
         const cls = sel.match(/^\.([\w-]+)/)?.[1];
         const rows = (this._rows ?? []).filter(r =>
@@ -303,23 +303,33 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
 // once at nothing and again a moment later, and everything below jumps.
 {
   const css = readFileSync(new URL('style.css', import.meta.url), 'utf8');
-  for (const sel of ['#panel', '#scope', '.scope-stack canvas']) {
+  for (const sel of ['#panel', '#scope', '#inscope']) {
     const rule = css.slice(css.indexOf(sel + ' {'), css.indexOf('}', css.indexOf(sel + ' {')));
     check(/aspect-ratio:/.test(rule), `${sel} reserves its height`);
   }
 }
 
-/* ---- the scope columns keep the 2:1 that makes cells match ---------------- */
+/* ---- an input cell is the same rectangle as an output cell ---------------- */
 
-// The output grid is 4 cells wide and the input grid 2, over the same height -
-// so a cell is the same rectangle in either only while the output column is
-// exactly twice the input column. That ratio moved from the canvases to the
-// columns when the bracket labels went in, and it is the kind of thing that
-// survives a refactor by luck.
+// The outputs are 4x2 and the inputs 4x1 at the same width, so the inputs have
+// to be exactly half the height or a cell means a different amount of time in
+// one grid than the other - and the two are read together.
+//
+// It used to be a 2:1 on two side-by-side columns, which is the same invariant
+// by different means. Either way it is the kind of thing that survives a
+// refactor by luck, so it is checked rather than remembered.
 {
   const css = readFileSync(new URL('style.css', import.meta.url), 'utf8');
-  check(/\.scope-col:first-child\s*\{\s*flex:\s*2 1 0/.test(css), 'the output column is 2fr');
-  check(/\.scope-col:last-child\s*\{\s*flex:\s*1 1 0/.test(css), 'the input column is 1fr');
+  const ratio = sel => {
+    const rule = css.slice(css.indexOf(sel + ' {'), css.indexOf('}', css.indexOf(sel + ' {')));
+    const m = rule.match(/aspect-ratio:\s*(\d+)\s*\/\s*(\d+)/);
+    return m ? +m[1] / +m[2] : null;
+  };
+  const out = ratio('#scope');
+  const inp = ratio('#inscope');
+  check(out !== null && inp !== null, 'both scopes declare a ratio');
+  check(out !== null && inp !== null && Math.abs(inp - out * 2) < 1e-9,
+    `the input scope is half the output's height (${out} vs ${inp})`);
 }
 
 /* ---- the MIDI table appears only with a port ------------------------------ */
@@ -763,6 +773,36 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   const blob = sim.remoteBlob();
   check(blob.subarray(0, blob.length - 4).length === sim.remoteSize - 4, 'the body is everything but the last word');
   check(blob.subarray(blob.length - 4).length === 4, 'and the sequence number is that word');
+}
+
+/* ---- the configuration readouts say what the module is set to ------------- */
+
+// These exist to explain what the scopes are showing, so a stale or blank one
+// is worse than no column at all. Checked by driving the module into a known
+// configuration rather than by reading the defaults back.
+{
+  const { INPUT_MODE_NAMES, QUANTIZE_MODE_NAMES } = await import('./sim.js');
+
+  check(INPUT_MODE_NAMES.length >= 4 && INPUT_MODE_NAMES.includes('CLOCK'),
+    `input mode names came from the firmware (${INPUT_MODE_NAMES.join(',')})`);
+  check(QUANTIZE_MODE_NAMES.length >= 3 && QUANTIZE_MODE_NAMES.includes('trig'),
+    `quantize mode names came from the firmware (${QUANTIZE_MODE_NAMES.join(',')})`);
+
+  // Input 0 boots as the clock and input 1 as reset - config_defaults says so,
+  // and the page reads it rather than assuming it.
+  check(INPUT_MODE_NAMES[sim.inputMode(0)] === 'CLOCK', 'input 0 reports itself as the clock');
+  check(INPUT_MODE_NAMES[sim.inputMode(1)] === 'RESET', 'input 1 reports itself as reset');
+
+  // Every semitone is enabled on a fresh module, so all twelve keys light.
+  const mask = sim.quantizeMask();
+  check(mask === 0x0FFF, `the scale is twelve semitones on first boot (0x${mask.toString(16)})`);
+
+  const keys = document.getElementById('keys');
+  check(keys.querySelectorAll('[data-semi]').length === 12, 'the keyboard draws twelve keys');
+
+  // A trigger source of -1 is "nothing patched", which the table shows as a
+  // dash rather than as CH-1.
+  check(sim.channelTrigSrc(0) === -1, 'a fresh channel listens to nothing');
 }
 
 check(SHIFT_NAMES[0] === 'STA' && SHIFT_NAMES.at(-1) === '---', `shift names came from the firmware (${SHIFT_NAMES.join(',')})`);

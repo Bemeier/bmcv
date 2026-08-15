@@ -395,6 +395,55 @@ const char* bmcv_sim_shape_mode_name(int32_t mode)
   return shape_mode_names[mode];
 }
 
+/* ---- how the module is configured ---------------------------------------- */
+
+// Unsized on purpose, so a mode added to the core without a name here fails the
+// assert rather than showing a host a blank cell. The same arrangement
+// shape_mode_names uses.
+static const char* const input_mode_names[] = {"—", "CLOCK", "RESET", "SLIDER"};
+_Static_assert(sizeof input_mode_names / sizeof input_mode_names[0] == INPUT_MODE_COUNT, "one name per input mode");
+
+static const char* const quantize_mode_names[] = {"off", "cont", "trig"};
+_Static_assert(sizeof quantize_mode_names / sizeof quantize_mode_names[0] == QUANTIZE_MODE_COUNT,
+               "one name per quantize mode");
+
+int32_t bmcv_sim_input_mode(const BmcvSim* s, int32_t input)
+{
+  if (!s || input < 0 || input >= N_INPUTS)
+    return 0;
+  return s->m.engine_config.input_mode[input];
+}
+
+const char* bmcv_sim_input_mode_name(int32_t mode)
+{
+  if (mode < 0 || mode >= INPUT_MODE_COUNT)
+    return NULL;
+  return input_mode_names[mode];
+}
+
+int32_t bmcv_sim_quantize_mask(const BmcvSim* s) { return s ? s->m.engine_config.quantize_mask : 0; }
+
+int32_t bmcv_sim_channel_quantize_mode(const BmcvSim* s, int32_t channel)
+{
+  if (!s || channel < 0 || channel >= N_CHANNELS)
+    return 0;
+  return s->m.engine_config.channel_state[channel].quantize_mode;
+}
+
+const char* bmcv_sim_quantize_mode_name(int32_t mode)
+{
+  if (mode < 0 || mode >= QUANTIZE_MODE_COUNT)
+    return NULL;
+  return quantize_mode_names[mode];
+}
+
+int32_t bmcv_sim_channel_trig_src(const BmcvSim* s, int32_t channel)
+{
+  if (!s || channel < 0 || channel >= N_CHANNELS)
+    return -1;
+  return s->m.engine_config.channel_state[channel].src_trig;
+}
+
 /* ---- midi --------------------------------------------------------------- */
 
 // MidiMsg is exactly the four bytes the flat API promises, so the drain writes

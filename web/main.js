@@ -25,7 +25,7 @@ import { activeSession } from './probe/session.js';
 import { drawEncoderIndicators, drawSliderFromModule, setSliderFromPos, SLIDER_START_POS } from './panel.js';
 import { drawLeds } from './leds.js';
 import { drawScopes } from './scope.js';
-import { runTicks } from './inputs.js';
+import { drawInputModes, runTicks } from './inputs.js';
 import { drawReadouts, setStatus } from './readouts.js';
 import { forget, persist, restore } from './storage.js';
 import { drawMidi, initMidi, pumpMidi } from './midi.js';
@@ -141,6 +141,7 @@ function frame(now) {
   if (now - lastReadoutT > READOUT_INTERVAL_MS) {
     lastReadoutT = now;
     drawReadouts();
+    drawInputModes();
     drawMidi();
     drawProbeRates();
   }

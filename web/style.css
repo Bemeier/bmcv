@@ -211,58 +211,81 @@ kbd { background: rgba(255, 255, 255, .09); padding: .05em .35em; font-size: .9e
   letter-spacing: -.01em;
 }
 
-/* Both scopes, as one instrument.
+/* Both scopes, stacked: eight outputs on 4x2, then the four inputs on one row
+ * beneath them at the same width.
  *
- * The outputs are 4x2 cells and the inputs 2x2, so for a cell to mean the same
- * thing in either the output canvas has to be exactly twice as wide as the
- * input one and the same height. That was two panels sized to match by hand -
- * 1100px against 550px - which held only while nothing else moved, and stopped
- * holding the moment the boxes were given a share of a row instead of a fixed
- * width. Here the ratio is the layout: 2fr against 1fr of the same space, so it
- * survives any width the grid hands them.
- *
- * Deliberately not wrapping. Wrapped, the input canvas would take the full
- * width and its cells would be twice the size of the output's - the one thing
- * this arrangement exists to prevent.
+ * They used to sit side by side, the outputs 4x2 and the inputs 2x2, in columns
+ * whose 2:1 ratio was what kept a cell the same rectangle in either grid. One
+ * row of four is simpler and reads better - the inputs line up under the
+ * outputs they feed, and an input cell is now wider than it is tall, which
+ * suits a single trace.
  */
-.scopes {
-  display: flex; flex-wrap: nowrap; align-items: flex-start;
-  gap: .6rem;
-  max-width: 1660px;   /* beyond this the traces just get wider, not clearer */
+.scopes { max-width: 1660px; }
+
+/* Both declare their ratio so the page reserves the space before the first
+   resize callback runs - without it everything below them jumps once on load.
+   The inputs are half the height of the outputs at the same width, which is
+   what makes one cell of 4x1 the same rectangle as one cell of 4x2. */
+#scope { width: 100%; display: block; aspect-ratio: 1000 / 440; }
+#inscope { width: 100%; display: block; aspect-ratio: 1000 / 220; }
+
+/* Four columns of controls, one under each input cell, aligned to the trace
+   above it. They used to be overlaid on the cells - which cost the trace the
+   space they took, and put a fader across the signal it was setting. */
+#in-controls {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: .5rem;
+  margin: .4rem 0 .1rem;
+}
+.in-cell {
+  display: flex; flex-direction: column; gap: .3rem;
+  min-width: 0;
 }
 
-/* Same idea, and the same numbers scope.js sizes them to: the outputs at
-   OUT_ASPECT, the inputs half as wide over the same height. Without these the
-   canvases hold their 1000x440 attribute size until the first resize callback
-   and the whole right-hand column settles a beat later than the page. */
-/* The columns carry the 2:1 that keeps a cell the same rectangle in either
-   grid; the canvases just fill theirs. */
-.scope-col { min-width: 0; }
-.scope-col:first-child { flex: 2 1 0; }
-.scope-col:last-child { flex: 1 1 0; }
+/* What the input is being used for, out of the module's own config: an input in
+   CLOCK mode behaves nothing like one in SLIDER, and until this was shown the
+   only way to know which was to remember. */
+.in-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: .4rem;
+  font-size: .62rem; letter-spacing: var(--track); text-transform: uppercase;
+}
+.in-head .who { color: var(--muted); }
+.in-head .mode { color: var(--accent); }
+.in-head .mode.off { color: var(--muted); opacity: .5; }
 
-#scope {
-  width: 100%;
-  display: block;
-  aspect-ratio: 100 / 44;
+/* Horizontal now that it sits under the trace rather than beside it, and filled
+   from the centre outwards so the bar means "offset from 0V" rather than
+   "distance from -10V". */
+.hslider {
+  position: relative; height: 14px; width: 100%;
+  background: var(--surface); border: 1px solid var(--line);
+  cursor: ew-resize; touch-action: none;
+}
+.hslider .fill { position: absolute; top: 0; bottom: 0; background: rgba(111, 195, 255, .25); }
+.hslider .zero { position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: var(--line); }
+.hslider .knob { position: absolute; top: -2px; bottom: -2px; width: 3px; background: var(--accent); }
+.hslider[data-disabled="1"] { opacity: .35; pointer-events: none; }
+
+.in-ctl {
+  display: flex; flex-flow: row wrap; align-items: center;
+  gap: .25rem .35rem;
+}
+.in-ctl button,
+.in-ctl input[type=number] { height: 1.4rem; }
+
+.in-ctl input[type=number]::-webkit-outer-spin-button,
+.in-ctl input[type=number]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.in-ctl button {
+  padding: 0 .5rem;
+  font-size: .58rem;
+  letter-spacing: .06em;
 }
 
-/* A dimension line, the way a panel drawing labels a span: a rule under the
-   thing it measures, turned up at both ends, with the name of the span sitting
-   in a gap in the middle. It says which eight cells are the outputs and which
-   four are the inputs without a heading over either. */
-.bracket {
-  display: flex; align-items: center; gap: .55rem;
-  margin-top: .55rem;
-  color: var(--muted);
-  font-size: .58rem; font-weight: 600;
-  text-transform: uppercase; letter-spacing: var(--track);
-}
-.bracket i {
-  flex: 1;
-  height: 6px;
-  border-bottom: 1px solid var(--line);
-}
 .bracket i:first-of-type { border-left: 1px solid var(--line); }
 .bracket i:last-of-type { border-right: 1px solid var(--line); }
 
@@ -271,23 +294,6 @@ kbd { background: rgba(255, 255, 255, .09); padding: .05em .35em; font-size: .9e
    of their own. */
 /* Its height is matched to the output scope's in scope.js, so the two boxes end
    level whatever widths the grid gives them. */
-.scope-stack { position: relative; width: 100%; }
-.scope-stack canvas {
-  width: 100%; display: block;
-  aspect-ratio: 100 / 88;
-}
-
-#in-overlay {
-  position: absolute; inset: 0;
-  display: grid; grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr);
-  pointer-events: none;
-}
-.in-cell {
-  display: flex; align-items: stretch; gap: .4rem;
-  padding: .35rem .45rem;
-  min-width: 0; min-height: 0;
-}
-.in-cell > * { pointer-events: auto; }
 .in-cell .spacer { flex: 1; pointer-events: none; }
 /* One row, not a column: the clock cell carries a bpm box as well as a pulse
    button, and stacking them cost a line of the cell for nothing. */
@@ -340,14 +346,6 @@ kbd { background: rgba(255, 255, 255, .09); padding: .05em .35em; font-size: .9e
 /* No rail. It ran the full height of the cell and straight through the IN0-IN3
    label in the corner; the knob and the fill from centre say where the level is
    without one. */
-.vslider { position: relative; width: 14px; flex: 0 0 14px; cursor: ns-resize; touch-action: none; }
-.vslider .fill { position: absolute; left: 5px; width: 4px; background: var(--accent); }
-.vslider .zero { position: absolute; left: 1px; width: 12px; height: 1px; background: #4a515b; top: 50%; }
-.vslider .knob {
-  position: absolute; left: 0; width: 14px; height: 7px; margin-top: -3.5px;
-  background: #5a626e; border: 1px solid #c8ccd4;
-}
-.vslider[data-disabled="1"] { opacity: .3; pointer-events: none; }
 
 .row { display: flex; align-items: center; gap: .5rem; font-size: .8rem; color: var(--muted); }
 .row input[type=range] { flex: 1; }
@@ -533,4 +531,48 @@ body:not(.live) .when-live { display: none; }
 /* The input controls drive the simulator's jacks. A physical module's are
    whatever is patched into it, and a fader here would move nothing - so they
    go rather than sitting there inert. */
-body.live #in-overlay { display: none; }
+body.live #in-controls { display: none; }
+
+/* ---- the quantizer's scale ---------------------------------------------- */
+
+/* One octave, drawn as a keyboard rather than twelve labels, because that is
+   how a scale is read. The mask is twelve bits and nothing else on the page
+   showed it - a channel set to quantize looked identical whether it was
+   snapping to a major scale or to every semitone there is. */
+.quant { display: flex; align-items: center; gap: .6rem; margin-top: .8rem; }
+
+.keys {
+  position: relative;
+  display: flex;
+  height: 34px;
+  user-select: none;
+}
+
+/* The seven naturals carry the width; the five sharps sit over the gaps
+   between them, which is what makes it read as a keyboard rather than as
+   twelve equal boxes. */
+.keys .nat {
+  position: relative;
+  width: 18px;
+  border: 1px solid var(--line);
+  border-right: none;
+  background: var(--surface);
+}
+.keys .nat:last-child { border-right: 1px solid var(--line); }
+
+.keys .acc {
+  position: absolute;
+  top: 0;
+  width: 12px;
+  height: 21px;
+  margin-left: -6px;
+  border: 1px solid var(--line);
+  background: #14161a;
+  z-index: 1;
+}
+
+/* On is the accent, off is the surface it sits on. Deliberately the same accent
+   the traces use: a note that is in the scale is a note the outputs can land
+   on. */
+.keys .on { background: var(--accent); border-color: var(--accent); }
+.keys .acc.on { background: var(--accent); border-color: var(--accent); }

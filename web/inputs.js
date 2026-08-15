@@ -1,18 +1,20 @@
-// The four input jacks: a level fader and a pulse button each, overlaid on the
-// input scope's cells, plus the clock generator on input 0.
+// The four input jacks: a level fader and a pulse button each, under the trace
+// of what the engine actually latched from them, plus the clock generator on
+// input 0 and what each jack is configured as.
 //
-// The controls sit on the cells rather than in boxes of their own, so a fader
-// is directly above the trace of what the engine actually latched from it.
+// The controls used to be overlaid on the scope cells. That cost the trace the
+// space they took and put a fader across the signal it was setting; under it,
+// each column is one input from configuration down to control.
 //
 // Everything here drives real voltages through sim.setCv(): a gate goes through
 // the ADC threshold and the hysteresis exactly as a patch cable would, rather
 // than being injected as a synthesised edge.
 
 import { IN_ORDER } from './spec.js';
-import { sim, N_IN } from './sim.js';
+import { sim, N_IN, INPUT_MODE_NAMES } from './sim.js';
 import { CLOCK_INPUT, GATE_V, IN_V, PULSE_MS, TICK_US } from './const.js';
 
-const overlay = document.getElementById('in-overlay');
+const controls = document.getElementById('in-controls');
 
 // What the fader says each jack sits at, which is also what a gate falls back
 // to when it ends.
@@ -23,22 +25,22 @@ for (const i of IN_ORDER) {
   const cell = document.createElement('div');
   cell.className = 'in-cell';
   cell.innerHTML = `
-    <div class="vslider" title="IN${i} level"><div class="fill"></div><div class="zero"></div><div class="knob"></div></div>
-    <div class="in-ctl"><button type="button" title="send one ${GATE_V}V gate pulse">pulse</button></div>
-    <div class="spacer"></div>`;
-  overlay.appendChild(cell);
+    <div class="in-head"><span class="who">IN${i}</span><span class="mode" data-mode="${i}">—</span></div>
+    <div class="hslider" title="IN${i} level"><div class="fill"></div><div class="zero"></div><div class="knob"></div></div>
+    <div class="in-ctl"><button type="button" title="send one ${GATE_V}V gate pulse">pulse</button></div>`;
+  controls.appendChild(cell);
 
-  const fader = cell.querySelector('.vslider');
+  const fader = cell.querySelector('.hslider');
   const fill = cell.querySelector('.fill');
   const knob = cell.querySelector('.knob');
 
-  // Fill from the centre outwards, so the bar means "offset from 0V". A native
-  // range input fills from its minimum and puts a solid bar at -10V.
+  // Fill from the centre outwards, so the bar means "offset from 0V". Left is
+  // -10V and right is +10V, which is the way the trace above it reads too.
   const paint = v => {
-    const pct = ((IN_V - v) / (2 * IN_V)) * 100;   // 0% at +10V, 100% at -10V
-    knob.style.top = `${pct}%`;
-    fill.style.top = `${Math.min(pct, 50)}%`;
-    fill.style.height = `${Math.abs(pct - 50)}%`;
+    const pct = ((v + IN_V) / (2 * IN_V)) * 100;
+    knob.style.left = `${pct}%`;
+    fill.style.left = `${Math.min(pct, 50)}%`;
+    fill.style.width = `${Math.abs(pct - 50)}%`;
     fader.title = `IN${i} ${v.toFixed(1)} V`;
   };
 
@@ -51,8 +53,8 @@ for (const i of IN_ORDER) {
   let dragging = false;
   const fromEvent = ev => {
     const r = fader.getBoundingClientRect();
-    const frac = Math.min(1, Math.max(0, (ev.clientY - r.top) / r.height));
-    setLevel(IN_V - frac * 2 * IN_V);
+    const frac = Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width));
+    setLevel(frac * 2 * IN_V - IN_V);
   };
   fader.addEventListener('pointerdown', ev => {
     ev.preventDefault(); fader.setPointerCapture(ev.pointerId); dragging = true; fromEvent(ev);
@@ -71,12 +73,28 @@ for (const i of IN_ORDER) {
   cells.push({ index: i, fader, setLevel });
 }
 
+// What each jack is configured as, out of the module's own config rather than
+// out of anything this file decides. An input in CLOCK mode behaves nothing
+// like one in SLIDER, and until this was shown the only way to tell was to
+// remember what the module had been told.
+const modeEls = [...controls.querySelectorAll('[data-mode]')];
+
+export function drawInputModes() {
+  for (const el of modeEls) {
+    const i = +el.dataset.mode;
+    const mode = sim.inputMode(i);
+    const name = INPUT_MODE_NAMES[mode] ?? '?';
+    if (el.textContent !== name) el.textContent = name;
+    el.classList.toggle('off', mode === 0);
+  }
+}
+
 /* ---- clock generator ---------------------------------------------------- */
 
 // It belongs to input 0, which is the one that boots as INPUT_CLOCK, so it
 // sits on that cell rather than in a control panel somewhere else.
 const clockCell = cells.find(c => c.index === CLOCK_INPUT);
-clockCell.fader.parentElement.querySelector('.in-ctl').insertAdjacentHTML('afterbegin',
+clockCell.fader.parentElement.querySelector('.in-ctl').insertAdjacentHTML('beforeend',
   `<span class="clock"><input id="clock-on" type="checkbox" title="generate a clock on this input">
    <input id="clock-bpm" type="number" min="20" max="300" step="1" value="120" title="bpm">bpm</span>`);
 

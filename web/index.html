@@ -23,22 +23,21 @@
     <div id="side-grid">
     <div class="panel-box">
       <div class="scopes">
-        <div class="scope-col">
-          <canvas id="scope" width="1000" height="440"></canvas>
-          <div class="bracket"><i></i><span>outputs</span><i></i></div>
-        </div>
-        <div class="scope-col">
-          <div class="scope-stack">
-            <canvas id="inscope"></canvas>
-            <div id="in-overlay"></div>
-          </div>
-          <div class="bracket"><i></i><span>inputs</span><i></i></div>
-        </div>
+        <canvas id="scope" width="1000" height="440"></canvas>
+        <div class="bracket"><i></i><span>outputs</span><i></i></div>
+
+        <canvas id="inscope"></canvas>
+        <div id="in-controls"></div>
+        <div class="bracket"><i></i><span>inputs</span><i></i></div>
       </div>
     </div>
 
     <div class="panel-box">
       <table id="params"></table>
+      <div class="quant">
+        <span class="label">scale</span>
+        <div id="keys" class="keys"></div>
+      </div>
       <div class="readouts rates">
         <div class="readout"><span class="label">mode</span><span id="r-shift" class="value">—</span></div>
         <div class="readout"><span class="label">param</span><span id="r-param" class="value">—</span></div>

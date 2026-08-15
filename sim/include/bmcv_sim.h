@@ -236,6 +236,27 @@ float bmcv_sim_slider01(const BmcvSim* s);
 int32_t bmcv_sim_channel_shape_mode(const BmcvSim* s, int32_t channel);
 const char* bmcv_sim_shape_mode_name(int32_t mode);
 
+/* ---- how the module is configured ---------------------------------------- */
+//
+// What a host needs to explain what it is drawing. The values come out of
+// engine_config, and the names out of the firmware's own tables, so a mode
+// added to the core cannot show up here as a bare number.
+
+// What an input jack is being used for: an InputMode.
+int32_t bmcv_sim_input_mode(const BmcvSim* s, int32_t input);
+const char* bmcv_sim_input_mode_name(int32_t mode);
+
+// The semitones the quantizer will snap to, as twelve bits from C upwards.
+int32_t bmcv_sim_quantize_mask(const BmcvSim* s);
+
+// Per channel: whether it quantizes at all, and what makes it do so.
+int32_t bmcv_sim_channel_quantize_mode(const BmcvSim* s, int32_t channel);
+const char* bmcv_sim_quantize_mode_name(int32_t mode);
+
+// Which trigger source a channel listens to, or -1 for none. Indexed the way
+// HwState.trigger_src is - the input jacks first, then the channels.
+int32_t bmcv_sim_channel_trig_src(const BmcvSim* s, int32_t channel);
+
 // What each channel is *actually* doing, after the scene crossfade and the
 // parameter maths, in units a person can read. 8 * BMCV_EFF_COUNT floats,
 // channel-major: index [channel * BMCV_EFF_COUNT + field].

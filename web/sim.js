@@ -54,6 +54,20 @@ export const SHAPE_NAMES = (() => {
   }
 })();
 
+// The same for the input modes and the quantizer's, so a mode added to the core
+// cannot appear here as a bare number.
+const namesFrom = fn => {
+  const names = [];
+  for (let i = 0; ; i++) {
+    const ptr = _(fn)(i);
+    if (!ptr) return names;
+    names.push(Module.UTF8ToString(ptr));
+  }
+};
+
+export const INPUT_MODE_NAMES = namesFrom('input_mode_name');
+export const QUANTIZE_MODE_NAMES = namesFrom('quantize_mode_name');
+
 const storageSize = _('storage_size')();
 
 // One BmcvInstance, and a buffer to move one through. Allocated at load and
@@ -143,6 +157,19 @@ export const sim = {
   scopeHead: () => _('scope_head')(handle),
 
   /* ---- introspection ---------------------------------------------------- */
+
+  // How the module is configured, as opposed to what it is doing. The values
+  // come out of engine_config and the names out of the firmware's own tables,
+  // so a mode added to the core cannot show up here as a bare number.
+  inputMode: input => _('input_mode')(handle, input),
+
+  // Twelve bits from C upwards.
+  quantizeMask: () => _('quantize_mask')(handle),
+  channelQuantizeMode: ch => _('channel_quantize_mode')(handle, ch),
+
+  // -1 when a channel listens to nothing. Indexed the way
+  // HwState.trigger_src is: the input jacks first, then the channels.
+  channelTrigSrc: ch => _('channel_trig_src')(handle, ch),
 
   shiftState: () => _('shift_state')(handle),
   selectedParam: () => _('selected_param')(handle),

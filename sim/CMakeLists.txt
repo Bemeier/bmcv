@@ -87,6 +87,12 @@ if(EMSCRIPTEN)
       _bmcv_sim_slider01
       _bmcv_sim_channel_shape_mode
       _bmcv_sim_shape_mode_name
+      _bmcv_sim_input_mode
+      _bmcv_sim_input_mode_name
+      _bmcv_sim_quantize_mask
+      _bmcv_sim_channel_quantize_mode
+      _bmcv_sim_quantize_mode_name
+      _bmcv_sim_channel_trig_src
       _bmcv_sim_midi_drain
       _bmcv_sim_instance_size
       _bmcv_sim_export
