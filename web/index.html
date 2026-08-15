@@ -23,12 +23,17 @@
     <div id="side-grid">
     <div class="panel-box">
       <div class="scopes">
-        <canvas id="scope" width="1000" height="440"></canvas>
-        <div class="bracket"><i></i><span>outputs</span><i></i></div>
-
-        <canvas id="inscope"></canvas>
-        <div id="in-controls"></div>
-        <div class="bracket"><i></i><span>inputs</span><i></i></div>
+        <div class="scope-row">
+          <div class="bracket"><span>outputs</span><i></i></div>
+          <canvas id="scope" width="1000" height="440"></canvas>
+        </div>
+        <div class="scope-row">
+          <div class="bracket"><span>inputs</span><i></i></div>
+          <div class="scope-stack">
+            <canvas id="inscope"></canvas>
+            <div id="in-controls"></div>
+          </div>
+        </div>
       </div>
     </div>
 

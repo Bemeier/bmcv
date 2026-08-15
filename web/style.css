@@ -220,7 +220,27 @@ kbd { background: rgba(255, 255, 255, .09); padding: .05em .35em; font-size: .9e
  * outputs they feed, and an input cell is now wider than it is tall, which
  * suits a single trace.
  */
-.scopes { max-width: 1660px; }
+.scopes { max-width: 1660px; display: flex; flex-direction: column; gap: .5rem; }
+
+/* Each scope with its label beside it rather than under it. Horizontal
+   brackets worked while the two scopes sat side by side and each label had a
+   column to span; stacked full-width they had nothing to mark off. */
+.scope-row { display: flex; align-items: stretch; gap: .45rem; min-width: 0; }
+.scope-row > canvas, .scope-stack { flex: 1; min-width: 0; }
+
+/* Reading bottom-to-top, with the rule on the outside. The rule is its own
+   element rather than a border so that rotating the text cannot move which
+   side it lands on. */
+.bracket { flex: 0 0 auto; display: flex; align-items: center; gap: .3rem; }
+.bracket span {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: .6rem;
+  letter-spacing: var(--track);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.bracket i { width: 1px; align-self: stretch; background: var(--line); }
 
 /* Both declare their ratio so the page reserves the space before the first
    resize callback runs - without it everything below them jumps once on load.
@@ -544,7 +564,7 @@ body.live #in-controls { display: none; }
 .keys {
   position: relative;
   display: flex;
-  height: 34px;
+  height: 30px;
   user-select: none;
 }
 
@@ -553,26 +573,34 @@ body.live #in-controls { display: none; }
    twelve equal boxes. */
 .keys .nat {
   position: relative;
-  width: 18px;
+  width: 13px;
   border: 1px solid var(--line);
   border-right: none;
-  background: var(--surface);
+  background: rgba(255, 255, 255, .05);
 }
 .keys .nat:last-child { border-right: 1px solid var(--line); }
 
 .keys .acc {
   position: absolute;
   top: 0;
-  width: 12px;
+  width: 9px;
   height: 21px;
-  margin-left: -6px;
+  margin-left: -4.5px;
   border: 1px solid var(--line);
   background: #14161a;
   z-index: 1;
 }
 
-/* On is the accent, off is the surface it sits on. Deliberately the same accent
-   the traces use: a note that is in the scale is a note the outputs can land
-   on. */
-.keys .on { background: var(--accent); border-color: var(--accent); }
-.keys .acc.on { background: var(--accent); border-color: var(--accent); }
+/* A wash rather than a colour. This was the trace accent, which at full
+   strength turned a row of keys into a solid blue bar with the outlines lost
+   inside it - the one thing a keyboard has to keep is its shape. White at a
+   third is enough to read as lit against the twentieth the unlit keys carry,
+   and the borders go on doing the work of saying where one key ends. */
+.keys .on { background: rgba(255, 255, 255, .30); }
+
+/* The channel table's two columns that do not want an equal share: the channel
+   number is one character, and the quantizer column carries a mode and a
+   source. Everything else is a number of similar width and is left alone. */
+#params { table-layout: fixed; width: 100%; }
+#params .c-ch { width: 1.8em; }
+#params .c-qnt { width: 5.2em; }

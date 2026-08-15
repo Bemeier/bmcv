@@ -59,7 +59,7 @@ function trigName(src) {
 
 const paramsTable = document.getElementById('params');
 paramsTable.innerHTML =
-  `<tr><th>ch</th>${EFF_COLS.map(([h]) => `<th>${h}</th>`).join('')}<th>out</th></tr>` +
+  `<tr><th class="c-ch">ch</th>${EFF_COLS.map(([h]) => `<th class="c-${h}">${h}</th>`).join('')}<th>out</th></tr>` +
   Array.from({ length: N_CH }, (_, c) =>
     `<tr data-ch="${c}"><td>${c}</td>${EFF_COLS.map(() => '<td>0</td>').join('')}<td>0.00</td></tr>`).join('');
 const paramRows = [...paramsTable.querySelectorAll('tr[data-ch]')];
@@ -75,13 +75,16 @@ const paramRows = [...paramsTable.querySelectorAll('tr[data-ch]')];
 //
 // Semitone 0 is C, which is what the firmware's mask counts from - see
 // quantizer.c.
+// Kept in step with .keys .nat in style.css, since the sharps are positioned
+// over the gaps between naturals and there is nothing to derive that from.
+const NAT_W = 13;
 const NATURALS = [0, 2, 4, 5, 7, 9, 11];        // C D E F G A B
 const ACCIDENTALS = [[1, 1], [3, 2], [6, 4], [8, 5], [10, 6]]; // semitone, gap after nth natural
 
 const keysEl = document.getElementById('keys');
 keysEl.innerHTML =
   NATURALS.map(n => `<div class="nat" data-semi="${n}"></div>`).join('') +
-  ACCIDENTALS.map(([semi, after]) => `<div class="acc" data-semi="${semi}" style="left:${after * 18}px"></div>`).join('');
+  ACCIDENTALS.map(([semi, after]) => `<div class="acc" data-semi="${semi}" style="left:${after * NAT_W}px"></div>`).join('');
 const keyEls = [...keysEl.querySelectorAll('[data-semi]')];
 
 function drawScale() {

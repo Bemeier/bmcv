@@ -19,9 +19,6 @@ export const PULSE_MS = 10;  // comfortably above one engine tick
 export const IN_V = 10;      // the input faders' range, and the input scope's
 export const SCOPE_V = 10;   // an output scope cell spans +/- this many volts
 
-// The input that boots as INPUT_CLOCK, and so carries the clock generator.
-export const CLOCK_INPUT = 0;
-
 /* ---- scope -------------------------------------------------------------- */
 
 // How much *time* a cell shows. Shared by both scopes so a trace means the same

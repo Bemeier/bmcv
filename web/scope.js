@@ -7,7 +7,7 @@
 // now, and the two canvases sit in one box so the geometry cannot drift.
 
 import { IN_ORDER, SCOPE_ORDER } from './spec.js';
-import { EFF, sim, SCOPE_LEN } from './sim.js';
+import { EFF, sim, SCOPE_LEN, INPUT_MODE_NAMES } from './sim.js';
 import { CELL_FILL, CELL_GAP, IN_V, SCOPE_SECONDS, SCOPE_SECONDS_LIVE, SCOPE_V, TRACE, TRACE_IN } from './const.js';
 import { mode } from './mode.js';
 
@@ -204,7 +204,14 @@ export function drawScopes() {
       lanes: IN_ORDER,
       data: sim.inputScope(),
       head, span, valid, vRange: IN_V, pad: 4 * dpr(), trace: TRACE_IN,
-      label: i => `IN${i}`,
+      // The jack and what it is configured as, together. It was under the
+      // scope with the controls, which meant it disappeared along with them
+      // whenever a module was driving the page - exactly when knowing an
+      // input's mode matters most.
+      label: i => {
+        const mode = INPUT_MODE_NAMES[sim.inputMode(i)] ?? '';
+        return mode && mode !== '—' ? `IN${i} ${mode}` : `IN${i}`;
+      },
     });
   }
 }

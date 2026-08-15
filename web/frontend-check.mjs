@@ -800,6 +800,16 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   const keys = document.getElementById('keys');
   check(keys.querySelectorAll('[data-semi]').length === 12, 'the keyboard draws twelve keys');
 
+  // The sharps are positioned in JS over gaps whose width is set in CSS, and
+  // nothing derives one from the other - so a natural key resized in the
+  // stylesheet would slide every black key off its gap.
+  const css = readFileSync(new URL('style.css', import.meta.url), 'utf8');
+  const natRule = css.slice(css.indexOf('.keys .nat {'), css.indexOf('}', css.indexOf('.keys .nat {')));
+  const natW = +(natRule.match(/width:\s*(\d+)px/)?.[1] ?? 0);
+  const js = readFileSync(new URL('readouts.js', import.meta.url), 'utf8');
+  const jsW = +(js.match(/const NAT_W = (\d+)/)?.[1] ?? -1);
+  check(natW > 0 && natW === jsW, `the keyboard's key width agrees (css ${natW}, js ${jsW})`);
+
   // A trigger source of -1 is "nothing patched", which the table shows as a
   // dash rather than as CH-1.
   check(sim.channelTrigSrc(0) === -1, 'a fresh channel listens to nothing');

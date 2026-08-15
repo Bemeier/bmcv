@@ -12,7 +12,10 @@
 
 import { IN_ORDER } from './spec.js';
 import { sim, N_IN, INPUT_MODE_NAMES } from './sim.js';
-import { CLOCK_INPUT, GATE_V, IN_V, PULSE_MS, TICK_US } from './const.js';
+
+// InputMode.INPUT_CLOCK, which is what a generator is allowed to drive.
+const CLOCK_MODE = INPUT_MODE_NAMES.indexOf('CLOCK');
+import { GATE_V, IN_V, PULSE_MS, TICK_US } from './const.js';
 
 const controls = document.getElementById('in-controls');
 
@@ -25,9 +28,14 @@ for (const i of IN_ORDER) {
   const cell = document.createElement('div');
   cell.className = 'in-cell';
   cell.innerHTML = `
-    <div class="in-head"><span class="who">IN${i}</span><span class="mode" data-mode="${i}">—</span></div>
     <div class="hslider" title="IN${i} level"><div class="fill"></div><div class="zero"></div><div class="knob"></div></div>
-    <div class="in-ctl"><button type="button" title="send one ${GATE_V}V gate pulse">pulse</button></div>`;
+    <div class="in-ctl">
+      <span class="clock" data-clock="${i}" hidden>
+        <input type="checkbox" data-clock-on="${i}" title="generate a clock on this input">
+        <input type="number" data-clock-bpm="${i}" min="20" max="300" step="1" value="120" title="bpm">bpm
+      </span>
+      <button type="button" title="send one ${GATE_V}V gate pulse">pulse</button>
+    </div>`;
   controls.appendChild(cell);
 
   const fader = cell.querySelector('.hslider');
@@ -73,85 +81,100 @@ for (const i of IN_ORDER) {
   cells.push({ index: i, fader, setLevel });
 }
 
-// What each jack is configured as, out of the module's own config rather than
-// out of anything this file decides. An input in CLOCK mode behaves nothing
-// like one in SLIDER, and until this was shown the only way to tell was to
-// remember what the module had been told.
-const modeEls = [...controls.querySelectorAll('[data-mode]')];
+/* ---- clock generators ---------------------------------------------------- */
 
+// One per input, and shown only on the inputs actually configured as clocks.
+//
+// It used to belong to input 0, because that is the one that boots as
+// INPUT_CLOCK. But which jacks are clocks is a thing the module decides and can
+// be told to change, and a generator wired to a jack that is no longer a clock
+// drives a modulation input with a square wave for no visible reason. So the
+// control follows the configuration instead of assuming it.
+
+const gens = IN_ORDER.map(i => ({
+  index: i,
+  cell: cells.find(c => c.index === i),
+  box: controls.querySelector(`[data-clock="${i}"]`),
+  on: controls.querySelector(`[data-clock-on="${i}"]`),
+  bpm: controls.querySelector(`[data-clock-bpm="${i}"]`),
+  accumUs: 0,
+  high: false,
+}));
+
+function setClockLevel(g, high) {
+  if (high === g.high) return;
+  g.high = high;
+  sim.setCv(g.index, high ? GATE_V : inputLevel[g.index]);
+}
+
+// While a generator is running the fader would only fight it - and whatever it
+// was left at becomes the gate's low level, so a jack sitting at -4V produces a
+// clock that never crosses the threshold. Zero it either way.
+function syncGenerator(g) {
+  g.cell.fader.dataset.disabled = g.on.checked ? '1' : '0';
+  g.cell.setLevel(0);
+  if (!g.on.checked) setClockLevel(g, false);
+}
+
+for (const g of gens) {
+  g.on.addEventListener('change', () => syncGenerator(g));
+}
+
+// Show a generator only where the module says the jack is a clock. Called on
+// the readout cadence, so a mode changed on the panel takes effect here without
+// anything having to notice it happened.
 export function drawInputModes() {
-  for (const el of modeEls) {
-    const i = +el.dataset.mode;
-    const mode = sim.inputMode(i);
-    const name = INPUT_MODE_NAMES[mode] ?? '?';
-    if (el.textContent !== name) el.textContent = name;
-    el.classList.toggle('off', mode === 0);
+  for (const g of gens) {
+    const isClock = sim.inputMode(g.index) === CLOCK_MODE;
+    if (g.box.hidden === !isClock) continue;
+
+    g.box.hidden = !isClock;
+
+    // A jack that stops being a clock stops being driven like one, rather than
+    // leaving a square wave running into whatever it became.
+    if (!isClock && g.on.checked) {
+      g.on.checked = false;
+      syncGenerator(g);
+    }
   }
 }
 
-/* ---- clock generator ---------------------------------------------------- */
-
-// It belongs to input 0, which is the one that boots as INPUT_CLOCK, so it
-// sits on that cell rather than in a control panel somewhere else.
-const clockCell = cells.find(c => c.index === CLOCK_INPUT);
-clockCell.fader.parentElement.querySelector('.in-ctl').insertAdjacentHTML('beforeend',
-  `<span class="clock"><input id="clock-on" type="checkbox" title="generate a clock on this input">
-   <input id="clock-bpm" type="number" min="20" max="300" step="1" value="120" title="bpm">bpm</span>`);
-
-const clockOn = document.getElementById('clock-on');
-const clockBpm = document.getElementById('clock-bpm');
-
-// While the clock is generating, the fader would only fight it - and whatever
-// it was left at becomes the gate's low level, so a jack sitting at -4V would
-// produce a clock that never crosses the threshold. Zero it either way.
-function syncClockUi() {
-  clockCell.fader.dataset.disabled = clockOn.checked ? '1' : '0';
-  clockCell.setLevel(0);
-}
-clockOn.addEventListener('change', syncClockUi);
-syncClockUi();
-
-let clockAccumUs = 0;
-let clockHigh = false;
-
-function setClockLevel(high) {
-  if (high === clockHigh) return;
-  clockHigh = high;
-  sim.setCv(CLOCK_INPUT, high ? GATE_V : inputLevel[CLOCK_INPUT]);
-}
-
-// Advance the engine by `ticks`, generating a gate train on the clock input if
-// the generator is on.
-//
-// The stepping matters: the engine has to be run in pieces short enough that no
-// edge falls entirely between two calls, or a pulse is skipped and the tempo
-// jitters. Owning both the gate and the stepping here is what keeps that
-// correct - the main loop just says how much time passed.
 export function runTicks(ticks) {
   if (ticks <= 0) return;
 
-  if (!clockOn.checked) {
-    setClockLevel(false);
+  const running = gens.filter(g => g.on.checked);
+  if (!running.length) {
     sim.run(TICK_US, ticks);
     return;
   }
 
   // 4 pulses per beat, matching ClockState.PULSES_PER_BEAT.
-  const bpm = Math.min(300, Math.max(20, +clockBpm.value || 120));
-  const periodUs = 60e6 / (bpm * 4);
-  const widthUs = Math.min(PULSE_MS * 1000, periodUs * 0.4);
+  const shape = g => {
+    const bpm = Math.min(300, Math.max(20, +g.bpm.value || 120));
+    const periodUs = 60e6 / (bpm * 4);
+    return { periodUs, widthUs: Math.min(PULSE_MS * 1000, periodUs * 0.4) };
+  };
 
   let remaining = ticks;
   while (remaining > 0) {
-    // Never step past an edge.
-    const untilEdgeUs = clockHigh ? widthUs - clockAccumUs : periodUs - clockAccumUs;
-    const step = Math.min(remaining, Math.max(1, Math.ceil(untilEdgeUs / TICK_US)));
+    // Never step past an edge on any of them: a pulse that falls entirely
+    // between two calls is skipped, and the tempo jitters. With more than one
+    // generator running the step is whichever wants the next edge soonest.
+    let step = remaining;
+    for (const g of running) {
+      const { periodUs, widthUs } = shape(g);
+      const untilEdgeUs = g.high ? widthUs - g.accumUs : periodUs - g.accumUs;
+      step = Math.min(step, Math.max(1, Math.ceil(untilEdgeUs / TICK_US)));
+    }
 
     sim.run(TICK_US, step);
     remaining -= step;
-    clockAccumUs += step * TICK_US;
-    if (clockAccumUs >= periodUs) clockAccumUs -= periodUs;
 
-    setClockLevel(clockAccumUs < widthUs);
+    for (const g of running) {
+      const { periodUs, widthUs } = shape(g);
+      g.accumUs += step * TICK_US;
+      if (g.accumUs >= periodUs) g.accumUs -= periodUs;
+      setClockLevel(g, g.accumUs < widthUs);
+    }
   }
 }
