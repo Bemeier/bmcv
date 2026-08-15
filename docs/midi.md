@@ -60,9 +60,11 @@ best.
   no input jack is configured for the job. Continue (0xFB) deliberately does not
   read as Start: it resumes rather than restarts, and treating it as a reset
   would drop every oscillator's phase on a DAW punch-in.
-- **SysEx**, for the firmware updater — see `Core/Inc/Lib/sysex.h`. The one
-  command that matters is ENTER_UPDATE, which reboots the module into the ROM
-  DFU bootloader, because there is no reset button on the panel.
+And nothing else. Control traffic — the firmware updater's reboot-into-DFU, the
+version string it shows beside the image it is about to write, snapshots and the
+remote panel — used to come through here as SysEx and now goes over the module's
+vendor interface. See [live-module.md](live-module.md) and
+`Core/Inc/Lib/usblink.h`. What is left on this endpoint is what MIDI is for.
 
 ## Where this lives
 

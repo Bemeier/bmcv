@@ -30,14 +30,14 @@ add_executable(${CMAKE_PROJECT_NAME})
 add_subdirectory(cmake/stm32cubemx)
 
 # version.h is generated from VERSION rather than checked in, so a `cz bump`
-# (see .cz.toml) can never drift from what midi.c reports over SysEx - there
-# is exactly one file for it to touch.
+# (see .cz.toml) can never drift from what the module reports about itself -
+# there is exactly one file for it to touch.
 #
 # The dependency is not implicit. file(STRINGS) reads VERSION now, at configure
 # time, and tells CMake nothing about having done so - so a bump left every
 # later `just build-rel` re-emitting the version that was current when the build
-# directory was first configured. The module went on reporting 0.9.0 over SysEx
-# after the 0.10.0 bump, and would have gone on doing it until someone
+# directory was first configured. The module went on reporting 0.9.0 to the
+# update page after the 0.10.0 bump, and would have gone on doing it until someone
 # reconfigured for an unrelated reason. Naming VERSION here is what makes a bump
 # re-run this block.
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/VERSION")

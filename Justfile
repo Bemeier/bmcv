@@ -154,12 +154,19 @@ wasm-check: wasm
 web-check: wasm
 	node web/frontend-check.mjs
 
-# Serve the firmware updater at http://localhost:PORT/update/. No wasm
-# dependency, deliberately: the updater is a separate page precisely so that a
-# broken simulator build cannot take the thing that flashes the module with it.
-update-page PORT="8000":
-	@echo "http://localhost:{{PORT}}/update/"
+# Serve the three pages that need no wasm: the firmware updater, the manual and
+# the diagnostics instruments. No wasm dependency, deliberately - the updater is
+# a separate page precisely so that a broken simulator build cannot take the
+# thing that flashes the module with it, and the other two inherit that.
+#
+# `just web` serves the same tree with the simulator built, which is what you
+# want unless you are specifically checking that these still stand on their own.
+docs-page PORT="8000":
+	@echo "http://localhost:{{PORT}}/update/  /manual/  /diagnostics/"
 	python3 -m http.server {{PORT}} --directory web
+
+# The old name, kept because it is in the README and in muscle memory.
+update-page PORT="8000": (docs-page PORT)
 
 # Checks the DfuSe client against a fake device: command opcodes, data block
 # numbering, the short final block, and what counts as a firmware image at all.
@@ -261,7 +268,12 @@ docs-shots PORT="8123": wasm
 	@echo "wrote docs/images/web-overview.png, docs/images/web-panel.png"
 
 # Everything that can be checked without hardware or a browser.
-check: test flows wasm-check web-check dfu-check
+#
+# fmt-check is in here rather than left to CI, and that is not tidiness: it was
+# not, and three files reached main unformatted because the only thing that ran
+# it was a job nobody watches until a pull request is open. It costs a fraction
+# of a second against the minutes the rest of this takes.
+check: fmt-check test flows wasm-check web-check dfu-check
 
 # The above plus the two artifacts it does not compile: the firmware and the
 # Rack plugin. Neither needs hardware either - `check` leaves them out because
@@ -305,12 +317,32 @@ build-ci:
 # Core/Inc/Lib come out of tools/. vcv/src is C++ in Rack's tab style and is
 # left to it.
 #
-# clang-format's output moves between major versions; CI pins 18.
-CLANG_FORMAT := env_var_or_default("CLANG_FORMAT", "clang-format")
+# clang-format's output moves between major versions, so the version is part of
+# the format the way the .clang-format file is. 18 is what CI installs; the
+# default here is the versioned binary name rather than the bare one so that
+# both sides agree by construction. A machine whose `clang-format` is 19 would
+# otherwise pass locally and reformat half the tree on the next run.
+FMT_CLANG_MAJOR := "18"
+CLANG_FORMAT := env_var_or_default("CLANG_FORMAT", "clang-format-" + FMT_CLANG_MAJOR)
 FMT_PATHS := "'Core/Src/Lib/*.c' 'Core/Inc/Lib/*.h' 'sim/src/*.c' 'sim/include/*.h' 'tests/*.c' 'tests/*.h' 'tests/fixtures/*' 'tools/*.c' 'tools/*.h'"
 # Generated files. They are formatted by whatever emits them, and a formatter
-# rewriting one only guarantees the next `just wavetable` undoes it.
-FMT_EXCLUDE := "wavetables\\.[ch]|stepped_random_table\\.h"
+# rewriting one only guarantees the next `just wavetable` undoes it. Same for
+# layout_target.h, which tools/gen_layout_asserts.py writes from the firmware
+# ELF and whose header says not to edit it.
+FMT_EXCLUDE := "wavetables\\.[ch]|stepped_random_table\\.h|layout_target\\.h"
+
+# Refuse to run at all on the wrong major version, rather than quietly producing
+# a diff nobody asked for. Both recipes below go through this: a formatter is
+# only useful if everyone's agrees, and "it passed on my machine" is the exact
+# failure this project already hit.
+_fmt-version:
+	@command -v {{CLANG_FORMAT}} >/dev/null 2>&1 || { \
+	  echo "{{CLANG_FORMAT}} not found. Install it (apt install clang-format-{{FMT_CLANG_MAJOR}}),"; \
+	  echo "or point CLANG_FORMAT at a version {{FMT_CLANG_MAJOR}} binary."; exit 1; }
+	@{{CLANG_FORMAT}} --version | grep -qE 'version {{FMT_CLANG_MAJOR}}\.' || { \
+	  echo "wrong clang-format: $({{CLANG_FORMAT}} --version)"; \
+	  echo "this project formats with {{FMT_CLANG_MAJOR}}.x - CI does, and the output differs between majors."; \
+	  exit 1; }
 
 # --cached --others --exclude-standard, not a bare ls-files: a plain listing
 # covers tracked files only, so a file you have just written is silently not
@@ -319,10 +351,10 @@ FMT_EXCLUDE := "wavetables\\.[ch]|stepped_random_table\\.h"
 _fmt-files:
 	@git ls-files --cached --others --exclude-standard {{FMT_PATHS}} | grep -vE '{{FMT_EXCLUDE}}'
 
-fmt:
+fmt: _fmt-version
 	just _fmt-files | xargs {{CLANG_FORMAT}} -i
 
-fmt-check:
+fmt-check: _fmt-version
 	just _fmt-files | xargs {{CLANG_FORMAT}} --dry-run --Werror
 
 # Versioning. VERSION and CHANGELOG.md are driven by commits since the last

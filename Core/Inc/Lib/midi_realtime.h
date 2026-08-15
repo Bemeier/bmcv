@@ -3,9 +3,12 @@
 
 #include <stdint.h>
 
-// What a USB-MIDI transfer means for the clock, with no USB in it - the
-// counterpart to sysex.c, for the four System Real-Time status bytes the
-// clock cares about rather than the one SysEx stream it does.
+// What a USB-MIDI transfer means for the clock, with no USB in it: the four
+// System Real-Time status bytes, and nothing else on the bus.
+//
+// It used to share this endpoint with a SysEx parser carrying everything a host
+// wanted to say to the module. That has moved to the vendor interface - see
+// Core/Inc/Lib/usblink.h - and this is all that reads the MIDI bus now.
 
 #define MIDI_RT_CLOCK 0xF8
 #define MIDI_RT_START 0xFA
@@ -19,9 +22,9 @@ typedef struct
 } MidiRealtimeEvents;
 
 // Feed one USB MIDI OUT transfer: `len` bytes of 4-byte USB-MIDI event
-// packets - the same framing sysex_feed reads. System Real-Time messages are
-// Code Index Number 0xF ("Single Byte") and arrive whole in one packet, so
-// unlike SysEx this needs no state between calls.
+// packets. System Real-Time messages are Code Index Number 0xF ("Single Byte")
+// and arrive whole in one packet, so this needs no state between calls - the
+// one thing that made the SysEx parser this replaced awkward.
 //
 // Only Clock and Start are reported. Continue must not report as Start: it
 // resumes rather than restarts, and reporting it the same way would reset

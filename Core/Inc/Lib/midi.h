@@ -13,7 +13,7 @@
 // be.
 
 // How many messages one transfer carries: a USB-MIDI event packet is four
-// bytes, so the endpoint\'s 64 hold sixteen.
+// bytes, so the endpoint's 64 hold sixteen.
 #define MIDI_MSGS_PER_TRANSFER (MIDI_EPIN_SIZE / 4)
 
 // Wrap `n` messages as USB-MIDI event packets and send them, up to

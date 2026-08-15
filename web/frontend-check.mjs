@@ -77,6 +77,30 @@ function makeNode(tag = 'div') {
           (!attr || r.attrs.has(attr)) && (!cls || r.classList.contains(cls)));
         if (rows.length || attr || cls) return rows;
       }
+      // A bare cell selector reaches across the rows above, which is where the
+      // only cells there are live.
+      if (sel === 'th' || sel === 'td') {
+        return (this._rows ?? []).flatMap(r => (r.children ?? []).filter(c => c.tagName === sel));
+      }
+
+      // A list of bare tag names - "button, input" - collected from this node
+      // and everything under it. It is how a module reaches every control in a
+      // group at once, and without it that query returned one stub and the
+      // group appeared to be empty: a check on what those controls do could
+      // pass while every one of them was missing.
+      const tags = sel.split(',').map(s => s.trim());
+      if (tags.length > 1 && tags.every(t => /^[a-z]+$/.test(t))) {
+        const found = [];
+        const walk = node => {
+          for (const c of [...(node.children ?? []), ...(node._rows ?? [])]) {
+            if (tags.includes(c.tagName)) found.push(c);
+            walk(c);
+          }
+        };
+        walk(this);
+        return found;
+      }
+
       const n = this.byClass(sel);
       return n ? [n] : [];
     },
@@ -117,7 +141,20 @@ function makeNode(tag = 'div') {
         if (!open) continue;
         const row = makeNode('tr');
         for (const [, k, v] of open[1].matchAll(/(data-[\w-]+)="([^"]*)"/g)) row.attrs.set(k, v);
-        row.children = [...chunk.matchAll(/<t[dh][^>]*>/g)].map(() => makeNode('td'));
+
+        // Tag and class carried through, not just a count. The header cells
+        // carry the column widths in their class, so a check that the built
+        // table and the static skeleton agree about those needs to be able to
+        // see them - and a parser that flattened every cell to a classless
+        // <td> reported them as absent, which is indistinguishable from the
+        // bug it was meant to catch.
+        row.children = [...chunk.matchAll(/<(t[dh])([^>]*)>/g)].map(([, tag, attrs]) => {
+          const cell = makeNode(tag);
+          const cls = attrs.match(/class="([^"]*)"/)?.[1] ?? '';
+          if (cls) cell.setAttribute('class', cls);
+          for (const c of cls.split(/\s+/).filter(Boolean)) cell.classList.add(c);
+          return cell;
+        });
         node._rows.push(row);
       }
 
@@ -255,25 +292,43 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
 
 /* ---- the scopes show a span of time, not a count of samples --------------- */
 
-// The buffer is filled by the engine at 4kHz and by a debug probe at ~30Hz, and
+// The buffer is filled by the engine at 4kHz and by a link at tens of hertz, and
 // a cell that draws a fixed number of samples therefore shows two spans that
 // differ by a factor of a hundred - which is what it used to do, silently.
+//
+// And the span is now one number for every source, so what is checked is that
+// the seconds come out the same whatever is filling the ring. It was two
+// numbers, and the same cell at the same width showed 375ms of simulation
+// against two seconds of hardware.
 {
-  const { mode, SIM, USB } = await import('./mode.js');
+  const { mode, SIM, USB, PROBE } = await import('./mode.js');
   const { drawScopes, spanSamples } = await import('./scope.js');
+  const { SCOPE_SECONDS } = await import('./const.js');
+  const { SCOPE_LEN } = await import('./sim.js');
 
+  const seconds = () => spanSamples() / mode.captureHz;
+
+  for (const [what, drive] of [
+    ['the simulation', () => mode.drivenBy(SIM)],
+    ['a module at 90/s', () => mode.drivenBy(USB, 90)],
+    ['a probe at 30/s', () => mode.drivenBy(PROBE, 30)],
+    ['a slow link at 10/s', () => mode.drivenBy(USB, 10)],
+  ]) {
+    drive();
+    check(Math.abs(seconds() - SCOPE_SECONDS) < 0.02,
+      `${what} draws ${SCOPE_SECONDS}s (${seconds().toFixed(3)}s, ${spanSamples()} samples)`);
+  }
+
+  // The simulation is the one source that can ask for more history than the
+  // ring holds, because it is the only one whose rate this page controls: at
+  // one sample per engine tick a two-second window wants 8000 of 4096 frames.
+  // The wasm decimates to make it fit, and a clamped span here would mean that
+  // decimation had stopped being enough - a window silently shorter than the
+  // one every other source draws.
   mode.drivenBy(SIM);
-  check(spanSamples() === 1500, `the simulator draws 375ms of ticks (${spanSamples()} samples)`);
+  check(spanSamples() < SCOPE_LEN,
+    `and the simulation's window fits the ring unclamped (${spanSamples()} of ${SCOPE_LEN})`);
 
-  mode.drivenBy(USB, 30);
-  check(spanSamples() === 60, `a probe at 30/s draws two seconds (${spanSamples()} samples)`);
-
-  // The rate is measured, so the window has to follow it rather than a constant.
-  mode.drivenBy(USB, 10);
-  check(spanSamples() === 20, `and follows the measured rate (${spanSamples()} samples)`);
-
-  mode.drivenBy(SIM);
-  check(spanSamples() === 1500, 'and disconnecting puts the span back');
   drawScopes();
 
   // The probe hands its sample count over as it disconnects, and the simulator
@@ -333,6 +388,136 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   // failure is permanent.
   const ui = readFileSync(new URL('probe/ui.js', import.meta.url), 'utf8');
   check(/\.finally\(/.test(ui), 'switching releases its lock in a finally');
+
+  // Giving up the source being left must not be able to stop the one being
+  // taken. A close that throws used to reject the switch before it connected,
+  // leaving the page on the simulation with a button that looked dead.
+  check(/catch\b[^\n]*\{[^}]*\}/.test(ui.slice(ui.indexOf('for (const other of'))),
+    'a failing disconnect cannot abort the switch');
+}
+
+/* ---- the input controls are inert while a module is driving -------------- */
+
+// They drive the simulation and nothing else: a page cannot put a voltage into
+// a physical jack, and runTicks is not even called when a module is on.
+//
+// The disabled attribute rather than CSS, and checked here because the CSS way
+// silently stopped working: the stylesheet turned pointer-events off on the
+// group, the controls turn it back on for themselves - they sit over a canvas
+// that takes drags - and the more specific rule won. What that left was a row
+// that looked unavailable and took clicks and typing anyway.
+{
+  const { mode, SIM, USB } = await import('./mode.js');
+  const controls = [...document.getElementById('in-controls').querySelectorAll('button, input')];
+
+  check(controls.length >= 4, `the input overlay has controls to disable (${controls.length})`);
+
+  mode.drivenBy(USB, 90, 100);
+  const live = controls.filter(c => c.disabled).length;
+  check(live === controls.length, `all of them go dead when a module drives (${live}/${controls.length})`);
+
+  mode.drivenBy(SIM);
+  const back = controls.filter(c => !c.disabled).length;
+  check(back === controls.length, `and come back for the simulation (${back}/${controls.length})`);
+}
+
+/* ---- the diagnostics clock counts the beat the way the module does ------- */
+
+// The one number in that tool that can be wrong without anything failing: send
+// 24 clocks to the beat where the module counts 4, and it reports six times the
+// tempo; send 4 where it counts 24 and it reports a sixth. Either reads as "the
+// module does not follow MIDI clock", which is what the tool exists to rule out.
+//
+// Read from both sides rather than restated here. The firmware's copy is the
+// one that decides.
+{
+  const js = readFileSync(new URL('diagnostics/diagnostics.js', import.meta.url), 'utf8');
+  const h = readFileSync(new URL('../Core/Inc/Lib/clock_sync.h', import.meta.url), 'utf8');
+
+  const tool = +(js.match(/const MIDI_CLOCKS_PER_BEAT = (\d+)/) ?? [])[1];
+  const firmware = +(h.match(/#define CLOCK_PULSES_PER_BEAT_MIDI (\d+)u?/) ?? [])[1];
+
+  check(firmware === 24, `the firmware counts ${firmware} midi clocks to the beat`);
+  check(tool === firmware, `and the diagnostics clock sends that many (${tool})`);
+
+  // And the rate that works out to, which is what someone reads off the tool
+  // and compares with the module: 69bpm is 27.6 clocks a second.
+  const perSecond = 69 * tool / 60;
+  check(Math.abs(perSecond - 27.6) < 0.01, `so 69bpm is ${perSecond.toFixed(1)} clocks/s`);
+}
+
+/* ---- every page can reach every other ------------------------------------ */
+
+// The menu is static markup, repeated once per page, because the one page that
+// must never fail is the updater and a nav built by script is one more thing
+// that can not run. Repeated markup drifts, though - four files, and adding a
+// fifth page means remembering all of them - so what is checked is that the
+// four agree about where they can go, and that each marks itself as the one you
+// are on.
+{
+  const pages = {
+    'index.html': '',
+    'manual/index.html': 'manual/',
+    'update/index.html': 'update/',
+    'diagnostics/index.html': 'diagnostics/',
+  };
+
+  let shared = null;
+  for (const [file, dir] of Object.entries(pages)) {
+    const html = readFileSync(new URL(file, import.meta.url), 'utf8');
+    const menu = html.slice(html.indexOf('<details class="pages"'), html.indexOf('</details>'));
+
+    // Resolved against the page's own directory, so "../manual/" from the
+    // updater and "manual/" from the simulator compare as the same place.
+    const base = new URL(dir, 'https://x/');
+    const targets = [...menu.matchAll(/href="([^"]+)"/g)]
+      .map(m => new URL(m[1], base).href).sort();
+
+    check(targets.length === 5, `${file} lists five destinations (${targets.length})`);
+
+    shared ??= targets;
+    check(targets.join() === shared.join(),
+      `and ${file} agrees with the others about where they are`);
+
+    const current = [...menu.matchAll(/aria-current/g)].length;
+    check(current === 1, `and marks exactly one of them as itself (${current})`);
+  }
+}
+
+/* ---- the pages that are not the simulator load without it ---------------- */
+
+// The updater and the diagnostics page talk to a module and simulate none, and
+// both must load on a tree that has never built the wasm: bmcv.js and bmcv.wasm
+// are build output, and sim.js instantiates them at module scope. An import
+// reaching sim.js from either page is not a slow page, it is a page that does
+// not run at all - and for the updater that is the thing that recovers a module
+// whose firmware is broken.
+//
+// Walked rather than grepped, because the import that did this was two hops
+// away: update.js -> probe/usblink.js -> sim.js.
+{
+  const reaches = entry => {
+    const seen = new Set();
+    const walk = (url, chain) => {
+      if (seen.has(url.href)) return null;
+      seen.add(url.href);
+      const src = readFileSync(url, 'utf8');
+      for (const [, spec] of src.matchAll(/from\s+['"](\.[^'"]+)['"]/g)) {
+        const next = new URL(spec, url);
+        const step = [...chain, spec.split('/').pop()];
+        if (next.pathname.endsWith('/sim.js')) return step.join(' -> ');
+        const deeper = walk(next, step);
+        if (deeper) return deeper;
+      }
+      return null;
+    };
+    return walk(new URL(entry, import.meta.url), [entry]);
+  };
+
+  for (const entry of ['update/update.js', 'diagnostics/diagnostics.js']) {
+    const path = reaches(entry);
+    check(!path, `${entry} loads without the wasm${path ? ` (${path})` : ''}`);
+  }
 }
 
 /* ---- the page has a shape before it has any numbers ---------------------- */
@@ -351,7 +536,7 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
     const html = readFileSync(new URL('index.html', import.meta.url), 'utf8');
     const table = html.slice(html.indexOf('<table id="params">'), html.indexOf('</table>'));
     const rows = [...table.matchAll(/<tr>/g)].length;
-    const headers = [...table.matchAll(/<th>/g)].length;
+    const headers = [...table.matchAll(/<th\b/g)].length;
     const firstRowCells = (table.match(/<tr><td>0<\/td>(?:<td>[^<]*<\/td>)*<\/tr>/) ?? [''])[0];
     const cells = [...firstRowCells.matchAll(/<td>/g)].length;
 
@@ -361,6 +546,22 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
     check(headers === cells, `and as many headers as cells (${headers} vs ${cells})`);
     check(built.length > 0 && built[0].children.length === cells,
       `and the same cell count readouts.js builds (${built[0]?.children.length} vs ${cells})`);
+
+    // The header classes carry the column widths, so the skeleton having a
+    // different set from the built table is a table that re-proportions itself
+    // the moment the wasm lands - a jump, which is the one thing the skeleton
+    // exists to prevent.
+    const staticCols = [...table.matchAll(/<th class="(c-[\w-]+)"/g)].map(m => m[1]);
+    const builtCols = [...document.getElementById('params').querySelectorAll('th')]
+      .map(th => th.getAttribute('class')).filter(Boolean);
+    check(staticCols.length > 0 && staticCols.join(',') === builtCols.join(','),
+      `and the same column classes (static ${staticCols.join(',')} / built ${builtCols.join(',')})`);
+
+    // Every one of those classes wants a width, or a column named in the
+    // skeleton is sized by whatever is left over.
+    const cssSrc = readFileSync(new URL('style.css', import.meta.url), 'utf8');
+    const sized = staticCols.filter(c => new RegExp(`#params \\.${c}\\s*\\{[^}]*width:`).test(cssSrc));
+    check(sized.length >= 3, `and three of them are given widths (${sized.join(',') || 'none'})`);
   }
 
   const css = readFileSync(new URL('style.css', import.meta.url), 'utf8');
@@ -1030,12 +1231,28 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   check(AMP_MODE_NAMES.length >= 3 && AMP_MODE_NAMES.includes('mult'),
     `amp mode names came from the firmware (${AMP_MODE_NAMES.join(',')})`);
 
-  // Every input mode has a colour, or a jack in that mode is drawn in whatever
-  // the last one happened to leave behind.
-  const { INPUT_MODE_COLORS } = await import('./const.js');
-  check(INPUT_MODE_COLORS.length === modes.length,
-    `every input mode has a colour (${INPUT_MODE_COLORS.length} for ${modes.length} modes)`);
-  check(INPUT_MODE_COLORS.every(c => /^#[0-9a-f]{6}$/i.test(c)), 'and each is a colour');
+  // Every mode has a colour, or something in that mode is labelled in whatever
+  // the last one happened to leave behind. Both tables are indexed by a mode
+  // the firmware chose, so a mode added to the core without a colour here is a
+  // blank label rather than an error.
+  const { INPUT_MODE_COLORS, SHAPE_MODE_COLORS } = await import('./const.js');
+  const { SHAPE_NAMES } = await import('./sim.js');
+
+  for (const [what, colors, names] of [
+    ['input', INPUT_MODE_COLORS, modes],
+    ['shape', SHAPE_MODE_COLORS, SHAPE_NAMES],
+  ]) {
+    check(colors.length === names.length,
+      `every ${what} mode has a colour (${colors.length} for ${names.length} modes)`);
+    check(colors.every(c => /^#[0-9a-f]{6}$/i.test(c)), `and each ${what} one is a colour`);
+  }
+
+  // The two share the module's four state hues on purpose - see const.js. An
+  // input set to CLOCK and a channel set to PWM are the same colour because
+  // both are about discrete events, and that correspondence is the whole reason
+  // the colours are worth anything.
+  check(SHAPE_MODE_COLORS.every(c => INPUT_MODE_COLORS.includes(c)),
+    'and the shapes reuse the hues the inputs use');
 }
 
 /* ---- every hoverable part of the panel says what it does ------------------ */
