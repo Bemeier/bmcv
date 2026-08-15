@@ -15,6 +15,37 @@ static const float US_TO_S = 1e-6f;
 #define MS(x) ((uint32_t) ((x) * 1000u))
 #define S(x) ((uint32_t) ((x) * 1000000u))
 
+// A standing request from an interrupt to the main loop: "there is work".
+//
+// The flag is set in interrupt context and consumed in the loop, which makes
+// the obvious `if (flag) { do_work(); flag = 0; }` wrong twice over.
+//
+// It loses requests. An interrupt that fires between the test and the store -
+// or, worse, during do_work() - sets a flag the store then wipes, so that
+// event is simply dropped. On the encoder expander that reads as an input the
+// module never saw; the periodic re-arm hides it by making the loss a latency
+// spike rather than a stuck control, which is why it survived so long.
+//
+// And it is not required to reload the flag at all. A plain global written only
+// by code the compiler cannot see is one it may keep in a register; today's
+// build happens to reload it, which is luck rather than a guarantee, and the
+// first time this is built with LTO or the loop is inlined into main() it
+// becomes a hang.
+//
+// So: volatile for the reload, an exchange for the consume, and take it
+// *before* the work rather than after, so a request arriving while the work
+// runs is still standing when the loop comes round again.
+typedef volatile uint8_t IsrFlag;
+
+static inline void isr_flag_set(IsrFlag* f) { __atomic_store_n(f, 1u, __ATOMIC_RELEASE); }
+
+// Consume, and say whether there was anything to consume.
+static inline uint8_t isr_flag_take(IsrFlag* f) { return __atomic_exchange_n(f, 0u, __ATOMIC_ACQ_REL); }
+
+// Is one standing? Does not consume - for a caller that has to check a second
+// condition before committing to the work.
+static inline uint8_t isr_flag_peek(const IsrFlag* f) { return __atomic_load_n(f, __ATOMIC_ACQUIRE); }
+
 // A loop's rate in Hz, smoothed, from the interval between two of its passes.
 //
 // One implementation because there are three of these - the engine tick, the

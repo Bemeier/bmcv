@@ -25,11 +25,19 @@ static uint16_t mpc_interrupt_pin;
 static ADC_TypeDef* slider_adc;
 static volatile uint16_t slider_adc_value;
 
-// Task scheduler
+// Task scheduler.
+//
+// The three polls are requests raised in interrupt context - TIM4 for the LED
+// flush and the periodic MCP re-arm, EXTI for an expander interrupt, the SPI
+// DMA completion for the DAC - and consumed here in the main loop. See IsrFlag
+// in helpers.h for why that cannot be a plain uint8_t.
+//
+// `task` is not one of them: it is read and written only inside
+// bmcv_poll_tasks(), which is entirely TIM4's, so it never crosses a context.
 static uint8_t task     = 0;
-static uint8_t dac_poll = 1;
-static uint8_t mcp_poll = 0;
-static uint8_t led_poll = 0;
+static IsrFlag dac_poll = 1;
+static IsrFlag mcp_poll = 0;
+static IsrFlag led_poll = 0;
 
 // The module. One struct holding config, signal path, interaction state, the
 // input layer and the wiring between them - see instance.h. The firmware has
@@ -156,7 +164,7 @@ void bmcv_handle_gpio_exti(uint16_t GPIO_Pin)
 {
   if (GPIO_Pin == mpc_interrupt_pin || GPIO_Pin == 0)
   {
-    mcp_poll = 1;
+    isr_flag_set(&mcp_poll);
   }
 }
 
@@ -166,18 +174,18 @@ void bmcv_handle_txrx_complete(SPI_HandleTypeDef* hspi)
 
   if (dacadc_dma_complete(hspi))
   {
-    dac_poll = 1;
+    isr_flag_set(&dac_poll);
   }
 }
 
 void bmcv_poll_tasks()
 {
-  task     = task + 1;
-  led_poll = 1;
+  task = task + 1;
+  isr_flag_set(&led_poll);
 
   if (task == 1)
   {
-    mcp_poll = 1;
+    isr_flag_set(&mcp_poll);
   }
   else if (task >= 3)
   {
@@ -290,9 +298,12 @@ void bmcv_main(uint32_t now_us)
   /* ---- hardware in ------------------------------------------------ */
   // Every pass: both are event-driven, and a DMA completion should be picked up
   // when it lands rather than at the next engine tick.
-  if ((dac_poll == 1 || dacadc_error()) && (uint32_t) (now_us - last_dac_poll) >= DAC_CHUNK_US)
+  if ((isr_flag_peek(&dac_poll) || dacadc_error()) && (uint32_t) (now_us - last_dac_poll) >= DAC_CHUNK_US)
   {
-    dac_poll = 0;
+    // Consumed before the work, not after it: a completion landing while the
+    // frame below is being armed is a request for the *next* chunk, and
+    // clearing afterwards would throw it away.
+    isr_flag_take(&dac_poll);
     // Immediately before the frame is armed, so the levels it carries are the
     // ones interpolated for this instant rather than for the last tick.
     dac_write_interpolated(now_us);
@@ -301,10 +312,16 @@ void bmcv_main(uint32_t now_us)
     last_dac_poll             = now_us;
   }
 
-  if (mcp_poll == 1 && mcp_read())
+  // Taken before mcp_read() rather than cleared after it. An expander interrupt
+  // arriving during the read is a *new* set of edges, and the old clear-after
+  // wiped it - a button or detent the module never saw. Put back if the read
+  // could not start, so the request survives a busy SPI.
+  if (isr_flag_take(&mcp_poll))
   {
-    mcp_poll = 0;
-    mcu_read_buttons();
+    if (mcp_read())
+      mcu_read_buttons();
+    else
+      isr_flag_set(&mcp_poll);
   }
 
   /* ---- pure engine, on a fixed period ----------------------------- */
@@ -435,9 +452,9 @@ void bmcv_main(uint32_t now_us)
   // internally consistent.
   usblink_poll(&bmcv);
 
-  if (led_poll && ws2811_dma_completed())
+  if (isr_flag_peek(&led_poll) && ws2811_dma_completed())
   {
-    led_poll = 0;
+    isr_flag_take(&led_poll);
     bmcv_flush_leds();
     ws2811_update();
     bmcv.engine_state.led_fps = rate_smooth_hz(bmcv.engine_state.led_fps, now_us - last_led_flush);
