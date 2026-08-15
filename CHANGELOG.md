@@ -1,5 +1,66 @@
 # Changelog
 
+## v0.11.0 (2026-08-15)
+
+### BREAKING CHANGE
+
+- SlotStore holds raw EngineConfigs, so the simulator's storage
+blob shrinks from 6400 to 5920 bytes. web/storage.js rejects a blob of the wrong
+length and the Rack plugin drops the slot, so a saved browser patch and any
+stored Rack presets are lost once, and come back as the first-boot defaults.
+
+### Feat
+
+- **web**: a manual, a menu on every page, and one stylesheet behind all four
+- **sim**: one scope window for every source, and a ring that forgets
+- **web**: the panel documents itself, and the page says what it is
+- **web**: a panel that stays readable while you cross it
+- **web**: make the panel explain itself
+- **web**: set an input's level by pointing at its trace
+- **web**: say what an input is for in the colour the module says it in
+- **web**: one hover colour, a table that is there on arrival, and a version to ask for
+- **web**: a page with a shape before it has numbers
+- **web**: pick a source, and a keyboard that scales
+- **web**: read the scopes without having to remember anything
+- **web**: stack the scopes, and show what the module is configured as
+- carry the module over WebUSB, and delete the SysEx layer
+- **usb**: a second interface, for a browser to claim
+- **usb**: the descriptors that get a browser to the module with no driver
+- **core**: let a host reset a module and forget its storage
+- **midi**: drive and watch a module over its own USB port
+- **input**: let a host drive a module it did not build
+- **web**: show a physical module on the simulator page
+- **leds**: lift a dim mixed hue to where its dies behave
+- **probe**: publish where the module keeps its state
+- **sim**: adopt a whole module as bytes
+
+### Fix
+
+- **web**: the updater must load without a simulator build
+- **usb**: let a second browser session reach a module the first left mid-frame
+- **web**: hover promises the colour the button is about to wear
+- **web**: the scale drew outside its box at wide widths
+- **web**: a usb connect that can fail, so that it can be retried
+- **web**: one live link at a time, and a switch that looks like one
+- **web**: a readable keyboard, brackets that mark something, and a first connect that holds
+- **input**: a rebuilt instance is a position, not a gesture
+- **midi**: say when the browser is holding a port that no longer reaches anything
+- **midi**: remove the watchdog that made the module answer nothing
+- **midi**: open the ports before using them, and add a raw bus monitor
+- **midi**: keep the module findable, and unwedge its endpoint
+- **midi**: stop control changes landing inside a snapshot
+- **sysex**: report every message in a transfer, not just the first
+- **midi**: let the page pace the module instead of the other way round
+- **midi**: find the module by asking it, not by reading its label
+- **build**: make a version bump reach the firmware
+
+### Refactor
+
+- MON becomes MIX
+- **web**: three sources, one session, and resets that reach the module
+- retire the throughput spike, and fix the update page's port lookup
+- **config**: store every mode as int8_t so the four builds agree
+
 ## v0.10.0 (2026-08-13)
 
 ### Feat
