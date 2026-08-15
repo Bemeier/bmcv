@@ -66,9 +66,9 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "usbd_midi.h"
-#include "usbd_webusb.h"
 #include "usbd_ctlreq.h"
 #include "usbd_desc.h"
+#include "usbd_webusb.h"
 
 /** @addtogroup STM32_USB_OTG_DEVICE_LIBRARY
  * @{
@@ -150,14 +150,13 @@ USBD_ClassTypeDef USBD_MIDI = {
    the host reads to the end and finds garbage in. Written out, the compiler
    counts it and the assert checks the count. */
 __ALIGN_BEGIN static uint8_t USBD_MIDI_CfgDesc[] __ALIGN_END = {
-    0x09,                            /* bLength: Configuration Descriptor size */
-    USB_DESC_TYPE_CONFIGURATION,     /* bDescriptorType: Configuration */
-    LOBYTE(USB_BMCV_CONFIG_DESC_SIZE), HIBYTE(USB_BMCV_CONFIG_DESC_SIZE),
-    0x02,                            /*bNumInterfaces: MIDI, and the vendor interface*/
-    0x01,                            /*bConfigurationValue: ID of this configuration. */
-    0x00,                            /*iConfiguration: Index of string descriptor describing the configuration (Unused.)*/
-    0x80,                            /*bmAttributes: Bus Powered device, not Self Powered, no Remote wakeup capability. */
-    0xFA,                            /*MaxPower 500 mA: this current is used for detecting Vbus*/
+    0x09,                                                                       /* bLength: Configuration Descriptor size */
+    USB_DESC_TYPE_CONFIGURATION,                                                /* bDescriptorType: Configuration */
+    LOBYTE(USB_BMCV_CONFIG_DESC_SIZE), HIBYTE(USB_BMCV_CONFIG_DESC_SIZE), 0x02, /*bNumInterfaces: MIDI, and the vendor interface*/
+    0x01,                                                                       /*bConfigurationValue: ID of this configuration. */
+    0x00, /*iConfiguration: Index of string descriptor describing the configuration (Unused.)*/
+    0x80, /*bmAttributes: Bus Powered device, not Self Powered, no Remote wakeup capability. */
+    0xFA, /*MaxPower 500 mA: this current is used for detecting Vbus*/
 
     /************** MIDI Adapter Standard MS Interface Descriptor ****************/
     0x09,                    /*bLength: Interface Descriptor size*/
@@ -609,28 +608,26 @@ __ALIGN_BEGIN static uint8_t USBD_MIDI_CfgDesc[] __ALIGN_END = {
     0x00,                    /*iInterface: Unused*/
 
     /* Bulk IN: snapshots out of the module. */
-    0x07,                          /*bLength*/
-    USB_DESC_TYPE_ENDPOINT,        /*bDescriptorType*/
-    BMCV_VENDOR_EPIN_ADDR,         /*bEndpointAddress*/
-    0x02,                          /*bmAttributes: Bulk*/
-    BMCV_VENDOR_EP_SIZE, 0x00,     /*wMaxPacketSize*/
-    0x00,                          /*bInterval: ignored for bulk*/
+    0x07,                      /*bLength*/
+    USB_DESC_TYPE_ENDPOINT,    /*bDescriptorType*/
+    BMCV_VENDOR_EPIN_ADDR,     /*bEndpointAddress*/
+    0x02,                      /*bmAttributes: Bulk*/
+    BMCV_VENDOR_EP_SIZE, 0x00, /*wMaxPacketSize*/
+    0x00,                      /*bInterval: ignored for bulk*/
 
     /* Bulk OUT: requests and the input mailbox, into the module. */
-    0x07,                          /*bLength*/
-    USB_DESC_TYPE_ENDPOINT,        /*bDescriptorType*/
-    BMCV_VENDOR_EPOUT_ADDR,        /*bEndpointAddress*/
-    0x02,                          /*bmAttributes: Bulk*/
-    BMCV_VENDOR_EP_SIZE, 0x00,     /*wMaxPacketSize*/
-    0x00,                          /*bInterval: ignored for bulk*/
+    0x07,                      /*bLength*/
+    USB_DESC_TYPE_ENDPOINT,    /*bDescriptorType*/
+    BMCV_VENDOR_EPOUT_ADDR,    /*bEndpointAddress*/
+    0x02,                      /*bmAttributes: Bulk*/
+    BMCV_VENDOR_EP_SIZE, 0x00, /*wMaxPacketSize*/
+    0x00,                      /*bInterval: ignored for bulk*/
 };
 
 /* The one thing a compiler can check here: that what was written out is the
    length the descriptor claims. Everything else about it is the host's
    opinion. */
-_Static_assert(sizeof(USBD_MIDI_CfgDesc) == USB_BMCV_CONFIG_DESC_SIZE,
-               "the configuration descriptor is not the length it advertises");
-
+_Static_assert(sizeof(USBD_MIDI_CfgDesc) == USB_BMCV_CONFIG_DESC_SIZE, "the configuration descriptor is not the length it advertises");
 
 /* USB Standard Device Descriptor */
 __ALIGN_BEGIN static uint8_t USBD_MIDI_DeviceQualifierDesc[USB_LEN_DEV_QUALIFIER_DESC] __ALIGN_END = {
@@ -729,9 +726,16 @@ static uint8_t USBD_MIDI_Setup(USBD_HandleTypeDef* pdev, USBD_SetupReqTypedef* r
        published the request code - see usbd_webusb.c. */
     if (req->bRequest == BMCV_MSOS20_VENDOR_CODE && req->wIndex == BMCV_MSOS20_DESCRIPTOR_INDEX)
     {
-      uint16_t set_len   = 0;
-      uint8_t* set       = (uint8_t*) bmcv_msos20_descriptor(&set_len);
+      uint16_t set_len = 0;
+      uint8_t* set     = (uint8_t*) bmcv_msos20_descriptor(&set_len);
       USBD_CtlSendData(pdev, set, MIN(set_len, req->wLength));
+      break;
+    }
+    if (req->bRequest == BMCV_REQ_VERSION)
+    {
+      uint16_t len = 0;
+      uint8_t* v   = (uint8_t*) USBD_BMCV_Version(&len);
+      USBD_CtlSendData(pdev, v, MIN(len, req->wLength));
       break;
     }
     USBD_CtlError(pdev, req);
@@ -913,6 +917,16 @@ static uint8_t USBD_MIDI_DataOut(USBD_HandleTypeDef* pdev, uint8_t epnum)
 /**
  * @brief  One transfer received on the vendor interface. Overridden in Core.
  */
+/**
+ * @brief  The firmware version, as a NUL-terminated string. Overridden in Core,
+ *         which is where the build's version number is.
+ */
+__weak const char* USBD_BMCV_Version(uint16_t* length)
+{
+  *length = 1;
+  return "";
+}
+
 __weak void USBD_BMCV_VendorDataIn(void) {}
 
 /**

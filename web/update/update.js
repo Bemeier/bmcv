@@ -8,7 +8,7 @@
 
 import { requestDfuDevice, describeImageProblem, FLASH_START, DfuError } from './dfuse.js';
 
-import { usblink, BMCV_VID, BMCV_PID } from '../probe/usblink.js';
+import { usblink, readVersion, BMCV_VID, BMCV_PID } from '../probe/usblink.js';
 
 // F0 7D 42 4D <cmd> F7 - see Core/Inc/Lib/sysex.h. 0x7D is the non-commercial
 // manufacturer ID; 'B','M' after it is what keeps this from colliding with
@@ -77,12 +77,19 @@ async function connectModule() {
     if (!device.configuration) await device.selectConfiguration(1);
     await device.claimInterface(1);
 
+    // What it is running, so the version about to be written can be compared
+    // with the version being replaced. This came back with the move to WebUSB:
+    // the page used to read it over SysEx and lost the ability when that went.
+    const version = await readVersion(device).catch(() => null);
+
     moduleDevice = device;
     ui.btnReboot.disabled = false;
     ui.btnConnect.textContent = 'Connected';
     ui.btnConnect.disabled = true;
-    setStatus(ui.moduleStatus, `connected to ${device.productName || 'BMCV'}`, 'good');
-    log(`Module connected over USB${device.serialNumber ? `, serial ${device.serialNumber}` : ''}.`);
+    setStatus(ui.moduleStatus, version ? `connected, running ${version}` : 'connected', 'good');
+    log(version
+      ? `Module connected over USB, firmware ${version}.`
+      : 'Module connected over USB. It did not report a version, which older firmware will not.');
   } catch (err) {
     ui.btnReboot.disabled = true;
     setStatus(ui.moduleStatus, 'module not found', 'warn');

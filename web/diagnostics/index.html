@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>BMCV — USB link diagnostics</title>
+<title>BMCV — diagnostics</title>
 <link rel="stylesheet" href="../style.css">
 <style>
   body { max-width: 46rem; margin: 0 auto; padding: 2rem 1.5rem; }
@@ -21,7 +21,7 @@
 </head>
 <body>
 
-<h1>USB link diagnostics</h1>
+<h1>Diagnostics</h1>
 
 <p class="lede">
   <strong>Measure the snapshot rate</strong> asks for whole module snapshots the
@@ -31,21 +31,22 @@
 </p>
 
 <p class="lede">
-  <strong>Check WebUSB</strong> asks whether this browser can reach the module
-  directly, without going through MIDI at all. Pick the BMCV from the list it
-  offers. If it can claim the module's vendor interface, Windows bound WinUSB to
-  it and the WebUSB route is available.
+  <strong>Inspect the device</strong> reports what this browser can see of the
+  module: its interfaces and endpoints, whether the vendor interface can be
+  claimed - which is what says the driver bound correctly - and what firmware it
+  is running. Pick the BMCV from the list it offers.
 </p>
 
 
 <p class="lede">
-  Nothing is written to the module and nothing is stored. The module streams
-  only while this page keeps asking, so closing the tab stops it.
+  Nothing here changes the module: no reset, no stored preset touched, nothing
+  written but requests for what it is already doing. The module streams only
+  while this page keeps asking, so closing the tab stops it.
 </p>
 
 <p>
+  <button id="run-webusb" type="button">inspect the device</button>
   <button id="run-snapshots" type="button">measure the snapshot rate</button>
-  <button id="run-webusb" type="button">check WebUSB</button>
   <span id="status" class="muted">starting up</span>
 </p>
 
@@ -54,6 +55,6 @@
 
 <div id="log"></div>
 
-<script type="module" src="./bench.js"></script>
+<script type="module" src="./diagnostics.js"></script>
 </body>
 </html>

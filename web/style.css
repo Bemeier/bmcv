@@ -34,6 +34,13 @@
   --muted: #8b929d;
   --accent: #6fc3ff;
 
+  /* One hover colour for every button on the page. Buttons are otherwise
+     colourless unless they carry a meaning of their own, so hover is the only
+     thing that has to read as "this one, now" - and it says that best by being
+     the same everywhere rather than by being each button's own colour. */
+  --hover: #c0a3ff;
+  --danger: #e8705f;
+
   /* One colour per source, used by both the buttons that pick it and the
      readout that reports it - so the two cannot appear to disagree about which
      one the page is on.
@@ -42,9 +49,9 @@
      which is the one thing here worth hesitating over. Deliberately not the
      warn amber, which on this page already means something has gone wrong
      rather than something is selected. */
-  --src-sim: #e8705f;
+  --src-sim: var(--danger);
   --src-usb: #6fc3ff;
-  --src-probe: #c0a3ff;
+  --src-probe: #7fd8c0;
 
   /* The quantizer's keyboard. Off is one translucent grey whatever the key is;
      on is opaque, and only then does it matter which kind of key it was. */
@@ -539,19 +546,17 @@ button {
    and an id selector outranks `button:disabled:hover` however that rule is
    written - so Reset FRAM went on lighting up amber while it was out of
    service, offering to do something it would refuse. */
-button:not(:disabled):hover { color: var(--accent); border-color: var(--accent); }
+button:not(:disabled):hover { color: var(--hover); border-color: var(--hover); }
 
-/* The primary action, and the only filled control on the page. */
-#connect-usb {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #06090c;
-}
-#connect-usb:not(:disabled):hover { background: #93d4ff; border-color: #93d4ff; color: #06090c; }
+/* Two exceptions, and both are exceptions for the same reason: they are the
+   only buttons here that change the module rather than the page, so they carry
+   what they do rather than waiting to be hovered. Amber for the one that can be
+   undone by playing, red for the one that cannot be undone at all.
 
-/* Wiping the preset store is the one thing here that cannot be undone, so it
-   warns on approach rather than looking like its neighbour. */
-#reset-fram:not(:disabled):hover { color: var(--warn); border-color: var(--warn); }
+   They keep the shared hover, so hovering still says "this is the control you
+   are about to use" in the same voice everywhere. */
+#reset { color: var(--warn); border-color: var(--warn); }
+#reset-fram { color: var(--danger); border-color: var(--danger); }
 
 button:disabled { opacity: .35; cursor: default; }
 
@@ -674,18 +679,14 @@ body.live #in-controls { display: none; }
 .sources { display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; }
 .src { padding: .55rem 1rem; }
 
-/* Outline and text in the source's colour, over nothing. The current source is
-   the disabled one and keeps a solid outline rather than fading, because it is
-   not unavailable - it is where you already are. */
-.src {
-  background: transparent;
-  border: 1px solid currentColor;
-}
-.src-sim { color: var(--src-sim); }
-.src-usb { color: var(--src-usb); }
-.src-probe { color: var(--src-probe); }
-
-.src:not(:disabled):hover { background: rgba(255, 255, 255, .06); }
+/* Quiet like every other button until it is the one the page is on. A row of
+   three permanently coloured buttons said "three things are happening"; only
+   one ever is. */
+.src { background: transparent; }
+.src.active { border-color: currentColor; }
+.src-sim.active { color: var(--src-sim); }
+.src-usb.active { color: var(--src-usb); }
+.src-probe.active { color: var(--src-probe); }
 
 /* Beats the page's own rule for a disabled button, which dims it to 35% - right
    for a button that cannot be used, wrong for one that is already doing its
@@ -697,7 +698,7 @@ body.live #in-controls { display: none; }
    which two happen to be clickable. */
 .src-sim.active { background: rgba(232, 112, 95, .18); }
 .src-usb.active { background: rgba(111, 195, 255, .18); }
-.src-probe.active { background: rgba(192, 163, 255, .18); }
+.src-probe.active { background: rgba(127, 216, 192, .18); }
 
 /* A source this browser cannot reach at all, as opposed to one it is already
    on. The only other reason one of these is disabled. */

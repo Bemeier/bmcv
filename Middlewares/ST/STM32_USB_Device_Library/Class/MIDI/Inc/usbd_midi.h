@@ -183,6 +183,7 @@ uint8_t USBD_MIDI_GetState(USBD_HandleTypeDef* pdev);
    the same arrangement USBD_MIDI_DataInHandler already uses, so the class stays
    free of anything that knows what a BMCV is. */
 void USBD_BMCV_VendorDataOut(uint8_t* data, uint16_t len);
+const char* USBD_BMCV_Version(uint16_t* length);
 void USBD_BMCV_VendorDataIn(void);
 uint8_t USBD_BMCV_VendorSend(USBD_HandleTypeDef* pdev, uint8_t* data, uint16_t len);
 uint8_t USBD_MIDI_GetDeviceState(USBD_HandleTypeDef* pdev);

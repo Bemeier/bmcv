@@ -34,6 +34,27 @@ const EP_OUT = 2;
 export const BMCV_VID = 0x0483;
 export const BMCV_PID = 0x572b;
 
+// Mirrors BMCV_REQ_VERSION in USB_Device/App/usbd_webusb.h.
+const REQ_VERSION = 0x43;
+
+// Ask a module what firmware it is running.
+//
+// A control request, so it works on a device that has only been opened and
+// needs nothing claimed or streaming - which is what the update page wants, and
+// what a diagnostic wants before deciding anything else is worth trying.
+export async function readVersion(device) {
+  const r = await device.controlTransferIn({
+    requestType: 'vendor',
+    recipient: 'interface',
+    request: REQ_VERSION,
+    value: 0,
+    index: VENDOR_INTERFACE,
+  }, 32);
+
+  if (r.status !== 'ok' || !r.data?.byteLength) return null;
+  return new TextDecoder().decode(r.data).replace(/\0.*$/, '');
+}
+
 // One request buys one snapshot, so the page paces the module rather than the
 // other way round. Two outstanding at a time so the endpoint does not idle for
 // a round trip; the firmware caps it at USBLINK_MAX_CREDITS regardless.
@@ -90,6 +111,7 @@ export class UsbLink {
     this.session = new Session(USB, { sendCommand: () => this.#sendCommand() });
 
     this.device = null;
+    this.version = null;
     this.timers = [];
     this.reading = false;
 
@@ -111,9 +133,10 @@ export class UsbLink {
 
   // What to show once it is running.
   get description() {
-    return this.device
-      ? `${this.device.productName || 'BMCV'}, serial ${this.device.serialNumber || 'none'}, no probe attached`
-      : '';
+    if (!this.device) return '';
+    return `${this.device.productName || 'BMCV'}`
+      + `${this.version ? `, firmware ${this.version}` : ''}`
+      + ', over its own cable, no probe attached';
   }
 
   /* ---- connecting -------------------------------------------------------- */
@@ -139,6 +162,8 @@ export class UsbLink {
       }
 
       await this.#openWithRetries();
+
+      this.version = await readVersion(this.device).catch(() => null);
 
       this.session.setStage('');
       this.session.begin();

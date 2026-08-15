@@ -35,6 +35,16 @@
 // wIndex on the request Windows makes for the descriptor set below.
 #define BMCV_MSOS20_DESCRIPTOR_INDEX 0x07
 
+// Ask the module what firmware it is running: a vendor request answered with a
+// NUL-terminated version string.
+//
+// A control request rather than a message on the bulk endpoints, because it is
+// a question about the device rather than part of the stream - and because a
+// short reply sharing an endpoint with 2384-byte snapshots would have to be
+// told apart from one by length, which is the kind of framing this transport
+// exists to avoid.
+#define BMCV_REQ_VERSION 0x43
+
 // Sizes, stated so the descriptors that carry them and the test that checks
 // them are reading the same numbers.
 #define BMCV_BOS_TOTAL_LEN 57

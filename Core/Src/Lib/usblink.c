@@ -2,7 +2,11 @@
 
 #include "stm32g4xx_hal.h" // IWYU pragma: keep
 #include "usbd_midi.h"
+#include "version.h"
 #include <string.h>
+
+#define STRINGIFY_(x) #x
+#define STRINGIFY(x) STRINGIFY_(x)
 
 extern USBD_HandleTypeDef hUsbDeviceFS;
 
@@ -27,6 +31,17 @@ static volatile bool dfu_requested = false;
 // itself and reports completion once, at the end, so this has to sit still for
 // the whole transfer - which is why it is a copy and not the live instance.
 static uint8_t snapshot[sizeof(BmcvInstance)];
+
+// What this build is, for a host that has just found the device and has no
+// other way to ask. The same string the flash descriptor carries for a debug
+// probe - see bmcv_probe.h - reached the other way round.
+const char* USBD_BMCV_Version(uint16_t* length)
+{
+  static const char version[] = STRINGIFY(FW_VERSION_MAJOR) "." STRINGIFY(FW_VERSION_MINOR) "." STRINGIFY(FW_VERSION_PATCH);
+
+  *length = (uint16_t) sizeof(version); // including the terminator
+  return version;
+}
 
 /* ---- what arrives ------------------------------------------------------- */
 

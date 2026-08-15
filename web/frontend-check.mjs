@@ -118,7 +118,11 @@ function makeNode(tag = 'div') {
       // Any tag carrying a data- attribute, not just <div>: the quantizer's
       // keyboard is <path> and <rect> inside an <svg>, and a parser that only
       // knew about divs reported it as empty.
-      for (const [, tag, attrs] of value.matchAll(/<([a-z]+)\s+([^>]*data-[\w-]+="[^"]*"[^>]*?)\/?>/g)) {
+      //
+      // Rows are excluded because the loop above already has them. Without
+      // that, a <tr data-ch> was counted twice and every row-count assertion
+      // quietly saw double.
+      for (const [, tag, attrs] of value.matchAll(/<(?!tr\b)([a-z]+)\s+([^>]*data-[\w-]+="[^"]*"[^>]*?)\/?>/g)) {
         const block = makeNode(tag);
         for (const [, k, v] of attrs.matchAll(/(data-[\w-]+)="([^"]*)"/g)) block.attrs.set(k, v);
         const cls = attrs.match(/class="([^"]*)"/)?.[1] ?? '';
@@ -332,6 +336,27 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
 // it arrives. The dimming is cosmetic; the reservations are what stop the page
 // settling in a series of jumps.
 {
+  // The channel table is written out in index.html as well as built in
+  // readouts.js, so the page has its real shape from the first paint. Two
+  // copies of a table is exactly the sort of thing that drifts, so the static
+  // one is held to the generated one - by shape, since only the shape is what
+  // it exists to reserve.
+  {
+    const html = readFileSync(new URL('index.html', import.meta.url), 'utf8');
+    const table = html.slice(html.indexOf('<table id="params">'), html.indexOf('</table>'));
+    const rows = [...table.matchAll(/<tr>/g)].length;
+    const headers = [...table.matchAll(/<th>/g)].length;
+    const firstRowCells = (table.match(/<tr><td>0<\/td>(?:<td>[^<]*<\/td>)*<\/tr>/) ?? [''])[0];
+    const cells = [...firstRowCells.matchAll(/<td>/g)].length;
+
+    const built = document.getElementById('params').querySelectorAll('tr[data-ch]');
+    check(rows === built.length + 1,
+      `the static table has a row per channel plus a header (static ${rows}, built ${built.length})`);
+    check(headers === cells, `and as many headers as cells (${headers} vs ${cells})`);
+    check(built.length > 0 && built[0].children.length === cells,
+      `and the same cell count readouts.js builds (${built[0]?.children.length} vs ${cells})`);
+  }
+
   const css = readFileSync(new URL('style.css', import.meta.url), 'utf8');
   for (const sel of ['#params', '#midi-cc', '#keys']) {
     const rule = css.slice(css.indexOf(sel + ' {'), css.indexOf('}', css.indexOf(sel + ' {')));
@@ -454,14 +479,16 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   check([SIM, USB, PROBE].every(k => typeof SOURCE_NAME[k] === 'string' && SOURCE_NAME[k]),
     'every source has a name a person can read');
 
-  // Each source has one colour, used by the button that picks it and by the
-  // readout that reports it. Two places naming the same thing is exactly how
-  // they come to disagree, so they are held to one variable each.
+  // Each source has one colour, worn by the button while it is the current
+  // source and by the readout that reports it. Two places naming the same thing
+  // is exactly how they come to disagree, so they are held to one variable
+  // each. Buttons are otherwise colourless: a row of three permanently coloured
+  // ones said three things were happening, when only one ever is.
   const css2 = readFileSync(new URL('style.css', import.meta.url), 'utf8');
   for (const src of ['sim', 'usb', 'probe']) {
     check(new RegExp(`--src-${src}:`).test(css2), `the ${src} source declares a colour`);
-    check(new RegExp(`\\.src-${src}\\s*\\{[^}]*var\\(--src-${src}\\)`).test(css2),
-      `the ${src} button uses it`);
+    check(new RegExp(`\\.src-${src}\\.active\\s*\\{[^}]*var\\(--src-${src}\\)`).test(css2),
+      `the ${src} button wears it when active`);
     check(new RegExp(`#source-name\\.on-${src}\\s*\\{[^}]*var\\(--src-${src}\\)`).test(css2),
       `and so does the readout`);
   }
@@ -717,14 +744,16 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   check([SIM, USB, PROBE].every(k => typeof SOURCE_NAME[k] === 'string' && SOURCE_NAME[k]),
     'every source has a name a person can read');
 
-  // Each source has one colour, used by the button that picks it and by the
-  // readout that reports it. Two places naming the same thing is exactly how
-  // they come to disagree, so they are held to one variable each.
+  // Each source has one colour, worn by the button while it is the current
+  // source and by the readout that reports it. Two places naming the same thing
+  // is exactly how they come to disagree, so they are held to one variable
+  // each. Buttons are otherwise colourless: a row of three permanently coloured
+  // ones said three things were happening, when only one ever is.
   const css2 = readFileSync(new URL('style.css', import.meta.url), 'utf8');
   for (const src of ['sim', 'usb', 'probe']) {
     check(new RegExp(`--src-${src}:`).test(css2), `the ${src} source declares a colour`);
-    check(new RegExp(`\\.src-${src}\\s*\\{[^}]*var\\(--src-${src}\\)`).test(css2),
-      `the ${src} button uses it`);
+    check(new RegExp(`\\.src-${src}\\.active\\s*\\{[^}]*var\\(--src-${src}\\)`).test(css2),
+      `the ${src} button wears it when active`);
     check(new RegExp(`#source-name\\.on-${src}\\s*\\{[^}]*var\\(--src-${src}\\)`).test(css2),
       `and so does the readout`);
   }

@@ -1,4 +1,4 @@
-// Two instruments for the USB link, kept because they earned it.
+// Instruments for the link between this browser and a module.
 //
 // Every time a fault here was reasoned about it was diagnosed wrongly, and every
 // time one of these was pointed at it the answer arrived in a single run. The
@@ -7,6 +7,8 @@
 // Neither distinction is visible from the simulator page.
 //
 // See docs/live-module.md.
+
+import { readVersion } from '../probe/usblink.js';
 
 // How long the snapshot measurement runs.
 const SNAPSHOT_SECONDS = 8;
@@ -54,7 +56,7 @@ const BMCV_VID = 1155;
 const BMCV_PID = 22315;
 const BMCV_VENDOR_INTERFACE = 1;
 
-async function checkWebUsb() {
+async function inspectDevice() {
   if (!navigator.usb) {
     log('This browser has no WebUSB.');
     return;
@@ -95,6 +97,12 @@ async function checkWebUsb() {
     // The decisive step. A system driver holding the interface refuses here.
     await device.claimInterface(BMCV_VENDOR_INTERFACE);
     log(`  claimed interface ${BMCV_VENDOR_INTERFACE} - WinUSB is bound and WebUSB works.`);
+
+    // And what it is running, which is the first thing worth knowing when a
+    // page and a module disagree about anything.
+    const version = await readVersion(device).catch(e => `unavailable (${e.name})`);
+    log(`  firmware: ${version ?? 'not reported - older firmware will not'}`);
+
     await device.releaseInterface(BMCV_VENDOR_INTERFACE);
     await device.close();
   } catch (e) {
@@ -197,7 +205,7 @@ el('run-webusb')?.addEventListener('click', async () => {
   setStatus('pick the BMCV in the browser\'s device list');
 
   try {
-    await checkWebUsb();
+    await inspectDevice();
     setStatus('done - copy the log');
   } catch (e) {
     setStatus(`${e.name}: ${e.message}`);
