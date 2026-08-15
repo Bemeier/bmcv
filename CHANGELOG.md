@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.13.0 (2026-08-15)
+
+### Feat
+
+- **stepped**: give SHP and MOD something to steer, not just reshuffle
+
 ## v0.12.0 (2026-08-15)
 
 ### Feat

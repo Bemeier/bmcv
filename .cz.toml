@@ -1,6 +1,6 @@
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "0.12.0"
+version = "0.13.0"
 # Deliberately not vcv/plugin.json. Rack refuses to load a plugin whose version
 # does not begin with Rack's own major - src/plugin/Plugin.cpp, "does not match
 # Rack ABI version" - so a version driven from here would pin this project's
