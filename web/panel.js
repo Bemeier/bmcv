@@ -27,12 +27,14 @@ const BTN_TACTILE_R = 3.5;
 // there is no light behind them to spill, and a glow would say they were doing
 // something when the colour is simply what the cap is.
 //
-// Muted on purpose. These sit among parts that light up, and a saturated cap
-// would read as the brightest thing on a panel where brightness means state.
+// Saturated, but mid-brightness. These have to read as coloured caps from
+// across the room while sitting among parts that light up - so the hue is
+// unambiguous and the value is not, which keeps them from competing with the
+// LEDs, where brightness is what means something.
 const TACTILE_FILL = {
-  CLR: '#8f5d78', // pink - the page that destroys things
-  CPY: '#4f6f9c', // blue - the page that duplicates them
-  MUT: '#4d8a80', // teal
+  CLR: '#c24f7d', // pink - the page that destroys things
+  CPY: '#3d7fc9', // blue - the page that duplicates them
+  MUT: '#2fa393', // teal
 };
 
 // 0 is the left end of travel. Scene A anchors at SLIDER_MAX_VALUE and sits on

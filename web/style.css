@@ -778,7 +778,6 @@ h1 {
   text-transform: uppercase; letter-spacing: .06em;
 }
 h1 .sub { color: var(--muted); font-weight: 400; }
-.tagline { margin: .5rem 0 0; color: var(--muted); }
 
 /* ---- naming another control inside a description ------------------------- */
 
