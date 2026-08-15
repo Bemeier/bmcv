@@ -67,6 +67,7 @@ const namesFrom = fn => {
 
 export const INPUT_MODE_NAMES = namesFrom('input_mode_name');
 export const QUANTIZE_MODE_NAMES = namesFrom('quantize_mode_name');
+export const AMP_MODE_NAMES = namesFrom('amp_mode_name');
 
 const storageSize = _('storage_size')();
 
@@ -170,6 +171,10 @@ export const sim = {
   // -1 when a channel listens to nothing. Indexed the way
   // HwState.trigger_src is: the input jacks first, then the channels.
   channelTrigSrc: ch => _('channel_trig_src')(handle, ch),
+
+  // Which input jack a channel mixes in, and how.
+  channelSrcInput: ch => _('channel_src_input')(handle, ch),
+  channelAmpMode: ch => _('channel_amp_mode')(handle, ch),
 
   shiftState: () => _('shift_state')(handle),
   selectedParam: () => _('selected_param')(handle),

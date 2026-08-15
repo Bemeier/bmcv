@@ -404,6 +404,11 @@ static const char* const input_mode_names[] = {"—", "CLOCK", "RESET", "SLIDER"
 _Static_assert(sizeof input_mode_names / sizeof input_mode_names[0] == INPUT_MODE_COUNT, "one name per input mode");
 
 static const char* const quantize_mode_names[] = {"off", "cont", "trig"};
+
+// How a channel folds an input into itself: not at all, added to its output, or
+// multiplied with it.
+static const char* const amp_mode_names[] = {"off", "add", "mult"};
+_Static_assert(sizeof amp_mode_names / sizeof amp_mode_names[0] == INPUT_AMP_MODE_COUNT, "one name per amp mode");
 _Static_assert(sizeof quantize_mode_names / sizeof quantize_mode_names[0] == QUANTIZE_MODE_COUNT,
                "one name per quantize mode");
 
@@ -442,6 +447,27 @@ int32_t bmcv_sim_channel_trig_src(const BmcvSim* s, int32_t channel)
   if (!s || channel < 0 || channel >= N_CHANNELS)
     return -1;
   return s->m.engine_config.channel_state[channel].src_trig;
+}
+
+int32_t bmcv_sim_channel_src_input(const BmcvSim* s, int32_t channel)
+{
+  if (!s || channel < 0 || channel >= N_CHANNELS)
+    return -1;
+  return s->m.engine_config.channel_state[channel].src_input;
+}
+
+int32_t bmcv_sim_channel_amp_mode(const BmcvSim* s, int32_t channel)
+{
+  if (!s || channel < 0 || channel >= N_CHANNELS)
+    return 0;
+  return s->m.engine_config.channel_state[channel].input_amp_mode;
+}
+
+const char* bmcv_sim_amp_mode_name(int32_t mode)
+{
+  if (mode < 0 || mode >= INPUT_AMP_MODE_COUNT)
+    return NULL;
+  return amp_mode_names[mode];
 }
 
 /* ---- midi --------------------------------------------------------------- */

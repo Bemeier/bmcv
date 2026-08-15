@@ -6,7 +6,7 @@
 // whenever the crossfader is anywhere but an end stop.
 
 import { PARAM_NAMES } from './spec.js';
-import { sim, EFF, N_CH, N_IN, SHAPE_NAMES, SHIFT_NAMES, QUANTIZE_MODE_NAMES } from './sim.js';
+import { sim, EFF, N_CH, N_IN, SHAPE_NAMES, SHIFT_NAMES, QUANTIZE_MODE_NAMES, AMP_MODE_NAMES } from './sim.js';
 
 // The frequency parameter is a ratio against the beat rate, dialled in as
 // musical fractions, so show it that way rather than as 0.333.
@@ -42,6 +42,16 @@ const EFF_COLS = [
   // without a source is a channel waiting on something nothing is patched to,
   // which looks identical to a broken quantizer until the source is shown
   // beside it.
+  // Which input the channel folds in, and how. A source with the mixing off is
+  // a patch someone set up and then disabled, which is worth being able to see
+  // rather than having it vanish from the table.
+  ['src', (_c, ch) => {
+    const mode = AMP_MODE_NAMES[sim.channelAmpMode(ch)] ?? '?';
+    const src = sim.channelSrcInput(ch);
+    if (src < 0) return '—';
+    return `IN${src} ${mode === 'add' ? '+' : mode === 'mult' ? '\u00d7' : 'off'}`;
+  }],
+
   ['qnt', (_c, ch) => {
     const mode = sim.channelQuantizeMode(ch);
     const name = QUANTIZE_MODE_NAMES[mode] ?? '?';
@@ -159,9 +169,3 @@ export function drawReadouts() {
   }
 }
 
-const statusEl = document.getElementById('status');
-
-export function setStatus(text) {
-  statusEl.textContent = text;
-  setTimeout(() => { if (statusEl.textContent === text) statusEl.textContent = ''; }, 2000);
-}

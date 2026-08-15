@@ -64,3 +64,21 @@ export const TRACE = '#e6eaf0';
 // out - so they are drawn back from them rather than competing. Dim enough to
 // read as the second thing on the page, bright enough to follow.
 export const TRACE_IN = '#7d8794';
+
+/* ---- what an input is for ------------------------------------------------ */
+
+// One colour per InputMode, in the order config.h declares them, matching the
+// hue the module lights that input's own LED with - ui_render.c maps the mode
+// through input_mode_color[], and the four it reaches are purple, yellow, red
+// and cyan.
+//
+// Approximations, deliberately. The module's are hues run through the LED
+// curve, which is a different thing from a colour on a screen; what matters is
+// that a jack reading CLOCK here is the same colour as the one glowing CLOCK on
+// the panel, not that the two match to a hex digit.
+export const INPUT_MODE_COLORS = [
+  '#b39ddb', // default - purple, "off, disabled, neutral"
+  '#e3c341', // clock   - yellow, "triggered, clocked, discrete steps"
+  '#e8705f', // reset   - red,    "resets something"
+  '#6fd8e0', // slider  - cyan,   "continuous, follows a level"
+];

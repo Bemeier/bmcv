@@ -26,7 +26,7 @@ import { drawEncoderIndicators, drawSliderFromModule, setSliderFromPos, SLIDER_S
 import { drawLeds } from './leds.js';
 import { drawScopes } from './scope.js';
 import { drawInputModes, runTicks } from './inputs.js';
-import { drawReadouts, setStatus } from './readouts.js';
+import { drawReadouts } from './readouts.js';
 import { forget, persist, restore } from './storage.js';
 import { drawMidi, initMidi, pumpMidi } from './midi.js';
 import { mode, SIM } from './mode.js';
@@ -37,7 +37,7 @@ import { drawProbeRates, initProbe } from './probe/ui.js';
 // Restoring reboots the module, so it has to happen before the drawn slider
 // position is published - a reboot puts slider_raw back at one end, and the
 // panel would then disagree with the engine about where the handle is.
-if (restore()) setStatus('restored saved state');
+restore();
 setSliderFromPos(SLIDER_START_POS);
 
 const resetButton = document.getElementById('reset');
@@ -58,24 +58,20 @@ function askModule(wipeStorage) {
   if (mode.live) {
     sim.remoteReset(wipeStorage);
     activeSession()?.sendCommand();
-    return true;
+    return;
   }
 
   sim.reset(wipeStorage);
   if (wipeStorage) forget();
   setSliderFromPos(SLIDER_START_POS);
-  return false;
 }
 
-resetButton.addEventListener('click', () => {
-  const remote = askModule(false);
-  setStatus(remote ? 'asked the module to reset' : 'simulation reset');
-});
-
-resetFramButton.addEventListener('click', () => {
-  const remote = askModule(true);
-  setStatus(remote ? 'asked the module to reset and clear its FRAM' : 'simulation reset, stored presets cleared');
-});
+// No confirmation message. What either of these did is visible immediately in
+// everything the page is already showing - the panel, the scopes, the channel
+// table - so a line of text saying it happened was one more thing to place and
+// one more thing to time out, restating what the page had already said.
+resetButton.addEventListener('click', () => askModule(false));
+resetFramButton.addEventListener('click', () => askModule(true));
 
 // What the buttons are about to affect, said on the buttons themselves. The
 // difference between wiping a simulation and wiping a module's FRAM is worth

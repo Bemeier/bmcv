@@ -257,6 +257,11 @@ const char* bmcv_sim_quantize_mode_name(int32_t mode);
 // HwState.trigger_src is - the input jacks first, then the channels.
 int32_t bmcv_sim_channel_trig_src(const BmcvSim* s, int32_t channel);
 
+// Which input jack a channel mixes in, or -1 for none, and how it mixes it.
+int32_t bmcv_sim_channel_src_input(const BmcvSim* s, int32_t channel);
+int32_t bmcv_sim_channel_amp_mode(const BmcvSim* s, int32_t channel);
+const char* bmcv_sim_amp_mode_name(int32_t mode);
+
 // What each channel is *actually* doing, after the scene crossfade and the
 // parameter maths, in units a person can read. 8 * BMCV_EFF_COUNT floats,
 // channel-major: index [channel * BMCV_EFF_COUNT + field].

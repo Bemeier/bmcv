@@ -992,6 +992,18 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   // A trigger source of -1 is "nothing patched", which the table shows as a
   // dash rather than as CH-1.
   check(sim.channelTrigSrc(0) === -1, 'a fresh channel listens to nothing');
+  check(sim.channelSrcInput(0) === -1, 'and mixes in nothing');
+
+  const { AMP_MODE_NAMES, INPUT_MODE_NAMES: modes } = await import('./sim.js');
+  check(AMP_MODE_NAMES.length >= 3 && AMP_MODE_NAMES.includes('mult'),
+    `amp mode names came from the firmware (${AMP_MODE_NAMES.join(',')})`);
+
+  // Every input mode has a colour, or a jack in that mode is drawn in whatever
+  // the last one happened to leave behind.
+  const { INPUT_MODE_COLORS } = await import('./const.js');
+  check(INPUT_MODE_COLORS.length === modes.length,
+    `every input mode has a colour (${INPUT_MODE_COLORS.length} for ${modes.length} modes)`);
+  check(INPUT_MODE_COLORS.every(c => /^#[0-9a-f]{6}$/i.test(c)), 'and each is a colour');
 }
 
 check(SHIFT_NAMES[0] === 'STA' && SHIFT_NAMES.at(-1) === '---', `shift names came from the firmware (${SHIFT_NAMES.join(',')})`);

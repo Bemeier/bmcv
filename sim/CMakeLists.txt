@@ -93,6 +93,9 @@ if(EMSCRIPTEN)
       _bmcv_sim_channel_quantize_mode
       _bmcv_sim_quantize_mode_name
       _bmcv_sim_channel_trig_src
+      _bmcv_sim_channel_src_input
+      _bmcv_sim_channel_amp_mode
+      _bmcv_sim_amp_mode_name
       _bmcv_sim_midi_drain
       _bmcv_sim_instance_size
       _bmcv_sim_export

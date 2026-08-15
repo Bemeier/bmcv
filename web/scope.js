@@ -8,7 +8,7 @@
 
 import { IN_ORDER, SCOPE_ORDER } from './spec.js';
 import { EFF, sim, SCOPE_LEN, INPUT_MODE_NAMES } from './sim.js';
-import { CELL_FILL, CELL_GAP, IN_V, SCOPE_SECONDS, SCOPE_SECONDS_LIVE, SCOPE_V, TRACE, TRACE_IN } from './const.js';
+import { CELL_FILL, CELL_GAP, IN_V, INPUT_MODE_COLORS, SCOPE_SECONDS, SCOPE_SECONDS_LIVE, SCOPE_V, TRACE, TRACE_IN } from './const.js';
 import { mode } from './mode.js';
 
 // How many samples that span works out to, given whatever is filling the ring.
@@ -59,7 +59,7 @@ function fitCanvas(canvas, { aspect, cssHeight }) {
 
 // One cell: voltage grid, then the trace, then a border. `data` is the whole
 // channel-major ring; `lane` picks which channel or jack out of it.
-function drawCell(c, { x0, y0, cw, ch, data, lane, head, span, valid, vRange, pad, label, aliased, trace }) {
+function drawCell(c, { x0, y0, cw, ch, data, lane, head, span, valid, vRange, pad, label, labelColor, aliased, trace }) {
   const k = dpr();
   const plotH = ch - pad * 2;
   const mid = y0 + pad + plotH / 2;
@@ -123,7 +123,10 @@ function drawCell(c, { x0, y0, cw, ch, data, lane, head, span, valid, vRange, pa
   if (label) {
     const lfs = Math.max(11, Math.round(8 * k));
     c.font = `600 ${lfs}px ui-monospace, SFMono-Regular, Menlo, monospace`;
-    c.fillStyle = '#aab2bd';
+    // A label may name its own colour. The inputs use it to say what each jack
+    // is configured as in the same hue the module's own LED shows for that
+    // mode, so the two do not have to be matched up by memory.
+    c.fillStyle = labelColor || '#aab2bd';
     c.fillText(label, x0 + lfs * 0.55, y0 + pad + lfs * 0.85);
   }
 
@@ -148,7 +151,7 @@ function drawCell(c, { x0, y0, cw, ch, data, lane, head, span, valid, vRange, pa
   c.restore();
 }
 
-function drawGrid(c, canvas, { cols, rows, lanes, data, head, span, valid, vRange, pad, label, aliased, trace }) {
+function drawGrid(c, canvas, { cols, rows, lanes, data, head, span, valid, vRange, pad, label, labelColor, aliased, trace }) {
   const W = canvas.width, H = canvas.height;
   const cw = W / cols, ch = H / rows;
 
@@ -170,6 +173,7 @@ function drawGrid(c, canvas, { cols, rows, lanes, data, head, span, valid, vRang
       data, head, span, valid, vRange, pad, trace,
       lane: lanes[cell],
       label: label ? label(lanes[cell]) : null,
+      labelColor: labelColor ? labelColor(lanes[cell]) : null,
       aliased: aliased ? aliased(lanes[cell]) : false,
     });
   }
@@ -212,6 +216,7 @@ export function drawScopes() {
         const mode = INPUT_MODE_NAMES[sim.inputMode(i)] ?? '';
         return mode && mode !== '—' ? `IN${i} ${mode}` : `IN${i}`;
       },
+      labelColor: i => INPUT_MODE_COLORS[sim.inputMode(i)] ?? null,
     });
   }
 }
