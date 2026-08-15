@@ -51,15 +51,34 @@ const hintHelp = document.getElementById('hint-help');
 
 const IDLE = {
   label: 'BMEK — 16hp',
-  help: 'Drag an encoder\'s ring to turn it, or use the scroll wheel. Click its centre '
-    + 'to push, and hold Shift while turning for press-and-turn. Hover anything on the '
-    + 'panel to read what it does.',
+  sections: [[
+    'Eight channels, seven scenes',
+    'Drag an encoder\'s ring to turn it, or use the scroll wheel. Click its centre to '
+      + 'push, and hold Shift while turning for press-and-turn. Hover anything on the '
+      + 'panel to read what it does.',
+  ]],
 };
+
+// Latched, not tracked.
+//
+// Every control on the panel used to clear this on the way out, so crossing the
+// board flickered between descriptions and the module\'s name - the text was
+// unreadable precisely while you were moving towards the thing you wanted to
+// read about. It now holds the last thing hovered until something else is
+// hovered, and only lets go when the pointer leaves the panel altogether.
+// The one place the latch lets go.
+if (typeof document !== 'undefined') {
+  const wrap = document.getElementById('panel-wrap');
+  wrap?.addEventListener('pointerleave', () => setHover(null));
+}
 
 function setHover(target) {
   const t = target ?? IDLE;
   hintLabel.textContent = t.label;
-  hintHelp.textContent = t.help;
+
+  hintHelp.innerHTML = t.sections
+    .map(([heading, body]) => `<h3>${heading}</h3><p>${body}</p>`)
+    .join('');
 }
 
 // What each control button's page does, in the order the panel lays them out.
@@ -112,9 +131,12 @@ function describeButton(b) {
   if (r.channel !== undefined) {
     return {
       label: `CH ${r.channel}`,
-      help: `Channel ${r.channel}\'s encoder, pressed. Hold it while turning for fine '
-        + 'adjust, or use it as that page\'s press action - picking an input under MON, '
-        + 'a trigger under QNT, muting under MUT.`,
+      sections: [[
+        `Channel ${r.channel} — push`,
+        'Held while turning, this is fine adjust. On its own it is whatever the open page '
+          + 'does with a press: picking an input under MON, assigning a trigger under QNT, '
+          + 'muting under MUT.',
+      ]],
     };
   }
 
@@ -123,29 +145,49 @@ function describeButton(b) {
   // be discovered.
   if (r.scene !== undefined) {
     const isInput = r.scene < 4;
-    return {
-      label: isInput ? `SCENE ${r.scene} — INPUT ${r.scene}` : `SCENE ${r.scene}`,
-      help: `Scene ${r.scene}: one of the seven sets of parameters the crossfader blends `
-        + `between. Tap under STA or STB to assign it, or under SAV to save and load it.`
-        + (isInput
-          ? ` On the pages that configure inputs it also stands for input jack ${r.scene} -`
-            + ` its mode under SYS, its level under MON.`
-          : ''),
-    };
+    const sections = [[
+      `Scene ${r.scene}`,
+      'One of the seven sets of parameters the crossfader blends between. Assign it to A '
+        + 'or B under STA or STB, save and load it under SAV, clear it under CLR.',
+    ]];
+
+    if (isInput) {
+      sections.push([
+        `Input ${r.scene}`,
+        `On the pages that configure inputs this same button stands for input jack `
+          + `${r.scene}: its mode under SYS, its level under MON, its place in the scale `
+          + `under QNT.`,
+      ]);
+    }
+
+    return { label: isInput ? `SCENE ${r.scene} — INPUT ${r.scene}` : `SCENE ${r.scene}`, sections };
   }
 
   // A control button: the page it opens, and the parameter it selects if it has
   // one. Both, because the tap and the hold are different actions on one key.
   if (r.ctrl_name) {
-    const page = CTRL_HELP[r.ctrl_name] ?? `The ${r.ctrl_name} page.`;
-    const param = r.param_name
-      ? ` Tapping it instead selects ${r.param_name} - ${PARAM_HELP[r.param_name]} - `
-        + 'which is then what all eight encoders edit.'
-      : '';
-    return { label: r.ctrl_name, help: page + param };
+    // Two things on one key, and they are not variations of each other: a tap
+    // chooses what the encoders edit, a hold repaints the whole panel. Saying
+    // them in one paragraph made the button sound like it did one vague thing.
+    const sections = [];
+
+    if (r.param_name) {
+      sections.push([
+        `${r.param_name} — parameter (tap)`,
+        `Tap to make ${r.param_name} what all eight encoders edit, in the active scene. `
+          + `It is ${PARAM_HELP[r.param_name]}.`,
+      ]);
+    }
+
+    sections.push([
+      `${r.ctrl_name} — page (hold to latch)`,
+      CTRL_HELP[r.ctrl_name] ?? `The ${r.ctrl_name} page.`,
+    ]);
+
+    return { label: r.ctrl_name, sections };
   }
 
-  return { label: `BUTTON ${b.index}`, help: '' };
+  return { label: `BUTTON ${b.index}`, sections: [] };
 }
 /* ---- interaction -------------------------------------------------------- */
 
@@ -156,7 +198,6 @@ function bindButton(node, b) {
   node.addEventListener('pointerup', up);
   node.addEventListener('pointercancel', up);
   node.addEventListener('pointerenter', () => setHover(describeButton(b)));
-  node.addEventListener('pointerleave', () => setHover(null));
 }
 
 // Cosmetic needle angles. The firmware's encoders are relative and endless, so
@@ -259,13 +300,15 @@ function bindEncoder(ring, cap, e) {
 
   const target = {
     label: `CH ${e.channel}`,
-    help: `Channel ${e.channel}. Turning it edits whichever parameter the row below the `
-      + 'crossfader has selected, in the active scene - or that page\'s setting while a '
-      + 'shift mode is held. Press the centre to push.',
+    sections: [[
+      `Channel ${e.channel} — encoder`,
+      'Turning it edits whichever parameter the row under the crossfader has selected, in '
+        + 'the active scene - or that page\'s own setting while a shift mode is latched. '
+        + 'The centre is a button; hold it while turning for fine adjust.',
+    ]],
   };
   for (const n of [ring, cap]) {
     n.addEventListener('pointerenter', () => setHover(target));
-    n.addEventListener('pointerleave', () => setHover(null));
   }
 }
 
@@ -314,10 +357,13 @@ function bindSlider(hit, knob, cx, cy, travel, horizontal) {
   hit.addEventListener('pointercancel', () => { dragging = false; });
   hit.addEventListener('pointerenter', () => setHover({
     label: 'CROSSFADER',
-    help: 'Blends between the two scenes assigned to A and B. Every parameter of every '
-      + 'channel moves together, so one hand crossfades the whole patch.',
+    sections: [[
+      'Scene crossfader',
+      'Blends between the two scenes assigned to A and B. Every parameter of every channel '
+        + 'moves together, so one hand crossfades the whole patch. An input set to SLIDER '
+        + 'mode is summed into this, so it can be driven by a cable as well as by hand.',
+    ]],
   }));
-  hit.addEventListener('pointerleave', () => { if (!dragging) setHover(null); });
 
   return setFromPos;
 }
@@ -347,17 +393,22 @@ for (const [list, kind] of [[spec.outputs, 'out'], [spec.inputs, 'in']]) {
     const target = kind === 'out'
       ? {
         label: `CH ${j.channel} OUTPUT JACK`,
-        help: `What channel ${j.channel} puts out, after its scene blend, its mixing and `
-          + 'its output clamp. The scope on this page shows the same signal.',
+        sections: [[
+          `Channel ${j.channel} — output`,
+          'What the channel puts out, after its scene blend, anything mixed into it and its '
+            + 'output clamp. The scope beside this panel draws the same signal.',
+        ]],
       }
       : {
         label: `INPUT ${j.index} JACK`,
-        help: `Input ${j.index}. What it does is set on the SYS page - a clock, a reset, `
-          + 'the crossfader, or a plain voltage a channel can mix in. Its trace is on '
-          + 'this page under the outputs.',
+        sections: [[
+          `Input ${j.index} — jack`,
+          'What this jack is for is set under SYS: a clock, a reset, the crossfader, or a '
+            + 'plain voltage a channel can mix in. Its trace is under the outputs, and its '
+            + 'mode is written beside it there.',
+        ]],
       };
     hit.addEventListener('pointerenter', () => setHover(target));
-    hit.addEventListener('pointerleave', () => setHover(null));
   }
 }
 

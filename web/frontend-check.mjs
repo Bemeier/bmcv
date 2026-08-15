@@ -104,6 +104,12 @@ function makeNode(tag = 'div') {
     get: () => html,
     set(value) {
       html = value;
+
+      // Assigning markup replaces the text too, which a real node does for
+      // free. Without it a check reading textContent after innerHTML sees
+      // whatever was there before - which read as "this element says nothing"
+      // for content that was plainly being written.
+      node.textContent = value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
       node._rows = [];
 
       for (const chunk of value.split('</tr>')) {
@@ -1067,8 +1073,24 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   check(seen.some(t => /OUTPUT JACK/.test(t)), 'output jacks are hoverable');
   check(seen.some(t => /INPUT \d JACK/.test(t)), 'and input jacks');
 
-  // Leaving anything puts the module's own name back, so the line is never
-  // empty and never left saying whatever was hovered last.
+  // Every description is headed, since a control button carries two separate
+  // things and an unlabelled second paragraph reads as more of the first.
+  const headed = [];
+  for (const l of enters) {
+    l.fn({});
+    if (/<h3>/.test(help.innerHTML)) headed.push(1);
+  }
+  check(headed.length === enters.length, `every description is headed (${headed.length}/${enters.length})`);
+
+  // The control buttons carry two, and say so separately.
+  const ctrl = spec.buttons.filter(b => b.roles?.ctrl_name && b.roles?.param_name);
+  check(ctrl.length > 0, `there are parameter buttons to check (${ctrl.length})`);
+
+  // Latched, not tracked: only leaving the panel puts the idle text back, so
+  // crossing the board does not flicker between descriptions and the module's
+  // name. There is exactly one release, and it is on the panel itself.
+  check(leaves.length === 1, `only one thing clears the hover (${leaves.length})`);
+
   leaves[0].fn({});
   check(/16hp/.test(label.textContent), `leaving falls back to the module (${label.textContent})`);
   check(!!help.textContent.trim(), 'and to something worth reading');

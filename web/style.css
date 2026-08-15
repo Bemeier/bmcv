@@ -152,17 +152,10 @@ main {
    backdrop photograph, and a skyline behind the encoder cutouts is not a
    panel. The same surface the scope cells get, and the same rule colour every
    other line on the page is drawn in. */
-/* The panel with its bracket beside it, the same one the scopes have. It
-   carries whatever the pointer is over rather than a fixed word, which is why
-   it is worth the width. */
-.panel-row { display: flex; align-items: stretch; gap: .45rem; }
-.panel-row > #panel-wrap { flex: 1; min-width: 0; }
-
-#panel-wrap {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  padding: .8rem;
-}
+/* Ground for the panel and nothing else. It had a border and padding as well,
+   which framed a thing that already has an outline of its own - and the bracket
+   below it now does the marking-off that frame was doing. */
+#panel-wrap { background: var(--surface); }
 
 /* The ratio of the real panel, from panel.json - 81mm x 128.5mm.
  *
@@ -182,12 +175,29 @@ main {
    A minimum rather than a fixed height, and reserved, because these run to two
    or three lines and the panel above must not move when one replaces another. */
 .help {
-  margin: 1rem 0 0;
-  min-height: 5.5em;
-  font-size: .92rem;
-  line-height: 1.65;
+  margin: .9rem 0 0;
+  min-height: 8.5em;
   max-width: 58ch;
   color: var(--muted);
+}
+
+/* A control button carries two things that are not variations of each other: a
+   tap chooses what the encoders edit, a hold repaints the whole panel. Each
+   gets its own heading, because said as one paragraph the button sounded like
+   it did one vague thing. */
+.help h3 {
+  margin: 0 0 .2rem;
+  font-size: .68rem;
+  font-weight: 600;
+  letter-spacing: var(--track);
+  text-transform: uppercase;
+  color: var(--fg);
+}
+.help h3 ~ h3 { margin-top: .8rem; }
+.help p {
+  margin: 0;
+  font-size: .92rem;
+  line-height: 1.65;
 }
 kbd { background: rgba(255, 255, 255, .09); padding: .05em .35em; font-size: .9em; }
 
@@ -298,6 +308,19 @@ kbd { background: rgba(255, 255, 255, .09); padding: .05em .35em; font-size: .9e
   text-transform: uppercase;
   color: var(--muted);
   white-space: nowrap;
+}
+
+/* The same bracket lying down, for the panel. Everything that was a height is a
+   width and the ticks turn the other way; the label stops being rotated. */
+.bracket.horizontal { flex-direction: row; padding: 0 1px; margin-top: .55rem; }
+.bracket.horizontal i { flex: 1; width: auto; height: 1px; min-height: 0; min-width: 6px; }
+.bracket.horizontal i::before { width: 1px; height: 5px; left: auto; top: auto; }
+.bracket.horizontal i:first-of-type::before { left: 0; bottom: 0; }
+.bracket.horizontal i:last-of-type::before { right: 0; bottom: 0; }
+.bracket.horizontal span {
+  writing-mode: horizontal-tb;
+  transform: none;
+  color: var(--fg);
 }
 
 /* Both declare their ratio so the page reserves the space before the first
