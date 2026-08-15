@@ -298,6 +298,28 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   check(mode.contiguous === Infinity, 'the simulator has no such gap');
 }
 
+/* ---- the page has a shape before it has any numbers ---------------------- */
+
+// Everything on the right of this page is built from JavaScript after the wasm
+// has loaded, so until then it has no height and everything under it moves when
+// it arrives. The dimming is cosmetic; the reservations are what stop the page
+// settling in a series of jumps.
+{
+  const css = readFileSync(new URL('style.css', import.meta.url), 'utf8');
+  for (const sel of ['#params', '#midi-cc', '#keys']) {
+    const rule = css.slice(css.indexOf(sel + ' {'), css.indexOf('}', css.indexOf(sel + ' {')));
+    check(/min-height:/.test(rule), `${sel} reserves its height before it is built`);
+  }
+
+  // The page starts dimmed and is undimmed by the frame loop, not by load - so
+  // the class has to be on the document to begin with or there is nothing to
+  // remove and the first paint is a page full of dashes at full strength.
+  const html = readFileSync(new URL('index.html', import.meta.url), 'utf8');
+  check(/<body[^>]*class="[^"]*\bloading\b/.test(html), 'the page starts in its loading state');
+  check(/body\.loading/.test(css), 'and the stylesheet says what that looks like');
+  check(/body\.switching/.test(css), 'as it does for switching source');
+}
+
 /* ---- the page reserves its layout before anything loads ------------------- */
 
 // The panel SVG has no size until panel.json has been fetched and a viewBox set

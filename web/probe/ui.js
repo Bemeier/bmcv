@@ -124,6 +124,12 @@ let switching = null;
 function switchTo(source) {
   if (switching) return switching;
 
+  // Everything that depends on a module goes quiet for the duration. What is on
+  // screen belongs to the source being left, and a page that keeps drawing it
+  // confidently while the link behind it is being taken down is showing numbers
+  // that stopped being true a moment ago.
+  document.body.classList.add('switching');
+
   switching = (async () => {
     for (const other of [usblink, probe]) {
       if (other !== links[source] && (other.state === 'live' || other.state === 'connecting')) {
@@ -131,7 +137,10 @@ function switchTo(source) {
       }
     }
     if (source !== SIM) await links[source].connect();
-  })().finally(() => { switching = null; });
+  })().finally(() => {
+    switching = null;
+    document.body.classList.remove('switching');
+  });
 
   return switching;
 }

@@ -151,6 +151,14 @@ function frame(now) {
   // quietly overwrite the simulator's own with it.
   if (!mode.live && now - lastPersistT > PERSIST_INTERVAL_MS) { lastPersistT = now; persist(); }
 
+  // The page starts dimmed and stops being so once there is something real on
+  // it. Not on load: the wasm has to be up, the panel built and one frame drawn
+  // before any of these numbers means anything, and undimming before that shows
+  // a complete-looking page full of dashes.
+  if (document.body.classList.contains('loading')) {
+    document.body.classList.remove('loading');
+  }
+
   requestAnimationFrame(frame);
 }
 
