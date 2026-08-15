@@ -395,7 +395,7 @@ wavetable *ARGS:
 # Output is checked in, so this only needs running after editing the generator -
 # review the diff, then `just test` to confirm the pattern properties still hold.
 sr-table: (_ensure "build-native" "configure-native")
-	cc -O2 -o build-native/gen_sr_table tools/gen_sr_table.c -lm
+	cc -O2 -I Core/Inc/Lib -o build-native/gen_sr_table tools/gen_sr_table.c -lm
 	./build-native/gen_sr_table > Core/Inc/Lib/stepped_random_table.h
 
 # Regenerate the panel layout from the PCB project's KiCad output plus the

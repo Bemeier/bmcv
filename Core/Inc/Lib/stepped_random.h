@@ -24,11 +24,20 @@ int sr_length_for_index(int length_idx);
 //
 //   phase       [0,1)  position in the cycle (already PLL-corrected by caller)
 //   shape       [-1,1] morph: continuously reshapes the pattern, periodic so
-//                      the knob wrapping past its end lands where it started
+//                      the knob wrapping past its end lands where it started.
+//                      Moves three things around one closed loop - which values
+//                      the steps hold, how those values are distributed (calm
+//                      and close together, or pushed to the extremes), and how
+//                      melodic the contour is (a walk, or independent leaps).
 //   mod         [-1,1] density: how often a step ties to the previous value
 //                      instead of taking a new one. 0 is the neutral 30% the
 //                      pattern was designed around, -1 gives a new value every
 //                      step, +1 leaves a handful of long notes per cycle.
+//                      Alongside it and moving with it: which steps tie, how
+//                      far the beat swings, and whether the cycle repeats a
+//                      quarter-length phrase. Not periodic - the density is
+//                      monotone across the knob, so -1 and +1 are opposite
+//                      ends rather than the same place.
 //   length_idx         pattern length; see sr_length_for_index()
 //   hold        [0,1)  how step-like the curve is (see SR_HOLD_* above)
 //
