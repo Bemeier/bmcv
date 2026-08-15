@@ -13,12 +13,14 @@
 
 import { IN_ORDER } from './spec.js';
 import { sim, N_IN, INPUT_MODE_NAMES } from './sim.js';
-
-// InputMode.INPUT_CLOCK, which is what a generator is allowed to drive.
-const CLOCK_MODE = INPUT_MODE_NAMES.indexOf('CLOCK');
 import { GATE_V, IN_V, PULSE_MS, TICK_US } from './const.js';
 import { inputCellAt } from './scope.js';
 import { mode } from './mode.js';
+
+// InputMode.INPUT_CLOCK, which is what a generator is allowed to drive. Found
+// by name in the firmware's own table rather than written as 1, so a mode
+// inserted before it in config.h moves this with it.
+const CLOCK_MODE = INPUT_MODE_NAMES.indexOf('CLOCK');
 
 const controls = document.getElementById('in-controls');
 const inCanvas = document.getElementById('inscope');
@@ -29,13 +31,16 @@ const inputLevel = new Array(N_IN).fill(0);
 for (const i of IN_ORDER) {
   const cell = document.createElement('div');
   cell.className = 'in-cell';
+  // Pulse first: every input has one, and only the jacks configured as clocks
+  // have a generator - so the button is the column the eye can follow across
+  // all four cells, and the generator is what appears beside it.
   cell.innerHTML = `
     <div class="in-ctl">
+      <button type="button" data-pulse="${i}" title="send one ${GATE_V}V gate pulse">pulse</button>
       <span class="clock" data-clock="${i}">
         <input type="checkbox" data-clock-on="${i}" title="generate a clock on this input">
         <input type="number" data-clock-bpm="${i}" min="20" max="300" step="1" value="120" title="bpm">bpm
       </span>
-      <button type="button" data-pulse="${i}" title="send one ${GATE_V}V gate pulse">pulse</button>
     </div>`;
   controls.appendChild(cell);
 
@@ -145,6 +150,35 @@ function syncGenerator(g) {
 for (const g of gens) {
   g.on.addEventListener('change', () => syncGenerator(g));
 }
+
+/* ---- who these belong to ------------------------------------------------- */
+
+// Every control in the overlay, disabled outright while a module is driving the
+// page.
+//
+// They were only dimmed, and dimmed is not disabled: the stylesheet turned the
+// pointer off on the container, but the controls turn it back on for themselves
+// - they sit over a canvas that takes drags, so they have to - and the second
+// rule won. What that produced was a row of controls that looked unavailable,
+// kept its hover cursor, took clicks and typing, and did nothing with any of
+// it, because runTicks is not called and a page cannot put a voltage into a
+// physical jack anyway.
+//
+// The attribute rather than more CSS, so the cursor, the click, the keyboard
+// and what a screen reader says all come from one fact instead of four rules
+// that have to agree.
+const interactive = [...controls.querySelectorAll('button, input')];
+
+mode.onChange(() => {
+  for (const el of interactive) el.disabled = mode.live;
+
+  // Said on the group, which is not itself disabled and so can still answer
+  // the question a greyed-out control raises.
+  controls.title = mode.live
+    ? 'These drive the simulation. A module\'s inputs are physical: patch a cable, '
+      + 'or send it a MIDI clock - see web/diagnostics.'
+    : '';
+});
 
 // Show a generator only where the module says the jack is a clock. Called on
 // the readout cadence, so a mode changed on the panel takes effect here without

@@ -98,6 +98,10 @@ if(EMSCRIPTEN)
       _bmcv_sim_amp_mode_name
       _bmcv_sim_midi_drain
       _bmcv_sim_instance_size
+      _bmcv_sim_scope_len
+      _bmcv_sim_scope_div
+      _bmcv_sim_scope_clear
+      _bmcv_sim_scope_filled
       _bmcv_sim_export
       _bmcv_sim_import
       _bmcv_sim_storage_size

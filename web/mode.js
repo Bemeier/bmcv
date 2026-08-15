@@ -15,6 +15,7 @@
 // are the panel's input handlers, the frame loop, the scopes and the readouts,
 // and none of them should have to import a transport to find out.
 
+import { sim } from './sim.js';
 import { TICK_US } from './const.js';
 
 export const SIM = 'sim';
@@ -28,8 +29,11 @@ export const SOURCE_NAME = {
   [PROBE]: 'module over probe',
 };
 
-// The simulator captures one scope sample per engine tick.
-const LOCAL_CAPTURE_HZ = 1e6 / TICK_US;
+// What rate the simulation fills the scope ring at: one sample per engine tick,
+// divided by whatever the wasm decimates by. Asked rather than assumed - the
+// divisor is the wasm's, and a copy of it here is a second definition free to
+// drift from the one that actually writes the ring.
+const LOCAL_CAPTURE_HZ = 1e6 / TICK_US / sim.scopeDiv;
 
 let current = SIM;
 let captureHz = LOCAL_CAPTURE_HZ;
@@ -103,6 +107,12 @@ export const mode = {
     // measured rate, which is ninety times a second; touching the class list
     // that often is a style recalculation the browser did not need.
     if (current === was) return;
+
+    // The history belonged to the source being left. Both write into one ring -
+    // the simulation every other tick, a link on every snapshot - so without
+    // this the scopes carry the old source's trace until the new one has filled
+    // two seconds over it, and the join reads as something the module did.
+    sim.scopeClear();
 
     document.body.classList.toggle('live', current !== SIM);
     for (const name of [SIM, USB, PROBE]) {

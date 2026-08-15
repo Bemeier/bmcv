@@ -30,7 +30,12 @@ const u16 = (ptr, len) => new Uint16Array(Module.HEAPU8.buffer, ptr, len);
 export const N_CH = 8;
 export const N_IN = 4;
 export const N_LEDS = 21;
-export const SCOPE_LEN = 4096;
+
+// Read out of the wasm rather than mirrored, unlike the counts above: the ring
+// length and the rate it is filled at are what the scope converts seconds into
+// samples with, and a stale copy here would draw a window of the wrong length
+// rather than fail.
+export const SCOPE_LEN = _('scope_len')();
 
 // Effective-value fields, matching the enum in bmcv_sim.h.
 export const EFF = { FREQ_HZ: 0, FREQ_RATIO: 1, PHASE: 2, SHAPE: 3, MOD: 4, AMP_V: 5, OFFSET_V: 6, GCD: 7, PHASE_OFS: 8, COUNT: 9 };
@@ -75,7 +80,6 @@ const storageSize = _('storage_size')();
 // reused, because on a probe-backed page this carries a snapshot every frame.
 const instanceSize = _('instance_size')();
 const snapshotBuf = Module._malloc(instanceSize);
-
 
 // One drained MIDI message, matching MidiMsg in Core/Inc/Lib/midi_out.h.
 const MIDI_MSG_BYTES = 4;
@@ -157,6 +161,11 @@ export const sim = {
   effective: () => f32(_('effective')(handle), N_CH * EFF.COUNT),
   scopeHead: () => _('scope_head')(handle),
 
+  // Forget the history, and how much of it there is. Called when the page
+  // changes what is filling the ring - see mode.drivenBy.
+  scopeClear: () => _('scope_clear')(handle),
+  scopeFilled: () => _('scope_filled')(handle),
+
   /* ---- introspection ---------------------------------------------------- */
 
   // How the module is configured, as opposed to what it is doing. The values
@@ -233,6 +242,10 @@ export const sim = {
   // frame that a probe is connected.
 
   instanceSize,
+
+  // How many engine ticks one scope sample covers while the simulation is the
+  // one running. See BMCV_SIM_SCOPE_DIV; mode.js turns it into a capture rate.
+  scopeDiv: _('scope_div')(),
 
   importInstance(bytes) {
     if (bytes.length !== instanceSize) return false;

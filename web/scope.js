@@ -7,17 +7,22 @@
 // now, and the two canvases sit in one box so the geometry cannot drift.
 
 import { IN_ORDER, SCOPE_ORDER } from './spec.js';
-import { EFF, sim, SCOPE_LEN, INPUT_MODE_NAMES } from './sim.js';
-import { CELL_FILL, CELL_GAP, IN_V, INPUT_MODE_COLORS, SCOPE_SECONDS, SCOPE_SECONDS_LIVE, SCOPE_V, TRACE, TRACE_IN } from './const.js';
+import { EFF, sim, SCOPE_LEN, INPUT_MODE_NAMES, SHAPE_NAMES } from './sim.js';
+import {
+  CELL_FILL, CELL_GAP, IN_V, INPUT_MODE_COLORS, SCOPE_SECONDS,
+  SCOPE_V, SHAPE_MODE_COLORS, TRACE, TRACE_IN,
+} from './const.js';
 import { mode } from './mode.js';
 
 // How many samples that span works out to, given whatever is filling the ring.
-// Recomputed per draw because a probe's rate is measured rather than declared,
+// Recomputed per draw because a link's rate is measured rather than declared,
 // and clamped: never more history than the ring holds, never so few points that
 // a "trace" is two of them.
+//
+// The seconds are the same whatever is driving the page; only the rate the ring
+// fills at differs, which is exactly what this converts.
 export function spanSamples() {
-  const seconds = mode.live ? SCOPE_SECONDS_LIVE : SCOPE_SECONDS;
-  return Math.max(2, Math.min(SCOPE_LEN, Math.round(seconds * mode.captureHz)));
+  return Math.max(2, Math.min(SCOPE_LEN, Math.round(SCOPE_SECONDS * mode.captureHz)));
 }
 
 const scopeCanvas = document.getElementById('scope');
@@ -182,7 +187,18 @@ function drawGrid(c, canvas, { cols, rows, lanes, data, head, span, valid, vRang
 export function drawScopes() {
   const head = sim.scopeHead();
   const span = spanSamples();
-  const valid = mode.contiguous;
+  // Two limits on how far back a cell may draw, and the smaller wins.
+  //
+  // contiguous is about *time*: a tab in the background stops being sampled, so
+  // everything before the gap would be drawn as though the axis meant something
+  // across it.
+  //
+  // scopeFilled is about *provenance*: the ring is cleared when the page
+  // changes what fills it, and until it refills, the samples behind the newest
+  // one are either zeroes or the source that was on screen a moment ago. A
+  // simulation showing the tail of a module it is no longer connected to is one
+  // trace that appears to have done something abrupt.
+  const valid = Math.min(mode.contiguous, sim.scopeFilled());
 
   // Only worth asking on hardware. The simulator captures every engine tick, so
   // its Nyquist limit is 2kHz and no channel comes close; a probe's is around
@@ -197,7 +213,18 @@ export function drawScopes() {
       lanes: SCOPE_ORDER,
       data: sim.scope(),
       head, span, valid, vRange: SCOPE_V, pad: 4, trace: TRACE,
-      label: c => `CH${c}`,
+
+      // The channel and the shape it is running, in the hue the module lights
+      // that shape with - the same arrangement the inputs below use, and for
+      // the same reason. It was a column in the channel table, where it was a
+      // word to be looked up against a row number; here it is on the trace it
+      // describes, which is where you are already looking when a channel is not
+      // doing what you expected.
+      label: c => {
+        const shape = SHAPE_NAMES[sim.shapeMode(c)] ?? '';
+        return shape ? `CH${c} ${shape}` : `CH${c}`;
+      },
+      labelColor: c => SHAPE_MODE_COLORS[sim.shapeMode(c)] ?? null,
       aliased: isAliased,
     });
   }
@@ -231,8 +258,10 @@ export function drawScopes() {
 // where the trace draws 3.2V is worse than no fader. The pad and the inset are
 // the same ones drawGrid lays the cells out with.
 //
-// Returns null outside the canvas or between cells, which is a click that meant
-// nothing rather than one that meant the nearest thing.
+// Returns null outside the canvas. Inside it every point belongs to a column,
+// including the gap between two of them - a pointer a pixel into the seam
+// plainly meant one of the jacks either side of it, and the column it lands in
+// is the one it is nearer.
 export function inputCellAt(clientX, clientY) {
   const r = inCanvas.getBoundingClientRect();
   if (!r.width || !r.height) return null;

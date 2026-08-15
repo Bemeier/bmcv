@@ -28,6 +28,26 @@ extern "C"
 // Per-channel scope history, in frames. Power of two: the ring wraps by mask.
 #define BMCV_SIM_SCOPE_LEN 4096
 
+// How many engine ticks one scope sample covers when this instance is the one
+// running. One is every tick, which at 4kHz fills the ring in a second - and a
+// host drawing a two-second window would then be asking for history that was
+// never kept, while the same host watching a real module over a link gets tens
+// of seconds from the same ring. Decimating is what lets one window span mean
+// the same thing in both.
+//
+// Nothing is lost to it: the engine ticks at 4kHz and its fastest output is
+// three orders of magnitude below that.
+//
+// Does not apply to bmcv_sim_import - a snapshot is one sample however it was
+// obtained, and the ring then fills at whatever rate they arrive.
+#define BMCV_SIM_SCOPE_DIV 2
+
+// The two above, for a host that has to convert between samples and seconds.
+// Read rather than assumed: a frontend holding its own copy of either is a
+// second definition free to drift from this one.
+int32_t bmcv_sim_scope_len(void);
+int32_t bmcv_sim_scope_div(void);
+
 typedef struct BmcvSim BmcvSim;
 
 BmcvSim* bmcv_sim_create(void);
@@ -156,6 +176,18 @@ const uint16_t* bmcv_sim_leds_rgb(const BmcvSim* s);
 // [ch * BMCV_SIM_SCOPE_LEN + i]; the newest sample is at head-1 (mod len).
 const float* bmcv_sim_scope(const BmcvSim* s);
 uint32_t bmcv_sim_scope_head(const BmcvSim* s);
+
+// Throw away the scope history.
+//
+// For a host that has changed what is filling the ring - stopped simulating and
+// started importing a real module's snapshots, or the other way round. The two
+// are different signals from different places, and drawing them end to end in
+// one cell reads as one trace that did something abrupt.
+void bmcv_sim_scope_clear(BmcvSim* s);
+
+// How many samples the ring holds since that clear, up to BMCV_SIM_SCOPE_LEN.
+// Draw no more than this or the cell shows the zeroes behind the oldest sample.
+int32_t bmcv_sim_scope_filled(const BmcvSim* s);
 
 // The same history for the 4 CV inputs, sharing bmcv_sim_scope_head(). This is
 // what the engine actually saw - the value latched into HwState each tick, not

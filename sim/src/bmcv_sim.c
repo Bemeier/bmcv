@@ -56,6 +56,16 @@ struct BmcvSim
   float scope[N_CHANNELS * BMCV_SIM_SCOPE_LEN];
   float input_scope[N_INPUTS * BMCV_SIM_SCOPE_LEN];
   uint32_t scope_head;
+
+  // How much of the ring has been written since it was last cleared, so a host
+  // does not draw the zeroes in front of the first sample - or, worse, whatever
+  // the source before this one left in there.
+  uint32_t scope_filled;
+
+  // Ticks since the last scope sample. Only bmcv_sim_run decimates; an imported
+  // snapshot is one sample by definition - it is the only picture of that
+  // module there is - so bmcv_sim_import pushes unconditionally.
+  uint32_t scope_div;
 };
 
 static void sim_boot(BmcvSim* s)
@@ -220,25 +230,52 @@ const void* bmcv_sim_remote_blob(BmcvSim* s)
 
 /* ---- running ------------------------------------------------------------ */
 
-static void capture(BmcvSim* s)
+// One column of the scope ring. Split out of the readings below because the two
+// are wanted at different rates: everything a host reads as a number it wants
+// as current as possible, and the ring it wants at whatever rate makes its
+// window fit - see BMCV_SIM_SCOPE_DIV.
+static void push_scope(BmcvSim* s)
 {
-  uint32_t head = s->scope_head;
+  const uint32_t head = s->scope_head;
 
   for (uint8_t c = 0; c < N_CHANNELS; c++)
-  {
-    // Not channels_output_level[]: mute is an output-stage gain, so what
-    // leaves the module is the gated level engine_tick published. The same
-    // array the firmware hands to the DAC.
-    float v                                 = sim_dac_to_volts(s->m.engine_state.channels_gated_level[c]);
-    s->outputs_v[c]                         = v;
-    s->scope[c * BMCV_SIM_SCOPE_LEN + head] = v;
-  }
+    s->scope[c * BMCV_SIM_SCOPE_LEN + head] = s->outputs_v[c];
 
   for (uint8_t i = 0; i < N_INPUTS; i++)
   {
     // input_state[] is in DAC units (four times the ADC reading), so the same
     // conversion the outputs use applies.
     s->input_scope[i * BMCV_SIM_SCOPE_LEN + head] = sim_dac_to_volts(s->m.ux.hw_state->input_state[i]);
+  }
+
+  s->scope_head = (head + 1) & (BMCV_SIM_SCOPE_LEN - 1);
+
+  if (s->scope_filled < BMCV_SIM_SCOPE_LEN)
+    s->scope_filled++;
+}
+
+void bmcv_sim_scope_clear(BmcvSim* s)
+{
+  if (!s)
+    return;
+
+  memset(s->scope, 0, sizeof s->scope);
+  memset(s->input_scope, 0, sizeof s->input_scope);
+  s->scope_head   = 0;
+  s->scope_filled = 0;
+  s->scope_div    = 0;
+}
+
+int32_t bmcv_sim_scope_filled(const BmcvSim* s) { return s ? (int32_t) s->scope_filled : 0; }
+
+static void capture(BmcvSim* s)
+{
+  for (uint8_t c = 0; c < N_CHANNELS; c++)
+  {
+    // Not channels_output_level[]: mute is an output-stage gain, so what
+    // leaves the module is the gated level engine_tick published. The same
+    // array the firmware hands to the DAC.
+    s->outputs_v[c] = sim_dac_to_volts(s->m.engine_state.channels_gated_level[c]);
   }
 
   for (uint8_t c = 0; c < N_CHANNELS; c++)
@@ -256,8 +293,6 @@ static void capture(BmcvSim* s)
     out[BMCV_EFF_GCD]        = (float) e->gcd;
     out[BMCV_EFF_PHASE_OFS]  = e->phase_offset;
   }
-
-  s->scope_head = (head + 1) & (BMCV_SIM_SCOPE_LEN - 1);
 
   for (uint8_t i = 0; i < LED_COUNT; i++)
   {
@@ -289,6 +324,21 @@ void bmcv_sim_run(BmcvSim* s, int32_t dt_us, int32_t n_ticks)
     s->now_us += dt_us;
     bmcv_instance_tick(&s->m, &s->sample, s->now_us);
     capture(s);
+
+    // Every tick would be four thousand samples a second, and the ring holds
+    // 4096 of them - a second's worth, where a module over a link fills the
+    // same ring at its own rate and gets tens of seconds. The two scopes then
+    // showed different spans of time in the same size cell.
+    //
+    // Decimated rather than the ring made bigger: the engine ticks at 4kHz and
+    // nothing it produces goes near a tenth of that, so every other sample is
+    // still a gross oversample of the signal - and the alternative costs both
+    // the memory and a line segment per sample on every frame drawn.
+    if (++s->scope_div >= BMCV_SIM_SCOPE_DIV)
+    {
+      s->scope_div = 0;
+      push_scope(s);
+    }
   }
 }
 
@@ -409,8 +459,7 @@ static const char* const quantize_mode_names[] = {"off", "cont", "trig"};
 // multiplied with it.
 static const char* const amp_mode_names[] = {"off", "add", "mult"};
 _Static_assert(sizeof amp_mode_names / sizeof amp_mode_names[0] == INPUT_AMP_MODE_COUNT, "one name per amp mode");
-_Static_assert(sizeof quantize_mode_names / sizeof quantize_mode_names[0] == QUANTIZE_MODE_COUNT,
-               "one name per quantize mode");
+_Static_assert(sizeof quantize_mode_names / sizeof quantize_mode_names[0] == QUANTIZE_MODE_COUNT, "one name per quantize mode");
 
 int32_t bmcv_sim_input_mode(const BmcvSim* s, int32_t input)
 {
@@ -494,6 +543,9 @@ int32_t bmcv_sim_midi_drain(BmcvSim* s, void* dst, int32_t max_msgs)
 
 int32_t bmcv_sim_instance_size(void) { return (int32_t) sizeof(BmcvInstance); }
 
+int32_t bmcv_sim_scope_len(void) { return BMCV_SIM_SCOPE_LEN; }
+int32_t bmcv_sim_scope_div(void) { return BMCV_SIM_SCOPE_DIV; }
+
 void bmcv_sim_export(const BmcvSim* s, void* dst)
 {
   if (!s || !dst)
@@ -527,7 +579,12 @@ int32_t bmcv_sim_import(BmcvSim* s, const void* src, int32_t len)
   // Straight away rather than on the next run(): the published readings are the
   // whole reason to import, and a snapshot is not something a host may advance
   // a tick to see.
+  //
+  // Undecimated, unlike run(): one snapshot is one sample, because it is the
+  // only view of that module there is. The rate the ring fills at is then the
+  // rate snapshots arrive, which is what mode.captureHz reports.
   capture(s);
+  push_scope(s);
   return 1;
 }
 
