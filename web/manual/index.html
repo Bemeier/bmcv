@@ -120,16 +120,17 @@
         than by a fixed amount.</dd>
 
         <dt><b class="ref">SHP</b> — shape</dt>
-        <dd>One continuous axis that wraps: square fully left, <b>sine at
-        centre</b>, triangle, a pointy extreme, and round to the square again.
-        What the axis holds depends on the channel's shape mode — see
-        <b class="ref">SYS</b>.</dd>
+        <dd>In the default wavetable mode, one continuous axis that wraps:
+        square fully left, <b>sine at centre</b>, triangle, a pointy extreme,
+        and round to the square again. In the other two shape modes it is the
+        pulse width, or the stepped-random pattern morph — see <a
+        href="#shapes">shape modes</a>.</dd>
 
         <dt><b class="ref">MOD</b> — the second axis</dt>
         <dd>Whatever the shape mode's second dimension is: wavetable skew,
-        stepped random density, or the PWM envelope. Negative leans early,
+        stepped-random density, or the PWM envelope. Negative leans early,
         positive leans late — except in stepped random, where negative is busy
-        and positive sparse.</dd>
+        and positive sparse. See <a href="#mod">MOD, mode by mode</a>.</dd>
 
         <dt><b class="ref">PHS</b> — phase offset</dt>
         <dd>Where in its cycle the channel starts. Phase 0 is the rising edge in
@@ -207,7 +208,10 @@
 
         <dt><b class="ref">QNT</b> — quantizer</dt>
         <dd>Scenes: switch semitones in and out of the scale. Encoders: turn for
-        the channel's quantize mode, press to assign its sample trigger.</dd>
+        the channel's quantize mode, press to assign its sample trigger. A
+        channel used as another's trigger has to cross <b>1.25V</b> to count,
+        the same voltage an input jack wants, so a very low-amplitude LFO will
+        not clock anything.</dd>
 
         <dt><b class="ref">MIX</b> — cross modulation</dt>
         <dd>Scenes: show what the four inputs are doing. Encoders: press to pick
@@ -249,52 +253,183 @@
   </div>
 </div>
 
-<div class="step">
-  <h2>Shape modes</h2>
+<div class="step" id="shapes">
+  <h2>Shape modes, and what SHP does in each</h2>
   <div class="cols">
     <div>
-      <p><b class="ref">SHP</b> picks the shape and <b class="ref">MOD</b> is its
-      second axis. What that second axis means depends on the channel's shape
-      mode, set under <b class="ref">SYS</b>.</p>
+      <p>A channel is in one of three shape modes, set with the encoders under
+      <b class="ref">SYS</b>. The mode decides what its two shape knobs mean.
+      <b class="ref">SHP</b> is the primary axis in all three; <b
+      class="ref">MOD</b> is the second, and has a section of its own below.</p>
 
       <dl>
-        <dt>Wavetable</dt>
-        <dd><b class="ref">SHP</b> is a slice of the table: square fully left,
-        sine at centre, triangle at +0.375, a pointy extreme at +0.625, and back
-        to the square — the axis is a loop. <b class="ref">MOD</b> is
-        <b>skew</b>, a phase warp that fixes both cycle endpoints, so a sine
-        leans into a skewed sine and a triangle into a ramp. There is no saw
-        slice because skew makes one.</dd>
+        <dt>Wavetable — <b class="ref">SHP</b> is a slice of the table</dt>
+        <dd>Square fully left, <b>sine at centre</b>, triangle at +0.375, a
+        pointy extreme at +0.625, and round to the square again. The axis is a
+        <b>loop</b>: &minus;1 and +1 are the same slice, so turning the encoder
+        forever cycles the shapes rather than stopping at an end. There is no saw
+        slice, because skew (<b class="ref">MOD</b>) makes one out of the
+        triangle.</dd>
 
-        <dt>Stepped random</dt>
-        <dd><b class="ref">SHP</b> morphs the pattern; <b class="ref">MOD</b> is
-        <b>density</b> — how often a step ties to the previous value instead of
-        taking a new one. Fully left every step is new, fully right the cycle is
-        a handful of long notes. Pattern length is per channel, under
+        <dt>PWM — <b class="ref">SHP</b> is the pulse width</dt>
+        <dd>Centre is a square; fully left and fully right are the narrowest and
+        widest pulses. Unlike the other two this axis does <b>not</b> wrap — it
+        is a width, and it stops just off both end stops, at 2% and 98%, so the
+        pulse never disappears entirely.</dd>
+
+        <dt>Stepped random — <b class="ref">SHP</b> morphs the pattern</dt>
+        <dd>Cyclic, like the wavetable: &minus;1 and +1 are the same pattern.
+        It is not a bank of unrelated patterns to scroll past — a small turn
+        <b>deforms</b> what is playing rather than redrawing it. Four things
+        move together, each at its own rate across the knob, so they keep
+        recombining rather than repeating; they are listed opposite. Pattern
+        length is separate, and per channel rather than per scene — under
         <b class="ref">STA</b>.</dd>
-
-        <dt>PWM</dt>
-        <dd><b class="ref">SHP</b> is the pulse width; <b class="ref">MOD</b> is
-        an <b>envelope</b> on one edge. At 0 it is a hard gate; negative snaps up
-        and decays through the off-time, positive swells across the on-time and
-        drops at the end. Each ramp stays inside its own segment, so the width
-        still means what it says at either extreme.</dd>
       </dl>
-    </div>
-    <div>
-      <p class="note">Where <b class="ref">MOD</b> leans something the sign
-      means the same thing everywhere: <b>negative leans early, positive leans
-      late</b>. Stepped random is the exception, because density has no early or
-      late — there negative is busy and positive sparse.</p>
 
       <p class="note">Every wavetable setting reaches the full swing and has no
       DC offset, between slices as well as on them. <b>Phase 0 is the rising
       edge</b> in every shape: it is where PWM opens its gate and where stepped
       random starts step 0, so a square channel at a whole division is a clock
       divider whose gate opens on the beat.</p>
+    </div>
+    <div>
+      <p>The four things <b class="ref">SHP</b> moves in stepped random:</p>
+
+      <dl>
+        <dt>Which values the steps hold</dt>
+        <dd>Every step rides its own slow orbit at its own rate, and
+        <b class="ref">SHP</b> advances all of them at once. This is the part
+        that was always there; the three below are what give the sweep a
+        direction rather than a series of fresh draws.</dd>
+
+        <dt>How those values are spread</dt>
+        <dd>Once across the sweep. Around a quarter turn left of centre the
+        middle of the range is compressed: small intervals, a calm line. A
+        quarter turn right it is expanded instead, values pushed out to the
+        extremes and the pattern reading as gates rather than as notes.</dd>
+
+        <dt>How melodic the contour is</dt>
+        <dd>Three times across the sweep. At its peaks each step is blended
+        toward a running average of the four before it, which reads as a walk;
+        between them the steps leap independently.</dd>
+
+        <dt>How emphatic the pattern is</dt>
+        <dd>Three times across the sweep the peak-to-peak ducks and comes back,
+        so some settings insist and others hold something in reserve. It never
+        ducks far enough to go flat.</dd>
+      </dl>
+
+      <p class="note">Those landmarks are quarter turns rather than exact
+      positions, because <b class="ref">MOD</b> carries the pattern part of the
+      way round the same loop — see <b>a share of the orbit</b> below. Where a
+      given character sits on <b class="ref">SHP</b> therefore depends on where
+      <b class="ref">MOD</b> is, and that is the point: the two knobs cover a
+      surface, not two independent lines.</p>
+    </div>
+  </div>
+</div>
+
+<div class="step" id="mod">
+  <h2>MOD, mode by mode</h2>
+  <div class="cols">
+    <div>
+      <dl>
+        <dt>Wavetable — <b>skew</b></dt>
+        <dd>A phase warp that pins both ends of the cycle, so the shape leans
+        without the cycle changing length or acquiring an offset. A sine becomes
+        a skewed sine; a triangle becomes a ramp, which is where the saw comes
+        from. At 0 the phase is passed through untouched.</dd>
+
+        <dt>PWM — an <b>envelope</b> on one edge</dt>
+        <dd>At 0 it is a hard gate. Negative snaps up at phase 0 and decays
+        through the off-time; positive swells across the on-time and drops at the
+        end. Each ramp stays inside its own segment, so the width still means
+        what it says at either extreme. The ramps are curved rather than linear —
+        the attack quick off the floor and easing into the plateau, the decay
+        steep with a tail — which is what makes the negative side read as an
+        envelope and not a triangle.</dd>
+
+        <dt>Stepped random — <b>density</b>, and five things travelling with it</dt>
+        <dd>Density is the headline: how often a step ties to the previous value
+        instead of taking a new one. Fully left every step is new and the cycle
+        is at its busiest; 0 is the neutral ~30% the pattern was designed around;
+        fully right leaves a handful of long notes. This axis is
+        <b>monotone</b> — unlike <b class="ref">SHP</b> it does not wrap, and
+        &minus;1 and +1 are opposite ends rather than the same place. The tie is
+        a <b>crossfade</b>, not a switch, so a half-tied step is a smaller
+        interval and the knob moves the pattern everywhere on its travel rather
+        than sitting still and then lurching.</dd>
+      </dl>
+
+      <p class="note">Where <b class="ref">MOD</b> leans something the sign
+      means the same thing everywhere: <b>negative leans early, positive leans
+      late</b>. Stepped random is the exception, because density has no early or
+      late — there negative is busy and positive sparse.</p>
 
       <p class="note">A narrow pulse with <b class="ref">MOD</b> hard left is a
       percussive envelope locked to the beat.</p>
+    </div>
+    <div>
+      <p>The five that travel with density, and what each one changes about the
+      pattern:</p>
+
+      <dl>
+        <dt>Which steps tie</dt>
+        <dd>Each step's threshold rotates as <b class="ref">MOD</b> moves, so the
+        tied set keeps <b>re-arranging</b> rather than simply growing. Without
+        it, ties would nest — once a step tied it stayed tied — and the knob
+        could only ever thin one pattern instead of reaching a different one.
+        Every fourth step is pinned to take its own value whatever the density,
+        which is what stops the far end of the knob flattening the pattern and
+        keeps the loop point closing on the same value.</dd>
+
+        <dt>Swing</dt>
+        <dd>Alternate steps run long and short. Zero at centre <em>and</em> at
+        both extremes, strongest around &plusmn;0.5 and leaning the opposite way
+        on either side — so straight time in three places and a shuffle between
+        them. The widths always sum to one cycle, so the loop still closes
+        wherever the knob is.</dd>
+
+        <dt>Motif repeat</dt>
+        <dd>Towards <b>either</b> end, the cycle folds onto a quarter-length
+        sub-phrase and the pattern starts repeating a riff; at centre it is
+        through-composed. The repeat comes out varied rather than as a literal
+        copy, because the tie pattern still runs the full length. Only from
+        16 steps up — below that a quarter cycle is not a phrase.</dd>
+
+        <dt>A second layer of the spread</dt>
+        <dd>The same calm-versus-gate-like shaper <b class="ref">SHP</b> drives,
+        with its own shallower layer on <b class="ref">MOD</b> running three
+        times across the sweep, on top of whatever <b class="ref">SHP</b> has
+        set.</dd>
+
+        <dt>A share of the orbit</dt>
+        <dd>The one that matters most. <b class="ref">MOD</b> also carries the
+        step values part of the way along the loop <b class="ref">SHP</b> drives,
+        so it reaches <b>patterns SHP never lands on</b> — it is not only
+        thinning and recolouring whichever pattern <b class="ref">SHP</b>
+        picked.</dd>
+      </dl>
+
+      <p class="note">Five places to start, at 16 steps or more. <b>Hard
+      left</b>: a new value every step, straight time, and the quarter-cycle
+      riff at full depth — a sample-and-hold that has a shape to it.
+      <b>&minus;0.5</b>: about one step in seven tied, the shuffle at its
+      deepest leaning one way, the riff half stated. <b>0</b>: the neutral
+      pattern —
+      about a third of the steps tied, straight time, no repeat, and both
+      shaper layers at rest. <b>+0.5</b>: three-fifths tied, the shuffle at its
+      deepest the other way, the riff half stated again. <b>Hard right</b>:
+      three steps in four tied, which is the ceiling, straight time, the riff
+      back at full depth — nearer a chord progression than a modulation
+      source.</p>
+
+      <p class="note">Note what that list does <em>not</em> do: it never
+      revisits the same pattern. Density, the shuffle and the riff each turn
+      over at their own rate, and the orbit share moves the values themselves
+      the whole way, so the two ends have opposite densities <em>and</em>
+      different notes rather than the same pattern thinned out.</p>
     </div>
   </div>
 </div>
