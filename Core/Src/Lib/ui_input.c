@@ -40,12 +40,26 @@ void ui_input_update(UiInput* in, const HwState* curr)
         in->crossed[b] |= BTN_EV_VLONG;
       }
     }
-    else if (was_down && in->held_us[b] >= UI_T_DEBOUNCE)
+    else if (was_down)
     {
-      in->ev[b] |= BTN_EV_UP;
-      if (in->held_us[b] < UI_T_HOLD)
+      // The release tick counts towards the press: the button was down when
+      // the previous tick sampled it and up when this one did, so the whole
+      // interval belongs to the press the same way it does for hw_state.time.
+      //
+      // Not cosmetic. It is what makes `time - held_us` the instant of the
+      // press on every tick including this one, which is the comparison the
+      // reset guard in ui_channel.c makes against the last edit. Stopping one
+      // tick short made an edit on the press tick look older than the press
+      // containing it, and the release wiped it.
+      in->held_us[b] += curr->dt;
+
+      if (in->held_us[b] >= UI_T_DEBOUNCE)
       {
-        in->ev[b] |= BTN_EV_TAP;
+        in->ev[b] |= BTN_EV_UP;
+        if (in->held_us[b] < UI_T_HOLD)
+        {
+          in->ev[b] |= BTN_EV_TAP;
+        }
       }
     }
 

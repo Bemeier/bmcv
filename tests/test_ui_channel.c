@@ -239,6 +239,37 @@ TEST_CASE(fine_adjust_on_a_linear_parameter_keeps_its_flat_step)
   CHECK(f.engine_config.channel_state[0].params[0][CH_PARAM_AMP] == 32);
 }
 
+// The reset guard asks whether the press spanned an encoder edit, by comparing
+// how long the button has been down against how long ago the last edit was.
+// That only works if both are measured from the same instant, and held_us used
+// to stop accumulating one tick early - so an edit made on the very tick the
+// button went down looked older than the press that contained it, and the
+// release wiped the value that press had just adjusted.
+//
+// Nobody presses and turns within one tick by hand, but the web panel's
+// shift-wheel does exactly that: it asserts the push and feeds the detent in
+// the same gesture, so fine adjust there always ended in a reset.
+TEST_CASE(an_edit_on_the_press_tick_still_blocks_the_reset)
+{
+  Fixture f;
+  fixture_init(&f);
+  f.ui_state.shift_state         = SHIFT_STATE_NONE;
+  f.engine_config.selected_param = CH_PARAM_AMP;
+  fixture_set_param(&f, 0, 0, CH_PARAM_AMP, 4096);
+
+  // Push and detent land together, as the panel sends them.
+  f.hw_state.button_state[ch_btn(&f, 0)]  = 1;
+  f.hw_state.encoder_delta[ch_enc(&f, 0)] = +1;
+  fixture_tick(&f, MS(1));
+  CHECK(f.engine_config.channel_state[0].params[0][CH_PARAM_AMP] == 4096 + 32);
+
+  for (int i = 0; i < 140; i++)
+    fixture_tick(&f, MS(1));
+  fixture_release(&f, ch_btn(&f, 0));
+
+  CHECK(f.engine_config.channel_state[0].params[0][CH_PARAM_AMP] == 4096 + 32);
+}
+
 int main(void)
 {
   RUN_TEST(the_channel_button_toggles_mute_in_mut);
@@ -252,5 +283,6 @@ int main(void)
   RUN_TEST(fine_adjust_costs_the_same_detents_per_ratio_across_the_grid);
   RUN_TEST(fine_adjust_clamps_at_the_ends_of_the_frequency_grid);
   RUN_TEST(fine_adjust_on_a_linear_parameter_keeps_its_flat_step);
+  RUN_TEST(an_edit_on_the_press_tick_still_blocks_the_reset);
   return TESTKIT_SUMMARY();
 }
