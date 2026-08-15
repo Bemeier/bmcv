@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.11.1 (2026-08-15)
+
+### Fix
+
+- **web**: shift and the wheel, and a bracket that stopped at three corners
+
 ## v0.11.0 (2026-08-15)
 
 ### BREAKING CHANGE
