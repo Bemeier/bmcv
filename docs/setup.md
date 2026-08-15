@@ -24,7 +24,34 @@ hundred megabytes fetched straight from GitHub and ST's own HAL repos.
 just arm-sdk        # once: fetches the ARM toolchain + STM32Cube HAL
 just build            # -> build/BMCVFirmware.elf, build/BMCVFirmware.bin
 just flash             # over an ST-Link, via OpenOCD
+just flash-usb        # or: over the module's own USB port, no probe
 ```
+
+### Which of the two flash recipes
+
+`just flash` writes over SWD through an ST-Link. It is the one that can also
+halt the core, so it is what `just where` and any breakpoint work sit on. It
+needs the module out of the rack with a ribbon on its debug header.
+
+`just flash-usb` writes over the module's panel USB port, through the STM32's
+ROM DFU bootloader. No probe, and **the module can stay in the rack** - which
+is the point of it, since that port is probably already patched into the
+computer for the simulator's live link. You give up halting and breakpoints;
+the WebUSB link and the diagnostics page still work, so printf-level debugging
+does not go away. See [live-module.md](live-module.md).
+
+It needs the module in update mode first, by either:
+
+- holding **CPY** while the module powers up, or
+- pressing the update-mode button on the `just docs-page` updater, which sends
+  the same request over WebUSB and needs no hands on the module.
+
+The recipe checks which state the module is in, says what to do, and then waits
+for the bootloader to appear - so putting the module into update mode *after*
+starting the command is the expected order. It cannot ask for update mode
+itself: that request goes over WebUSB to a device that, under WSL, belongs to
+Windows, and taking it away with an elevated `usbipd bind` would hide it from
+the Windows-side programmer that then has to do the writing.
 
 `build` configures `build/` first if it is not there, so `arm-sdk` really is
 the only thing a fresh checkout needs up front. `just configure` reconfigures

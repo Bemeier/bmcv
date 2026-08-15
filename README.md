@@ -152,7 +152,7 @@ troubleshooting: [docs/setup.md](docs/setup.md). On a fresh checkout, the one
 thing to run first is `just arm-sdk`.
 
     just arm-sdk          # fetch the ARM toolchain + STM32Cube HAL, once
-    just build            # ARM firmware        just flash
+    just build            # ARM firmware        just flash / just flash-usb
     just check            # everything host-side: format, tests, flows, wasm, web
     just check-all        # the above plus the firmware and Rack plugin builds
     just test-san         # the same tests under ASan/UBSan
@@ -188,12 +188,22 @@ the commits since the last tag and cuts a GitHub Release - see
 
 ## Flashing
 
-Two routes, and they want different files.
+Three routes, and they want different files.
 
 **Over the programming header, from a build.** `just flash` sends
 `build/BMCVFirmware.elf` over an ST-Link; `just flash-rel` does the same with
-the release build. This is the loop while developing - it needs the probe, and
-says nothing about the module's own USB.
+the release build. It needs the module out of the rack with a ribbon on its
+debug header, and it is the only route that can also halt the core - so it is
+what `just where` and any breakpoint work sit on.
+
+**Over USB-C, from a build.** `just flash-usb` sends `build/BMCVFirmware.bin`
+through the STM32's ROM DFU bootloader, with no probe and **the module still in
+the rack**. That is the development loop when nothing needs stepping through:
+the WebUSB link and the diagnostics page still work, so printf-level debugging
+survives; halting does not. The module has to be put into update mode first -
+hold **CPY** while it powers up, or press the update-mode button on the updater
+page - and the recipe says which, then waits for the bootloader to appear. See
+[docs/setup.md](docs/setup.md).
 
 **Over USB-C, from the browser.**
 [bemeier.github.io/bmcv/update](https://bemeier.github.io/bmcv/update/) flashes

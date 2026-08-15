@@ -43,6 +43,29 @@ build: (_ensure "build" "configure")
 flash:
 	./scripts/flash.sh
 
+# This is the one to use while the module is in the rack. The ST-Link needs it
+# out and a ribbon on its header; the USB port is on the panel and is likely
+# already patched in for the simulator's live link, so the edit-flash-listen
+# loop costs nothing but the reset.
+#
+# What it gives up: halting, breakpoints and `just where`, all of which are SWD.
+# The WebUSB link and the diagnostics page still work, so this is "light
+# debugging without leaving the rack" rather than no debugging.
+#
+# The module has to be in update mode first, which is either holding CPY while
+# it powers up or the update-mode button on the `just docs-page` updater. The
+# recipe says which, then waits for the bootloader to appear - so putting the
+# module into update mode *after* starting the command is the expected order.
+#
+# It cannot ask for update mode itself. That request goes over WebUSB to a
+# device that, under WSL, belongs to Windows, and prising it away with an
+# elevated `usbipd bind` would hide it from the Windows-side programmer that has
+# to do the writing.
+#
+# Flash over the module's USB port via the ROM DFU bootloader, no probe needed.
+flash-usb BIN="build/BMCVFirmware.bin":
+	./scripts/flash-usb.sh {{BIN}}
+
 # Halt the running module over SWD and say where its PC is, in source terms.
 # For when the panel has frozen and nothing else can tell you why. Needs the
 # ST-Link attached and the ELF matching what is flashed.
@@ -50,6 +73,8 @@ where ELF="build-rel/BMCVFirmware.elf":
 	./scripts/where.sh {{ELF}}
 
 build-flash: build flash
+
+build-flash-usb: build flash-usb
 
 # The same firmware at -O2. `just build` gives you a Debug build - CMakeLists.txt
 # defaults CMAKE_BUILD_TYPE to Debug, and cmake/gcc-arm-none-eabi.cmake's
@@ -75,7 +100,11 @@ build-rel: (_ensure "build-rel" "configure-rel")
 flash-rel:
 	./scripts/flash.sh build-rel/BMCVFirmware.elf
 
+flash-usb-rel: (flash-usb "build-rel/BMCVFirmware.bin")
+
 build-flash-rel: build-rel flash-rel
+
+build-flash-usb-rel: build-rel flash-usb-rel
 
 # Native host-compiled test/tool build. Kept in its own directory so `build/`
 # stays exactly what the ARM recipes, scripts/flash.sh and clangd expect.
@@ -411,7 +440,7 @@ panel HW_REPO="pcb": (_ensure "build-native" "configure-native")
 # as static assertions. sim/src/bmcv_sim.c includes it, so the wasm build - and
 # therefore `just check` - fails if the two compilers stop agreeing about the
 # struct. That agreement is what lets a debug probe's raw snapshot of `bmcv` be
-# decoded by the wasm build; see docs/plans/probe-bridge.md.
+# decoded by the wasm build; see docs/live-module.md.
 #
 # Needs a current build-rel: run `just build-rel` first, or the assertions
 # describe the firmware you last built rather than the one you are editing.
