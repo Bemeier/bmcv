@@ -202,11 +202,24 @@ verified from an arm64 machine. Nothing reaches macOS this way.
 pipx install commitizen     # or: pip install --user commitizen
 just bump-dry-run             # preview
 just bump                      # bump VERSION + CHANGELOG.md, commit, tag
+just commit                    # interactive wizard for a correct message
 ```
 
-See the [Versioning](../README.md#versioning) section of the main README for
-what commit messages this expects, and for why `vcv/plugin.json`'s version is
-fixed at `2.0.0` rather than following `VERSION` like everything else.
+Commit messages are [Conventional Commits](https://www.conventionalcommits.org)
+- `feat: ...`, `fix: ...`, `feat!: ...` for a breaking change - enforced on pull
+requests by the `commits` CI job. `VERSION` and `CHANGELOG.md` are generated
+from them and never edited by hand; `Core/Inc/Lib/version.h` is generated from
+`VERSION` at configure time, which is why it is not checked in. Pushing to
+`main` lets the `release` CI job do the bump instead.
+
+`vcv/plugin.json` is the one thing that does not follow `VERSION`, because it
+cannot: Rack refuses to load a plugin whose version does not begin with Rack's
+own major, so driving it from `VERSION` would pin this project's major to Rack's
+and cost the firmware its semver. It is fixed at `2.0.0` and stays there - it
+means "for Rack 2", not "the second version of anything". The firmware version
+travels on the released file's name instead,
+`BMCV-v0.6.1-lin-x64.vcvplugin`, which is why the plugin shows as 2.0.0 in
+Rack's browser however new the firmware inside it is.
 
 ## Formatting
 

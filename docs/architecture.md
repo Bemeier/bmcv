@@ -25,6 +25,25 @@ the same version from ST's public mirror the same way `arm-sdk` does; the two
 submodules it needs are named in `../.github/workflows/ci.yml`, at the repo
 root.
 
+## The three ideas most of this follows from
+
+**A channel is an oscillator locked to a ratio, not a rate.** Frequencies are
+divisions of the incoming beat, so a patch stays in phase with everything around
+it. That is why there is a PLL rather than a tempo readout, and why
+`clock_sync.c` is the most carefully tested file here - [pll.md](pll.md).
+
+**A scene is every parameter of every channel at once, and the crossfader blends
+two of them.** Forty-eight values move on one fader. That is why parameters live
+in a scene-indexed array rather than on the channel, and why `EngineConfig` is
+the thing that gets saved, copied and cleared. Moving a parameter onto the
+channel where it looks like it belongs is the recurring wrong turn.
+
+**The whole module is one struct.** `BmcvInstance` holds the config, the signal
+path, the interaction state and the input layer; the firmware keeps exactly one.
+Nothing that matters lives in a file-static. That is what lets a host run
+several, a test build one per case, and a debug probe or a USB link ship the
+entire module to a browser as bytes - which the next section is about.
+
 ## The seam
 
 `Core/Src/Lib` is the module and nothing else. It has no peripheral access, no
