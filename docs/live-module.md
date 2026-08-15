@@ -132,6 +132,44 @@ pointed at gave the answer in a single run.
   prints every byte that comes back. It separates a dead endpoint from a lost
   reply, and a port that will not open from a module that will not answer.
 
+## The one real annoyance: restart the browser after the module leaves the bus
+
+**Chrome enumerates MIDI once.** The port objects a page is handed are backed by
+that enumeration, and a device that leaves the bus and comes back does not get
+new ones. The stale ports go on reporting `state: "connected"`, go on opening
+without complaint, and go on accepting messages that reach nothing.
+
+Two ordinary things make the module leave the bus:
+
+- **power-cycling it**
+- **reflashing it** - the target resets, so it re-enumerates
+
+After either, the page can no longer reach the module until **the browser is
+restarted**. Not a refresh: the MIDI service lives in the browser process, so it
+has to be quit and reopened.
+
+Everything about this points the wrong way. The module is fine, the cable is
+fine, the port is listed, `open()` succeeds, sends are accepted - and the
+obvious response, power-cycling the module again, is the one move that cannot
+help. That is why it cost several rounds to identify.
+
+Nothing a page can do reaches past it. What the page does instead:
+
+- **Notices the module leaving**, through `MIDIAccess.onstatechange`, and says
+  so at the time rather than leaving it to be discovered on the next connect.
+  Some backends do not report it, so this is a bonus rather than a guarantee.
+- **Names the cause when discovery fails** against a port that looks like a
+  BMCV, instead of reporting a silent module.
+
+Two ways round it while developing:
+
+- **Use the debug probe.** WebUSB asks for the device each time, so it handles
+  re-enumeration properly. If you are flashing and re-testing in a loop, this is
+  the transport that will not make you restart anything.
+- **Check `chrome://flags` for a WinRT MIDI backend.** Chromium has carried more
+  than one MIDI implementation on Windows and they have not all behaved the same
+  way about hot-plug. Worth a look; not verified here.
+
 ## Two things that cost a long evening
 
 **A MIDI port is named by the host driver, not by the device.** The module's USB

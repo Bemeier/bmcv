@@ -49,6 +49,16 @@ class MidiLink {
     this.version = null;
     this.timers = [];
 
+    // Set once this page has watched the module leave the USB bus.
+    //
+    // Chrome enumerates MIDI once and hands out port objects backed by that
+    // enumeration; a device that leaves and comes back gets no new ones, and
+    // the old ones go on reporting `connected` and accepting sends that reach
+    // nothing. Nothing here can undo that - but having *seen* it happen turns
+    // the next failure from a guess into a certainty, and lets the page say so
+    // before the next connect rather than after it.
+    this.moduleLeft = false;
+
     if (typeof window !== 'undefined') {
       window.addEventListener('pagehide', () => this.#teardown());
     }
@@ -83,6 +93,9 @@ class MidiLink {
       this.version = found.version;
       this.session.setStage('');
 
+      this.moduleLeft = false;
+      this.access.onstatechange = ev => this.#portChanged(ev);
+
       this.session.begin();
       this.input.onmidimessage = ev => this.#onMessage(ev);
 
@@ -103,7 +116,13 @@ class MidiLink {
     } catch (e) {
       this.#teardown();
       this.session.end();
-      this.session.set('error', e.message);
+
+      // If this page watched the module leave, the diagnosis is not a guess.
+      this.session.set('error', this.moduleLeft
+        ? 'This browser is still holding a port from before the module left the USB bus, so '
+          + 'nothing sent to it arrives. Restart the browser to pick the module up again. '
+          + '(A debug probe is immune to this.)'
+        : e.message);
     }
   }
 
@@ -116,6 +135,25 @@ class MidiLink {
     this.#teardown();
     this.session.end();
     this.session.set('idle');
+  }
+
+  // The module leaving the bus, if this browser notices at all - some backends
+  // do not. Kept whether or not a session is running, because what matters next
+  // time is that it happened, not that it happened while connected.
+  #portChanged(ev) {
+    const port = ev.port;
+    if (port?.state !== 'disconnected') return;
+    if (port !== this.input && port !== this.output) return;
+
+    this.moduleLeft = true;
+    if (this.state !== 'live' && this.state !== 'connecting') return;
+
+    this.#teardown();
+    this.session.end();
+    this.session.set('error',
+      'The module left the USB bus. If you power-cycled or reflashed it, this browser will '
+      + 'go on offering a port that no longer reaches anything - restart the browser to pick '
+      + 'the module up again.');
   }
 
   #teardown() {

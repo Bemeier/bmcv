@@ -98,11 +98,31 @@ export async function identify(access, onStage) {
   }
 
   const names = ps => ps.map(p => p.name || '(unnamed)').join(', ');
+  const looksLikeUs = [...inputs, ...outputs].some(likely);
+
+  // A port that is listed, opens without complaint, accepts a message and
+  // answers nothing is almost always a handle to a device that has gone.
+  //
+  // Chrome enumerates MIDI once and hands the page port objects backed by that
+  // enumeration. When a device leaves the bus and comes back - a power cycle,
+  // or a reflash, which does the same thing - the ports keep reporting
+  // `state: "connected"`, keep opening, and keep accepting sends that go
+  // nowhere. Nothing the page can do reaches past that; only restarting the
+  // browser makes it enumerate again.
+  //
+  // Worth saying precisely, because everything about it points the wrong way:
+  // the module is fine, the cable is fine, the port is listed, and the obvious
+  // move - power-cycling the module again - is the one thing that makes it
+  // worse. This message is most of what can be done about it.
   throw new Error(
-    `no BMCV answered. Outputs tried: ${names(outputs)}. Inputs listened to: ${names(inputs)}. `
-    + 'A module that is plugged in and named here but silent has usually been left with its '
-    + 'USB endpoint holding a transfer nobody collected - power-cycle it. Otherwise it is '
-    + 'running firmware without the identity command.',
+    looksLikeUs
+      ? 'The module is listed but does not answer. This browser most likely still holds a '
+        + 'handle to it from before it last left the USB bus - power-cycling or reflashing '
+        + 'does that, and the ports go on looking connected afterwards. Restart the browser '
+        + 'and it will work again. (A debug probe is immune to this.)'
+      : `No BMCV answered. Outputs tried: ${names(outputs)}. Inputs listened to: ${names(inputs)}. `
+        + 'If the module is plugged in and powered, it is running firmware without the '
+        + 'identity command.',
   );
 }
 
