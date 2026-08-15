@@ -43,6 +43,37 @@ export const FLASH_PAGE_SIZE = 2048;
 
 export const FLASH_START = 0x08000000;
 
+// How long any single control transfer may take before it is called a failure.
+//
+// WebUSB transfers carry no timeout of their own: a read for data that never
+// comes simply never settles - no error, nothing to retry, and no way to tell
+// it apart from a slow device. On the probe that costs a page whose buttons
+// have all locked; here it costs a module that has been erased and is now
+// waiting on a promise that will not resolve, with no way back but the CPY
+// button. web/probe/usblink.js has carried this for a while; the updater is
+// where it matters most and was where it was missing.
+//
+// Generous, because the far end is a ROM bootloader mid-erase and the poll
+// below is what actually waits on slow work. This bounds a *stall*, not a
+// device taking its time.
+const TRANSFER_TIMEOUT_MS = 5000;
+
+// And a ceiling on the whole erase/write poll, since a device that keeps
+// answering "still busy" answers every transfer inside its timeout while never
+// finishing. Comfortably past a full-chip erase, which is the slow case.
+const BUSY_TIMEOUT_MS = 30000;
+
+// Reject if `promise` has not settled in time. The transfer cannot be
+// cancelled - only closing the device does that - so this bounds how long a
+// caller waits, not how long the device takes.
+function withTimeout(promise, what, ms = TRANSFER_TIMEOUT_MS) {
+  let timer;
+  const deadline = new Promise((_resolve, reject) => {
+    timer = setTimeout(() => reject(new DfuError(`${what} timed out after ${ms}ms`)), ms);
+  });
+  return Promise.race([promise, deadline]).finally(() => clearTimeout(timer));
+}
+
 // The target's memory map, used to tell a firmware image from any other file.
 const FLASH_SIZE = 512 * 1024;
 const FLASH_END = FLASH_START + FLASH_SIZE;
@@ -131,18 +162,28 @@ export class DfuDevice {
     this.device = device;
     this.interfaceNumber = interfaceNumber;
     this.transferSize = transferSize;
+
+    // Fields rather than constants so a caller can tighten them - the checks
+    // do, because asserting that a stall is given up on should not cost the
+    // suite the full production wait.
+    this.transferTimeoutMs = TRANSFER_TIMEOUT_MS;
+    this.busyTimeoutMs = BUSY_TIMEOUT_MS;
   }
 
   async controlOut(request, value, data) {
-    const result = await this.device.controlTransferOut(
-      {
-        requestType: 'class',
-        recipient: 'interface',
-        request,
-        value,
-        index: this.interfaceNumber,
-      },
-      data,
+    const result = await withTimeout(
+      this.device.controlTransferOut(
+        {
+          requestType: 'class',
+          recipient: 'interface',
+          request,
+          value,
+          index: this.interfaceNumber,
+        },
+        data,
+      ),
+      `a control write (request ${request})`,
+      this.transferTimeoutMs,
     );
     if (result.status !== 'ok') {
       throw new DfuError(`control transfer failed: ${result.status}`);
@@ -151,15 +192,19 @@ export class DfuDevice {
   }
 
   async controlIn(request, value, length) {
-    const result = await this.device.controlTransferIn(
-      {
-        requestType: 'class',
-        recipient: 'interface',
-        request,
-        value,
-        index: this.interfaceNumber,
-      },
-      length,
+    const result = await withTimeout(
+      this.device.controlTransferIn(
+        {
+          requestType: 'class',
+          recipient: 'interface',
+          request,
+          value,
+          index: this.interfaceNumber,
+        },
+        length,
+      ),
+      `a control read (request ${request})`,
+      this.transferTimeoutMs,
     );
     if (result.status !== 'ok') {
       throw new DfuError(`control transfer failed: ${result.status}`);
@@ -207,8 +252,18 @@ export class DfuDevice {
   // Poll until the device stops reporting itself busy. It tells us how long to
   // wait between polls, and page erases are the slow case.
   async waitWhileBusy() {
+    // Bounded by wall clock rather than by a poll count, because the device
+    // chooses the interval between polls: a bootloader reporting a long
+    // pollTimeout and never leaving dfuDNLOAD_BUSY answers every transfer well
+    // inside its own timeout while the loop never ends. That is the one stall
+    // the per-transfer bound cannot see, and it lands mid-erase.
+    const deadline = Date.now() + this.busyTimeoutMs;
+
     let s = await this.getStatus();
     while (s.state === STATE_DFU_DNBUSY) {
+      if (Date.now() > deadline) {
+        throw new DfuError(`device stayed busy for more than ${this.busyTimeoutMs}ms`);
+      }
       await new Promise((r) => setTimeout(r, s.pollTimeout + 1));
       s = await this.getStatus();
     }
@@ -348,15 +403,21 @@ export function transferSizeFromDescriptor(bytes, interfaceNumber) {
 // functional descriptor. WebUSB exposes interfaces and endpoints but not
 // class-specific descriptors, so this is the only way to ask.
 async function readTransferSize(device, interfaceNumber) {
-  const header = await device.controlTransferIn(
-    { requestType: 'standard', recipient: 'device', request: 0x06, value: 0x0200, index: 0 },
-    4,
+  const header = await withTimeout(
+    device.controlTransferIn(
+      { requestType: 'standard', recipient: 'device', request: 0x06, value: 0x0200, index: 0 },
+      4,
+    ),
+    'the descriptor header',
   );
   const totalLength = header.data.getUint16(2, true);
 
-  const full = await device.controlTransferIn(
-    { requestType: 'standard', recipient: 'device', request: 0x06, value: 0x0200, index: 0 },
-    totalLength,
+  const full = await withTimeout(
+    device.controlTransferIn(
+      { requestType: 'standard', recipient: 'device', request: 0x06, value: 0x0200, index: 0 },
+      totalLength,
+    ),
+    'the configuration descriptor',
   );
   const bytes = new Uint8Array(full.data.buffer);
 

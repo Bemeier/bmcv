@@ -355,5 +355,68 @@ const downloads = (calls) => calls.filter((c) => c.dir === 'out' && c.request ==
   check(message === 'write failed', `a device-reported write failure stops the flash (got ${message})`);
 }
 
+/* ---- devices that stop answering ------------------------------------------ */
+
+// The failure this suite could not see before, and the worst one there is: the
+// module has been erased and the device goes quiet. A WebUSB transfer that
+// never settles produces no error and no rejection, so without a bound the
+// updater simply waits for ever - no progress bar, no message, nothing to
+// retry, and a module that will not boot.
+//
+// Both bounds are instance fields, so these run at milliseconds rather than at
+// the production wait. A watchdog well clear of them turns "this hangs" into a
+// failure instead of a suite that never finishes - clearing its own timer, or
+// the losing half of the race would report a hang that did not happen.
+async function settlesWith(promise, pattern, what, watchdogMs = 2000) {
+  let timer;
+  const watchdog = new Promise((resolve) => {
+    timer = setTimeout(() => resolve(Symbol('hung')), watchdogMs);
+  });
+
+  const outcome = await Promise.race([promise.then(
+    () => new Error('resolved rather than rejected'),
+    (e) => e,
+  ), watchdog]);
+  clearTimeout(timer);
+
+  if (typeof outcome === 'symbol') {
+    check(false, `${what} (hung - the bound is missing)`);
+    return;
+  }
+  check(pattern.test(outcome.message ?? ''), `${what} (got ${outcome.message})`);
+}
+
+{
+  // Answers nothing, ever. Without the per-transfer bound this never settles.
+  const silent = {
+    controlTransferOut: () => new Promise(() => {}),
+    controlTransferIn: () => new Promise(() => {}),
+  };
+
+  const dfu = new DfuDevice(silent, 0, 2048);
+  dfu.transferTimeoutMs = 100;
+  await settlesWith(dfu.getStatus(), /timed out/, 'a read from a silent device times out');
+}
+
+{
+  // Answers every transfer promptly and always says "still busy". Each call is
+  // well inside the per-transfer bound, so only the poll's own ceiling ends
+  // this - the one stall a per-transfer timeout cannot catch, and it lands
+  // mid-erase.
+  const foreverBusy = {
+    async controlTransferOut() {
+      return { status: 'ok' };
+    },
+    async controlTransferIn() {
+      // bStatus = OK, poll timeout 1ms, state dfuDNLOAD_BUSY.
+      return { status: 'ok', data: new DataView(new Uint8Array([0, 1, 0, 0, 4, 0]).buffer) };
+    },
+  };
+
+  const dfu = new DfuDevice(foreverBusy, 0, 2048);
+  dfu.busyTimeoutMs = 200;
+  await settlesWith(dfu.waitWhileBusy(), /stayed busy/, 'a permanently busy device is abandoned');
+}
+
 console.log(failures ? `\n${failures} check(s) failed` : '\nall checks passed');
 process.exit(failures ? 1 : 0);
