@@ -23,29 +23,22 @@
     <div id="side-grid">
     <div class="panel-box">
       <div class="scopes">
-        <div class="scope-row">
-          <div class="bracket"><span>outputs</span><i></i></div>
-          <canvas id="scope" width="1000" height="440"></canvas>
-        </div>
-        <div class="scope-row">
-          <div class="bracket"><span>inputs</span><i></i></div>
-          <div class="scope-stack">
-            <canvas id="inscope"></canvas>
-            <div id="in-controls"></div>
-          </div>
-        </div>
+        <div class="bracket"><i></i><span>outputs</span><i></i></div>
+        <canvas id="scope" width="1000" height="440"></canvas>
+
+        <div class="bracket"><i></i><span>inputs</span><i></i></div>
+        <canvas id="inscope"></canvas>
+
+        <div id="in-controls"></div>
       </div>
     </div>
 
     <div class="panel-box">
       <table id="params"></table>
-      <div class="quant">
-        <span class="label">scale</span>
-        <div id="keys" class="keys"></div>
-      </div>
       <div class="readouts rates">
         <div class="readout"><span class="label">mode</span><span id="r-shift" class="value">—</span></div>
         <div class="readout"><span class="label">param</span><span id="r-param" class="value">—</span></div>
+        <div class="readout"><div id="keys" class="keys"></div></div>
         <div class="readout"><span class="label">scene</span><span id="r-scene" class="value">—</span></div>
         <div class="readout"><span class="label">bpm in</span><span id="r-bpm-in" class="value">—</span></div>
         <div class="readout"><span class="label">bpm run</span><span id="r-bpm" class="value">—</span></div>
@@ -56,9 +49,6 @@
       <div class="readouts">
         <div class="readout">
           <span class="label">source</span><span id="source-name" class="value muted">simulation</span>
-        </div>
-        <div class="readout when-live">
-          <span class="label">link</span><span id="source-link" class="value">—</span>
         </div>
       </div>
       <p id="source-detail" class="note"></p>
@@ -77,7 +67,7 @@
 
       <div class="when-live">
         <div class="readouts rates">
-          <div class="readout"><span class="label">snapshots</span><span id="r-probe-hz" class="value">—</span></div>
+          <div class="readout"><span class="label" id="r-link-label">link</span><span id="r-probe-hz" class="value">—</span></div>
           <div class="readout"><span class="label">engine</span><span id="r-engine-fps" class="value">—</span></div>
           <div class="readout"><span class="label">dac</span><span id="r-dac-fps" class="value">—</span></div>
           <div class="readout"><span class="label">leds</span><span id="r-led-fps" class="value">—</span></div>

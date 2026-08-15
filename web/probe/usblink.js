@@ -43,6 +43,22 @@ const CREDITS = 2;
 // has to keep arriving whether or not anything was touched.
 const MAILBOX_MS = 40;
 
+// How many times to try opening before giving up.
+//
+// The first attempt after the module has been sitting idle fails often enough
+// to be worth this: the endpoints keep their data toggles across a browser
+// letting go of the interface, so a device that was last spoken to by a
+// previous session can answer the first transfer out of step and the read comes
+// back short. clearHalt below resets the toggle, and this covers the case where
+// the first exchange is already in flight when it does.
+const OPEN_ATTEMPTS = 3;
+
+// How many malformed frames in a row before the link is called off. A wrong
+// length is usually a build mismatch, which no amount of retrying fixes - but
+// it is also what a single interrupted transfer looks like, and ending a
+// working session over one of those is worse than asking again.
+const BAD_FRAMES_ALLOWED = 5;
+
 export class UsbLink {
   constructor() {
     this.session = new Session(USB, { sendCommand: () => this.#sendCommand() });
@@ -90,10 +106,7 @@ export class UsbLink {
         });
       }
 
-      this.session.setStage('opening');
-      await this.device.open();
-      if (!this.device.configuration) await this.device.selectConfiguration(1);
-      await this.device.claimInterface(VENDOR_INTERFACE);
+      await this.#openWithRetries();
 
       this.session.setStage('');
       this.session.begin();
@@ -113,6 +126,43 @@ export class UsbLink {
       const cancelled = e.name === 'NotFoundError';
       this.session.set(cancelled ? 'idle' : 'error', cancelled ? null : describe(e));
     }
+  }
+
+  // Open, claim, and prove the module answers - retrying the lot if it does
+  // not. Anything short of a whole snapshot means the endpoint was mid-thought
+  // when we arrived, and starting over is cheaper than reasoning about it.
+  async #openWithRetries() {
+    let last;
+
+    for (let attempt = 1; attempt <= OPEN_ATTEMPTS; attempt++) {
+      this.session.setStage(attempt === 1 ? 'opening' : `opening, attempt ${attempt}`);
+      try {
+        await this.device.open();
+        if (!this.device.configuration) await this.device.selectConfiguration(1);
+        await this.device.claimInterface(VENDOR_INTERFACE);
+
+        // Both directions, because a data toggle survives the browser letting
+        // go of the interface: whatever the last session left the endpoint
+        // expecting is what this one has to agree with, and this is what makes
+        // them agree rather than hoping.
+        await this.device.clearHalt('in', EP_IN).catch(() => {});
+        await this.device.clearHalt('out', EP_OUT).catch(() => {});
+
+        // One snapshot, before anything is built on top of it. A module that
+        // answers a whole instance is a module this session can talk to.
+        await this.#request();
+        const first = await this.device.transferIn(EP_IN, sim.instanceSize);
+        if (first.status !== 'ok' || first.data.byteLength !== sim.instanceSize) {
+          throw new Error(`the module answered ${first.data?.byteLength ?? 0} bytes of ${sim.instanceSize}`);
+        }
+        return;
+      } catch (e) {
+        last = e;
+        try { await this.device.close(); } catch { /* already shut */ }
+      }
+    }
+
+    throw last ?? new Error('the module could not be opened');
   }
 
   async disconnect() {
@@ -196,6 +246,11 @@ export class UsbLink {
   async #readLoop() {
     this.reading = true;
 
+    // A frame that arrives malformed is dropped and asked for again rather than
+    // ending the session. One is a hiccup; a run of them is a link that is not
+    // going to recover by being asked more politely.
+    let badFrames = 0;
+
     while (this.reading && this.device) {
       let result;
       try {
@@ -218,6 +273,11 @@ export class UsbLink {
 
       const bytes = new Uint8Array(result.data.buffer, result.data.byteOffset, result.data.byteLength);
       if (!sim.importInstance(bytes)) {
+        if (++badFrames < BAD_FRAMES_ALLOWED) {
+          this.#request().catch(() => {});
+          continue;
+        }
+
         await this.#teardown();
         this.session.end();
         this.session.set('error',
@@ -225,6 +285,7 @@ export class UsbLink {
           + 'it is running firmware built from different sources than this page');
         return;
       }
+      badFrames = 0;
 
       // Ask for the next only now, with this one decoded and adopted. That is
       // the whole of the pacing: the module cannot get ahead of what this

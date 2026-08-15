@@ -33,6 +33,12 @@
   --fg: #dfe3ea;
   --muted: #8b929d;
   --accent: #6fc3ff;
+
+  /* The quantizer's keyboard. Off is one translucent grey whatever the key is;
+     on is opaque, and only then does it matter which kind of key it was. */
+  --key-off: rgba(140, 146, 157, .30);
+  --key-white: #cdd2da;
+  --key-black: #1b1e23;
   --warn: #e3b341;
 
   /* Condensed because a panel is lettered condensed: it takes tracking without
@@ -220,18 +226,46 @@ kbd { background: rgba(255, 255, 255, .09); padding: .05em .35em; font-size: .9e
  * outputs they feed, and an input cell is now wider than it is tall, which
  * suits a single trace.
  */
-.scopes { max-width: 1660px; display: flex; flex-direction: column; gap: .5rem; }
+/* Two columns: a label beside each scope, and the input controls under the
+   input canvas rather than under the whole thing. The bracket spans exactly
+   its own canvas, so the input one no longer changes height when the controls
+   are hidden. */
+.scopes {
+  max-width: 1660px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: .5rem .45rem;
+  align-items: stretch;
+}
+#in-controls { grid-column: 2; }
 
-/* Each scope with its label beside it rather than under it. Horizontal
-   brackets worked while the two scopes sat side by side and each label had a
-   column to span; stacked full-width they had nothing to mark off. */
-.scope-row { display: flex; align-items: stretch; gap: .45rem; min-width: 0; }
-.scope-row > canvas, .scope-stack { flex: 1; min-width: 0; }
+/* A bracket, not a rule: two segments with a square tick turned in at each far
+   end and the label sitting in the break between them. Vertical now that the
+   scopes are stacked, reading bottom-to-top.
 
-/* Reading bottom-to-top, with the rule on the outside. The rule is its own
-   element rather than a border so that rotating the text cannot move which
-   side it lands on. */
-.bracket { flex: 0 0 auto; display: flex; align-items: center; gap: .3rem; }
+   The ticks are pseudo-elements on the segments rather than borders on the
+   container, so rotating the label cannot move which side they land on. */
+.bracket {
+  display: flex; flex-direction: column; align-items: center;
+  gap: .35rem;
+  padding: 1px 0;
+}
+.bracket i {
+  position: relative;
+  flex: 1;
+  width: 1px;
+  min-height: 6px;
+  background: var(--line);
+}
+.bracket i::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  width: 5px; height: 1px;
+  background: var(--line);
+}
+.bracket i:first-of-type::before { top: 0; }
+.bracket i:last-of-type::before { bottom: 0; }
 .bracket span {
   writing-mode: vertical-rl;
   transform: rotate(180deg);
@@ -239,8 +273,8 @@ kbd { background: rgba(255, 255, 255, .09); padding: .05em .35em; font-size: .9e
   letter-spacing: var(--track);
   text-transform: uppercase;
   color: var(--muted);
+  white-space: nowrap;
 }
-.bracket i { width: 1px; align-self: stretch; background: var(--line); }
 
 /* Both declare their ratio so the page reserves the space before the first
    resize callback runs - without it everything below them jumps once on load.
@@ -349,6 +383,9 @@ kbd { background: rgba(255, 255, 255, .09); padding: .05em .35em; font-size: .9e
 }
 .in-ctl button:not(:disabled):hover { opacity: 1; }
 .in-ctl .clock { display: flex; align-items: center; gap: .25rem; font-size: .7rem; color: var(--muted); }
+/* Beats the display above, which would otherwise outrank the browser's own rule
+   for [hidden] and show a clock generator on every input. */
+.in-ctl .clock[hidden] { display: none; }
 .in-ctl input[type=number] {
   width: 3.4em; background: rgba(20, 22, 27, .7); color: var(--fg);
   border: 1px solid var(--line); padding: 0 .25rem;
@@ -559,12 +596,10 @@ body.live #in-controls { display: none; }
    how a scale is read. The mask is twelve bits and nothing else on the page
    showed it - a channel set to quantize looked identical whether it was
    snapping to a major scale or to every semitone there is. */
-.quant { display: flex; align-items: center; gap: .6rem; margin-top: .8rem; }
-
 .keys {
   position: relative;
   display: flex;
-  height: 30px;
+  height: 26px;
   user-select: none;
 }
 
@@ -576,7 +611,7 @@ body.live #in-controls { display: none; }
   width: 13px;
   border: 1px solid var(--line);
   border-right: none;
-  background: rgba(255, 255, 255, .05);
+  background: var(--key-off);
 }
 .keys .nat:last-child { border-right: 1px solid var(--line); }
 
@@ -584,19 +619,19 @@ body.live #in-controls { display: none; }
   position: absolute;
   top: 0;
   width: 9px;
-  height: 21px;
+  height: 19px;
   margin-left: -4.5px;
   border: 1px solid var(--line);
-  background: #14161a;
+  background: var(--key-off);
   z-index: 1;
 }
 
-/* A wash rather than a colour. This was the trace accent, which at full
-   strength turned a row of keys into a solid blue bar with the outlines lost
-   inside it - the one thing a keyboard has to keep is its shape. White at a
-   third is enough to read as lit against the twentieth the unlit keys carry,
-   and the borders go on doing the work of saying where one key ends. */
-.keys .on { background: rgba(255, 255, 255, .30); }
+/* Off is one colour for both kinds of key, so "in the scale" is the only thing
+   the eye has to separate; on is what kind of key it was. Three colours at once
+   - lit, unlit, and black-against-white - was one distinction too many, and an
+   unlit black key read as ambiguous next to a lit one. */
+.keys .nat.on { background: var(--key-white); }
+.keys .acc.on { background: var(--key-black); }
 
 /* The channel table's two columns that do not want an equal share: the channel
    number is one character, and the quantizer column carries a mode and a

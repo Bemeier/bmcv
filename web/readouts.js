@@ -34,7 +34,7 @@ const EFF_COLS = [
   ['ratio', c => ratioText(c[EFF.FREQ_RATIO])],
   ['shape', c => c[EFF.SHAPE].toFixed(2)],
   ['mod', c => c[EFF.MOD].toFixed(2)],
-  ['phs', c => c[EFF.PHASE_OFS].toFixed(3)],
+  ['phs', c => c[EFF.PHASE_OFS].toFixed(2)],
   ['amp', c => c[EFF.AMP_V].toFixed(2)],
   ['ofs', c => c[EFF.OFFSET_V].toFixed(2)],
 
@@ -121,7 +121,7 @@ export function drawReadouts() {
     const cells = paramRows[c].children;
     const row = eff.subarray(c * EFF.COUNT, (c + 1) * EFF.COUNT);
     for (let i = 0; i < EFF_COLS.length; i++) setText(cells[i + 1], EFF_COLS[i][1](row, c));
-    setText(cells[EFF_COLS.length + 1], outs[c].toFixed(2));
+    setText(cells[EFF_COLS.length + 1], `${outs[c].toFixed(2)} V`);
     paramRows[c].classList.toggle('muted-row', !!sim.muted(c));
   }
 }

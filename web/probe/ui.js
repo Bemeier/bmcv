@@ -133,7 +133,12 @@ export function drawProbeRates() {
   // Blank rather than zero when nothing is connected: these are properties of
   // the link rather than of the module.
   rateEls.snapshots.textContent = link ? rateText(link.hz) : '—';
-  el('source-link').textContent = link ? `${rateText(link.hz)}, ${link.snapshots} snapshots` : '—';
+
+  // Named after whatever is carrying it. "snapshots" said what the number
+  // counted; this says what it is a property of, which is the thing that
+  // changes between one connection and the next.
+  rateEls.label.textContent = mode.current === PROBE ? 'probe link'
+    : mode.current === USB ? 'usb link' : 'link';
 
   rateEls.engine.textContent = rateText(sim.engineFps());
   rateEls.dac.textContent = rateText(sim.dacFps());
@@ -147,6 +152,7 @@ export function initProbe() {
   if (!el('connect-usb')) return;
 
   rateEls.snapshots = el('r-probe-hz');
+  rateEls.label = el('r-link-label');
   rateEls.engine = el('r-engine-fps');
   rateEls.dac = el('r-dac-fps');
   rateEls.leds = el('r-led-fps');
