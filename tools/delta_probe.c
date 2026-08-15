@@ -30,12 +30,12 @@ typedef struct
 
 static void run(const char* label, int hz, int busy, int seconds)
 {
-  BmcvSim* s = bmcv_sim_create();
-  const int size = bmcv_sim_instance_size();
+  BmcvSim* s          = bmcv_sim_create();
+  const int size      = bmcv_sim_instance_size();
   unsigned char* prev = malloc((size_t) size);
   unsigned char* curr = malloc((size_t) size);
 
-  const int tick_us = 250; // 4kHz engine
+  const int tick_us            = 250; // 4kHz engine
   const int ticks_per_snapshot = (1000000 / hz) / tick_us;
 
   if (busy)
@@ -51,7 +51,7 @@ static void run(const char* label, int hz, int busy, int seconds)
   bmcv_sim_run(s, tick_us, 4000);
   bmcv_sim_export(s, prev);
 
-  Stat st = {0};
+  Stat st        = {0};
   st.worst_bytes = 0;
 
   for (int i = 0; i < hz * seconds; i++)
@@ -84,13 +84,13 @@ static void run(const char* label, int hz, int busy, int seconds)
   const double n = st.n;
   printf("%-22s %4d Hz  changed %6.0f/%d bytes (%4.1f%%)  worst %5d  "
          "chunks: 16B %5.1f/%d  32B %5.1f/%d  64B %5.1f/%d\n",
-         label, hz, st.bytes / n, size, 100.0 * (st.bytes / n) / size, st.worst_bytes,
-         st.c16 / n, (size + 15) / 16, st.c32 / n, (size + 31) / 32, st.c64 / n, (size + 63) / 64);
+         label, hz, st.bytes / n, size, 100.0 * (st.bytes / n) / size, st.worst_bytes, st.c16 / n, (size + 15) / 16, st.c32 / n,
+         (size + 31) / 32, st.c64 / n, (size + 63) / 64);
 
   // What that costs on the wire, once 7-bit encoded and packed into USB-MIDI
   // event packets (3 payload bytes per 4-byte packet, 64-byte endpoint).
   double payload_full = size * 8.0 / 7.0;
-  double payload_c32 = (st.c32 / n) * (32 + 2) * 8.0 / 7.0; // + a 2-byte chunk index
+  double payload_c32  = (st.c32 / n) * (32 + 2) * 8.0 / 7.0; // + a 2-byte chunk index
   printf("%-22s          wire: full %6.0f B = %4.1f transfers   "
          "32B-chunks %6.0f B = %4.1f transfers\n",
          "", payload_full * 4 / 3, payload_full * 4 / 3 / 64, payload_c32 * 4 / 3, payload_c32 * 4 / 3 / 64);
