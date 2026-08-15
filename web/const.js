@@ -51,10 +51,14 @@ export const SCOPE_SECONDS = 2;
 // Barely a fill - enough to settle the cells into a grid and take the edge off
 // whatever is behind a trace; not enough to make the scopes a black rectangle
 // laid over the page.
+// Its own variable rather than --surface, which the panel also sits on. A cell
+// wants to be darker than that: eight traces read against their ground, and the
+// backdrop photograph coming through at 15% was competing with them for the
+// darker half of every cell.
 export const CELL_FILL = (() => {
-  const fallback = 'rgba(0, 0, 0, .15)';
+  const fallback = 'rgba(0, 0, 0, .42)';
   if (typeof getComputedStyle !== 'function' || typeof document === 'undefined') return fallback;
-  const v = getComputedStyle(document.documentElement).getPropertyValue('--surface').trim();
+  const v = getComputedStyle(document.documentElement).getPropertyValue('--scope-fill').trim();
   return v || fallback;
 })();
 
@@ -62,11 +66,14 @@ export const CELL_FILL = (() => {
 // separates them - the page shows through it, exactly as it does between the
 // readout cells.
 //
-// Four rather than three. At the narrower page width the cells sit closer
-// together, and a gap that reads as a seam at 1600px reads as a shared edge at
-// 1200 - two traces looking like one wide one is the thing this exists to
-// prevent.
-export const CELL_GAP = 4;
+// Six. The cells carry a rounded corner now, and a radius eats into the gap
+// from both sides - at four the two curves nearly met and the seam read as one
+// wide cell again, which is the thing this exists to prevent.
+export const CELL_GAP = 6;
+
+// How far a cell's corners are rounded, in CSS pixels before the device ratio.
+// Matches the radius the buttons and boxes around it wear - see --radius.
+export const CELL_RADIUS = 2;
 
 // One colour for all eight traces: the position already says which channel it
 // is, so a palette would only add noise.

@@ -292,7 +292,11 @@ const PART = {
 // This is reach, not brightness - the colour and intensity still come from the
 // framebuffer, so a dim LED stays dim. See leds.js.
 const HALO_ENCODER = 1.22;
-const HALO_BUTTON = 1.30;
+// Wider than the encoders', which is not symmetry lost but the parts being
+// different: an illuminated switch *is* the lamp, where an encoder is a knob
+// with a ring behind it, so the spill off a button reaches further on the
+// hardware too.
+const HALO_BUTTON = 1.5;
 
 // Every outline on the panel, so none of them can drift from the others - and
 // the jacks', which is the same line at a lower strength.
@@ -304,6 +308,11 @@ const encIndicators = new Map();
 // One detent of spoke rotation. Four spokes, so 12deg is a quarter turn every
 // 7.5 detents - fast enough to read as movement, slow enough not to alias.
 const DEG_PER_DETENT = 12;
+
+// How long the push stays asserted after the last shift-wheel notch. Long
+// enough to cover several engine ticks and the gap between two notches of one
+// gesture, short enough that it is over before the next deliberate move.
+const WHEEL_SHIFT_RELEASE_MS = 140;
 
 function bindEncoder(ring, cap, e) {
   // Push is the centre cap; turning is the ring. Holding Shift while turning
@@ -341,7 +350,31 @@ function bindEncoder(ring, cap, e) {
 
   // On the cap as well as the ring: the cap is a good half of the knob, and
   // having the wheel do nothing over the middle of it reads as a dead spot.
-  const wheel = ev => { ev.preventDefault(); input.addEncoder(e.index, ev.deltaY < 0 ? 1 : -1); };
+  //
+  // Shift works here as it does on a drag, which took holding the push down
+  // across the wheel gesture rather than around one event. The module reads
+  // fine adjust off the button's *level* on the tick that sees the detent, and
+  // a press and release inside one handler is a button that was never down when
+  // a tick looked - so the press is held and released a beat after the gesture
+  // stops, with each further notch pushing that release back.
+  let shiftHeld = null;
+  const releaseShift = () => { shiftHeld = null; input.setButton(e.push_button, 0); };
+
+  const wheel = ev => {
+    ev.preventDefault();
+
+    if (ev.shiftKey) {
+      if (shiftHeld === null) input.setButton(e.push_button, 1);
+      else clearTimeout(shiftHeld);
+      shiftHeld = setTimeout(releaseShift, WHEEL_SHIFT_RELEASE_MS);
+    } else if (shiftHeld !== null) {
+      // Let go mid-gesture: stop modifying at once rather than at the timeout.
+      clearTimeout(shiftHeld);
+      releaseShift();
+    }
+
+    input.addEncoder(e.index, ev.deltaY < 0 ? 1 : -1);
+  };
   ring.addEventListener('wheel', wheel, { passive: false });
   cap.addEventListener('wheel', wheel, { passive: false });
 

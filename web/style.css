@@ -60,6 +60,12 @@
   --key-black: #1b1e23;
   --warn: #e3b341;
 
+  /* The ground a scope cell is drawn on. Darker than --surface, which the panel
+     sits on: eight traces have to read against this, and the backdrop coming
+     through at 15% was competing with them. Read by web/const.js into a canvas
+     fillStyle, so a literal rather than a var() of something else. */
+  --scope-fill: rgba(0, 0, 0, .42);
+
   /* Condensed because a panel is lettered condensed: it takes tracking without
      the line getting long, which is what makes small uppercase labels work.
      The fallbacks are named so a first paint before the file lands is close in
@@ -72,6 +78,12 @@
      it slightly different in five places is what makes a page feel assembled
      rather than designed. */
   --track: .14em;
+
+  /* One radius for everything with an edge: buttons, fields, the panel's
+     ground, a scope cell, the menu. Two pixels is barely a corner - enough to
+     take the hardness off a rectangle, not enough to read as a rounded style.
+     web/const.js carries the same number for the cells the canvas draws. */
+  --radius: 2px;
 }
 
 /* Small, uppercase, widely tracked, and never quite white: the way a panel is
@@ -170,7 +182,7 @@ main {
 /* Ground for the panel and nothing else. It had a border and padding as well,
    which framed a thing that already has an outline of its own - and the bracket
    below it now does the marking-off that frame was doing. */
-#panel-wrap { background: var(--surface); }
+#panel-wrap { background: var(--surface); border-radius: var(--radius); }
 
 /* The ratio of the real panel, from panel.json - 81mm x 128.5mm.
  *
@@ -312,8 +324,16 @@ kbd { background: rgba(255, 255, 255, .09); padding: .05em .35em; font-size: .9e
   min-height: 6px;
   border-left: 1px solid var(--line);
 }
-.bracket i:first-of-type { border-top: 1px solid var(--line); }
-.bracket i:last-of-type { border-bottom: 1px solid var(--line); }
+/* The radius goes on the corner the two borders actually make, which is a
+   different one on each segment and swaps again when the bracket lies down. */
+.bracket i:first-of-type {
+  border-top: 1px solid var(--line);
+  border-top-left-radius: var(--radius);
+}
+.bracket i:last-of-type {
+  border-bottom: 1px solid var(--line);
+  border-bottom-left-radius: var(--radius);
+}
 .bracket span {
   writing-mode: vertical-rl;
   transform: rotate(180deg);
@@ -333,8 +353,14 @@ kbd { background: rgba(255, 255, 255, .09); padding: .05em .35em; font-size: .9e
   height: var(--tick); min-height: 0;
   border: 0; border-bottom: 1px solid var(--line);
 }
-.bracket.horizontal i:first-of-type { border-left: 1px solid var(--line); }
-.bracket.horizontal i:last-of-type { border-right: 1px solid var(--line); }
+.bracket.horizontal i:first-of-type {
+  border-left: 1px solid var(--line);
+  border-radius: 0 0 0 var(--radius);
+}
+.bracket.horizontal i:last-of-type {
+  border-right: 1px solid var(--line);
+  border-radius: 0 0 var(--radius) 0;
+}
 .bracket.horizontal span { writing-mode: horizontal-tb; transform: none; }
 
 /* Both declare their ratio so the page reserves the space before the first
@@ -410,9 +436,6 @@ kbd { background: rgba(255, 255, 255, .09); padding: .05em .35em; font-size: .9e
   font: .7rem/1 var(--mono);
   letter-spacing: normal;
 }
-
-.bracket i:first-of-type { border-left: 1px solid var(--line); }
-.bracket i:last-of-type { border-right: 1px solid var(--line); }
 
 /* Vertical fader, filled from the centre so 0V reads as "no offset". A native
    range input fills from its minimum, which put a solid bar at -10V. */
@@ -549,6 +572,7 @@ input[type=number] {
   background: rgba(20, 22, 27, .7);
   color: var(--fg);
   border: 1px solid var(--line);
+  border-radius: var(--radius);
   padding: .55rem 1.1rem;
   font: 500 .78rem/1 var(--font);
   letter-spacing: .04em;
@@ -592,6 +616,7 @@ button {
   background: transparent;
   color: var(--fg);
   border: 1px solid var(--line);
+  border-radius: var(--radius);
   padding: .55rem 1.1rem;
   cursor: pointer;
   font-family: var(--font);
@@ -1029,12 +1054,14 @@ progress {
 .verdict {
   padding: .7rem .9rem;
   background: rgba(255, 255, 255, .06);
+  border-radius: var(--radius);
   margin: .9rem 0;
   font-size: .92rem;
 }
 .verdict[hidden] { display: none; }
 
 #log {
+  border-radius: var(--radius);
   font: 12.5px/1.6 var(--mono);
   color: var(--muted);
   background: rgba(0, 0, 0, .35);
@@ -1120,6 +1147,8 @@ code { background: rgba(255, 255, 255, .09); padding: 0 .25em; font-family: var(
   flex-direction: column;
   background: #1b1e23;
   border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
 }
 
 /* The same face every other label on the page wears, so the menu reads as part

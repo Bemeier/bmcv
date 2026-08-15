@@ -9,7 +9,7 @@
 import { IN_ORDER, SCOPE_ORDER } from './spec.js';
 import { EFF, sim, SCOPE_LEN, INPUT_MODE_NAMES, SHAPE_NAMES } from './sim.js';
 import {
-  CELL_FILL, CELL_GAP, IN_V, INPUT_MODE_COLORS, SCOPE_SECONDS,
+  CELL_FILL, CELL_GAP, CELL_RADIUS, IN_V, INPUT_MODE_COLORS, SCOPE_SECONDS,
   SCOPE_V, SHAPE_MODE_COLORS, TRACE, TRACE_IN,
 } from './const.js';
 import { mode } from './mode.js';
@@ -70,9 +70,12 @@ function drawCell(c, { x0, y0, cw, ch, data, lane, head, span, valid, vRange, pa
   const mid = y0 + pad + plotH / 2;
   const vScale = (plotH / 2) / vRange;
 
+  // Rounded by the same couple of pixels as everything else on the page, and
+  // clipped to that shape so the trace and the grid stop at the corner rather
+  // than running into it.
   c.save();
   c.beginPath();
-  c.rect(x0, y0, cw, ch);
+  c.roundRect(x0, y0, cw, ch, CELL_RADIUS * k);
   c.clip();
 
   // The surface, behind the grid and the trace.
@@ -88,7 +91,7 @@ function drawCell(c, { x0, y0, cw, ch, data, lane, head, span, valid, vRange, pa
   // against a blue-grey fill, which was invisible until the fill went neutral
   // and left them the only cool thing in the cell.
   c.lineWidth = k;
-  c.strokeStyle = '#2a2a2e';
+  c.strokeStyle = '#3d3d43';
   for (const v of [-5, 5]) {
     c.beginPath();
     c.moveTo(x0, mid - v * vScale);
