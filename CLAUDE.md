@@ -80,9 +80,12 @@ Run `just check` **before** committing, not after.
 Subject lines here describe the behaviour, not the file touched.
 
 **Never hand-edit `CHANGELOG.md`, `VERSION` or `.cz.toml`'s version.**
-Commitizen generates all three from the log; CI does it on every green push to
-main. This is also why a `docs:`-only change still deserves a good subject —
-it becomes a changelog line.
+Commitizen generates all three from the log.
+
+Only `feat`, `fix`, `refactor` and `BREAKING CHANGE` reach the changelog and
+move the version. `docs`, `test`, `chore`, `style`, `build` and `ci` are
+invisible there — so a docs-only push cuts no release and leaves `origin/main`
+where it was. Pick the type for what the commit *is*, not to force an entry.
 
 **One change per commit, staged immediately before it.** `git commit` writes
 the *whole index*, not the paths you pass to `git add` — so a `git rm` or
@@ -100,6 +103,10 @@ never conflicts with real work.
 **Interactive git is unavailable** (`rebase -i`, `add -i`). To split or repair
 a commit that is not yet pushed: amend the bad one on a temp branch, then
 `git rebase --onto <fixed> <old> <branch>`.
+
+After pushing, `gh run list --branch main` shows whether the three workflows
+(CI, Deploy Pages, VCV plugin) passed. A release existing is itself proof CI
+was green — the release job `needs: [host, wasm, firmware, format]`.
 
 ## Style
 
