@@ -74,6 +74,15 @@ bmcv_add_test(test_sysex)
 bmcv_add_test(test_midi_realtime)
 bmcv_add_test(test_midi_out)
 
+# The USB descriptors that get a browser talking to the module with no driver
+# installed. Compiled here rather than only into the firmware because they are
+# four nested byte counts that have to agree, and every way of getting that
+# wrong fails silently on the host - the device enumerates and is simply never
+# offered. usbd_webusb.c is free of every HAL header so that this can build it.
+bmcv_add_test(test_usb_descriptors)
+target_sources(test_usb_descriptors PRIVATE ${BMCV_ROOT}/USB_Device/App/usbd_webusb.c)
+target_include_directories(test_usb_descriptors PRIVATE ${BMCV_ROOT}/USB_Device/App)
+
 # Characterises the phase-lock loop: settling, overshoot, ringing, frequency
 # slew and long-run alignment. pll_metrics.c is the measurement side, kept out
 # of the fixture library because nothing else needs it.
