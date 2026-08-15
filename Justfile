@@ -264,8 +264,9 @@ docs-shots PORT="8123": wasm
 	    "http://localhost:{{PORT}}/" >/dev/null 2>&1; \
 	  cp "$tmp/shot.png" docs/images/web-overview.png; \
 	  rm -rf "$tmp"'
-	ffmpeg -loglevel error -i docs/images/web-overview.png -vf "crop=364:560:22:76" -y docs/images/web-panel.png
-	@echo "wrote docs/images/web-overview.png, docs/images/web-panel.png"
+	@echo "wrote docs/images/web-overview.png"
+	@echo "web/manual/*.png and docs/images/led-language.png come from the same"
+	@echo "page with body::before hidden - see the comment in web/manual/index.html"
 
 # Everything that can be checked without hardware or a browser.
 #

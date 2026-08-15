@@ -2,9 +2,63 @@
 
 Eight scene-crossfaded LFOs in 16HP, with a PLL that locks them to an incoming
 clock. This repository is the firmware, and three other things that run the
-same firmware: a headless simulator, a browser frontend, and a VCV Rack module.
+*same* firmware: a headless simulator, a browser frontend, and a VCV Rack
+module.
 
-![The browser simulator](docs/images/web-overview.png)
+[![The browser simulator](docs/images/web-overview.png)](https://bemeier.github.io/bmcv/)
+
+**[bemeier.github.io/bmcv](https://bemeier.github.io/bmcv/)** is that frontend,
+built and deployed from `main`. It runs the module with no install, shows a
+physical one over USB if you have the hardware, and carries the
+[manual](https://bemeier.github.io/bmcv/manual/), a
+[firmware updater](https://bemeier.github.io/bmcv/update/) and a
+[diagnostics page](https://bemeier.github.io/bmcv/diagnostics/).
+
+How to *play* the module is the manual's job, not this file's. What follows is
+how the project is put together.
+
+## One core, four hosts
+
+Everything that behaves like a BMCV runs `Core/Src/Lib` unmodified - the same
+`engine_tick`, the same UX layer, the same LED renderer. Nothing below
+reimplements any of it, and none of them may: a host supplies time, input and
+somewhere to put the output, and that is the whole contract.
+
+| | what it is | lives in |
+|---|---|---|
+| **Firmware** | The module. STM32G474, one `bmcv_main()` off a 250µs tick. | `Core/Src/` |
+| **Simulator** | The same core behind a flat C API, plus a scripting CLI for golden-file runs. | `sim/` |
+| **Web frontend** | That API compiled to wasm, with an SVG panel and scopes over it. | `web/` |
+| **VCV Rack** | A Rack module wrapping the same core. | `vcv/` |
+
+The consequence worth knowing: the browser page is not a *model* of the module,
+it is the module's own code with a different set of peripherals bolted on. That
+is what lets the same page decode a real module's memory - see
+[docs/live-module.md](docs/live-module.md) - with no parser and no second copy
+of any unit conversion.
+
+[docs/architecture.md](docs/architecture.md) is the long version.
+
+## Repository layout
+
+    Core/Src/Lib/     the core: engine, UX layer, LED renderer. No hardware.
+    Core/Src/         the firmware's own half: ADCs, DAC, FRAM, USB, main loop.
+    USB_Device/       the USB stack's app layer - descriptors, WebUSB, DFU entry.
+    Middlewares/      ST's USB device library, with the MIDI class extended.
+
+    sim/              the flat C API, its runtime shims and the scripting CLI.
+    web/              the browser frontend: simulator, manual, updater, diagnostics.
+    vcv/              the VCV Rack plugin.
+
+    tests/            host-compiled tests over Core/Src/Lib and the USB descriptors.
+    tools/            code generators - the panel spec, the layout asserts.
+    panel/            the generated panel spec, shared by every host.
+    pcb/              the KiCad project; production/ holds its fab outputs.
+    docs/             architecture, the PLL, the wavetable, the live link, setup.
+
+`Core/Src/Lib` never includes a HAL header. That is what makes the same files
+compile for ARM, for the host tests, for wasm and for Rack - and it holds
+because three of those four toolchains have no STM32 headers at all.
 
 ## Hardware
 
@@ -16,235 +70,44 @@ made with [KiCad 8.0](https://www.kicad.org/); the project lives in
 
 ![Render][render]
 
-## What the module does
+Eight output jacks and four input jacks, eight endless encoders that are also
+buttons, nine control buttons, seven scene buttons, a crossfader, and 21
+WS2812s. One USB-C port, which is a MIDI port and a vendor interface at once -
+[docs/midi.md](docs/midi.md), [docs/live-module.md](docs/live-module.md).
 
-Eight **channels**, each a low-frequency oscillator with six parameters -
-frequency, shape, modulation, phase, amplitude and offset. Every channel has an
-output jack and an endless encoder.
+The panel geometry is not typed in anywhere. `tools/gen_panel_spec.py` reads the
+KiCad placement data and the firmware's own index tables and writes `panel/`,
+which every host then draws from - so the picture on the web page cannot drift
+from the board.
 
-Seven **scenes**, numbered 0-6, each holding a complete set of those parameters
-for all eight channels. The crossfader blends between two of them, **A** and **B**, so one
-slider morphs the whole patch. Scenes are the reason the module is not simply
-eight LFOs: you dial a state, assign it to A, dial another, assign it to B, and
-the fader is now a transition between them.
+## The concepts the design turns on
 
-One **clock input**. Channel frequencies are ratios of the incoming beat rather
-than free-running rates, so everything stays in phase with the rest of a patch.
-With no clock the module free-runs at the last tempo it saw.
+Three, and most of the codebase follows from them.
 
-One **USB port**, which is a MIDI port. The module publishes its eight outputs
-and four inputs as control changes and forwards its clock, so the same eight
-clock-locked LFOs modulate a DAW's plugins as readily as they modulate a rack.
-It takes MIDI Clock in as well, as the clock source when no jack is patched for
-the job. See [docs/midi.md](docs/midi.md).
+**A channel is an oscillator locked to a ratio, not a rate.** Frequencies are
+divisions of the incoming beat, so a patch stays in phase with everything around
+it. That is why there is a PLL rather than a tempo readout, and why
+`clock_sync.c` is the most carefully tested file here -
+[docs/pll.md](docs/pll.md).
 
-## Using it
+**A scene is every parameter of every channel at once, and the crossfader blends
+two of them.** Forty-eight values move on one fader. That is why parameters live
+in a scene-indexed array rather than on the channel, and why `EngineConfig` is
+the thing that gets saved, copied and cleared.
 
-**The parameter row.** The six buttons under the crossfader - FRQ, SHP, MOD,
-PHS, AMP, OFS - choose what the eight encoders edit. Tap one and turn an
-encoder: that channel's parameter moves in the active scene. Each button glows
-in its own colour so the row itself says which colour means which parameter.
-
-**Turning something up.** A module fresh out of the box is silent, because AMP
-is zero everywhere - so tap AMP and wind a channel's encoder up. That is the
-whole of "make a sound".
-
-**Holding a button opens a page.** Hold any of the nine control buttons for a
-moment and the module latches into that *shift mode*; the panel repaints and
-the encoders and scene buttons mean something else while it is held. Tap the
-same button to leave. The nine pages are described under [Shift
-Modes](#shift-modes) below.
-
-**Fine adjust.** Press an encoder in while turning it. On FRQ that steps between
-the beat ratios rather than by a fixed amount, so it takes about eight detents
-to travel from one ratio to the next wherever you are on the range.
-
-**Nothing commits until you let go.** Holds that destroy something - clearing a
-channel, clearing every scene - show what they are about to do while you hold
-them and only act on release.
-
-![The panel](docs/images/web-panel.png)
-
-The colours are not decoration: see [LED language](#led-language). One fact per
-LED, and the same colour for the same idea on every page.
-
-## Trying it without hardware
-
-**[bemeier.github.io/bmcv](https://bemeier.github.io/bmcv/)** runs the browser
-simulator with no install - built and deployed from `main` by
-[`pages.yml`](.github/workflows/pages.yml). Locally:
-
-    just web        # the browser simulator, at http://localhost:8000
-    just vcv-install    # the VCV Rack module
-
-Both run this repository's `Core/Src/Lib` unmodified - the same `engine_tick`,
-the same UX layer, the same LED renderer - so what they do is what the module
-does. See [docs/architecture.md](docs/architecture.md) for how that is arranged
-and what each directory is for.
-
-## Trying it *with* hardware
-
-The same page will show a physical module instead of the simulation, and send
-input back to it - the panel, the scopes, the LEDs and the channel table all
-driven by the board on your bench. Plug the module into USB and press **Module
-over USB**; nothing else is needed.
-
-It works because the whole module is one struct and the wasm on the page is the
-firmware's own code, so it decodes a real module's memory with no parser, no
-unit conversions and no copy of anything on the JavaScript side. An ST-Link is
-supported too, and is the one route that still works on a module whose firmware
-has stopped answering. See [docs/live-module.md](docs/live-module.md).
-
-The same site carries a **manual** covering every control, a **firmware
-updater** and a **diagnostics** page; each links the others from the menu beside
-its title.
-
-### Installing the Rack module without building it
-
-Every [release](https://github.com/Bemeier/bmcv/releases) carries a
-`BMCV-<version>-<platform>.vcvplugin` for `lin-x64`, `win-x64`, `mac-x64` and
-`mac-arm64`. Drop the one for your platform into Rack's plugin folder and
-restart Rack, which unpacks it on the way up. The folder ends in your
-platform's name - since Rack 2.4 there is one per platform, and a plain
-`plugins` directory is not read:
-
-| | |
-|---|---|
-| Windows | `%LOCALAPPDATA%\Rack2\plugins-win-x64` |
-| macOS (Apple silicon) | `~/Library/Application Support/Rack2/plugins-mac-arm64` |
-| macOS (Intel) | `~/Library/Application Support/Rack2/plugins-mac-x64` |
-| Linux | `~/.local/share/Rack2/plugins-lin-x64` |
-
-It is not in the VCV Library, so nothing has signed it but this repository's
-CI. On macOS that means Gatekeeper quarantines it on download and Rack then
-refuses to load it - clear the flag on the file itself, before starting Rack:
-
-    xattr -dr com.apple.quarantine ~/Library/Application\ Support/Rack2/plugins-mac-arm64/BMCV-*.vcvplugin
-
-Windows may want a "more info" click past SmartScreen the first time.
-
-## Building
-
-Prerequisites, what each fetch recipe actually gets and why, and
-troubleshooting: [docs/setup.md](docs/setup.md). On a fresh checkout, the
-one thing to run first is `just arm-sdk`.
-
-    just arm-sdk          # fetch the ARM toolchain + STM32Cube HAL, once
-    just build            # ARM firmware        just flash
-    just check            # everything host-side: tests, golden flows, wasm, web
-    just check-all        # the above plus the firmware and Rack plugin builds
-    just test-san         # the same tests under ASan/UBSan
-    just fmt              # clang-format the hand-written C (fmt-check to verify)
-    just web              # the browser simulator
-    just vcv-install      # build the Rack plugin into ~/.local/share/Rack2
-    just vcv-dist win-x64 # a distributable .vcvplugin for any platform
-
-    # Rack running on Windows while you build in WSL. Needs the cross-compiler
-    # once: sudo apt install gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64
-    just vcv-win-install  # cross-build plugin.dll into %LOCALAPPDATA%\Rack2
-
-    just panel            # regenerate the panel spec from the hardware repo
-    just docs-shots       # regenerate the screenshots above
-    just update-page      # the firmware updater, at http://localhost:8000/update/
-    just dfu-check        # check the DfuSe client against a fake device
-
-Anything machine-specific - where your Rack SDK lives, which browser to drive -
-goes in `local.just`, which is not checked in. `CMakeLists.txt` has the same
-arrangement with `local.cmake`.
-
-CI runs `just check`, the sanitizer pass, the formatting check and an ARM build
-on every push - one job per target, in [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
-The firmware size is printed into the job summary rather than gated.
-
-A merge to `main` that clears every job above bumps `VERSION` and
-`CHANGELOG.md` from the commits since the last tag, and cuts a GitHub Release
-- see [Versioning](#versioning). The same push builds and deploys the
-simulator and updater to GitHub Pages.
-
-## Versioning
-
-Commit messages are [Conventional Commits](https://www.conventionalcommits.org)
-- `feat: ...`, `fix: ...`, `feat!: ...` for a breaking change, and so on -
-enforced on pull requests by the `commits` CI job. `VERSION` and
-`CHANGELOG.md` are generated from them by [commitizen](https://commitizen-tools.github.io/commitizen/),
-never edited by hand; `Core/Inc/Lib/version.h` is in turn generated from
-`VERSION` at configure time, which is why it isn't checked in.
-
-    just commit         interactive wizard for a correctly formatted message
-    just bump-dry-run    preview the next version and changelog, unattended
-    just bump            bump, commit and tag locally - or just push to main
-                          and let the `release` CI job do it
-
-Needs `pipx install commitizen` (or `pip install --user commitizen`) once.
-
-The Rack plugin is the one thing that does not follow this version, because it
-cannot: Rack refuses to load a plugin whose version does not begin with Rack's
-own major, so driving `vcv/plugin.json` from `VERSION` would pin this project's
-major to Rack's and cost the firmware its semver. It is fixed at `2.0.0` and
-stays there - it means "for Rack 2", not "the second version of anything". The
-firmware version travels on the released file's name instead,
-`BMCV-v0.6.1-lin-x64.vcvplugin`, which is why the plugin shows as 2.0.0 in
-Rack's browser however new the firmware inside it is.
-
-## Updating the firmware over USB
-
-**[bemeier.github.io/bmcv/update](https://bemeier.github.io/bmcv/update/)**
-flashes the module over its USB-C port, straight from the browser - no build
-required, and it offers every released version as a dropdown alongside
-picking a local `.bin`. `just update-page` serves the same page locally,
-against a build you point it at: `build-rel/BMCVFirmware.bin`.
-
-It has to be the `.bin`. The `.elf` beside it is what the ST-Link path
-(`just flash`) wants, and it is not a raw image - it is headers and symbols, so
-its first bytes are not the vector table, and a debug build is four times the
-size of the flash. The page checks for this and refuses, naming the mistake,
-before it erases anything.
-
-That `.elf` is on every release too, next to the `.bin`. It is the same build -
-identical image, symbols still attached - and it is what a debugger or a live
-variable viewer needs to attach to a module running that release: a `.bin` is
-raw flash and carries no symbol table at all, so no tool can find a variable in
-one. Take the `.elf` from the release the module is actually running, since
-every address in it belongs to that build.
-
-Two things to know before plugging in:
-
-- **The case has to be powering the module.** Its USB-C port is data only -
-  VBUS is not connected to anything on the board, so a USB cable on its own
-  will not bring it up.
-- **On Windows, one-time setup.** In update mode the module is ST's built-in
-  bootloader, which Windows has no driver for and Chrome therefore cannot
-  claim. [Zadig](https://zadig.akeo.ie/) binds `WinUSB` to it: pick
-  **STM32 BOOTLOADER**, choose **WinUSB**, Replace Driver. Once per machine.
-  macOS and Linux need nothing. (This step has never actually been walked
-  through on a Windows machine — if you are the first, please report what
-  happened. The module's *own* interface needs none of it: it asks Windows for
-  WinUSB in its descriptors and gets it.)
-
-There are two ways into update mode. The page can ask the running firmware to
-reboot into it over its own USB interface, which is the normal path and turns
-the whole panel amber. Or hold **CPY** while the case powers up, which works even when the
-firmware is too broken to answer - CPY is wired to the chip's BOOT0 pin, so
-this happens before any of our code runs. That route leaves the panel dark,
-because at that point ST's bootloader is running and it does not know the panel
-exists.
-
-**Power-cycle the case when the flash finishes.** The module does not restart
-itself: ST's bootloader disconnects from USB at the end of an update and then
-waits for a reset that no longer has any way of reaching it, so there is nothing
-the page can send to bring it back. The image is fully written by then; the
-power cycle is only what starts it.
-
-Nothing here can brick the module. The bootloader is mask ROM: it cannot be
-erased, so a flash interrupted halfway leaves the module sitting in update mode
-waiting to be flashed again.
-
-The updater is a separate page from the simulator on purpose - a broken
-simulator build should not take down the thing that flashes the module.
+**The whole module is one struct.** `BmcvInstance` holds the config, the signal
+path, the interaction state and the input layer; the firmware keeps exactly one.
+Nothing that matters lives in a file-static. That is what lets a host run
+several, a test build one per case, and a debug probe or a USB link ship the
+entire module to a browser as bytes.
 
 ## LED language
 
-One fact per LED, and the same colour for the same idea on every page.
+The colours are not decoration. One fact per LED, and the same colour for the
+same idea on every page - the point being that the panel teaches itself, so the
+manual never has to explain a colour.
+
+![The panel's LEDs](docs/images/led-language.png)
 
 - **Ctrl-page settings clamp, they do not wrap.** Each is a short list of
   unrelated states with its default at index 0, so spinning an encoder fully
@@ -254,9 +117,8 @@ One fact per LED, and the same colour for the same idea on every page.
   default, neutral - is **purple**; **cyan** is continuous / level-following or
   multiplicative, **green** additive or half-way, **yellow** triggered / clocked
   / stepped, **red** reset. Destructive is **pink**, and belongs to clearing
-  alone. See `HUE_STATE_*` in `color_presets.h`. The output
-  clamp is the one place brightness also carries meaning, because it is two
-  facts on one LED.
+  alone. See `HUE_STATE_*` in `color_presets.h`. The output clamp is the one
+  place brightness also carries meaning, because it is two facts on one LED.
 - **White is assignment, and nothing else uses it.** A short white flash every
   1.6s over an element's own colour means "you can pick this". Once something is
   held, the places it can go are steady white with a short dropout, the held
@@ -283,194 +145,124 @@ One fact per LED, and the same colour for the same idea on every page.
   scene rather than this one - it comes back brighter, in the same colour.
   Nothing commits until the release.
 
-## Shape modes
+## Building
 
-SHP picks the shape; **MOD is the second axis**, and what it means per mode:
+Prerequisites, what each fetch recipe actually gets and why, and
+troubleshooting: [docs/setup.md](docs/setup.md). On a fresh checkout, the one
+thing to run first is `just arm-sdk`.
 
-| mode | SHP | MOD |
-|---|---|---|
-| wavetable | table slice | **skew** - leans the waveform early or late |
-| stepped random | pattern morph | **density** - how often a step ties to the previous value instead of taking a new one |
-| PWM | pulse width | **envelope** - ramp time on one edge |
+    just arm-sdk          # fetch the ARM toolchain + STM32Cube HAL, once
+    just build            # ARM firmware        just flash
+    just check            # everything host-side: format, tests, flows, wasm, web
+    just check-all        # the above plus the firmware and Rack plugin builds
+    just test-san         # the same tests under ASan/UBSan
+    just fmt              # clang-format the hand-written C (fmt-check to verify)
+    just web              # the browser frontend, at http://localhost:8000
+    just docs-page        # the same pages with no wasm build, for the updater
+    just vcv-install      # build the Rack plugin into ~/.local/share/Rack2
+    just vcv-dist win-x64 # a distributable .vcvplugin for any platform
 
-Three modes, not five: the stepped variants were one algorithm at three hold
-values, which made a long list out of one idea. If hold comes back it should
-come back as a per-channel setting, the way pattern length did.
+    # Rack running on Windows while you build in WSL. Needs the cross-compiler
+    # once: sudo apt install gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64
+    just vcv-win-install  # cross-build plugin.dll into %LOCALAPPDATA%\Rack2
 
-Where MOD leans something, the sign is the same everywhere: **negative leans
-early, positive leans late.** Stepped random is the exception - density has no
-early or late - and there negative is busy, positive is sparse.
+    just panel            # regenerate the panel spec from the hardware repo
+    just layout-check     # regenerate the struct layout asserts from the ELF
+    just docs-shots       # regenerate the screenshots in this file
+    just dfu-check        # check the DfuSe client against a fake device
 
-- **The wavetable**:
+`just fmt` is pinned to clang-format 18, which is what CI installs; the recipe
+refuses any other major, because the output moves between them.
 
-  ![The wavetable's named shapes](docs/images/wavetable-keyframes.svg)
+Anything machine-specific - where your Rack SDK lives, which browser to drive -
+goes in `local.just`, which is not checked in. `CMakeLists.txt` has the same
+arrangement with `local.cmake`.
 
-  square at SHP fully left, **sine at centre** - what a channel resets to, and
-  exact - **triangle** at +0.375, a pointy extreme at +0.625, and back to the
-  square, because SHP wraps and the shape axis is therefore a loop. Every
-  setting reaches the full swing and has no DC offset, between slices as well as
-  on them: the waves come from a family where that is arithmetic rather than
-  something checked afterwards. **Phase 0 is the rising edge** in every shape,
-  which is where PWM opens its gate and where stepped random starts step 0 - so
-  a square channel at a whole-number division is a clock divider whose gate
-  opens *on* the beat. No saw slice - MOD's skew makes one out of the triangle -
-  and no staircases or pulse widths, which are the other two shape modes'
-  subjects. See [the whole axis](docs/wavetable.md).
-- **Wavetable skew** is a rational phase warp that fixes both cycle endpoints
-  and is monotone, so the loop still closes; it turns a sine into a skewed sine
-  and a triangle into a ramp.
-- **Stepped density** at MOD 0 is the 30% tie probability the pattern was
-  designed around: fully left every step takes a new value, fully right the
-  cycle is a handful of long notes. Faded in on short patterns, where one tie
-  flattens too much. The normalisation table carries a probability axis so the
-  correction holds as MOD moves.
-- **PWM envelope**: MOD 0 is a hard gate. Negative snaps up and decays through
-  the off-time; positive swells across the on-time and drops at the end. Each
-  ramp is confined to its own segment, so the width still means what it says at
-  either extreme, and the ramps are curved - concave attack, convex decay - so
-  the negative side reads as an envelope rather than a triangle. A narrow pulse
-  with MOD hard left is a percussive envelope locked to the beat.
+CI runs `just check`, the sanitizer pass and an ARM build on every push - one
+job per target, in [`.github/workflows/ci.yml`](.github/workflows/ci.yml). The
+firmware size is printed into the job summary rather than gated.
 
-## Shift Modes
+A push to `main` that clears every job bumps `VERSION` and `CHANGELOG.md` from
+the commits since the last tag and cuts a GitHub Release - see
+[Versioning](#versioning). The same push deploys `web/` to GitHub Pages.
 
-### STA/STB - Assign Scenes
+## Flashing
 
-- Scene Buttons:
-  - Assign scene 0-6 to A/B
-- Channel Encoders (STA):
-  - Stepped-random pattern length: how many steps a cycle is divided into, from
-    a curated set (3..64). Per channel, not per scene - there is nothing between
-    8 steps and 12, so a crossfaded value would be meaningless. Dark and inert
-    on channels that are not in a stepped mode.
-- Channel Encoders (STB):
-  - Nothing (Maybe: transition/smoothing sensitivity)
+Two routes, and they want different files.
 
-### SYS - System Config & Channel Modes
+**Over the programming header, from a build.** `just flash` sends
+`build/BMCVFirmware.elf` over an ST-Link; `just flash-rel` does the same with
+the release build. This is the loop while developing - it needs the probe, and
+says nothing about the module's own USB.
 
-- Scene Buttons:
-  - Input mode, jacks 0-3 on the first four buttons
-  - TODO: Clock div
-  - TODO: PLL sensitivity? Could also be per channel?
-- Channel:
-  - Set Waveshape mode: wavetable, stepped random, PWM square.
+**Over USB-C, from the browser.**
+[bemeier.github.io/bmcv/update](https://bemeier.github.io/bmcv/update/) flashes
+a released version or a local `.bin`, with no build and no probe. `just
+docs-page` serves the same page locally against your own build. That page
+documents the rest - what to hold, what Windows needs once, what the panel does
+- and this file does not repeat it.
 
-### SAV - Save & Load
+It has to be the `.bin` there. The `.elf` beside it is what the ST-Link path
+wants and is not a raw image: headers and symbols, so its first bytes are not
+the vector table, and a debug build is four times the size of the flash. The
+updater checks for this and refuses, naming the mistake, before erasing
+anything.
 
-- Scene Buttons:
-  - Save to/Load from slot 0-6, one per scene button. A slot holds the whole
-    module - every scene at once - not the scene the button stands for.
-- Channel:
-  - Output clamp, per channel: +/-10V (purple), +/-5V (dim purple), 0..10V
-    (green), 0..5V (dim green). A clamp and not a scaling, so the parameters
-    keep meaning what they say. It describes what the module is patched into
-    rather than what the patch is, which is why it is not per scene and why a
-    channel clear leaves it alone.
+Both files are on every [release](https://github.com/Bemeier/bmcv/releases). The
+`.elf` is the same build with its symbols still attached, which is what a
+debugger or a live variable viewer needs to attach to a module running that
+release - a `.bin` carries no symbol table, so no tool can find a variable in
+one. Take the `.elf` from the release the module is actually running, since
+every address in it belongs to that build.
 
-### MIX - Cross Modulation & Monitoring
+## Installing the Rack module without building it
 
-Scene Buttons: - Display inputs (only the four that are inputs; the rest are
-dark and inert)
-Channel: - Press: select Input (TODO: Add other channels besides inputs) -
-Rotate: Cross Modulation mode (Off, Add, Mult)
+Every [release](https://github.com/Bemeier/bmcv/releases) carries a
+`BMCV-<version>-<platform>.vcvplugin` for `lin-x64`, `win-x64`, `mac-x64` and
+`mac-arm64`. Drop the one for your platform into Rack's plugin folder and
+restart Rack, which unpacks it on the way up. The folder ends in your
+platform's name - since Rack 2.4 there is one per platform, and a plain
+`plugins` directory is not read:
 
-### QNT - Quantizer
+| | |
+|---|---|
+| Windows | `%LOCALAPPDATA%\Rack2\plugins-win-x64` |
+| macOS (Apple silicon) | `~/Library/Application Support/Rack2/plugins-mac-arm64` |
+| macOS (Intel) | `~/Library/Application Support/Rack2/plugins-mac-x64` |
+| Linux | `~/.local/share/Rack2/plugins-lin-x64` |
 
-Scene Buttons: - Quantizer State
-Channel: - Rot: Quantizer Mode - Press: Assign Sample Trigger
+It is not in the VCV Library, so nothing has signed it but this repository's
+CI. On macOS that means Gatekeeper quarantines it on download and Rack then
+refuses to load it - clear the flag on the file itself, before starting Rack:
 
-### CLR - Clear Channels & Scenes
+    xattr -dr com.apple.quarantine ~/Library/Application\ Support/Rack2/plugins-mac-arm64/BMCV-*.vcvplugin
 
-Everything on the page is one act, so it wears one colour: pink, marked white.
-Pink rather than purple, which means "off" or "default" on half the other pages
-and reads as far too neutral for the one page that destroys things.
+Windows may want a "more info" click past SmartScreen the first time.
 
-Scene Buttons: - Select scene to clear
-Channel: - Tap clears that channel in the active scene. Hold clears the whole
-channel: every scene, plus its MIX routing and cross-modulation mode, its QNT
-mode and trigger source, its shape mode and pattern length. Not the output
-clamp.
+## Versioning
 
-### CPY - Copy Channels & Scenes
+Commit messages are [Conventional Commits](https://www.conventionalcommits.org)
+- `feat: ...`, `fix: ...`, `feat!: ...` for a breaking change, and so on -
+enforced on pull requests by the `commits` CI job. `VERSION` and
+`CHANGELOG.md` are generated from them by [commitizen](https://commitizen-tools.github.io/commitizen/),
+never edited by hand; `Core/Inc/Lib/version.h` is in turn generated from
+`VERSION` at configure time, which is why it isn't checked in.
 
-The same, in blue.
+    just commit          interactive wizard for a correctly formatted message
+    just bump-dry-run    preview the next version and changelog, unattended
+    just bump            bump, commit and tag locally - or just push to main
+                         and let the `release` CI job do it
 
-Scene Buttons: - Select scene to copy from/to
-Channel: - Select channel to copy from/to
+Needs `pipx install commitizen` (or `pip install --user commitizen`) once.
 
-### MUT - Mute
-
-Scene Buttons: - Nothing yet
-Channel: - Press (toggles on release) mutes that channel's output; rotating is
-absolute, right unmutes and left mutes, so a row can be muted by feel. Ramped
-over 5ms so it does not click. The channel keeps running: it still feeds
-cross-modulation and still works as a trigger source for other channels. A
-muted channel shows dim purple here and with no mode active - on the other
-pages that LED belongs to whatever the page edits. Mute clears on power cycle.
-
-### No mode
-
-Ctrl Buttons: - Each parameter button glows very dim in its own colour, so the
-row says which colour means which parameter; the selected one is several times
-brighter. All dark while a shift mode is running.
-Scene Buttons: - Hold to make that scene active momentarily
-Channel: - The ring is a level meter, showing what the channel is putting out.
-Touching any encoder, or tapping a parameter button (including the one already
-selected), shows that parameter on **all eight** for a couple of seconds - the
-point of seeing it is to compare the channels against each other - then decays
-back to the meter. Leaving a shift mode does not: that lands straight back on
-the meter.
-
-Press to clear the parameter in the active scene, hold to clear it in every
-scene - pink while held, dipping out once at each threshold and brighter for the
-wider one, then a pink flash on release. Holding while turning is the
-fine-adjust modifier and clears nothing.
-
-Which parameter is selected is saved with the patch, so the module comes back
-on the page it was left on, and a preset recalls the one it was stored with. A
-module with nothing saved - or a patch written before this was kept - comes up
-on **OFS**.
-
-## Still to do
-
-- [x] Refactor update code & state access
-  - [x] Consistent time (one UI dt, accumulated in ui_input and drained per UX pass)
-  - [x] Consistent events (ui_input.h derives button gestures once; deltas accumulate until drained)
-- [ ] PLL error term & sensitivity tuning
-- [x] Verify output levels & ranges (AMP at full scale is the full +/-10V)
-- [ ] Verify output precision
-- [x] Add a stepped random shape mode
-  - SHP morphs the pattern, MOD sets its density; length is per channel, on STA
-  - Loops seamlessly, so it stays locked under the PLL
-- [ ] Full Input & Channel Cross modulation support
-- [x] MOD as a second shaping parameter in every shape mode
-- [x] UX: Fix long press control button in quantizer mode
-- [x] UX: Consistent colors (semantic palette in color_presets.h)
-- [x] UX: Consistent blinking (white mark for assignment; source and mute steady)
-- [x] UX: Consistency with channel knob display & adjustments in shift mode(s)
-- [x] UX: Consistent "mark" feature (transient value display, all modes)
-- [x] UX: A shift mode's channel LEDs show that mode's setting, never the output
-- [ ] UX: Tune UI_EDIT_DISPLAY / UI_FB_DURATION / MARK_BLINK_ON / UI_HELD_DIP on hardware
-
-
-### Left over from the virtual BMCV
-
-The simulator, the web frontend and the VCV Rack module all run this repo's
-core. Three things in `panel/overrides.json` are still inferred rather than
-measured, and one thing is only cosmetic but is the first thing anyone judges:
-
-- [ ] Confirm the input jack -> ADC index order on hardware: patch DC into one
-      jack at a time and watch `HwState.input_state[]`. Static analysis cannot
-      settle the `ADDR` phase; the panel's reading order picked between the two.
-- [ ] Measure the RV13 wiper stroke. `travel_mm` is 49.0, inferred from the slot
-      drawn in `web/bmcv_panel.png` rather than from the part.
-- [ ] LED gamma. `led_fb.c` drives real WS2812s and both frontends approximate
-      them with `LED_FULL_VALUE`/`LED_GAMMA` (`sim/include/led_color.h`, mirrored
-      in `web/leds.js`). Neither has been held next to a real module.
-- [ ] Confirm the board holds `ENGINE_TICK_US`. The engine now runs on a fixed
-      250us period rather than once per loop iteration, so 4kHz is what the
-      module asks for rather than an estimate - but only if the loop can keep
-      up. Read `engine_fps` off hardware: below 4000 means it cannot, and the
-      figure is what the hosts should then be set to.
+The Rack plugin is the one thing that does not follow this version, because it
+cannot: Rack refuses to load a plugin whose version does not begin with Rack's
+own major, so driving `vcv/plugin.json` from `VERSION` would pin this project's
+major to Rack's and cost the firmware its semver. It is fixed at `2.0.0` and
+stays there - it means "for Rack 2", not "the second version of anything". The
+firmware version travels on the released file's name instead,
+`BMCV-v0.6.1-lin-x64.vcvplugin`, which is why the plugin shows as 2.0.0 in
+Rack's browser however new the firmware inside it is.
 
 ## License
 

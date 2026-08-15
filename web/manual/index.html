@@ -250,54 +250,51 @@
 </div>
 
 <div class="step">
-  <h2>Reading the lights</h2>
+  <h2>Shape modes</h2>
   <div class="cols">
     <div>
-      <p>One fact per LED, and the same colour for the same idea on every page.</p>
+      <p><b class="ref">SHP</b> picks the shape and <b class="ref">MOD</b> is its
+      second axis. What that second axis means depends on the channel's shape
+      mode, set under <b class="ref">SYS</b>.</p>
 
       <dl>
-        <dt>Setting states</dt>
-        <dd><b>Purple</b> is index 0 of every setting — disabled, default,
-        neutral. <b>Cyan</b> is continuous or level-following, <b>green</b>
-        additive or half-way, <b>yellow</b> triggered, clocked or stepped,
-        <b>red</b> reset. <b>Pink</b> is destructive and belongs to
-        <b class="ref">CLR</b> alone.</dd>
+        <dt>Wavetable</dt>
+        <dd><b class="ref">SHP</b> is a slice of the table: square fully left,
+        sine at centre, triangle at +0.375, a pointy extreme at +0.625, and back
+        to the square — the axis is a loop. <b class="ref">MOD</b> is
+        <b>skew</b>, a phase warp that fixes both cycle endpoints, so a sine
+        leans into a skewed sine and a triangle into a ramp. There is no saw
+        slice because skew makes one.</dd>
 
-        <dt>White is assignment</dt>
-        <dd>And nothing else uses it. A short white flash means "you can pick
-        this". Once something is held, the places it can go are steady white, the
-        held source is saturated purple, and everything that cannot be pressed
-        goes dark.</dd>
+        <dt>Stepped random</dt>
+        <dd><b class="ref">SHP</b> morphs the pattern; <b class="ref">MOD</b> is
+        <b>density</b> — how often a step ties to the previous value instead of
+        taking a new one. Fully left every step is new, fully right the cycle is
+        a handful of long notes. Pattern length is per channel, under
+        <b class="ref">STA</b>.</dd>
 
-        <dt>The encoder rings</dt>
-        <dd>With no page open they are output level meters. Touching an encoder
-        or tapping a parameter button shows that parameter on <em>all eight</em>
-        for a couple of seconds — the point of seeing it is to compare the
-        channels — then decays back to the meter.</dd>
-
-        <dt><b class="ref">FRQ</b> is a ratio, not a level</dt>
-        <dd>So its ring codes three facts instead of drawing a bar. Hue is the
-        kind of division: green straight, yellow triplet, orange quintuplet.
-        Saturation is how far off the grid the value sits. Brightness pulses at
-        the channel's own output rate, which is what says fast from slow.</dd>
-
-        <dt>Confirmations</dt>
-        <dd>A brief flash on top: purple wrote, pink cleared, cyan loaded. Red is
-        errors only.</dd>
+        <dt>PWM</dt>
+        <dd><b class="ref">SHP</b> is the pulse width; <b class="ref">MOD</b> is
+        an <b>envelope</b> on one edge. At 0 it is a hard gate; negative snaps up
+        and decays through the off-time, positive swells across the on-time and
+        drops at the end. Each ramp stays inside its own segment, so the width
+        still means what it says at either extreme.</dd>
       </dl>
     </div>
     <div>
-      <figure>
-        <img src="lights.png" alt="The panel with its LEDs lit: eight encoder
-                                   rings in reds, oranges and greens, and the
-                                   parameter row glowing in six colours.">
-        <figcaption>Eight channels at different ratios. The ring hues are the
-        kind of division — green straight, yellow triplet, orange quintuplet —
-        and the parameter row shows <b class="ref">FRQ</b> selected.</figcaption>
-      </figure>
+      <p class="note">Where <b class="ref">MOD</b> leans something the sign
+      means the same thing everywhere: <b>negative leans early, positive leans
+      late</b>. Stepped random is the exception, because density has no early or
+      late — there negative is busy and positive sparse.</p>
 
-      <p class="note">Settings clamp rather than wrap, so spinning an encoder
-      fully left resets one without looking.</p>
+      <p class="note">Every wavetable setting reaches the full swing and has no
+      DC offset, between slices as well as on them. <b>Phase 0 is the rising
+      edge</b> in every shape: it is where PWM opens its gate and where stepped
+      random starts step 0, so a square channel at a whole division is a clock
+      divider whose gate opens on the beat.</p>
+
+      <p class="note">A narrow pulse with <b class="ref">MOD</b> hard left is a
+      percussive envelope locked to the beat.</p>
     </div>
   </div>
 </div>
