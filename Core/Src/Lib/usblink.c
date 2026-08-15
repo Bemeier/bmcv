@@ -10,12 +10,21 @@
 
 extern USBD_HandleTypeDef hUsbDeviceFS;
 
-// Set from the USB interrupt, read from the main loop, so volatile and nothing
-// more. Neither side does a read-modify-write the other can land inside:
-// `asked` is only ever incremented by the interrupt and `sent` only by the main
-// loop, which is why they are two counters rather than one credit both adjust.
+// Two counters rather than one credit both sides adjust, so that each has a
+// single writer and no read-modify-write the other can land inside: `asked` is
+// only ever written by the USB interrupt, `sent` only by the main loop. Credit
+// is their difference, which either side may read at any time - a 32-bit
+// aligned load cannot tear, so a reader sees one value or the other and never
+// half of each.
+//
+// The rule is easy to break from the interrupt side, and was: clearing a
+// session used to zero *both*, which let the reset land between the main loop
+// reading `asked` and writing `sent` and leave `sent` ahead of `asked`. Nothing
+// caught fire - the difference underflows, trips the credit clamp and resyncs
+// within two frames - but the invariant the rest of this file reasons from was
+// not actually holding. See USBD_BMCV_VendorReset.
 static volatile uint32_t asked = 0;
-static uint32_t sent           = 0;
+static volatile uint32_t sent  = 0;
 
 static volatile bool tx_busy = false;
 
@@ -107,8 +116,16 @@ void USBD_BMCV_VendorDataIn(void) { tx_busy = false; }
 void USBD_BMCV_VendorReset(void)
 {
   tx_busy = false;
-  asked   = 0;
-  sent    = 0;
+
+  // Credit to zero by moving `asked` onto `sent`, rather than by zeroing both.
+  // Same effect - nothing is owed - and it keeps `sent` the main loop's alone,
+  // so this cannot land inside usblink_poll's read of `asked` and its write of
+  // `sent` and leave the two crossed over.
+  //
+  // Reading `sent` here is fine: one writer, and a 32-bit aligned load of a
+  // value the loop is midway through updating gives the old number or the new
+  // one, either of which means the same thing a moment later.
+  asked = sent;
 
   // Whatever the last host was holding down, it is not holding it now. The
   // input layer would time this out by itself a quarter of a second later; not

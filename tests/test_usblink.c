@@ -236,6 +236,43 @@ TEST_CASE(a_new_session_does_not_inherit_the_last_ones_credit)
   CHECK(tx.calls == 1);
 }
 
+// The same rule, but with the reset landing where it actually does: partway
+// through a session that has credit outstanding and a transfer in flight.
+//
+// Honest about what it can and cannot catch. The bug this accompanies needed
+// the reset to land *inside* usblink_poll, between its read of `asked` and its
+// write of `sent`, which left `sent` ahead of `asked` - their difference then
+// underflowed and the clamp handed the next session frames it never asked for.
+// No single-threaded test can produce that interleaving, and this one does not
+// fail against the old code.
+//
+// What it does is pin the contract the fix restored - one writer per counter,
+// so the crossed state is unreachable rather than merely unlikely - and cover
+// the reachable half: a reset with credit banked and a transfer outstanding
+// owes the next session nothing. The invariant itself is held by reading the
+// code, which is why usblink.c now states it as one.
+TEST_CASE(a_reset_partway_through_a_session_owes_the_next_one_nothing)
+{
+  reset_all();
+
+  for (int i = 0; i < 100; i++)
+    ask_for_snapshot(); // a page asking far faster than it reads
+
+  usblink_poll(&module);
+  CHECK(tx.calls == 1); // one is out, and the endpoint is busy
+
+  USBD_BMCV_VendorReset(); // the page goes away mid-transfer
+  transfer_completes();    // ...and the stack reports the last one anyway
+
+  for (int i = 0; i < 20; i++)
+    usblink_poll(&module);
+  CHECK(tx.calls == 1); // nothing further, however much credit was banked
+
+  ask_for_snapshot();
+  usblink_poll(&module);
+  CHECK(tx.calls == 2); // and the new session's own request still works
+}
+
 TEST_CASE(a_new_session_does_not_inherit_a_held_button)
 {
   RemoteInput taken;
@@ -379,6 +416,7 @@ int main(void)
   RUN_TEST(a_refused_transfer_spends_its_credit_rather_than_owing_a_frame);
   RUN_TEST(a_session_that_ended_mid_transfer_does_not_wedge_the_next_one);
   RUN_TEST(a_new_session_does_not_inherit_the_last_ones_credit);
+  RUN_TEST(a_reset_partway_through_a_session_owes_the_next_one_nothing);
   RUN_TEST(a_new_session_does_not_inherit_a_held_button);
   RUN_TEST(a_mailbox_is_handed_over_once);
   RUN_TEST(only_the_newest_mailbox_survives);
