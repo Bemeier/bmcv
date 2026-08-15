@@ -50,11 +50,6 @@ than reimplementing on top of it.
 **Generated files are never hand-edited.** Regenerate, review the diff, commit
 both. See `tools/CLAUDE.md` for which recipe owns which file.
 
-**Never hand-edit `CHANGELOG.md` or `VERSION`.** Commitizen writes both from
-commit messages on `just bump`. Commits must be conventional-commit format
-(`feat(scope):`, `fix(scope):`, …) — CI rejects otherwise. `just commit` for a
-wizard.
-
 **Add a test with the behaviour, not after it.** Every fix in this repo lands
 with a case that fails without it. Prefer the gesture-level fixture over poking
 state directly — see `tests/CLAUDE.md`.
@@ -75,7 +70,36 @@ state directly — see `tests/CLAUDE.md`.
   curve on the JS side. See `web/CLAUDE.md`.
 - Do not use enum types as struct fields in anything shared across builds — see
   `Core/CLAUDE.md`.
-- Do not use `git rebase -i` / `git add -i`; not supported here.
+
+## Git
+
+Run `just check` **before** committing, not after.
+
+**Conventional commits, enforced by CI**: `feat(scope):`, `fix(scope):`,
+`docs:`, `build:`, `refactor:`, `test:`, `chore:`. `just commit` for a wizard.
+Subject lines here describe the behaviour, not the file touched.
+
+**Never hand-edit `CHANGELOG.md`, `VERSION` or `.cz.toml`'s version.**
+Commitizen generates all three from the log; CI does it on every green push to
+main. This is also why a `docs:`-only change still deserves a good subject —
+it becomes a changelog line.
+
+**One change per commit, staged immediately before it.** `git commit` writes
+the *whole index*, not the paths you pass to `git add` — so a `git rm` or
+`git add` left staged from earlier silently rides along into the next commit.
+Read the staged column of `git status --short` and check it matches the message
+before every commit. Do not stage a deletion until the commit that owns it.
+
+**`origin/main` moves on its own.** A green push to main whose commits are
+release-worthy makes CI push a `bump:` commit and a tag back, so the remote is
+routinely ahead even when nobody else is working. Always `git fetch` before
+pushing. If behind, **rebase** — `git rebase origin/main` — since history is
+near-linear and a bump touches only `VERSION`/`CHANGELOG.md`/`.cz.toml`, so it
+never conflicts with real work.
+
+**Interactive git is unavailable** (`rebase -i`, `add -i`). To split or repair
+a commit that is not yet pushed: amend the bad one on a temp branch, then
+`git rebase --onto <fixed> <old> <branch>`.
 
 ## Style
 
