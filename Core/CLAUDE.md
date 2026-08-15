@@ -22,6 +22,19 @@ A host fills an `InputSample` and reads `EngineState` back —
 
 ## Rules
 
+**State shared with an interrupt uses `IsrFlag`** (`helpers.h`), never a plain
+`uint8_t`. A plain global is one the compiler may keep in a register, and
+`if (flag) { work(); flag = 0; }` also drops any interrupt that lands during
+`work()`. Take the flag *before* the work it asks for:
+
+```c
+if (isr_flag_take(&mcp_poll)) { if (!mcp_read()) isr_flag_set(&mcp_poll); }
+```
+
+A value an interrupt *produces* rather than requests — a MIDI clock byte — is a
+count, not a flag, and needs `__atomic` on both sides. Single-writer-per-field
+is what keeps that sound; see `usblink.c`'s two credit counters.
+
 **No file-statics that hold module state.** Everything lives in `BmcvInstance`.
 The clock and the error flags were the last two globals and both moved into
 `EngineState`; that is what lets a host run several modules, a test build one
