@@ -36,19 +36,117 @@ const el = (name, attrs = {}, parent = svg) => {
   return n;
 };
 
-const hint = document.getElementById('hint');
-const setHint = t => { hint.textContent = t || ' '; };
+/* ---- what the pointer is over -------------------------------------------- */
 
-const describe = b => {
-  const r = b.roles, bits = [];
-  if (r.param_name) bits.push(`${r.param_name} / ${r.ctrl_name}`);
-  else if (r.ctrl_name) bits.push(r.ctrl_name);
-  if (r.scene !== undefined) bits.push(`scene ${r.scene}`);
-  if (r.semitone_name) bits.push(r.semitone_name);
-  if (r.channel !== undefined) bits.push(`ch${r.channel} push`);
-  return `${b.designator} — ${bits.join(' / ') || 'button ' + b.index}`;
+// Two lines: what it is, in the bracket beside the panel, and what it does,
+// under it.
+//
+// This used to be one line naming the part - "U6 - AMP / SAV / G#" - which is
+// what the panel spec knows rather than what a person wants. A designator
+// identifies a component on a board and a semitone only means anything on one
+// of nine pages; neither answers "what happens if I press this".
+
+const hintLabel = document.getElementById('hint-label');
+const hintHelp = document.getElementById('hint-help');
+
+const IDLE = {
+  label: 'BMEK — 16hp',
+  help: 'Drag an encoder\'s ring to turn it, or use the scroll wheel. Click its centre '
+    + 'to push, and hold Shift while turning for press-and-turn. Hover anything on the '
+    + 'panel to read what it does.',
 };
 
+function setHover(target) {
+  const t = target ?? IDLE;
+  hintLabel.textContent = t.label;
+  hintHelp.textContent = t.help;
+}
+
+// What each control button's page does, in the order the panel lays them out.
+// Condensed from the Shift Modes section of the README, which is the same
+// source ui_mode.c's own table was written against.
+const CTRL_HELP = {
+  STA: 'Scene A. Tap to choose which scene the crossfader blends from; hold to open its '
+    + 'page, where the encoders set each channel\'s stepped-random pattern length.',
+  STB: 'Scene B. Tap to choose which scene the crossfader blends towards; hold to open '
+    + 'its page.',
+  SYS: 'System. Hold to open: the first four scene buttons set what each input jack is '
+    + 'for, and the encoders choose a channel\'s waveshape - wavetable, stepped random '
+    + 'or PWM.',
+  QNT: 'Quantizer. Hold to open: the scene buttons switch semitones in and out of the '
+    + 'scale, the encoders set each channel\'s quantize mode, and pressing one assigns '
+    + 'its sample trigger.',
+  MON: 'Monitor and mixing. Hold to open: pressing an encoder picks the input a channel '
+    + 'mixes in, and turning it chooses how - off, added, or multiplied.',
+  SAV: 'Save and load. Hold to open: the scene buttons are seven preset slots, and the '
+    + 'encoders set each channel\'s output clamp.',
+  MUT: 'Mute. Hold to open: press an encoder to mute that channel, or turn it - right '
+    + 'unmutes, left mutes, so a row can be muted by feel. A muted channel keeps '
+    + 'running and still feeds anything modulating from it.',
+  CPY: 'Copy. Hold to open: pick a scene or channel to copy from, then one to copy to.',
+  CLR: 'Clear. Hold to open: tap an encoder to clear that channel in the active scene, '
+    + 'or hold it to clear the channel everywhere - every scene, its routing, its '
+    + 'quantizer and its shape. Not its output clamp.',
+};
+
+// What each parameter is, for the tap rather than the hold.
+const PARAM_HELP = {
+  FRQ: 'a ratio against the beat rather than a level, so a channel stays locked to the '
+    + 'tempo wherever it is set',
+  SHP: 'the waveshape, as one continuous axis that wraps: square, sine at centre, '
+    + 'triangle, and round again',
+  MOD: 'what a shape does with its second dimension - wavetable skew, stepped-random '
+    + 'density, or the PWM envelope',
+  PHS: 'where in its cycle the channel starts, with phase 0 the rising edge in every '
+    + 'shape',
+  AMP: 'how far the channel swings. A module fresh out of the box is silent because '
+    + 'this is zero everywhere',
+  OFS: 'a fixed voltage added to the channel\'s output',
+};
+
+function describeButton(b) {
+  const r = b.roles ?? {};
+
+  // An encoder's own push. The encoder describes itself, so this only has to
+  // say what pressing adds.
+  if (r.channel !== undefined) {
+    return {
+      label: `CH ${r.channel}`,
+      help: `Channel ${r.channel}\'s encoder, pressed. Hold it while turning for fine '
+        + 'adjust, or use it as that page\'s press action - picking an input under MON, '
+        + 'a trigger under QNT, muting under MUT.`,
+    };
+  }
+
+  // A scene button. The first four double as the input jacks on the pages that
+  // configure them, which is worth saying on the button rather than leaving to
+  // be discovered.
+  if (r.scene !== undefined) {
+    const isInput = r.scene < 4;
+    return {
+      label: isInput ? `SCENE ${r.scene} — INPUT ${r.scene}` : `SCENE ${r.scene}`,
+      help: `Scene ${r.scene}: one of the seven sets of parameters the crossfader blends `
+        + `between. Tap under STA or STB to assign it, or under SAV to save and load it.`
+        + (isInput
+          ? ` On the pages that configure inputs it also stands for input jack ${r.scene} -`
+            + ` its mode under SYS, its level under MON.`
+          : ''),
+    };
+  }
+
+  // A control button: the page it opens, and the parameter it selects if it has
+  // one. Both, because the tap and the hold are different actions on one key.
+  if (r.ctrl_name) {
+    const page = CTRL_HELP[r.ctrl_name] ?? `The ${r.ctrl_name} page.`;
+    const param = r.param_name
+      ? ` Tapping it instead selects ${r.param_name} - ${PARAM_HELP[r.param_name]} - `
+        + 'which is then what all eight encoders edit.'
+      : '';
+    return { label: r.ctrl_name, help: page + param };
+  }
+
+  return { label: `BUTTON ${b.index}`, help: '' };
+}
 /* ---- interaction -------------------------------------------------------- */
 
 function bindButton(node, b) {
@@ -57,8 +155,8 @@ function bindButton(node, b) {
   node.addEventListener('pointerdown', down);
   node.addEventListener('pointerup', up);
   node.addEventListener('pointercancel', up);
-  node.addEventListener('pointerenter', () => setHint(describe(b)));
-  node.addEventListener('pointerleave', () => setHint(''));
+  node.addEventListener('pointerenter', () => setHover(describeButton(b)));
+  node.addEventListener('pointerleave', () => setHover(null));
 }
 
 // Cosmetic needle angles. The firmware's encoders are relative and endless, so
@@ -159,10 +257,15 @@ function bindEncoder(ring, cap, e) {
   ring.addEventListener('wheel', wheel, { passive: false });
   cap.addEventListener('wheel', wheel, { passive: false });
 
-  const label = `${e.designator} — encoder ${e.index}, channel ${e.channel}`;
+  const target = {
+    label: `CH ${e.channel}`,
+    help: `Channel ${e.channel}. Turning it edits whichever parameter the row below the `
+      + 'crossfader has selected, in the active scene - or that page\'s setting while a '
+      + 'shift mode is held. Press the centre to push.',
+  };
   for (const n of [ring, cap]) {
-    n.addEventListener('pointerenter', () => setHint(label));
-    n.addEventListener('pointerleave', () => setHint(''));
+    n.addEventListener('pointerenter', () => setHover(target));
+    n.addEventListener('pointerleave', () => setHover(null));
   }
 }
 
@@ -202,15 +305,19 @@ function bindSlider(hit, knob, cx, cy, travel, horizontal) {
     }
     pos = Math.min(1, Math.max(0, pos));
     setFromPos(pos);
-    setHint(`slider ${pos.toFixed(3)}`);
+
   };
 
   hit.addEventListener('pointerdown', ev => { ev.preventDefault(); hit.setPointerCapture(ev.pointerId); dragging = true; apply(ev); });
   hit.addEventListener('pointermove', ev => { if (dragging) apply(ev); });
   hit.addEventListener('pointerup', () => { dragging = false; });
   hit.addEventListener('pointercancel', () => { dragging = false; });
-  hit.addEventListener('pointerenter', () => setHint('scene crossfader'));
-  hit.addEventListener('pointerleave', () => { if (!dragging) setHint(''); });
+  hit.addEventListener('pointerenter', () => setHover({
+    label: 'CROSSFADER',
+    help: 'Blends between the two scenes assigned to A and B. Every parameter of every '
+      + 'channel moves together, so one hand crossfades the whole patch.',
+  }));
+  hit.addEventListener('pointerleave', () => { if (!dragging) setHover(null); });
 
   return setFromPos;
 }
@@ -226,13 +333,31 @@ el('image', {
   preserveAspectRatio: 'none',
 });
 
-// Jacks. Position identifies these well enough - the outputs sit under their
-// own encoders and the inputs are the middle pair.
-for (const list of [spec.outputs, spec.inputs]) {
+// Jacks. Drawn as holes, and hoverable - which they were not, though they are
+// the only parts of the panel a cable actually goes into.
+for (const [list, kind] of [[spec.outputs, 'out'], [spec.inputs, 'in']]) {
   for (const j of list) {
     const [x, y] = px(j.pos_mm);
     el('circle', { cx: x, cy: y, r: 3, fill: PART.jack, ...outline });
     el('circle', { cx: x, cy: y, r: 1.1, fill: PART.jackTip });
+
+    // A hit area over the pair, larger than either: a 3mm circle is a small
+    // target and there is nothing else nearby to catch by mistake.
+    const hit = el('circle', { cx: x, cy: y, r: 4.5, fill: 'transparent', class: 'jack-hit' });
+    const target = kind === 'out'
+      ? {
+        label: `CH ${j.channel} OUTPUT JACK`,
+        help: `What channel ${j.channel} puts out, after its scene blend, its mixing and `
+          + 'its output clamp. The scope on this page shows the same signal.',
+      }
+      : {
+        label: `INPUT ${j.index} JACK`,
+        help: `Input ${j.index}. What it does is set on the SYS page - a clock, a reset, `
+          + 'the crossfader, or a plain voltage a channel can mix in. Its trace is on '
+          + 'this page under the outputs.',
+      };
+    hit.addEventListener('pointerenter', () => setHover(target));
+    hit.addEventListener('pointerleave', () => setHover(null));
   }
 }
 

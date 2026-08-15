@@ -10,13 +10,13 @@
 
 <main>
   <section id="panel-pane">
-    <div id="panel-wrap"><svg id="panel" xmlns="http://www.w3.org/2000/svg"></svg></div>
-    <p id="hint" class="hint">&nbsp;</p>
-    <p class="help">
-      Drag an encoder's <b>ring</b> to turn it, or use the scroll wheel.
-      Click its <b>centre</b> to push. Hold <kbd>Shift</kbd> while turning for
-      press-and-turn.
-    </p>
+    <div class="panel-row">
+      <!-- The same bracket the scopes use, marking off the panel and carrying
+           whatever the pointer is over. -->
+      <div class="bracket"><i></i><span id="hint-label">BMEK — 16hp</span><i></i></div>
+      <div id="panel-wrap"><svg id="panel" xmlns="http://www.w3.org/2000/svg"></svg></div>
+    </div>
+    <p id="hint-help" class="help"></p>
   </section>
 
   <section id="side">
@@ -34,6 +34,14 @@
     </div>
 
     <div class="panel-box">
+      <div class="readouts rates">
+        <div class="readout"><span class="label">mode</span><span id="r-shift" class="value">—</span></div>
+        <div class="readout"><span class="label">param</span><span id="r-param" class="value">—</span></div>
+        <div class="readout"><span class="label">scene</span><span id="r-scene" class="value">—</span></div>
+        <div class="readout"><span class="label">bpm in</span><span id="r-bpm-in" class="value">—</span></div>
+        <div class="readout"><span class="label">bpm run</span><span id="r-bpm" class="value">—</span></div>
+        <div class="readout readout-keys"><div id="keys" class="keys"></div></div>
+      </div>
       <!-- Filled in by readouts.js once the wasm is up; the rows are here so
            the page has its real shape from the first paint rather than growing
            one table's worth of height a moment later. web/frontend-check.mjs
@@ -50,14 +58,6 @@
         <tr><td>6</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
         <tr><td>7</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
       </table>
-      <div class="readouts rates">
-        <div class="readout"><span class="label">mode</span><span id="r-shift" class="value">—</span></div>
-        <div class="readout"><span class="label">param</span><span id="r-param" class="value">—</span></div>
-        <div class="readout"><span class="label">scene</span><span id="r-scene" class="value">—</span></div>
-        <div class="readout"><span class="label">bpm in</span><span id="r-bpm-in" class="value">—</span></div>
-        <div class="readout"><span class="label">bpm run</span><span id="r-bpm" class="value">—</span></div>
-        <div class="readout readout-keys"><div id="keys" class="keys"></div></div>
-      </div>
     </div>
 
     <div class="panel-box" id="system">

@@ -368,6 +368,10 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   // remove and the first paint is a page full of dashes at full strength.
   const html = readFileSync(new URL('index.html', import.meta.url), 'utf8');
   check(/<body[^>]*class="[^"]*\bloading\b/.test(html), 'the page starts in its loading state');
+  // The hover text runs to two or three lines and sits under the panel, so an
+  // unreserved height moves the panel every time the pointer crosses a control.
+  const helpRule = css.slice(css.indexOf('.help {'), css.indexOf('}', css.indexOf('.help {')));
+  check(/min-height:/.test(helpRule), 'the hover text reserves its height so the panel cannot move');
   check(/body\.loading/.test(css), 'and the stylesheet says what that looks like');
   check(/body\.switching/.test(css), 'as it does for switching source');
 }
@@ -1026,6 +1030,48 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   check(INPUT_MODE_COLORS.length === modes.length,
     `every input mode has a colour (${INPUT_MODE_COLORS.length} for ${modes.length} modes)`);
   check(INPUT_MODE_COLORS.every(c => /^#[0-9a-f]{6}$/i.test(c)), 'and each is a colour');
+}
+
+/* ---- every hoverable part of the panel says what it does ------------------ */
+
+// The hover text is the only documentation on the page, so a control with none
+// is a control nobody can learn. Driven through the real handlers rather than
+// read out of a table, since what matters is that hovering produces something.
+{
+  const label = document.getElementById('hint-label');
+  const help = document.getElementById('hint-help');
+
+  const enters = listeners.filter(l => l.type === 'pointerenter');
+  const leaves = listeners.filter(l => l.type === 'pointerleave');
+  check(enters.length >= spec.buttons.length + spec.encoders.length,
+    `every control is hoverable (${enters.length} handlers)`);
+
+  const seen = [];
+  for (const l of enters) {
+    l.fn({});
+    if (label.textContent && help.textContent) seen.push(label.textContent);
+  }
+  check(seen.length === enters.length, `every hover produced a label and a description (${seen.length}/${enters.length})`);
+
+  // The things the spec knows and a person does not: a component designator, a
+  // switch number, a semitone name. None of them belong in a label that is
+  // meant to answer "what is this".
+  const noise = seen.filter(t => /^(U|SW|J)\d|^BUTTON |#$/.test(t));
+  check(noise.length === 0, `no labels name a component${noise.length ? ` (${noise.slice(0, 3).join(', ')})` : ''}`);
+
+  // The four scene buttons that double as inputs say so.
+  const dual = seen.filter(t => /SCENE \d.*INPUT \d/.test(t));
+  check(dual.length === 4, `the four input-bearing scene buttons say both (${dual.length})`);
+
+  // And the jacks, which were not hoverable at all before.
+  check(seen.some(t => /OUTPUT JACK/.test(t)), 'output jacks are hoverable');
+  check(seen.some(t => /INPUT \d JACK/.test(t)), 'and input jacks');
+
+  // Leaving anything puts the module's own name back, so the line is never
+  // empty and never left saying whatever was hovered last.
+  leaves[0].fn({});
+  check(/16hp/.test(label.textContent), `leaving falls back to the module (${label.textContent})`);
+  check(!!help.textContent.trim(), 'and to something worth reading');
 }
 
 check(SHIFT_NAMES[0] === 'STA' && SHIFT_NAMES.at(-1) === '---', `shift names came from the firmware (${SHIFT_NAMES.join(',')})`);

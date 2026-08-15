@@ -152,6 +152,12 @@ main {
    backdrop photograph, and a skyline behind the encoder cutouts is not a
    panel. The same surface the scope cells get, and the same rule colour every
    other line on the page is drawn in. */
+/* The panel with its bracket beside it, the same one the scopes have. It
+   carries whatever the pointer is over rather than a fixed word, which is why
+   it is worth the width. */
+.panel-row { display: flex; align-items: stretch; gap: .45rem; }
+.panel-row > #panel-wrap { flex: 1; min-width: 0; }
+
 #panel-wrap {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -169,21 +175,20 @@ main {
   aspect-ratio: 81 / 128.5;
 }
 
-/* A fixed line, not a minimum. This text appears and disappears on hover, and
-   at min-height a hint long enough to wrap grew the element and pushed the help
-   text below it down - a flicker on the way in and another on the way out. */
-.hint {
-  height: 1.5em;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+/* What the pointer is over, in full sentences and big enough to read at a
+   glance. This was a fixed 78% line of monospace under a one-line hint naming
+   the component; there is only one text now and it is the one worth reading.
+
+   A minimum rather than a fixed height, and reserved, because these run to two
+   or three lines and the panel above must not move when one replaces another. */
+.help {
   margin: 1rem 0 0;
-  font-family: var(--mono);
-  font-size: .78rem;
-  letter-spacing: .02em;
-  color: var(--accent);
+  min-height: 5.5em;
+  font-size: .92rem;
+  line-height: 1.65;
+  max-width: 58ch;
+  color: var(--muted);
 }
-.help { margin: .9rem 0 0; font-size: .78rem; line-height: 1.7; max-width: 52ch; color: var(--muted); }
 kbd { background: rgba(255, 255, 255, .09); padding: .05em .35em; font-size: .9em; }
 
 /* Interactive SVG parts */
@@ -309,7 +314,7 @@ kbd { background: rgba(255, 255, 255, .09); padding: .05em .35em; font-size: .9e
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: .5rem;
-  margin: .4rem 0 .1rem;
+  margin: .15rem 0 .1rem;
 }
 .in-cell {
   display: flex; flex-direction: column; gap: .3rem;
