@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.14.1 (2026-08-15)
+
+### Fix
+
+- **usblink**: give each credit counter a single writer, as its comment claimed
+- **web**: bound every call the updater makes to the device
+- **midi**: count the clocks in a transfer, not whether there were any
+- **core**: a request from an interrupt is not a plain uint8_t
+
 ## v0.14.0 (2026-08-15)
 
 ### Feat
