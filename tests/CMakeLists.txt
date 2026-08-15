@@ -93,6 +93,16 @@ bmcv_add_test(test_usblink)
 target_sources(test_usblink PRIVATE ${BMCV_LIB_SRC}/usblink.c)
 target_include_directories(test_usblink BEFORE PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/fakes/usb)
 
+# The FRAM record format, against a fake part rather than the SPI one - see
+# tests/fakes/fram/. The second driver-layer file here, and it earns the
+# exception for the same reason usblink.c does: preset_load is the only thing
+# between untrusted persistent storage and a config every consumer downstream
+# indexes tables with, and its four rejection paths are unreachable from a real
+# part because preset_store would never write a record that fails them.
+bmcv_add_test(test_presets)
+target_sources(test_presets PRIVATE ${BMCV_LIB_SRC}/presets.c fakes/fram/fram_fake.c)
+target_include_directories(test_presets BEFORE PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/fakes/fram)
+
 # Characterises the phase-lock loop: settling, overshoot, ringing, frequency
 # slew and long-run alignment. pll_metrics.c is the measurement side, kept out
 # of the fixture library because nothing else needs it.
