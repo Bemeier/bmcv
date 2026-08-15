@@ -89,6 +89,38 @@ void USBD_BMCV_VendorDataOut(uint8_t* data, uint16_t len)
 // packets the stack split it into.
 void USBD_BMCV_VendorDataIn(void) { tx_busy = false; }
 
+// A host is starting, and nothing this side is holding belongs to it.
+//
+// Overrides the __weak stub in the USB class, which calls it on enumeration and
+// whenever a host clears a halt on the vendor endpoints - which a browser does
+// on every connect.
+//
+// Without this the link survived exactly one session. A browser that closes the
+// device mid-snapshot leaves a transfer part-collected; clearing the halt then
+// resets the endpoint out from under it, so its completion interrupt never
+// arrives and `tx_busy` stays set for ever. usblink_poll returns at its first
+// line from then on, and the module answers no host again until it is power
+// cycled - not even a replug, since a USB reset does not reset the MCU.
+//
+// The credit counters go with it for a smaller reason: a session that asked for
+// snapshots it never collected has no claim on the next one's first frame.
+void USBD_BMCV_VendorReset(void)
+{
+  tx_busy = false;
+  asked   = 0;
+  sent    = 0;
+
+  // Whatever the last host was holding down, it is not holding it now. The
+  // input layer would time this out by itself a quarter of a second later; not
+  // handing the next session a button already pressed is worth the two lines.
+  remote_pending  = false;
+  command_pending = false;
+
+  // dfu_requested is deliberately not cleared. It is latched because the only
+  // answer to it is a reboot that does not return, and a host that asked for
+  // one and then went away still asked.
+}
+
 /* ---- what the main loop does with it ------------------------------------ */
 
 uint8_t usblink_take_remote_input(RemoteInput* dst)

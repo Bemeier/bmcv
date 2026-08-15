@@ -1,7 +1,7 @@
 // System Real-Time decode: what a USB-MIDI transfer means for the clock, with
-// no USB in it. midi.c feeds it the same buffer sysex_feed reads; the two
-// look for disjoint Code Index Numbers and neither should see the other's
-// traffic.
+// no USB in it. midi.c feeds it every transfer that arrives on the MIDI OUT
+// endpoint, so it has to pick its four status bytes out of whatever else a DAW
+// is sending and leave the rest alone.
 
 #include "midi_realtime.h"
 #include "testkit.h"

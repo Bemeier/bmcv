@@ -668,6 +668,11 @@ static uint8_t USBD_MIDI_Init(USBD_HandleTypeDef* pdev, uint8_t cfgidx)
   USBD_LL_OpenEP(pdev, BMCV_VENDOR_EPOUT_ADDR, USBD_EP_TYPE_BULK, BMCV_VENDOR_EP_SIZE);
   USBD_LL_PrepareReceive(pdev, BMCV_VENDOR_EPOUT_ADDR, vendor_rx_buffer, BMCV_VENDOR_EP_SIZE);
 
+  /* The endpoints are new; whatever Core was holding for the last host is not.
+     This runs on every SET_CONFIGURATION, which is every enumeration - and the
+     module keeps running across those, so nothing else would clear it. */
+  USBD_BMCV_VendorReset();
+
   pdev->pClassData = USBD_malloc(sizeof(USBD_MIDI_HandleTypeDef));
 
   if (pdev->pClassData == NULL)
@@ -692,8 +697,19 @@ static uint8_t USBD_MIDI_DeInit(USBD_HandleTypeDef* pdev, uint8_t cfgidx)
 {
   (void) cfgidx;
 
-  /* Close MIDI EPs */
-  USBD_LL_CloseEP(pdev, MIDI_EPIN_SIZE);
+  /* Close every endpoint Init opened. This closed MIDI_EPIN_SIZE - a packet
+     size where an endpoint address belongs, so 0x40, which is no endpoint on
+     this device - and left the other three open, which is how it survived
+     unnoticed: nothing here is called on the path a cable being pulled takes. */
+  USBD_LL_CloseEP(pdev, MIDI_EPIN_ADDR);
+  USBD_LL_CloseEP(pdev, MIDI_EPOUT_ADDR);
+  USBD_LL_CloseEP(pdev, BMCV_VENDOR_EPIN_ADDR);
+  USBD_LL_CloseEP(pdev, BMCV_VENDOR_EPOUT_ADDR);
+
+  /* And whatever Core was holding for the host that is going away. Init calls
+     this too; a configuration taken down and put back up must not leave a
+     snapshot owed to nobody. */
+  USBD_BMCV_VendorReset();
 
   /* FRee allocated memory */
   if (pdev->pClassData != NULL)
@@ -785,6 +801,25 @@ static uint8_t USBD_MIDI_Setup(USBD_HandleTypeDef* pdev, USBD_SetupReqTypedef* r
 
     case USB_REQ_SET_INTERFACE:
       hmidi->AltSetting = (uint8_t) (req->wValue);
+      break;
+
+    /* A host clearing a halt on one of the vendor endpoints. The stack has
+       already reset the endpoint and answered the request - see USBD_StdEPReq,
+       which calls us afterwards - so there is nothing to send here.
+
+       What it does is give Core the one signal it otherwise has none of: a new
+       host is starting. A browser closing the device leaves whatever snapshot
+       was in flight half-collected, and clearing the halt resets the endpoint
+       out from under it - so the transfer never completes, its DataIn never
+       arrives, and the flag saying "a send is outstanding" would stay set for
+       the rest of the module's power-on life. Every session after the first
+       would find a module that answers nothing. */
+    case USB_REQ_CLEAR_FEATURE:
+      if ((req->bmRequest & USB_REQ_RECIPIENT_MASK) == USB_REQ_RECIPIENT_ENDPOINT && req->wValue == USB_FEATURE_EP_HALT
+          && (LOBYTE(req->wIndex) & 0x7FU) == (BMCV_VENDOR_EPIN_ADDR & 0x7FU))
+      {
+        USBD_BMCV_VendorReset();
+      }
       break;
     }
   }
@@ -928,6 +963,11 @@ __weak const char* USBD_BMCV_Version(uint16_t* length)
 }
 
 __weak void USBD_BMCV_VendorDataIn(void) {}
+
+/**
+ * @brief  A host is starting on the vendor interface. Overridden in Core.
+ */
+__weak void USBD_BMCV_VendorReset(void) {}
 
 /**
  * @brief  One transfer received on the vendor interface. Overridden in Core.

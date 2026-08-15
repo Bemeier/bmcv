@@ -186,6 +186,11 @@ void USBD_BMCV_VendorDataOut(uint8_t* data, uint16_t len);
 const char* USBD_BMCV_Version(uint16_t* length);
 void USBD_BMCV_VendorDataIn(void);
 uint8_t USBD_BMCV_VendorSend(USBD_HandleTypeDef* pdev, uint8_t* data, uint16_t len);
+
+/* A host is starting a session on the vendor interface, and whatever the last
+   one left behind is not part of it. Called on enumeration and whenever a host
+   clears a halt on the vendor endpoints - see USBD_MIDI_Setup. */
+void USBD_BMCV_VendorReset(void);
 uint8_t USBD_MIDI_GetDeviceState(USBD_HandleTypeDef* pdev);
 
 /**

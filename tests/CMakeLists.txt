@@ -82,6 +82,17 @@ bmcv_add_test(test_usb_descriptors)
 target_sources(test_usb_descriptors PRIVATE ${BMCV_ROOT}/USB_Device/App/usbd_webusb.c)
 target_include_directories(test_usb_descriptors PRIVATE ${BMCV_ROOT}/USB_Device/App)
 
+# The link itself, compiled against three fake headers rather than the ST stack
+# and the HAL - see tests/fakes/usb/. It is the only driver-layer file here, and
+# it earns the exception: everything in it is bookkeeping with no good failure
+# mode, since a credit not spent and a busy flag never cleared both present as a
+# module that answers nothing, which is what half the things on a bench also
+# look like. fakes/usb comes first on the include path so usblink.c's own
+# includes resolve to the stubs.
+bmcv_add_test(test_usblink)
+target_sources(test_usblink PRIVATE ${BMCV_LIB_SRC}/usblink.c)
+target_include_directories(test_usblink BEFORE PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/fakes/usb)
+
 # Characterises the phase-lock loop: settling, overshoot, ringing, frequency
 # slew and long-run alignment. pll_metrics.c is the measurement side, kept out
 # of the fixture library because nothing else needs it.
