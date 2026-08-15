@@ -359,6 +359,17 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
     const rule = css.slice(css.indexOf(sel + ' {'), css.indexOf('}', css.indexOf(sel + ' {')));
     check(/aspect-ratio:/.test(rule), `${sel} reserves its height`);
   }
+
+  // The keyboard is an <svg> with a viewBox, so it has an intrinsic ratio, and
+  // `height: 100%` against a parent whose own height is indefinite resolves to
+  // that ratio rather than to the parent - which at a wide container drew a
+  // keyboard several times taller than its box, outside it. The parent needs a
+  // definite height for the percentage to mean anything.
+  const keysRule = css.slice(css.indexOf('.keys {'), css.indexOf('}', css.indexOf('.keys {')));
+  check(/height:/.test(keysRule) && /overflow:/.test(keysRule),
+    'the scale has a definite height and cannot draw outside it');
+  const keysCell = css.slice(css.indexOf('.readout-keys {'), css.indexOf('}', css.indexOf('.readout-keys {')));
+  check(/align-items:\s*stretch/.test(keysCell), 'and its cell is stretched, which is what makes that height definite');
 }
 
 /* ---- an input cell is the same rectangle as an output cell ---------------- */

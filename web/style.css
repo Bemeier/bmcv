@@ -214,11 +214,10 @@ kbd { background: rgba(255, 255, 255, .09); padding: .05em .35em; font-size: .9e
    fill it, which doubled the height of the box and drew a keyboard several
    times longer than a keyboard. */
 .readout-keys {
-  display: flex; align-items: center;
+  display: flex; align-items: stretch;
   flex: 1 1 150px;
   max-width: 280px;
 }
-.keys { max-height: 3rem; }
 /* The label sits well above its number rather than against it: the gap is what
    makes the pair read as one thing with a caption, and it is the cheapest
    space on the page to give away. */
@@ -617,7 +616,21 @@ body.live #in-controls { display: none; }
    width - and a translucent sharp let the white key beneath it show through,
    which at these opacities made an unlit black key look lit. The white keys are
    notched around their neighbours now, so no two shapes ever overlap. */
-.keys { display: block; width: 100%; min-width: 7ch; }
+/* A definite height, which is the whole of why this used to overflow.
+   An <svg> with a viewBox has an intrinsic ratio, and `height: 100%` against a
+   parent whose own height is indefinite resolves to that ratio instead - so at
+   a wide container it computed a keyboard several times taller than the box and
+   simply drew outside it. Stretching the cell gives the height a definite value
+   for the percentage to be a percentage of.
+
+   overflow guards the case anyway: nothing about a debug readout is worth
+   drawing over its neighbours. */
+.keys {
+  display: block;
+  width: 100%; min-width: 7ch;
+  height: 100%; max-height: 3rem;
+  overflow: hidden;
+}
 .keys svg { display: block; width: 100%; height: 100%; }
 
 /* Off is one colour for both kinds of key, so "in the scale" is the only thing
