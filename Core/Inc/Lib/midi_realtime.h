@@ -15,10 +15,21 @@
 #define MIDI_RT_CONTINUE 0xFB
 #define MIDI_RT_STOP 0xFC
 
+// Clock is a count and Start is a flag, and the difference is not an
+// inconsistency: a beat is advanced once per clock byte, so two of them in one
+// transfer have to be worth two, while resetting twice is the same as resetting
+// once.
+//
+// This mattered more than it looks. A USB-MIDI transfer carries up to 16 event
+// packets and a host packs what it has, so a DAW that falls behind delivers its
+// clocks in a batch - and reporting a batch as a single `clock = 1` silently
+// dropped the rest, which the sync loop saw as a gap in the beat grid. The same
+// mistake, on the same endpoint, is what the SysEx parser this replaced was
+// retired for; see docs/live-module.md.
 typedef struct
 {
-  uint8_t clock; // a Clock (0xF8) byte was in this transfer
-  uint8_t start; // a Start (0xFA) byte was in this transfer
+  uint8_t clocks; // how many Clock (0xF8) bytes were in this transfer
+  uint8_t start;  // whether a Start (0xFA) byte was
 } MidiRealtimeEvents;
 
 // Feed one USB MIDI OUT transfer: `len` bytes of 4-byte USB-MIDI event

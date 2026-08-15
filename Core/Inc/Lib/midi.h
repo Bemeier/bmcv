@@ -30,10 +30,16 @@ void midi_send_msgs(const MidiMsg* msgs, uint8_t n);
 
 uint8_t midi_idle();
 
-// A MIDI Clock (0xF8) / Start (0xFA) byte was latched since the last call -
-// see midi_realtime.h for why Start and not Continue. Read-and-clear, the
-// same contract as adc_read_trig_state(): call once per tick and feed the
-// result to InputSample.midi_clock_trig / midi_reset_trig.
+// A MIDI Clock (0xF8) / Start (0xFA) byte is owed since the last call - see
+// midi_realtime.h for why Start and not Continue. Read-and-clear, the same
+// contract as adc_read_trig_state(): call once per tick and feed the result to
+// InputSample.midi_clock_trig / midi_reset_trig.
+//
+// The clock keeps a backlog rather than a flag, and hands back one per call.
+// Several clocks can land between two ticks - batched into one transfer by a
+// host that fell behind, or arriving in consecutive transfers - and each is a
+// beat. Draining them one per tick keeps the beat grid aligned; see midi.c for
+// why compressing them into 250us intervals is harmless to the tempo estimate.
 uint8_t midi_read_clock_trig();
 uint8_t midi_read_reset_trig();
 

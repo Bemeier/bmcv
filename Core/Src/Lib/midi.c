@@ -8,10 +8,27 @@ extern USBD_HandleTypeDef hUsbDeviceFS;
 // outlives the call.
 static uint8_t buffUsbReport[MIDI_EPIN_SIZE] = {0};
 
-// Set from the USB interrupt, read from the main loop, so volatile and nothing
-// more.
-static volatile bool midi_clock_flag = false;
-static volatile bool midi_reset_flag = false;
+// Set from the USB interrupt, read from the main loop.
+//
+// The clock is a *backlog*, not a flag. Counting it here is only half the fix -
+// midi_realtime_feed counts the bytes in one transfer, and this keeps the ones
+// the loop has not collected yet, since several transfers can land between two
+// engine ticks as easily as several bytes can land in one transfer.
+//
+// Drained one per tick, which compresses a burst into 250us intervals. That is
+// the right answer rather than a compromise: the beat grid advances once per
+// clock either way, so it stays aligned, and Clock_Trigger's implausible-
+// interval guard rejects the compressed intervals as the tempo samples they are
+// not. Dropping the clocks instead loses the beats themselves, which nothing
+// downstream can recover.
+static volatile uint8_t midi_clock_pending = 0;
+static volatile bool midi_reset_flag       = false;
+
+// One beat's worth at 24 PPQN. A backlog deeper than this is not a host that
+// stuttered, it is one that has gone away or is streaming faster than the
+// module can be driven, and replaying it would walk the beat counter forward
+// through time that has already passed.
+#define MIDI_CLOCK_MAX_PENDING 24u
 
 // Overrides the __weak stub in the MIDI class, and runs in the USB interrupt.
 //
@@ -24,17 +41,30 @@ static volatile bool midi_reset_flag = false;
 void USBD_MIDI_DataInHandler(uint8_t* usb_rx_buffer, uint8_t usb_rx_buffer_length)
 {
   MidiRealtimeEvents rt = midi_realtime_feed(usb_rx_buffer, usb_rx_buffer_length);
-  if (rt.clock)
-    midi_clock_flag = true;
+
+  if (rt.clocks)
+  {
+    // Saturating, and safe without a lock because this interrupt is the only
+    // producer: the main loop only ever decrements, so it cannot land inside
+    // the add and turn it into a different number.
+    uint8_t pending = __atomic_load_n(&midi_clock_pending, __ATOMIC_ACQUIRE);
+    uint8_t room    = (uint8_t) (MIDI_CLOCK_MAX_PENDING - pending);
+    if (pending < MIDI_CLOCK_MAX_PENDING)
+      __atomic_add_fetch(&midi_clock_pending, rt.clocks < room ? rt.clocks : room, __ATOMIC_ACQ_REL);
+  }
+
   if (rt.start)
     midi_reset_flag = true;
 }
 
 uint8_t midi_read_clock_trig()
 {
-  if (!midi_clock_flag)
+  if (__atomic_load_n(&midi_clock_pending, __ATOMIC_ACQUIRE) == 0)
     return 0;
-  midi_clock_flag = false;
+
+  // Sound against the interrupt above for the mirror of its reason: this is the
+  // only consumer, so nothing else can take the one just observed.
+  __atomic_sub_fetch(&midi_clock_pending, 1u, __ATOMIC_ACQ_REL);
   return 1;
 }
 

@@ -12,7 +12,11 @@ MidiRealtimeEvents midi_realtime_feed(const uint8_t* packets, uint8_t len)
     switch (packets[i + 1])
     {
     case MIDI_RT_CLOCK:
-      ev.clock = 1;
+      // Counted, not flagged. A transfer holds up to 16 packets and a host
+      // that has fallen behind will use them; capped at the field's width
+      // rather than allowed to wrap.
+      if (ev.clocks < UINT8_MAX)
+        ev.clocks++;
       break;
     case MIDI_RT_START:
       ev.start = 1;

@@ -24,7 +24,7 @@ TEST_CASE(clock_byte_is_reported)
   pack_rt(packet, 0, MIDI_RT_CLOCK);
 
   MidiRealtimeEvents ev = midi_realtime_feed(packet, sizeof packet);
-  CHECK(ev.clock == 1);
+  CHECK(ev.clocks == 1);
   CHECK(ev.start == 0);
 }
 
@@ -34,7 +34,7 @@ TEST_CASE(start_byte_is_reported)
   pack_rt(packet, 0, MIDI_RT_START);
 
   MidiRealtimeEvents ev = midi_realtime_feed(packet, sizeof packet);
-  CHECK(ev.clock == 0);
+  CHECK(ev.clocks == 0);
   CHECK(ev.start == 1);
 }
 
@@ -49,7 +49,7 @@ TEST_CASE(continue_and_stop_report_nothing)
   pack_rt(packets + 4, 0, MIDI_RT_STOP);
 
   MidiRealtimeEvents ev = midi_realtime_feed(packets, sizeof packets);
-  CHECK(ev.clock == 0);
+  CHECK(ev.clocks == 0);
   CHECK(ev.start == 0);
 }
 
@@ -63,8 +63,41 @@ TEST_CASE(other_realtime_bytes_report_nothing)
   pack_rt(packets + 4, 0, 0xFF);
 
   MidiRealtimeEvents ev = midi_realtime_feed(packets, sizeof packets);
-  CHECK(ev.clock == 0);
+  CHECK(ev.clocks == 0);
   CHECK(ev.start == 0);
+}
+
+// The case the boolean this replaced could not express, and the one that
+// actually happens: a host that has fallen behind delivers its clocks in a
+// batch, and every one of them is a beat. Reporting the batch as a single
+// clock dropped the rest, which the sync loop saw as a gap in the beat grid.
+//
+// A transfer holds sixteen packets, so the count has to survive a full one.
+TEST_CASE(several_clocks_in_one_transfer_are_all_counted)
+{
+  uint8_t two[8];
+  pack_rt(two, 0, MIDI_RT_CLOCK);
+  pack_rt(two + 4, 0, MIDI_RT_CLOCK);
+  CHECK(midi_realtime_feed(two, sizeof two).clocks == 2);
+
+  uint8_t full[16 * 4];
+  for (int i = 0; i < 16; i++)
+    pack_rt(full + i * 4, 0, MIDI_RT_CLOCK);
+  CHECK(midi_realtime_feed(full, sizeof full).clocks == 16);
+}
+
+// Clocks count, a reset does not: advancing the beat twice is two beats, but
+// resetting twice lands in the same place as resetting once.
+TEST_CASE(a_repeated_start_is_still_one_reset)
+{
+  uint8_t packets[12];
+  pack_rt(packets, 0, MIDI_RT_START);
+  pack_rt(packets + 4, 0, MIDI_RT_START);
+  pack_rt(packets + 8, 0, MIDI_RT_CLOCK);
+
+  MidiRealtimeEvents ev = midi_realtime_feed(packets, sizeof packets);
+  CHECK(ev.start == 1);
+  CHECK(ev.clocks == 1);
 }
 
 TEST_CASE(both_in_one_transfer_are_both_reported)
@@ -74,7 +107,7 @@ TEST_CASE(both_in_one_transfer_are_both_reported)
   pack_rt(packets + 4, 0, MIDI_RT_CLOCK);
 
   MidiRealtimeEvents ev = midi_realtime_feed(packets, sizeof packets);
-  CHECK(ev.clock == 1);
+  CHECK(ev.clocks == 1);
   CHECK(ev.start == 1);
 }
 
@@ -91,7 +124,7 @@ TEST_CASE(ignores_ordinary_midi_and_sysex_traffic)
       0x06, 0x4D, 0x01, 0xF7, // sysex end
   };
   MidiRealtimeEvents ev = midi_realtime_feed(traffic, sizeof traffic);
-  CHECK(ev.clock == 0);
+  CHECK(ev.clocks == 0);
   CHECK(ev.start == 0);
 }
 
@@ -102,7 +135,7 @@ TEST_CASE(zero_padding_is_not_a_message)
   uint8_t packets[16];
   memset(packets, 0, sizeof packets);
   MidiRealtimeEvents ev = midi_realtime_feed(packets, sizeof packets);
-  CHECK(ev.clock == 0);
+  CHECK(ev.clocks == 0);
   CHECK(ev.start == 0);
 }
 
@@ -112,7 +145,7 @@ TEST_CASE(cable_number_does_not_affect_recognition)
   pack_rt(packet, 7, MIDI_RT_CLOCK);
 
   MidiRealtimeEvents ev = midi_realtime_feed(packet, sizeof packet);
-  CHECK(ev.clock == 1);
+  CHECK(ev.clocks == 1);
 }
 
 int main(void)
@@ -121,6 +154,8 @@ int main(void)
   RUN_TEST(start_byte_is_reported);
   RUN_TEST(continue_and_stop_report_nothing);
   RUN_TEST(other_realtime_bytes_report_nothing);
+  RUN_TEST(several_clocks_in_one_transfer_are_all_counted);
+  RUN_TEST(a_repeated_start_is_still_one_reset);
   RUN_TEST(both_in_one_transfer_are_both_reported);
   RUN_TEST(ignores_ordinary_midi_and_sysex_traffic);
   RUN_TEST(zero_padding_is_not_a_message);
