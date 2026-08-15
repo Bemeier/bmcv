@@ -66,7 +66,7 @@ TEST_CASE(copy_from_a_scene_offers_only_scenes)
 // The invariant: offered == actionable, for every mode and every pairing.
 TEST_CASE(anything_offered_as_a_candidate_actually_commits)
 {
-  const uint8_t modes[]    = {SHIFT_STATE_CPY, SHIFT_STATE_CLR, SHIFT_STATE_MON, SHIFT_STATE_QNT};
+  const uint8_t modes[]    = {SHIFT_STATE_CPY, SHIFT_STATE_CLR, SHIFT_STATE_MIX, SHIFT_STATE_QNT};
   const TargetKind kinds[] = {TGT_CHANNEL, TGT_SCENE, TGT_INPUT};
 
   for (unsigned m = 0; m < sizeof modes / sizeof modes[0]; m++)
@@ -136,7 +136,7 @@ TEST_CASE(monitor_routes_an_input_and_unroutes_on_pressing_the_source_again)
 {
   Fixture f;
   fixture_init(&f);
-  enter(&f, SHIFT_STATE_MON);
+  enter(&f, SHIFT_STATE_MIX);
 
   ui_sel_press(&f.ux, TGT_CHANNEL, 1, 0);
   ui_sel_press(&f.ux, TGT_INPUT, 2, 0);

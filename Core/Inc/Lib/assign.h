@@ -11,7 +11,7 @@
 //   scene -> scene       duplicate every channel's params
 //   channel -> scene     put this channel's params into another scene
 //   channel -> channel   within the active scene
-//   input -> channel     which input modulates it (MON)
+//   input -> channel     which input modulates it (MIX)
 //   trig src -> channel  what samples it (QNT)
 //
 // Each validates its own indices; an out-of-range id is a no-op.

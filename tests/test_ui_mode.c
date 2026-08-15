@@ -36,7 +36,7 @@ TEST_CASE(another_ctrl_button_exits_every_mode_except_the_quantizer)
 {
   for (uint8_t mode = 0; mode < SHIFT_STATE_NONE; mode++)
   {
-    uint8_t other = (mode == SHIFT_STATE_SYS) ? SHIFT_STATE_MON : SHIFT_STATE_SYS;
+    uint8_t other = (mode == SHIFT_STATE_SYS) ? SHIFT_STATE_MIX : SHIFT_STATE_SYS;
 
     Fixture f;
     fixture_init(&f);

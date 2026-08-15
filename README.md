@@ -358,7 +358,7 @@ early or late - and there negative is busy, positive is sparse.
     rather than what the patch is, which is why it is not per scene and why a
     channel clear leaves it alone.
 
-### MON - Monitor & Mixing
+### MIX - Cross Modulation & Monitoring
 
 Scene Buttons: - Display inputs (only the four that are inputs; the rest are
 dark and inert)
@@ -378,7 +378,7 @@ and reads as far too neutral for the one page that destroys things.
 
 Scene Buttons: - Select scene to clear
 Channel: - Tap clears that channel in the active scene. Hold clears the whole
-channel: every scene, plus its MON routing and cross-modulation mode, its QNT
+channel: every scene, plus its MIX routing and cross-modulation mode, its QNT
 mode and trigger source, its shape mode and pattern length. Not the output
 clamp.
 

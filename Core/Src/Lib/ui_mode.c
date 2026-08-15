@@ -53,7 +53,7 @@ static const UiModeDesc modes[SHIFT_STATE_COUNT] = {
                          .channel_base       = CHBASE_QUANTIZE,
                          .scene_btn_base     = SCB_INPUT_LEVEL},
 
-    [SHIFT_STATE_MON] = {.name               = "MON",
+    [SHIFT_STATE_MIX] = {.name               = "MIX",
                          .action             = ACT_ROUTE_INPUT,
                          .src_kinds          = TGT_BIT(TGT_CHANNEL),
                          .dst_kinds          = TGT_BIT(TGT_INPUT),

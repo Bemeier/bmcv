@@ -22,7 +22,7 @@ void assign_input_to_channel(int8_t i, int8_t c, UxState* state)
   state->engine_config->channel_state[c].src_input = i;
 }
 
-// MON: pressing the held source channel again unroutes its input.
+// MIX: pressing the held source channel again unroutes its input.
 void assign_input_clear(int8_t c, UxState* state)
 {
   if (!channel_ok(c))
@@ -42,7 +42,7 @@ void assign_trig_arm_channel(int8_t c, UxState* state)
 
 // A tap clears the scene in front of you; a hold clears the whole channel.
 //
-// "Whole" means the per-channel settings too - what MON routed into it, what
+// "Whole" means the per-channel settings too - what MIX routed into it, what
 // QNT samples it, its shape mode and pattern length - and not just its
 // parameters in every scene. Those settings are as much part of a channel as
 // its numbers are, and a channel that reads as cleared while still being

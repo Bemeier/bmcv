@@ -123,7 +123,7 @@ const CTRL_HELP = {
   QNT: 'Quantizer. Hold to open: the scene buttons switch semitones in and out of the '
     + 'scale, the encoders set each channel\'s quantize mode, and pressing one assigns '
     + 'its sample trigger.',
-  MON: 'Monitor and mixing. Hold to open: pressing an encoder picks the input a channel '
+  MIX: 'Cross modulation. Hold to open: pressing an encoder picks the input a channel '
     + 'mixes in, and turning it chooses how - off, added, or multiplied.',
   SAV: 'Save and load. Hold to open: the scene buttons are seven preset slots, and the '
     + 'encoders set each channel\'s output clamp.',
@@ -161,7 +161,7 @@ function describeButton(b) {
         sections: [[
         `Channel ${r.channel} — push`,
         'Held while turning, this is fine adjust. On its own it is whatever the open page '
-          + 'does with a press: picking an input under MON, assigning a trigger under QNT, '
+          + 'does with a press: picking an input under MIX, assigning a trigger under QNT, '
           + 'muting under MUT.',
       ]],
     };
@@ -182,7 +182,7 @@ function describeButton(b) {
       sections.push([
         `Input ${r.scene}`,
         `On the pages that configure inputs this same button stands for input jack `
-          + `${r.scene}: its mode under SYS, its level under MON, its place in the scale `
+          + `${r.scene}: its mode under SYS, its level under MIX, its place in the scale `
           + `under QNT.`,
       ]);
     }

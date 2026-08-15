@@ -134,7 +134,7 @@ static const char* const panel_button_label[24] =
   "SW3 - MOD / QNT", // 12
   "SW9 - scene 2 / E", // 13
   "SW10 - scene 3 / F", // 14
-  "SW4 - PHS / MON / F#", // 15
+  "SW4 - PHS / MIX / F#", // 15
   "SW5 - AMP / SAV / G#", // 16
   "SW6 - OFS / STB / A#", // 17
   "SW11 - scene 4 / G", // 18
@@ -195,7 +195,7 @@ static const char* const panel_button_mode[24] =
   "QNT", // 12 SW3
   "", // 13 SW9
   "", // 14 SW10
-  "MON", // 15 SW4
+  "MIX", // 15 SW4
   "SAV", // 16 SW5
   "STB", // 17 SW6
   "", // 18 SW11

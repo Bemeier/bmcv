@@ -352,7 +352,7 @@
       "kind": "rgb_switch",
       "roles": {
         "ctrl": 3,
-        "ctrl_name": "MON",
+        "ctrl_name": "MIX",
         "param": 3,
         "param_name": "PHS",
         "semitone": 6,
