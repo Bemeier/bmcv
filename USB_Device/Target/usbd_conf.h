@@ -66,7 +66,8 @@ extern "C"
  */
 
 /*---------- -----------*/
-#define USBD_MAX_NUM_INTERFACES 1U
+/* MIDI on interface 0, the vendor interface a browser claims on interface 1. */
+#define USBD_MAX_NUM_INTERFACES 2U
 /*---------- -----------*/
 #define USBD_MAX_NUM_CONFIGURATION 1U
 /*---------- -----------*/

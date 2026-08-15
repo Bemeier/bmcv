@@ -62,12 +62,14 @@ list(TRANSFORM BMCV_DRIVER_SOURCES PREPEND Core/Src/Lib/)
 
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
   Middlewares/ST/STM32_USB_Device_Library/Class/MIDI/Src/usbd_midi.c
+  USB_Device/App/usbd_webusb.c
   ${BMCV_CORE_SOURCES}
   ${BMCV_DRIVER_SOURCES}
 )
 
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
   Middlewares/ST/STM32_USB_Device_Library/Class/MIDI/Inc
+  USB_Device/App
   Core/Inc/Lib
   # ui_sparkle.c samples the LEDs' real positions on the board, which `just
   # panel` generates from the same source as the panel artwork.

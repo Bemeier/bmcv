@@ -20,6 +20,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "usbd_desc.h"
+#include "usbd_webusb.h"
 #include "usbd_conf.h"
 #include "usbd_core.h"
 
@@ -128,6 +129,8 @@ uint8_t* USBD_HID_InterfaceStrDescriptor(USBD_SpeedTypeDef speed, uint16_t* leng
  * @brief Private variables.
  * @{
  */
+static uint8_t* USBD_HID_BOSDescriptor(USBD_SpeedTypeDef speed, uint16_t* length);
+
 USBD_DescriptorsTypeDef HID_Desc = {.GetDeviceDescriptor           = USBD_HID_DeviceDescriptor,
                                     .GetLangIDStrDescriptor        = USBD_HID_LangIDStrDescriptor,
                                     .GetManufacturerStrDescriptor  = USBD_HID_ManufacturerStrDescriptor,
@@ -135,16 +138,35 @@ USBD_DescriptorsTypeDef HID_Desc = {.GetDeviceDescriptor           = USBD_HID_De
                                     .GetSerialStrDescriptor        = USBD_HID_SerialStrDescriptor,
                                     .GetConfigurationStrDescriptor = USBD_HID_ConfigStrDescriptor,
                                     .GetInterfaceStrDescriptor     = USBD_HID_InterfaceStrDescriptor,
-                                    .GetBOSDescriptor              = NULL};
+                                    .GetBOSDescriptor              = USBD_HID_BOSDescriptor};
 
 #if defined(__ICCARM__) /* IAR Compiler */
 #pragma data_alignment = 4
 #endif /* defined ( __ICCARM__ ) */
+/**
+ * @brief  Return the Binary Object Store descriptor.
+ * @param  speed: current device speed
+ * @param  length: pointer to data length variable
+ * @retval pointer to descriptor buffer
+ */
+static uint8_t* USBD_HID_BOSDescriptor(USBD_SpeedTypeDef speed, uint16_t* length)
+{
+  UNUSED(speed);
+  uint16_t len = 0;
+  /* Cast away const: the stack's signature is not const-correct, and it only
+     ever reads. The bytes themselves live in flash - see usbd_webusb.c. */
+  uint8_t* buf = (uint8_t*) bmcv_bos_descriptor(&len);
+  *length      = len;
+  return buf;
+}
+
 /** USB standard device descriptor. */
 __ALIGN_BEGIN uint8_t USBD_HID_DeviceDesc[USB_LEN_DEV_DESC] __ALIGN_END = {
     0x12,                 /*bLength */
     USB_DESC_TYPE_DEVICE, /*bDescriptorType*/
-    0x00,                 /*bcdUSB */
+    /* 2.10, not 2.00: a host only asks for the BOS descriptor - and so only
+       learns this device can speak to a browser - from 2.01 upwards. */
+    0x10,                 /*bcdUSB */
     0x02,
     0x00,             /*bDeviceClass*/
     0x00,             /*bDeviceSubClass*/

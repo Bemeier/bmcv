@@ -66,6 +66,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "usbd_midi.h"
+#include "usbd_webusb.h"
 #include "usbd_ctlreq.h"
 #include "usbd_desc.h"
 
@@ -121,6 +122,10 @@ static uint8_t USBD_MIDI_DataOut(USBD_HandleTypeDef* pdev, uint8_t epnum);
 
 static uint8_t usb_rx_buffer[MIDI_EPOUT_SIZE] = {0};
 
+/* What arrives on the vendor interface's OUT endpoint. Handed to
+   USBD_BMCV_VendorDataOut, which Core overrides. */
+static uint8_t vendor_rx_buffer[BMCV_VENDOR_EP_SIZE] = {0};
+
 /* USB MIDI class type definition */
 USBD_ClassTypeDef USBD_MIDI = {
     USBD_MIDI_Init,
@@ -140,11 +145,15 @@ USBD_ClassTypeDef USBD_MIDI = {
 };
 
 /* USB MIDI device Configuration Descriptor */
-__ALIGN_BEGIN static uint8_t USBD_MIDI_CfgDesc[USB_MIDI_CONFIG_DESC_SIZE] __ALIGN_END = {
+/* Unsized on purpose, with the length asserted below: a fixed size would let an
+   initialiser that is a byte short be zero-padded to fit, which is a descriptor
+   the host reads to the end and finds garbage in. Written out, the compiler
+   counts it and the assert checks the count. */
+__ALIGN_BEGIN static uint8_t USBD_MIDI_CfgDesc[] __ALIGN_END = {
     0x09,                            /* bLength: Configuration Descriptor size */
     USB_DESC_TYPE_CONFIGURATION,     /* bDescriptorType: Configuration */
-    USB_MIDI_CONFIG_DESC_SIZE, 0x00, /*Length of the total configuration block, including this descriptor, in bytes.*/
-    0x01,                            /*bNumInterfaces: 1 interface*/
+    LOBYTE(USB_BMCV_CONFIG_DESC_SIZE), HIBYTE(USB_BMCV_CONFIG_DESC_SIZE),
+    0x02,                            /*bNumInterfaces: MIDI, and the vendor interface*/
     0x01,                            /*bConfigurationValue: ID of this configuration. */
     0x00,                            /*iConfiguration: Index of string descriptor describing the configuration (Unused.)*/
     0x80,                            /*bmAttributes: Bus Powered device, not Self Powered, no Remote wakeup capability. */
@@ -584,7 +593,44 @@ __ALIGN_BEGIN static uint8_t USBD_MIDI_CfgDesc[USB_MIDI_CONFIG_DESC_SIZE] __ALIG
 #if MIDI_IN_PORTS_NUM >= 8
     MIDI_JACK_16, /*BaAssocJackID(8): ID of the Embedded MIDI OUT Jack.*/
 #endif
+
+    /******************** BMCV vendor interface, for a browser ********************/
+    /* Claimed through WebUSB and bound to WinUSB automatically by the Microsoft
+       OS 2.0 descriptors in usbd_webusb.c. A host that knows nothing about it
+       sees a MIDI device exactly as before. */
+    0x09,                    /*bLength: Interface Descriptor size*/
+    USB_DESC_TYPE_INTERFACE, /*bDescriptorType: Interface descriptor type*/
+    BMCV_WEBUSB_INTERFACE,   /*bInterfaceNumber*/
+    0x00,                    /*bAlternateSetting*/
+    0x02,                    /*bNumEndpoints*/
+    0xFF,                    /*bInterfaceClass: Vendor specific*/
+    0x00,                    /*bInterfaceSubClass*/
+    0x00,                    /*bInterfaceProtocol*/
+    0x00,                    /*iInterface: Unused*/
+
+    /* Bulk IN: snapshots out of the module. */
+    0x07,                          /*bLength*/
+    USB_DESC_TYPE_ENDPOINT,        /*bDescriptorType*/
+    BMCV_VENDOR_EPIN_ADDR,         /*bEndpointAddress*/
+    0x02,                          /*bmAttributes: Bulk*/
+    BMCV_VENDOR_EP_SIZE, 0x00,     /*wMaxPacketSize*/
+    0x00,                          /*bInterval: ignored for bulk*/
+
+    /* Bulk OUT: requests and the input mailbox, into the module. */
+    0x07,                          /*bLength*/
+    USB_DESC_TYPE_ENDPOINT,        /*bDescriptorType*/
+    BMCV_VENDOR_EPOUT_ADDR,        /*bEndpointAddress*/
+    0x02,                          /*bmAttributes: Bulk*/
+    BMCV_VENDOR_EP_SIZE, 0x00,     /*wMaxPacketSize*/
+    0x00,                          /*bInterval: ignored for bulk*/
 };
+
+/* The one thing a compiler can check here: that what was written out is the
+   length the descriptor claims. Everything else about it is the host's
+   opinion. */
+_Static_assert(sizeof(USBD_MIDI_CfgDesc) == USB_BMCV_CONFIG_DESC_SIZE,
+               "the configuration descriptor is not the length it advertises");
+
 
 /* USB Standard Device Descriptor */
 __ALIGN_BEGIN static uint8_t USBD_MIDI_DeviceQualifierDesc[USB_LEN_DEV_QUALIFIER_DESC] __ALIGN_END = {
@@ -616,6 +662,14 @@ static uint8_t USBD_MIDI_Init(USBD_HandleTypeDef* pdev, uint8_t cfgidx)
   USBD_LL_OpenEP(pdev, MIDI_EPOUT_ADDR, USBD_EP_TYPE_BULK, MIDI_EPOUT_SIZE);
 
   USBD_LL_PrepareReceive(pdev, MIDI_EPOUT_ADDR, usb_rx_buffer, MIDI_EPOUT_SIZE);
+
+  /* The vendor interface's pair. Opened here rather than in a class of its own
+     because this device registers one class with the stack, and splitting it
+     into a composite framework would be a great deal of machinery for a second
+     interface that shares nothing with the first. */
+  USBD_LL_OpenEP(pdev, BMCV_VENDOR_EPIN_ADDR, USBD_EP_TYPE_BULK, BMCV_VENDOR_EP_SIZE);
+  USBD_LL_OpenEP(pdev, BMCV_VENDOR_EPOUT_ADDR, USBD_EP_TYPE_BULK, BMCV_VENDOR_EP_SIZE);
+  USBD_LL_PrepareReceive(pdev, BMCV_VENDOR_EPOUT_ADDR, vendor_rx_buffer, BMCV_VENDOR_EP_SIZE);
 
   pdev->pClassData = USBD_malloc(sizeof(USBD_MIDI_HandleTypeDef));
 
@@ -669,6 +723,20 @@ static uint8_t USBD_MIDI_Setup(USBD_HandleTypeDef* pdev, USBD_SetupReqTypedef* r
 
   switch (req->bmRequest & USB_REQ_TYPE_MASK)
   {
+  case USB_REQ_TYPE_VENDOR:
+    /* Windows asking where to find the descriptor set that names WinUSB as this
+       interface's driver. It only knows to ask because the BOS descriptor
+       published the request code - see usbd_webusb.c. */
+    if (req->bRequest == BMCV_MSOS20_VENDOR_CODE && req->wIndex == BMCV_MSOS20_DESCRIPTOR_INDEX)
+    {
+      uint16_t set_len   = 0;
+      uint8_t* set       = (uint8_t*) bmcv_msos20_descriptor(&set_len);
+      USBD_CtlSendData(pdev, set, MIN(set_len, req->wLength));
+      break;
+    }
+    USBD_CtlError(pdev, req);
+    return USBD_FAIL;
+
   case USB_REQ_TYPE_CLASS:
     switch (req->bRequest)
     {
@@ -792,6 +860,12 @@ uint8_t* USBD_MIDI_DeviceQualifierDescriptor(uint16_t* length)
  */
 static uint8_t USBD_MIDI_DataIn(USBD_HandleTypeDef* pdev, uint8_t epnum)
 {
+  if (epnum == (BMCV_VENDOR_EPIN_ADDR & 0x0F))
+  {
+    USBD_BMCV_VendorDataIn();
+    return USBD_OK;
+  }
+
   (void) epnum;
 
   /* Ensure that the FIFO is empty before a new transfer, this condition could
@@ -809,6 +883,16 @@ static uint8_t USBD_MIDI_DataIn(USBD_HandleTypeDef* pdev, uint8_t epnum)
  */
 static uint8_t USBD_MIDI_DataOut(USBD_HandleTypeDef* pdev, uint8_t epnum)
 {
+  if (epnum == (BMCV_VENDOR_EPOUT_ADDR & 0x0F))
+  {
+    /* The real length this time, not the buffer size: a vendor message is
+       whatever the host sent, and the MIDI path above gets away with passing
+       its buffer size only because it zeroes what it does not overwrite. */
+    USBD_BMCV_VendorDataOut(vendor_rx_buffer, (uint16_t) USBD_LL_GetRxDataSize(pdev, epnum));
+    USBD_LL_PrepareReceive(pdev, BMCV_VENDOR_EPOUT_ADDR, vendor_rx_buffer, BMCV_VENDOR_EP_SIZE);
+    return USBD_OK;
+  }
+
   if (epnum != (MIDI_EPOUT_ADDR & 0x0F))
     return USBD_FAIL;
 
@@ -826,6 +910,33 @@ static uint8_t USBD_MIDI_DataOut(USBD_HandleTypeDef* pdev, uint8_t epnum)
  * @param  usb_rx_buffer: midi messages buffer
  * @param  usb_rx_buffer_length: midi messages buffer length
  */
+/**
+ * @brief  One transfer received on the vendor interface. Overridden in Core.
+ */
+__weak void USBD_BMCV_VendorDataIn(void) {}
+
+/**
+ * @brief  One transfer received on the vendor interface. Overridden in Core.
+ */
+__weak void USBD_BMCV_VendorDataOut(uint8_t* data, uint16_t len)
+{
+  UNUSED(data);
+  UNUSED(len);
+}
+
+/**
+ * @brief  Send on the vendor IN endpoint. The stack splits anything longer than
+ *         the endpoint's 64 bytes into packets itself, so a whole snapshot goes
+ *         out in one call.
+ */
+uint8_t USBD_BMCV_VendorSend(USBD_HandleTypeDef* pdev, uint8_t* data, uint16_t len)
+{
+  if (pdev->dev_state != USBD_STATE_CONFIGURED)
+    return USBD_FAIL;
+
+  return USBD_LL_Transmit(pdev, BMCV_VENDOR_EPIN_ADDR, data, len);
+}
+
 __weak extern void USBD_MIDI_DataInHandler(uint8_t* usb_rx_buffer, uint8_t usb_rx_buffer_length)
 {
   (void) usb_rx_buffer;
