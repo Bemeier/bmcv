@@ -238,10 +238,10 @@ function bindButton(node, b) {
 // than accumulated here.
 // What the panel's own parts are drawn in.
 //
-// The artwork underneath is a dark, mostly transparent PNG, so these are lines
-// and washes over the page rather than a rendering of an aluminium panel: one
-// thin light outline everywhere, and fills that only exist to say a control is
-// there. The LEDs supply all the colour.
+// The artwork underneath is a dark panel with the cutouts punched through it,
+// so these are lines and washes over that rather than a rendering of an
+// aluminium panel: one thin light outline everywhere, and fills that only exist
+// to say a control is there. The LEDs supply all the colour.
 const PART = {
   // Always one device pixel, however far the panel is scaled - which is the
   // whole reason for non-scaling-stroke. A width in millimetres looked right at
@@ -539,7 +539,9 @@ for (const e of spec.encoders) {
   bindEncoder(ring, cap, e);
 }
 
-// Crossfader. The artwork draws the slot, so only the handle is drawn here.
+// Crossfader. Only the handle: the artwork's slot is a cutout rather than a
+// drawn slot, so the travel reads as a subtle break in the panel and the handle
+// is the thing that moves along it.
 let setSliderFromPos;
 let drawKnob;
 {

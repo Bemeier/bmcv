@@ -174,11 +174,9 @@ main {
 
 /* The panel gets a ground to sit on, unlike everything else on the page.
 
-   It had none while the artwork was an opaque PNG that supplied its own. Now
-   that the artwork is mostly transparent, what shows through it is the
-   backdrop photograph, and a skyline behind the encoder cutouts is not a
-   panel. The same surface the scope cells get, and the same rule colour every
-   other line on the page is drawn in. */
+   The artwork is a dark panel with its cutouts punched through, so what shows
+   through those holes is whatever is behind - and a skyline behind the encoder
+   cutouts is not a panel. This is what they show instead. */
 /* Ground for the panel and nothing else. It had a border and padding as well,
    which framed a thing that already has an outline of its own - and the bracket
    below it now does the marking-off that frame was doing. */
