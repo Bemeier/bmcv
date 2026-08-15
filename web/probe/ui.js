@@ -58,18 +58,19 @@ function render() {
   const name = el('source-name');
   const detail = el('source-detail');
 
-  // Three buttons, one per source, always saying which one the page is on.
+  // Three buttons, one per source: a switch that also says which way it is
+  // thrown. The current source is the disabled one - there is nothing to
+  // switch to when you are already there - and the only other reason a button
+  // is disabled is a browser that cannot reach that source at all.
   //
-  // The current source is the disabled one: there is nothing to switch to when
-  // you are already there, and a button that looks pressed says where you are
-  // more directly than a label alone. The colours match the source readout, so
-  // the two cannot appear to disagree.
-  const connecting = link && link.state === 'connecting';
+  // Everything else stays clickable, including while a connection is being
+  // made, because a connection that is going nowhere is exactly when you want
+  // to pick something else.
   for (const [id, source] of [['src-sim', SIM], ['src-usb', USB], ['src-probe', PROBE]]) {
     const button = el(id);
     const isCurrent = mode.current === source;
     button.classList.toggle('active', isCurrent);
-    button.disabled = isCurrent || connecting || (source !== SIM && !webusbAvailable);
+    button.disabled = isCurrent || (source !== SIM && !webusbAvailable);
   }
 
   if (!link || link.state === 'error') {
@@ -103,6 +104,36 @@ function render() {
       + 'it visible - a window that is not focused is not throttled, only one that '
       + 'is hidden.'
     : link === probe ? probeDetail() : usbDetail();
+}
+
+/* ---- switching ----------------------------------------------------------- */
+
+// Serialised, because these are buttons and buttons get clicked twice.
+let switching = null;
+
+// Put the page on a source, whatever it was on before.
+//
+// Whatever is live gives the page up first, and is waited for. Two links at
+// once is not a thing that half-works: they import into the same wasm instance
+// and each publishes its own source every frame, so the page ends up alternating
+// between them several times a second - which is what it did, visibly, once the
+// buttons stopped being disabled while another link was busy.
+//
+// Connecting is left to fail on its own terms. If it does, the page is already
+// back on the simulation and the error says why.
+function switchTo(source) {
+  if (switching) return switching;
+
+  switching = (async () => {
+    for (const other of [usblink, probe]) {
+      if (other !== links[source] && (other.state === 'live' || other.state === 'connecting')) {
+        await other.disconnect();
+      }
+    }
+    if (source !== SIM) await links[source].connect();
+  })().finally(() => { switching = null; });
+
+  return switching;
 }
 
 /* ---- the rates ----------------------------------------------------------- */
@@ -162,14 +193,9 @@ export function initProbe() {
   usblink.onchange = render;
   probe.onchange = render;
 
-  // Picking a source, rather than toggling a connection. Going back to the
-  // simulator is disconnecting whichever link is live, which is the same thing
-  // said the way a person thinks about it.
-  el('src-sim').addEventListener('click', () => {
-    for (const l of [usblink, probe]) if (l.state === 'live') l.disconnect();
-  });
-  el('src-usb').addEventListener('click', () => usblink.connect());
-  el('src-probe').addEventListener('click', () => probe.connect());
+  el('src-sim').addEventListener('click', () => switchTo(SIM));
+  el('src-usb').addEventListener('click', () => switchTo(USB));
+  el('src-probe').addEventListener('click', () => switchTo(PROBE));
 
   mode.onChange(render);
 }

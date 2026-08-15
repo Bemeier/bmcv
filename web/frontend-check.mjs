@@ -410,6 +410,36 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   const buttons = ['src-sim', 'src-usb', 'src-probe'].map(id => document.getElementById(id));
   check(buttons.every(Boolean), 'all three sources have a button');
 
+  // A session that is not driving the page must not be able to say what is.
+  //
+  // Two links can be alive at once for as long as it takes one to give the page
+  // up, and each publishes its own source - so a second one reporting itself
+  // idle used to hand the page back from under the one actually running. With
+  // both calling every frame, that read as the body class alternating between
+  // sources several times a second.
+  const { Session } = await import('./probe/session.js');
+
+  const driving = new Session(USB, { sendCommand: () => {} });
+  const bystander = new Session(PROBE, { sendCommand: () => {} });
+
+  driving.begin();          // this is what claims the page
+  driving.set('live');
+  check(mode.current === USB, 'a live link drives the page');
+
+  bystander.set('connecting');
+  check(mode.current === USB, 'and a second one connecting cannot hand it back');
+
+  bystander.set('error', 'nope');
+  check(mode.current === USB, 'nor one that failed');
+
+  bystander.set('idle');
+  check(mode.current === USB, 'nor one being torn down');
+
+  // But the one that does own it still can, or nothing ever gets the page back.
+  driving.end();
+  driving.set('idle');
+  check(mode.current === SIM, 'while the one driving hands it back as normal');
+
   mode.drivenBy(SIM);
   check(!cls.contains('live') && cls.contains('mode-sim'), 'disconnecting hands the page back');
   check(usable() && saysSimulation(), 'and the resets point at the simulation again');
@@ -642,6 +672,36 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   // All three buttons exist and exactly one is the current source.
   const buttons = ['src-sim', 'src-usb', 'src-probe'].map(id => document.getElementById(id));
   check(buttons.every(Boolean), 'all three sources have a button');
+
+  // A session that is not driving the page must not be able to say what is.
+  //
+  // Two links can be alive at once for as long as it takes one to give the page
+  // up, and each publishes its own source - so a second one reporting itself
+  // idle used to hand the page back from under the one actually running. With
+  // both calling every frame, that read as the body class alternating between
+  // sources several times a second.
+  const { Session } = await import('./probe/session.js');
+
+  const driving = new Session(USB, { sendCommand: () => {} });
+  const bystander = new Session(PROBE, { sendCommand: () => {} });
+
+  driving.begin();          // this is what claims the page
+  driving.set('live');
+  check(mode.current === USB, 'a live link drives the page');
+
+  bystander.set('connecting');
+  check(mode.current === USB, 'and a second one connecting cannot hand it back');
+
+  bystander.set('error', 'nope');
+  check(mode.current === USB, 'nor one that failed');
+
+  bystander.set('idle');
+  check(mode.current === USB, 'nor one being torn down');
+
+  // But the one that does own it still can, or nothing ever gets the page back.
+  driving.end();
+  driving.set('idle');
+  check(mode.current === SIM, 'while the one driving hands it back as normal');
 
   mode.drivenBy(SIM);
   check(!cls.contains('live') && cls.contains('mode-sim'), 'disconnecting hands the page back');

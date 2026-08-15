@@ -662,10 +662,16 @@ body.live #in-controls { display: none; }
    for a button that cannot be used, wrong for one that is already doing its
    job. */
 .src:disabled { opacity: 1; cursor: default; }
-.src.active { border-width: 1px; box-shadow: inset 0 0 0 1px currentColor; }
 
-/* A source that this browser cannot reach at all, as opposed to one it is
-   already on. */
+/* The source the page is on: filled in its own colour, faintly, so the three
+   read as one switch with one position thrown rather than as three buttons of
+   which two happen to be clickable. */
+.src-sim.active { background: rgba(139, 146, 157, .18); }
+.src-usb.active { background: rgba(111, 195, 255, .18); }
+.src-probe.active { background: rgba(192, 163, 255, .18); }
+
+/* A source this browser cannot reach at all, as opposed to one it is already
+   on. The only other reason one of these is disabled. */
 .src:disabled:not(.active) { opacity: .3; }
 
 /* The readout says the same thing in the same colour. */

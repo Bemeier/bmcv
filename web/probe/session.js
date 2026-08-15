@@ -20,10 +20,14 @@ import { mode, SIM } from '../mode.js';
 // while the panel was visibly updating about once. Counting cannot say that.
 const RATE_WINDOW_MS = 500;
 
-// Whichever session is currently driving the page, or null. Module-level
-// because the page has exactly one - the two transports cannot both be live,
-// since each holds the only handle its device offers - and because the reset
-// buttons need to reach it without importing a transport.
+// Whichever session is currently driving the page, or null.
+//
+// Module-level because the page has exactly one wasm instance and a session
+// imports into it, so two of them running is two writers to one module. Nothing
+// in the transports prevents that - they hold different devices, and for a
+// while the only thing stopping it was the connect buttons being disabled while
+// another link was busy. This is what actually enforces it, and what the reset
+// buttons reach for without having to import a transport.
 let active = null;
 
 export const activeSession = () => active;
@@ -59,7 +63,15 @@ export class Session {
   set(state, error = null) {
     this.state = state;
     this.error = error;
-    mode.drivenBy(state === 'live' ? this.kind : SIM, this.hz, this.contiguous);
+
+    // Only the session that owns the page may say what is driving it. A second
+    // link opening, failing, or being torn down has every reason to report
+    // itself idle and no business handing the page back from under the one
+    // actually running - which, with two links briefly alive at once, read as
+    // the page flickering between sources several times a second.
+    if (state === 'live') mode.drivenBy(this.kind, this.hz, this.contiguous);
+    else if (!active || active === this) mode.drivenBy(SIM);
+
     this.onchange(this);
   }
 
@@ -106,6 +118,10 @@ export class Session {
       this.windowCount = 0;
       this.windowAt = now;
     }
+
+    // A read already in flight when a session was torn down still resolves,
+    // and would otherwise announce a source the page has left.
+    if (active !== this) return;
 
     if (this.state !== 'live') this.set('live');
     else mode.drivenBy(this.kind, this.hz, this.contiguous);
