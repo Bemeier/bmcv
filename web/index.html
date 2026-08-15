@@ -46,16 +46,19 @@
     </div>
 
     <div class="panel-box" id="system">
-      <div class="readouts">
+      <div class="source-row">
         <div class="readout">
           <span class="label">source</span><span id="source-name" class="value muted">simulation</span>
+        </div>
+        <div class="sources">
+          <button id="src-sim" class="src src-sim" title="the simulation running in this tab">Simulator</button>
+          <button id="src-usb" class="src src-usb" title="a module on the other end of a USB cable">USB Probe</button>
+          <button id="src-probe" class="src src-probe" title="a module on the other end of an ST-Link, for when it is not answering">STLink Probe</button>
         </div>
       </div>
       <p id="source-detail" class="note"></p>
 
       <div class="buttons">
-        <button id="connect-usb" title="a module on the other end of a USB cable">Connect over USB</button>
-        <button id="connect-probe" title="a module on the other end of an ST-Link, for when it is not answering">Use a debug probe</button>
         <button id="reset">Reset module</button>
         <button id="reset-fram">Clear FRAM</button>
         <span id="status" class="muted"></span>

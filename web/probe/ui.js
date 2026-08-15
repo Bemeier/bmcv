@@ -12,7 +12,7 @@
 import { sim } from '../sim.js';
 import { mode, SIM, USB, PROBE, SOURCE_NAME } from '../mode.js';
 import { probe, webusbAvailable } from './probe.js';
-import { usblink, webusbAvailable as webusbLinkAvailable } from './usblink.js';
+import { usblink } from './usblink.js';
 
 const el = id => document.getElementById(id);
 
@@ -58,21 +58,23 @@ function render() {
   const name = el('source-name');
   const detail = el('source-detail');
 
-  el('connect-usb').textContent = usblink.state === 'live' ? 'Disconnect'
-    : usblink.state === 'connecting' ? 'Finding…' : 'Connect over USB';
-  el('connect-probe').textContent = probe.state === 'live' ? 'Disconnect'
-    : probe.state === 'connecting' ? 'Connecting…' : 'Use a debug probe';
-
-  // Only the busy link can be clicked, so the other cannot be started
-  // underneath it - the page has one wasm instance and both would import into
-  // it.
-  const busy = link && link.state !== 'error';
-  el('connect-usb').disabled = !webusbLinkAvailable || (busy && link !== usblink);
-  el('connect-probe').disabled = !webusbAvailable || (busy && link !== probe);
+  // Three buttons, one per source, always saying which one the page is on.
+  //
+  // The current source is the disabled one: there is nothing to switch to when
+  // you are already there, and a button that looks pressed says where you are
+  // more directly than a label alone. The colours match the source readout, so
+  // the two cannot appear to disagree.
+  const connecting = link && link.state === 'connecting';
+  for (const [id, source] of [['src-sim', SIM], ['src-usb', USB], ['src-probe', PROBE]]) {
+    const button = el(id);
+    const isCurrent = mode.current === source;
+    button.classList.toggle('active', isCurrent);
+    button.disabled = isCurrent || connecting || (source !== SIM && !webusbAvailable);
+  }
 
   if (!link || link.state === 'error') {
     name.textContent = SOURCE_NAME[SIM];
-    name.className = link ? 'value warn' : 'value muted';
+    name.className = link ? 'value warn' : 'value on-sim';
     detail.textContent = link ? link.error : simDetail();
     return;
   }
@@ -91,7 +93,7 @@ function render() {
   // numbers that have stopped moving.
   const paused = link === probe && probe.paused;
   name.textContent = paused ? 'paused' : SOURCE_NAME[link === probe ? PROBE : USB];
-  name.className = paused ? 'value warn' : 'value ok';
+  name.className = paused ? 'value warn' : `value on-${link === probe ? 'probe' : 'usb'}`;
 
   detail.textContent = paused
     ? 'The tab is in the background, where browsers throttle timers to about one '
@@ -149,7 +151,7 @@ export function drawProbeRates() {
 }
 
 export function initProbe() {
-  if (!el('connect-usb')) return;
+  if (!el('src-usb')) return;
 
   rateEls.snapshots = el('r-probe-hz');
   rateEls.label = el('r-link-label');
@@ -160,15 +162,14 @@ export function initProbe() {
   usblink.onchange = render;
   probe.onchange = render;
 
-  // Both buttons toggle, and the label says which way.
-  el('connect-usb').addEventListener('click', () => {
-    if (usblink.state === 'live') usblink.disconnect();
-    else usblink.connect();
+  // Picking a source, rather than toggling a connection. Going back to the
+  // simulator is disconnecting whichever link is live, which is the same thing
+  // said the way a person thinks about it.
+  el('src-sim').addEventListener('click', () => {
+    for (const l of [usblink, probe]) if (l.state === 'live') l.disconnect();
   });
-  el('connect-probe').addEventListener('click', () => {
-    if (probe.state === 'live') probe.disconnect();
-    else probe.connect();
-  });
+  el('src-usb').addEventListener('click', () => usblink.connect());
+  el('src-probe').addEventListener('click', () => probe.connect());
 
   mode.onChange(render);
 }

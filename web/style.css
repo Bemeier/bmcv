@@ -34,6 +34,14 @@
   --muted: #8b929d;
   --accent: #6fc3ff;
 
+  /* One colour per source, used by both the buttons that pick it and the
+     readout that reports it - so the two cannot appear to disagree about which
+     one the page is on. Deliberately none of them the warn amber, which on this
+     page means something is wrong rather than something is selected. */
+  --src-sim: #8b929d;
+  --src-usb: #6fc3ff;
+  --src-probe: #c0a3ff;
+
   /* The quantizer's keyboard. Off is one translucent grey whatever the key is;
      on is opaque, and only then does it matter which kind of key it was. */
   --key-off: rgba(140, 146, 157, .30);
@@ -595,43 +603,31 @@ body.live #in-controls { display: none; }
 /* One octave, drawn as a keyboard rather than twelve labels, because that is
    how a scale is read. The mask is twelve bits and nothing else on the page
    showed it - a channel set to quantize looked identical whether it was
-   snapping to a major scale or to every semitone there is. */
-.keys {
-  position: relative;
-  display: flex;
-  height: 26px;
-  user-select: none;
-}
+   snapping to a major scale or to every semitone there is.
 
-/* The seven naturals carry the width; the five sharps sit over the gaps
-   between them, which is what makes it read as a keyboard rather than as
-   twelve equal boxes. */
-.keys .nat {
-  position: relative;
-  width: 13px;
-  border: 1px solid var(--line);
-  border-right: none;
-  background: var(--key-off);
-}
-.keys .nat:last-child { border-right: 1px solid var(--line); }
-
-.keys .acc {
-  position: absolute;
-  top: 0;
-  width: 9px;
-  height: 19px;
-  margin-left: -4.5px;
-  border: 1px solid var(--line);
-  background: var(--key-off);
-  z-index: 1;
-}
+   SVG, filling whatever cell it is given in both directions. It was stacked
+   divs at a fixed key size, which meant one shape that only looked right at one
+   width - and a translucent sharp let the white key beneath it show through,
+   which at these opacities made an unlit black key look lit. The white keys are
+   notched around their neighbours now, so no two shapes ever overlap. */
+.keys { display: block; width: 100%; min-width: 7ch; height: 26px; }
+.keys svg { display: block; width: 100%; height: 100%; }
 
 /* Off is one colour for both kinds of key, so "in the scale" is the only thing
    the eye has to separate; on is what kind of key it was. Three colours at once
    - lit, unlit, and black-against-white - was one distinction too many, and an
-   unlit black key read as ambiguous next to a lit one. */
-.keys .nat.on { background: var(--key-white); }
-.keys .acc.on { background: var(--key-black); }
+   unlit black key read as ambiguous next to a lit one.
+
+   The stroke does not scale with the shape, so a keyboard stretched wide keeps
+   hairline separations rather than growing fat ones. */
+.keys path, .keys rect {
+  fill: var(--key-off);
+  stroke: var(--line);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.keys .nat.on { fill: var(--key-white); }
+.keys .acc.on { fill: var(--key-black); }
 
 /* The channel table's two columns that do not want an equal share: the channel
    number is one character, and the quantizer column carries a mode and a
@@ -639,3 +635,40 @@ body.live #in-controls { display: none; }
 #params { table-layout: fixed; width: 100%; }
 #params .c-ch { width: 1.8em; }
 #params .c-qnt { width: 5.2em; }
+
+/* ---- picking a source ---------------------------------------------------- */
+
+.source-row {
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: .6rem 1.2rem;
+  margin-bottom: .2rem;
+}
+.sources { display: flex; gap: .4rem; flex-wrap: wrap; }
+
+/* Outline and text in the source's colour, over nothing. The current source is
+   the disabled one and keeps a solid outline rather than fading, because it is
+   not unavailable - it is where you already are. */
+.src {
+  background: transparent;
+  border: 1px solid currentColor;
+}
+.src-sim { color: var(--src-sim); }
+.src-usb { color: var(--src-usb); }
+.src-probe { color: var(--src-probe); }
+
+.src:not(:disabled):hover { background: rgba(255, 255, 255, .06); }
+
+/* Beats the page's own rule for a disabled button, which dims it to 35% - right
+   for a button that cannot be used, wrong for one that is already doing its
+   job. */
+.src:disabled { opacity: 1; cursor: default; }
+.src.active { border-width: 1px; box-shadow: inset 0 0 0 1px currentColor; }
+
+/* A source that this browser cannot reach at all, as opposed to one it is
+   already on. */
+.src:disabled:not(.active) { opacity: .3; }
+
+/* The readout says the same thing in the same colour. */
+#source-name.on-sim { color: var(--src-sim); }
+#source-name.on-usb { color: var(--src-usb); }
+#source-name.on-probe { color: var(--src-probe); }

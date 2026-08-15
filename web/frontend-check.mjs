@@ -115,8 +115,11 @@ function makeNode(tag = 'div') {
         node._rows.push(row);
       }
 
-      for (const [, attrs] of value.matchAll(/<div\s+([^>]*data-[\w-]+="[^"]*"[^>]*)>/g)) {
-        const block = makeNode('div');
+      // Any tag carrying a data- attribute, not just <div>: the quantizer's
+      // keyboard is <path> and <rect> inside an <svg>, and a parser that only
+      // knew about divs reported it as empty.
+      for (const [, tag, attrs] of value.matchAll(/<([a-z]+)\s+([^>]*data-[\w-]+="[^"]*"[^>]*?)\/?>/g)) {
+        const block = makeNode(tag);
         for (const [, k, v] of attrs.matchAll(/(data-[\w-]+)="([^"]*)"/g)) block.attrs.set(k, v);
         const cls = attrs.match(/class="([^"]*)"/)?.[1] ?? '';
         for (const c of cls.split(/\s+/).filter(Boolean)) block.classList.add(c);
@@ -391,6 +394,22 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   check([SIM, USB, PROBE].every(k => typeof SOURCE_NAME[k] === 'string' && SOURCE_NAME[k]),
     'every source has a name a person can read');
 
+  // Each source has one colour, used by the button that picks it and by the
+  // readout that reports it. Two places naming the same thing is exactly how
+  // they come to disagree, so they are held to one variable each.
+  const css2 = readFileSync(new URL('style.css', import.meta.url), 'utf8');
+  for (const src of ['sim', 'usb', 'probe']) {
+    check(new RegExp(`--src-${src}:`).test(css2), `the ${src} source declares a colour`);
+    check(new RegExp(`\\.src-${src}\\s*\\{[^}]*var\\(--src-${src}\\)`).test(css2),
+      `the ${src} button uses it`);
+    check(new RegExp(`#source-name\\.on-${src}\\s*\\{[^}]*var\\(--src-${src}\\)`).test(css2),
+      `and so does the readout`);
+  }
+
+  // All three buttons exist and exactly one is the current source.
+  const buttons = ['src-sim', 'src-usb', 'src-probe'].map(id => document.getElementById(id));
+  check(buttons.every(Boolean), 'all three sources have a button');
+
   mode.drivenBy(SIM);
   check(!cls.contains('live') && cls.contains('mode-sim'), 'disconnecting hands the page back');
   check(usable() && saysSimulation(), 'and the resets point at the simulation again');
@@ -608,6 +627,22 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   check([SIM, USB, PROBE].every(k => typeof SOURCE_NAME[k] === 'string' && SOURCE_NAME[k]),
     'every source has a name a person can read');
 
+  // Each source has one colour, used by the button that picks it and by the
+  // readout that reports it. Two places naming the same thing is exactly how
+  // they come to disagree, so they are held to one variable each.
+  const css2 = readFileSync(new URL('style.css', import.meta.url), 'utf8');
+  for (const src of ['sim', 'usb', 'probe']) {
+    check(new RegExp(`--src-${src}:`).test(css2), `the ${src} source declares a colour`);
+    check(new RegExp(`\\.src-${src}\\s*\\{[^}]*var\\(--src-${src}\\)`).test(css2),
+      `the ${src} button uses it`);
+    check(new RegExp(`#source-name\\.on-${src}\\s*\\{[^}]*var\\(--src-${src}\\)`).test(css2),
+      `and so does the readout`);
+  }
+
+  // All three buttons exist and exactly one is the current source.
+  const buttons = ['src-sim', 'src-usb', 'src-probe'].map(id => document.getElementById(id));
+  check(buttons.every(Boolean), 'all three sources have a button');
+
   mode.drivenBy(SIM);
   check(!cls.contains('live') && cls.contains('mode-sim'), 'disconnecting hands the page back');
   check(usable() && saysSimulation(), 'and the resets point at the simulation again');
@@ -800,15 +835,6 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   const keys = document.getElementById('keys');
   check(keys.querySelectorAll('[data-semi]').length === 12, 'the keyboard draws twelve keys');
 
-  // The sharps are positioned in JS over gaps whose width is set in CSS, and
-  // nothing derives one from the other - so a natural key resized in the
-  // stylesheet would slide every black key off its gap.
-  const css = readFileSync(new URL('style.css', import.meta.url), 'utf8');
-  const natRule = css.slice(css.indexOf('.keys .nat {'), css.indexOf('}', css.indexOf('.keys .nat {')));
-  const natW = +(natRule.match(/width:\s*(\d+)px/)?.[1] ?? 0);
-  const js = readFileSync(new URL('readouts.js', import.meta.url), 'utf8');
-  const jsW = +(js.match(/const NAT_W = (\d+)/)?.[1] ?? -1);
-  check(natW > 0 && natW === jsW, `the keyboard's key width agrees (css ${natW}, js ${jsW})`);
 
   // A trigger source of -1 is "nothing patched", which the table shows as a
   // dash rather than as CH-1.

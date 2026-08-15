@@ -14,9 +14,11 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 // Part sizes in mm, matching the hardware: 6mm illuminated switches, 7mm
 // unlit tactiles, and an encoder body smaller than its 12mm courtyard.
 const ENC_R = 5.6;
-// The artwork's encoder cutout is 7.03mm across; sit just inside it so a
-// hairline of the cutout still shows.
-const ENC_CAP_R = 3.35;
+// The artwork's encoder cutout is 7.03mm across, so a cap that sits just inside
+// it leaves barely a millimetre of ring to catch. The cap is a target for one
+// click; the ring is a target you have to hold and drag, which wants the room
+// more.
+const ENC_CAP_R = 2.6;
 const BTN_SWITCH_R = 3.0;
 const BTN_TACTILE_R = 3.5;
 
