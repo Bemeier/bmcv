@@ -59,6 +59,32 @@ const OPEN_ATTEMPTS = 3;
 // working session over one of those is worse than asking again.
 const BAD_FRAMES_ALLOWED = 5;
 
+// How long to wait for the module to answer before giving up on an attempt.
+//
+// WebUSB has no timeout of its own: a transferIn for data that never comes
+// waits for ever, with no error and nothing to retry. That is survivable in the
+// read loop, where the only cost is a link that has already stopped working -
+// but during connect it means an attempt that can never fail, so the retries
+// never happen and the switch that started it never finishes. Which locked out
+// every button on the page, since a switch already running refuses to start
+// another.
+const ANSWER_TIMEOUT_MS = 400;
+
+// The same for a link already running. Far looser, because at these rates the
+// next snapshot is a few milliseconds away and anything approaching a second of
+// silence is a stream that has stopped rather than one that is slow.
+const STALL_TIMEOUT_MS = 1500;
+
+// Reject if `promise` has not settled in time. The transfer itself cannot be
+// cancelled - closing the device is what does that, which the caller does on
+// its way round the retry loop.
+function withTimeout(promise, ms, what) {
+  return Promise.race([
+    promise,
+    new Promise((_resolve, reject) => setTimeout(() => reject(new Error(`${what} timed out`)), ms)),
+  ]);
+}
+
 export class UsbLink {
   constructor() {
     this.session = new Session(USB, { sendCommand: () => this.#sendCommand() });
@@ -66,6 +92,12 @@ export class UsbLink {
     this.device = null;
     this.timers = [];
     this.reading = false;
+
+    // Bumped whenever a session ends, so a read still in flight cannot rejoin a
+    // later one. Without it, a transfer left over from a previous connection
+    // resolves after the next has set `reading` back to true, and two loops run
+    // against one device.
+    this.generation = 0;
   }
 
   get state() { return this.session.state; }
@@ -150,15 +182,26 @@ export class UsbLink {
 
         // One snapshot, before anything is built on top of it. A module that
         // answers a whole instance is a module this session can talk to.
+        //
+        // A previous session can leave the module holding credit it never got
+        // to spend, so what comes back may be a snapshot from before this
+        // attempt. That is still a whole instance and still proves the link, so
+        // it is accepted rather than distinguished.
         await this.#request();
-        const first = await this.device.transferIn(EP_IN, sim.instanceSize);
+        const first = await withTimeout(
+          this.device.transferIn(EP_IN, sim.instanceSize),
+          ANSWER_TIMEOUT_MS,
+          'the module',
+        );
         if (first.status !== 'ok' || first.data.byteLength !== sim.instanceSize) {
           throw new Error(`the module answered ${first.data?.byteLength ?? 0} bytes of ${sim.instanceSize}`);
         }
         return;
       } catch (e) {
         last = e;
-        try { await this.device.close(); } catch { /* already shut */ }
+        // Closing is what cancels the transfer that just timed out, so the next
+        // attempt starts against an endpoint with nothing outstanding.
+        try { await withTimeout(this.device.close(), ANSWER_TIMEOUT_MS, 'closing'); } catch { /* already shut */ }
       }
     }
 
@@ -168,7 +211,9 @@ export class UsbLink {
   async disconnect() {
     // Let go of whatever this page was holding before dropping the link.
     sim.remoteClear();
-    try { await this.#sendMailbox(); } catch { /* the cable may already be out */ }
+    try {
+      await withTimeout(this.#sendMailbox(), ANSWER_TIMEOUT_MS, 'the last mailbox');
+    } catch { /* the cable may already be out, and this is a courtesy anyway */ }
 
     await this.#teardown();
     this.session.end();
@@ -186,11 +231,18 @@ export class UsbLink {
     for (const t of this.timers) clearInterval(t);
     this.timers = [];
     this.reading = false;
+    this.generation++;
     navigator.usb.removeEventListener('disconnect', this.#onDisconnect);
 
     if (!this.device) return;
-    try { await this.device.close(); } catch { /* already gone */ }
+
+    // Bounded, like everything else that talks to the device. A close waits for
+    // transfers to settle, and one of those may be a read for data that is
+    // never coming - so an unbounded close is another way for a switch to hang
+    // and take the buttons with it.
+    const closing = this.device;
     this.device = null;
+    try { await withTimeout(closing.close(), ANSWER_TIMEOUT_MS, 'closing'); } catch { /* already gone */ }
   }
 
   /* ---- the two directions ------------------------------------------------ */
@@ -245,18 +297,28 @@ export class UsbLink {
   // all - which is most of what this transport saved over the last one.
   async #readLoop() {
     this.reading = true;
+    const generation = this.generation;
 
     // A frame that arrives malformed is dropped and asked for again rather than
     // ending the session. One is a hiccup; a run of them is a link that is not
     // going to recover by being asked more politely.
     let badFrames = 0;
 
-    while (this.reading && this.device) {
+    while (this.reading && this.device && this.generation === generation) {
       let result;
       try {
-        result = await this.device.transferIn(EP_IN, sim.instanceSize);
+        // Bounded for the same reason the connect is, though far more loosely:
+        // at these rates the next snapshot is a few milliseconds away, so a
+        // second of silence is a stream that has stopped rather than one that
+        // is slow. Unbounded, a stalled link leaves the page frozen on its last
+        // snapshot with nothing said about why.
+        result = await withTimeout(
+          this.device.transferIn(EP_IN, sim.instanceSize),
+          STALL_TIMEOUT_MS,
+          'the module',
+        );
       } catch (e) {
-        if (!this.reading) return; // a disconnect we already know about
+        if (!this.reading || this.generation !== generation) return; // a disconnect we already know about
         await this.#teardown();
         this.session.end();
         this.session.set('error', describe(e));
@@ -305,6 +367,11 @@ function describe(err) {
   if (err.name === 'NetworkError') {
     return 'The module could not be opened. On Windows this usually means another '
       + 'program is holding it, or it was unplugged mid-transfer.';
+  }
+  if (/timed out/.test(err.message)) {
+    return `${err.message}. The module stopped answering - unplug it and plug it `
+      + 'back in, or switch to a debug probe, which reads its memory directly and '
+      + 'does not need it to be answering.';
   }
   return `${err.name}: ${err.message}`;
 }

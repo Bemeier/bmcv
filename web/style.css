@@ -36,9 +36,13 @@
 
   /* One colour per source, used by both the buttons that pick it and the
      readout that reports it - so the two cannot appear to disagree about which
-     one the page is on. Deliberately none of them the warn amber, which on this
-     page means something is wrong rather than something is selected. */
-  --src-sim: #8b929d;
+     one the page is on.
+
+     Red for the simulator because picking it is disconnecting from a module,
+     which is the one thing here worth hesitating over. Deliberately not the
+     warn amber, which on this page already means something has gone wrong
+     rather than something is selected. */
+  --src-sim: #e8705f;
   --src-usb: #6fc3ff;
   --src-probe: #c0a3ff;
 
@@ -132,21 +136,6 @@ main {
   align-items: start;
 }
 
-/* Only split once there is room for the scope *and* a 2x2 input grid beside
-   it. Below this the side panels stay stacked, full width, where 2x2 fits
-   comfortably. */
-@media (min-width: 1800px) {
-  main { grid-template-columns: minmax(320px, 420px) minmax(0, 1fr); }
-
-  /* Two columns: the scopes across the top, then the two panels of numbers
-     sharing the row below, each half the width rather than squeezed into a
-     sidebar. Channels and Module used to sit in a 440px column beside the
-     scope - a table of eight columns in 440px, on a display with room for four
-     times that. */
-  #side-grid { grid-template-columns: minmax(0, 1fr) minmax(440px, 1fr); }
-  #side-grid > .panel-box:nth-of-type(1) { grid-column: 1 / -1; }
-}
-
 /* ---- panel ------------------------------------------------------------- */
 
 /* The panel gets a ground to sit on, unlike everything else on the page.
@@ -217,8 +206,19 @@ kbd { background: rgba(255, 255, 255, .09); padding: .05em .35em; font-size: .9e
 
 /* The scale gets the height the row has rather than a fixed one, and sits at
    the end of it - it is the widest thing there and the only one that is a
-   picture rather than a number. */
-.readout-keys { display: flex; align-items: stretch; flex: 1 1 150px; }
+   picture rather than a number.
+
+   Bounded in both directions, because a stretched flex item on a row that has
+   wrapped is sized by its own line rather than by the row: at the width where
+   the readouts break onto two lines the scale had a line to itself and grew to
+   fill it, which doubled the height of the box and drew a keyboard several
+   times longer than a keyboard. */
+.readout-keys {
+  display: flex; align-items: center;
+  flex: 1 1 150px;
+  max-width: 280px;
+}
+.keys { max-height: 3rem; }
 /* The label sits well above its number rather than against it: the gap is what
    makes the pair read as one thing with a caption, and it is the cheapest
    space on the page to give away. */
@@ -649,17 +649,17 @@ body.live #in-controls { display: none; }
 /* ---- picking a source ---------------------------------------------------- */
 
 .source-row {
-  display: flex; align-items: stretch; flex-wrap: wrap;
+  display: flex; align-items: center; flex-wrap: wrap;
   gap: .6rem 1.2rem;
   margin-bottom: .2rem;
 }
 .source-row > .readout { flex: 0 1 auto; }
 
-/* Full height of the row rather than the page's usual button proportions:
-   these are the one control that says where you are, and they sit beside a
-   readout saying the same thing. */
-.sources { display: flex; gap: .4rem; flex-wrap: wrap; align-items: stretch; }
-.src { padding: 0 1rem; }
+/* Sized like the readout beside them rather than stretched to the row: they
+   are the one control that says where the page is, so they should read as its
+   equal and not as a banner. */
+.sources { display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; }
+.src { padding: .55rem 1rem; }
 
 /* Outline and text in the source's colour, over nothing. The current source is
    the disabled one and keeps a solid outline rather than fading, because it is
@@ -682,7 +682,7 @@ body.live #in-controls { display: none; }
 /* The source the page is on: filled in its own colour, faintly, so the three
    read as one switch with one position thrown rather than as three buttons of
    which two happen to be clickable. */
-.src-sim.active { background: rgba(139, 146, 157, .18); }
+.src-sim.active { background: rgba(232, 112, 95, .18); }
 .src-usb.active { background: rgba(111, 195, 255, .18); }
 .src-probe.active { background: rgba(192, 163, 255, .18); }
 

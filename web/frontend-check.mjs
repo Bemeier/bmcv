@@ -298,6 +298,33 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   check(mode.contiguous === Infinity, 'the simulator has no such gap');
 }
 
+/* ---- nothing that talks to a device can wait for ever -------------------- */
+
+// WebUSB transfers have no timeout of their own. A read for data that never
+// arrives simply never settles - no error, nothing to retry - and during a
+// connect that is an attempt which can never fail, so the retries never happen
+// and the switch that started it never finishes. Which locks every button on
+// the page, because a switch already running refuses to start another.
+//
+// Checked as source rather than behaviour: making a real device hang is not
+// something this harness can do, and the property worth keeping is simply that
+// no await on a device call is left bare.
+{
+  const src = readFileSync(new URL('probe/usblink.js', import.meta.url), 'utf8');
+
+  check(/function withTimeout\(/.test(src), 'the usb link has a timeout helper');
+
+  const bare = [...src.matchAll(/await (this\.)?(device|closing)\.(transferIn|close)\(/g)]
+    .map(m => m[0]);
+  check(bare.length === 0,
+    `no unbounded read or close${bare.length ? ` (${bare.join(', ')})` : ''}`);
+
+  // And the switch has to release its lock however the connect ends, or one
+  // failure is permanent.
+  const ui = readFileSync(new URL('probe/ui.js', import.meta.url), 'utf8');
+  check(/\.finally\(/.test(ui), 'switching releases its lock in a finally');
+}
+
 /* ---- the page has a shape before it has any numbers ---------------------- */
 
 // Everything on the right of this page is built from JavaScript after the wasm
