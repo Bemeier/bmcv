@@ -62,6 +62,27 @@ function fitCanvas(canvas, { aspect, cssHeight }) {
   return cssH;
 }
 
+// Where one cell of a cols x rows grid sits on a canvas of W x H device pixels.
+//
+// The gap goes *between* cells and nowhere else, so the outer ones sit flush
+// against the canvas edge. Insetting every cell by half a gap on every side -
+// which is what this used to do - spends the same gap again around the outside,
+// where there is no neighbour to separate from. That was invisible at a gap of
+// four and obvious at six: the grid pulled three pixels off its container on
+// every side, and the scopes no longer lined up with the box holding them.
+//
+// One function because drawGrid and inputCellAt are inverses of each other and
+// have to agree exactly - a fader that sets 3V where the trace draws 3.2V is
+// worse than no fader.
+function cellGeom(W, H, cols, rows) {
+  const g = Math.round(CELL_GAP * dpr());
+  return {
+    g,
+    cw: (W - g * (cols - 1)) / cols,
+    ch: (H - g * (rows - 1)) / rows,
+  };
+}
+
 // One cell: voltage grid, then the trace, then a border. `data` is the whole
 // channel-major ring; `lane` picks which channel or jack out of it.
 function drawCell(c, { x0, y0, cw, ch, data, lane, head, span, valid, vRange, pad, label, labelColor, aliased, trace }) {
@@ -161,23 +182,22 @@ function drawCell(c, { x0, y0, cw, ch, data, lane, head, span, valid, vRange, pa
 
 function drawGrid(c, canvas, { cols, rows, lanes, data, head, span, valid, vRange, pad, label, labelColor, aliased, trace }) {
   const W = canvas.width, H = canvas.height;
-  const cw = W / cols, ch = H / rows;
 
   // Cleared rather than filled: the canvas sits on the panel box's own
   // background, so the cells are grid lines and traces over it rather than a
   // black rectangle laid on top of it.
   c.clearRect(0, 0, W, H);
 
-  // Each cell inset by half a gap on every side, so neighbours are separated by
-  // a whole one and the page shows through - the same separation the readout
-  // cells get from the flexbox, drawn by hand because these share a canvas.
-  const g = Math.round(CELL_GAP * dpr());
+  // Neighbours separated by a whole gap and the page showing through - the same
+  // separation the readout cells get from the flexbox, drawn by hand because
+  // these share a canvas.
+  const { g, cw, ch } = cellGeom(W, H, cols, rows);
 
   for (let cell = 0; cell < lanes.length; cell++) {
     drawCell(c, {
-      x0: (cell % cols) * cw + g / 2,
-      y0: Math.floor(cell / cols) * ch + g / 2,
-      cw: cw - g, ch: ch - g,
+      x0: (cell % cols) * (cw + g),
+      y0: Math.floor(cell / cols) * (ch + g),
+      cw, ch,
       data, head, span, valid, vRange, pad, trace,
       lane: lanes[cell],
       label: label ? label(lanes[cell]) : null,
@@ -258,13 +278,12 @@ export function drawScopes() {
 //
 // Exported rather than worked out again in inputs.js, because it is the inverse
 // of what drawCell does and the two have to agree exactly: a fader that sets 3V
-// where the trace draws 3.2V is worse than no fader. The pad and the inset are
-// the same ones drawGrid lays the cells out with.
+// where the trace draws 3.2V is worse than no fader. The cell rectangle comes
+// from cellGeom, the same one drawGrid lays the cells out with, and the pad is
+// the same number drawScopes passes it.
 //
 // Returns null outside the canvas. Inside it every point belongs to a column,
-// including the gap between two of them - a pointer a pixel into the seam
-// plainly meant one of the jacks either side of it, and the column it lands in
-// is the one it is nearer.
+// including the gap between two of them.
 export function inputCellAt(clientX, clientY) {
   const r = inCanvas.getBoundingClientRect();
   if (!r.width || !r.height) return null;
@@ -273,18 +292,20 @@ export function inputCellAt(clientX, clientY) {
   const x = ((clientX - r.left) / r.width) * inCanvas.width;
   const y = ((clientY - r.top) / r.height) * inCanvas.height;
 
+  if (x < 0 || x >= inCanvas.width || y < 0 || y >= inCanvas.height) return null;
+
   const cols = IN_ORDER.length;
-  const cw = inCanvas.width / cols;
-  const col = Math.floor(x / cw);
-  if (col < 0 || col >= cols) return null;
+  const { g, cw, ch } = cellGeom(inCanvas.width, inCanvas.height, cols, 1);
 
-  const g = Math.round(CELL_GAP * dpr());
+  // Half a gap of bias, so the split between two columns falls down the middle
+  // of the seam rather than at the right edge of the left cell: a pointer a
+  // pixel into the gap plainly meant one of the jacks either side of it, and
+  // the one it lands in should be the one it is nearer.
+  const col = Math.min(cols - 1, Math.max(0, Math.floor((x + g / 2) / (cw + g))));
+
   const pad = 4 * dpr();
-  const y0 = g / 2;
-  const ch = inCanvas.height - g;
-
   const plotH = ch - pad * 2;
-  const mid = y0 + pad + plotH / 2;
+  const mid = pad + plotH / 2;
   const vScale = (plotH / 2) / IN_V;
 
   // Above the plot reads as the top of the range and below it as the bottom,
