@@ -221,6 +221,47 @@ export function drawScopes() {
   }
 }
 
+/* ---- pointing at an input cell ------------------------------------------- */
+
+// Which input a point on the input canvas is in, and what voltage its height
+// means.
+//
+// Exported rather than worked out again in inputs.js, because it is the inverse
+// of what drawCell does and the two have to agree exactly: a fader that sets 3V
+// where the trace draws 3.2V is worse than no fader. The pad and the inset are
+// the same ones drawGrid lays the cells out with.
+//
+// Returns null outside the canvas or between cells, which is a click that meant
+// nothing rather than one that meant the nearest thing.
+export function inputCellAt(clientX, clientY) {
+  const r = inCanvas.getBoundingClientRect();
+  if (!r.width || !r.height) return null;
+
+  // Client pixels to canvas pixels, which differ by the device ratio.
+  const x = ((clientX - r.left) / r.width) * inCanvas.width;
+  const y = ((clientY - r.top) / r.height) * inCanvas.height;
+
+  const cols = IN_ORDER.length;
+  const cw = inCanvas.width / cols;
+  const col = Math.floor(x / cw);
+  if (col < 0 || col >= cols) return null;
+
+  const g = Math.round(CELL_GAP * dpr());
+  const pad = 4 * dpr();
+  const y0 = g / 2;
+  const ch = inCanvas.height - g;
+
+  const plotH = ch - pad * 2;
+  const mid = y0 + pad + plotH / 2;
+  const vScale = (plotH / 2) / IN_V;
+
+  // Above the plot reads as the top of the range and below it as the bottom,
+  // rather than as nothing: the pad is a couple of pixels and a click that
+  // lands in it plainly meant the end of the travel.
+  const volts = Math.max(-IN_V, Math.min(IN_V, (mid - y) / vScale));
+  return { index: IN_ORDER[col], volts };
+}
+
 // Both canvases size themselves from their container, on resize only.
 // getBoundingClientRect() forces a layout, so doing it per frame - which the
 // input scope used to - is a cost for nothing: the size only changes when the

@@ -328,18 +328,6 @@ kbd { background: rgba(255, 255, 255, .09); padding: .05em .35em; font-size: .9e
 .in-head .mode { color: var(--accent); }
 .in-head .mode.off { color: var(--muted); opacity: .5; }
 
-/* Horizontal now that it sits under the trace rather than beside it, and filled
-   from the centre outwards so the bar means "offset from 0V" rather than
-   "distance from -10V". */
-.hslider {
-  position: relative; height: 14px; width: 100%;
-  background: var(--surface); border: 1px solid var(--line);
-  cursor: ew-resize; touch-action: none;
-}
-.hslider .fill { position: absolute; top: 0; bottom: 0; background: rgba(111, 195, 255, .25); }
-.hslider .zero { position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: var(--line); }
-.hslider .knob { position: absolute; top: -2px; bottom: -2px; width: 3px; background: var(--accent); }
-.hslider[data-disabled="1"] { opacity: .35; pointer-events: none; }
 
 .in-ctl {
   display: flex; flex-flow: row wrap; align-items: center;
@@ -403,8 +391,12 @@ kbd { background: rgba(255, 255, 255, .09); padding: .05em .35em; font-size: .9e
 .in-ctl button:not(:disabled):hover { opacity: 1; }
 .in-ctl .clock { display: flex; align-items: center; gap: .25rem; font-size: .7rem; color: var(--muted); }
 /* Beats the display above, which would otherwise outrank the browser's own rule
-   for [hidden] and show a clock generator on every input. */
-.in-ctl .clock[hidden] { display: none; }
+   for [hidden] and show a clock generator on every input.
+
+   visibility rather than display: a jack that is not a clock keeps the space
+   its generator would take, so the row of controls is the same height whichever
+   inputs happen to be clocks. */
+.in-ctl .clock[hidden] { display: flex; visibility: hidden; }
 .in-ctl input[type=number] {
   width: 3.4em; background: rgba(20, 22, 27, .7); color: var(--fg);
   border: 1px solid var(--line); padding: 0 .25rem;
@@ -597,10 +589,11 @@ body:not(.live) .when-live { display: none; }
 .value.ok { color: #7fd88f; }
 .value.warn { color: var(--warn); }
 
-/* The input controls drive the simulator's jacks. A physical module's are
-   whatever is patched into it, and a fader here would move nothing - so they
-   go rather than sitting there inert. */
-body.live #in-controls { display: none; }
+/* The input controls drive the simulation's jacks. A physical module's are
+   whatever is patched into it, so they do nothing there - but they stay where
+   they are and go grey, because a row of controls that disappears takes the
+   height of the page with it and everything below jumps. */
+body.live #in-controls { opacity: .3; pointer-events: none; }
 
 /* ---- the quantizer's scale ---------------------------------------------- */
 

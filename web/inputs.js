@@ -1,10 +1,11 @@
-// The four input jacks: a level fader and a pulse button each, under the trace
-// of what the engine actually latched from them, plus the clock generator on
-// input 0 and what each jack is configured as.
+// The four input jacks: a voltage each, set by pointing at the trace of what the
+// engine latched from it, plus a gate button and a clock generator per jack.
 //
-// The controls used to be overlaid on the scope cells. That cost the trace the
-// space they took and put a fader across the signal it was setting; under it,
-// each column is one input from configuration down to control.
+// The level has no control of its own. It had a fader - overlaid on the scope
+// cell at first, then under it - and both arrangements meant reading a level
+// off one strip and setting it on another, in units that lined up only because
+// both had been told the same range. Pointing at the trace removes the question:
+// the pointer is at 3V because 3V is where the trace would be.
 //
 // Everything here drives real voltages through sim.setCv(): a gate goes through
 // the ADC threshold and the hysteresis exactly as a patch cable would, rather
@@ -16,70 +17,97 @@ import { sim, N_IN, INPUT_MODE_NAMES } from './sim.js';
 // InputMode.INPUT_CLOCK, which is what a generator is allowed to drive.
 const CLOCK_MODE = INPUT_MODE_NAMES.indexOf('CLOCK');
 import { GATE_V, IN_V, PULSE_MS, TICK_US } from './const.js';
+import { inputCellAt } from './scope.js';
+import { mode } from './mode.js';
 
 const controls = document.getElementById('in-controls');
+const inCanvas = document.getElementById('inscope');
 
-// What the fader says each jack sits at, which is also what a gate falls back
-// to when it ends.
+// What each jack sits at, which is also what a gate falls back to when it ends.
 const inputLevel = new Array(N_IN).fill(0);
-const cells = [];
 
 for (const i of IN_ORDER) {
   const cell = document.createElement('div');
   cell.className = 'in-cell';
   cell.innerHTML = `
-    <div class="hslider" title="IN${i} level"><div class="fill"></div><div class="zero"></div><div class="knob"></div></div>
     <div class="in-ctl">
-      <span class="clock" data-clock="${i}" hidden>
+      <span class="clock" data-clock="${i}">
         <input type="checkbox" data-clock-on="${i}" title="generate a clock on this input">
         <input type="number" data-clock-bpm="${i}" min="20" max="300" step="1" value="120" title="bpm">bpm
       </span>
-      <button type="button" title="send one ${GATE_V}V gate pulse">pulse</button>
+      <button type="button" data-pulse="${i}" title="send one ${GATE_V}V gate pulse">pulse</button>
     </div>`;
   controls.appendChild(cell);
 
-  const fader = cell.querySelector('.hslider');
-  const fill = cell.querySelector('.fill');
-  const knob = cell.querySelector('.knob');
-
-  // Fill from the centre outwards, so the bar means "offset from 0V". Left is
-  // -10V and right is +10V, which is the way the trace above it reads too.
-  const paint = v => {
-    const pct = ((v + IN_V) / (2 * IN_V)) * 100;
-    knob.style.left = `${pct}%`;
-    fill.style.left = `${Math.min(pct, 50)}%`;
-    fill.style.width = `${Math.abs(pct - 50)}%`;
-    fader.title = `IN${i} ${v.toFixed(1)} V`;
-  };
-
-  const setLevel = v => {
-    inputLevel[i] = Math.max(-IN_V, Math.min(IN_V, v));
-    sim.setCv(i, inputLevel[i]);
-    paint(inputLevel[i]);
-  };
-
-  let dragging = false;
-  const fromEvent = ev => {
-    const r = fader.getBoundingClientRect();
-    const frac = Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width));
-    setLevel(frac * 2 * IN_V - IN_V);
-  };
-  fader.addEventListener('pointerdown', ev => {
-    ev.preventDefault(); fader.setPointerCapture(ev.pointerId); dragging = true; fromEvent(ev);
-  });
-  fader.addEventListener('pointermove', ev => { if (dragging) fromEvent(ev); });
-  fader.addEventListener('pointerup', () => { dragging = false; });
-  fader.addEventListener('pointercancel', () => { dragging = false; });
-  fader.addEventListener('dblclick', () => setLevel(0));
-
-  cell.querySelector('button').addEventListener('click', () => {
+  cell.querySelector('[data-pulse]').addEventListener('click', () => {
     sim.setCv(i, GATE_V);
     setTimeout(() => sim.setCv(i, inputLevel[i]), PULSE_MS * 2);
   });
-
-  paint(0);
-  cells.push({ index: i, fader, setLevel });
 }
+
+function setLevel(i, volts) {
+  inputLevel[i] = Math.max(-IN_V, Math.min(IN_V, volts));
+  sim.setCv(i, inputLevel[i]);
+}
+
+/* ---- the trace is the fader ---------------------------------------------- */
+
+// Drag anywhere in an input's cell to set that input's voltage, at the height
+// you point at.
+//
+// There were four faders under the scope doing this, which meant reading a
+// level off one strip and setting it on another, in units that only lined up
+// because both were told the same range. Setting it where it is drawn removes
+// the question entirely: the pointer is at 3V because 3V is where the trace
+// would be.
+//
+// Refused under exactly the conditions the faders were refused under - a jack
+// being driven by its own clock generator, and any jack at all while a physical
+// module is driving the page, where the levels belong to whatever is patched
+// into it.
+function canSet(index) {
+  return !mode.live && !gens.find(g => g.index === index)?.on.checked;
+}
+
+let dragging = null;
+
+function pointAt(ev) {
+  const hit = inputCellAt(ev.clientX, ev.clientY);
+  return hit && canSet(hit.index) ? hit : null;
+}
+
+inCanvas.addEventListener('pointerdown', ev => {
+  const hit = pointAt(ev);
+  if (!hit) return;
+  ev.preventDefault();
+  inCanvas.setPointerCapture(ev.pointerId);
+
+  // The cell is chosen once, on the way down. Dragging past a cell edge should
+  // go on setting the input you grabbed rather than reaching into its
+  // neighbour, which is the difference between a fader and a smear.
+  dragging = hit.index;
+  setLevel(hit.index, hit.volts);
+});
+
+inCanvas.addEventListener('pointermove', ev => {
+  if (dragging === null) {
+    // Only the cursor, so a jack that cannot be set does not invite a drag.
+    inCanvas.style.cursor = pointAt(ev) ? 'ns-resize' : 'default';
+    return;
+  }
+  const hit = inputCellAt(ev.clientX, ev.clientY);
+  if (hit) setLevel(dragging, hit.volts);
+});
+
+const endDrag = () => { dragging = null; };
+inCanvas.addEventListener('pointerup', endDrag);
+inCanvas.addEventListener('pointercancel', endDrag);
+
+// Back to zero, the same gesture the faders had.
+inCanvas.addEventListener('dblclick', ev => {
+  const hit = pointAt(ev);
+  if (hit) setLevel(hit.index, 0);
+});
 
 /* ---- clock generators ---------------------------------------------------- */
 
@@ -93,7 +121,6 @@ for (const i of IN_ORDER) {
 
 const gens = IN_ORDER.map(i => ({
   index: i,
-  cell: cells.find(c => c.index === i),
   box: controls.querySelector(`[data-clock="${i}"]`),
   on: controls.querySelector(`[data-clock-on="${i}"]`),
   bpm: controls.querySelector(`[data-clock-bpm="${i}"]`),
@@ -107,12 +134,11 @@ function setClockLevel(g, high) {
   sim.setCv(g.index, high ? GATE_V : inputLevel[g.index]);
 }
 
-// While a generator is running the fader would only fight it - and whatever it
-// was left at becomes the gate's low level, so a jack sitting at -4V produces a
-// clock that never crosses the threshold. Zero it either way.
+// Whatever the jack was left at becomes the gate's low level, so a jack sitting
+// at -4V would produce a clock that never crosses the threshold. Zero it either
+// way, on the way in and on the way out.
 function syncGenerator(g) {
-  g.cell.fader.dataset.disabled = g.on.checked ? '1' : '0';
-  g.cell.setLevel(0);
+  setLevel(g.index, 0);
   if (!g.on.checked) setClockLevel(g, false);
 }
 

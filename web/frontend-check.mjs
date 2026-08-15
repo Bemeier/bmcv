@@ -994,6 +994,28 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   check(sim.channelTrigSrc(0) === -1, 'a fresh channel listens to nothing');
   check(sim.channelSrcInput(0) === -1, 'and mixes in nothing');
 
+  // The input canvas is the level control now, so the mapping from a point to a
+  // voltage has to be the exact inverse of what the trace draws - a click that
+  // sets 3V where the trace shows 3.2V is worse than no control at all. Checked
+  // at the two ends and the middle, which is where an inverted axis or a
+  // forgotten pad shows up.
+  const { inputCellAt } = await import('./scope.js');
+  const canvas = document.getElementById('inscope');
+  const r = canvas.getBoundingClientRect();
+
+  const at = (fx, fy) => inputCellAt(r.left + r.width * fx, r.top + r.height * fy);
+  const top = at(0.12, 0.02);
+  const bottom = at(0.12, 0.98);
+  const middle = at(0.12, 0.5);
+
+  check(top && bottom && middle, 'a point in the input scope maps to a cell');
+  check(top && top.volts > 0 && bottom && bottom.volts < 0, 'up is positive and down is negative');
+  check(middle && Math.abs(middle.volts) < 1, `the middle is about zero (${middle?.volts.toFixed(2)}V)`);
+
+  // And the columns are the four inputs, left to right.
+  const cols = [0.12, 0.37, 0.62, 0.87].map(fx => at(fx, 0.5)?.index);
+  check(new Set(cols).size === 4, `each quarter of the canvas is its own input (${cols.join(',')})`);
+
   const { AMP_MODE_NAMES, INPUT_MODE_NAMES: modes } = await import('./sim.js');
   check(AMP_MODE_NAMES.length >= 3 && AMP_MODE_NAMES.includes('mult'),
     `amp mode names came from the firmware (${AMP_MODE_NAMES.join(',')})`);

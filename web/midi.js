@@ -51,6 +51,9 @@ function setSending(on) {
 let access = null;
 let port = null;
 
+// Never a dash. Every other readout on the page uses one for "no number yet",
+// which is a different thing from a port that is deliberately not sending -
+// this one always knows its own answer, and "off" is an answer.
 function setStatus(text, cls) {
   ui.status.textContent = text;
   ui.status.className = cls ? `value ${cls}` : 'value';
