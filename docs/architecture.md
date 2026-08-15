@@ -150,7 +150,9 @@ under `assumptions` in the generated spec, so an assumption cannot hide.
 
 ## Testing
 
-`tests/` holds ordinary unit tests plus two things worth naming:
+Conventions for writing one are in [`tests/CLAUDE.md`](../tests/CLAUDE.md);
+this is what exists and why. `tests/` holds ordinary unit tests plus three
+things worth naming:
 
 - **`tests/fixtures/fixture.c`** drives a whole `BmcvInstance` from button and
   encoder events, so a test can express a gesture ("hold STA, tap scene 3")
@@ -164,6 +166,15 @@ under `assumptions` in the generated spec, so an assumption cannot hide.
   that a change to it reads as a trade rather than as a feeling.
   `tests/test_pll.c` prints the table; `docs/pll.md` keeps the baseline.
 
-Two tests exist purely to stop the four builds drifting apart:
-`test_panel_spec.c` (the generated geometry against `hw_setup.c`) and the LED
-curve check in `web/smoke.mjs` (the C header against the JS constants).
+Several tests exist purely to stop the four builds drifting apart, and are
+load-bearing rather than incidental: `test_panel_spec.c` (the generated
+geometry against `hw_setup.c`), `test_sim_import.c` (a snapshot round-trips
+through the wasm decoder), `test_config_migrate.c` (every old FRAM record still
+loads), the LED curve check in `web/smoke.mjs` (the C header against the JS
+constants), and `sim/include/layout_target.h`, which is not a test at all but a
+wall of static assertions the wasm build compiles.
+
+`tools/sr_explore/` is the fourth kind: an offline measurement harness rather
+than a check. It is what a change to `stepped_random()` has to be judged with,
+because the obvious identity metrics say the old sweep contained 400 distinct
+patterns and are no help at all. See [`tools/CLAUDE.md`](../tools/CLAUDE.md).

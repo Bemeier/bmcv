@@ -555,8 +555,10 @@ TEST_CASE(frames_carry_time_and_dt)
   CHECK(r.ux.hw_state->dt == MS(7));
 }
 
-// Two instances must not interfere through the frame ring buffer. (The clock
-// is still a global - see docs/plans/virtual-bmcv.md phase 1b.)
+// Two instances must not interfere through the frame ring buffer. Nothing that
+// matters lives in a file-static any more - the clock and the error flags were
+// the last two, and both moved into EngineState - so this is the property that
+// lets a host run several modules at once. See docs/architecture.md.
 TEST_CASE(two_instances_keep_separate_input_state)
 {
   Rig a, b;

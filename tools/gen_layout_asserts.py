@@ -9,7 +9,7 @@ in `just check` by way of the wasm build.
 Why this exists: a debug-probe bridge reads `bmcv` out of the module's RAM as
 one raw blob and hands it to the wasm build to decode. That only works while the
 two agree byte for byte, and they are built by different compilers - see
-docs/plans/probe-bridge.md.
+docs/live-module.md.
 """
 
 import sys
