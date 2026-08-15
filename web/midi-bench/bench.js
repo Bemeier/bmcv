@@ -38,6 +38,70 @@ const kb = n => `${fmt(n / 1024, 1)} kB/s`;
 // host driver and this device gives it nothing to work with.
 const findPorts = access => identify(access, stage => setStatus(stage));
 
+/* ---- can a browser reach the module directly? ---------------------------- */
+
+// The one question that decides whether the WebUSB route is available at all.
+//
+// On Windows a vendor interface is only reachable if the OS bound WinUSB to it,
+// which the module's Microsoft OS 2.0 descriptors ask for. Whether that worked
+// is awkward to establish from Device Manager and trivial to establish here: if
+// Chrome offers the device and lets go of interface 1, it worked. If it does
+// not appear in the picker at all, the descriptors did not take.
+const BMCV_VID = 1155;
+const BMCV_PID = 22315;
+const BMCV_VENDOR_INTERFACE = 1;
+
+async function checkWebUsb() {
+  if (!navigator.usb) {
+    log('This browser has no WebUSB.');
+    return;
+  }
+
+  let device;
+  try {
+    // No filter, so the picker shows everything - a module that is missing from
+    // an unfiltered list says something quite different from one missing from a
+    // filtered one.
+    device = await navigator.usb.requestDevice({ filters: [] });
+  } catch (e) {
+    log(`No device chosen (${e.name}).`);
+    log('If BMCV was not in the list, Windows has not bound WinUSB to its vendor');
+    log('interface, and the descriptors are what need looking at.');
+    return;
+  }
+
+  log(`chosen: ${device.manufacturerName || '?'} ${device.productName || '?'}`);
+  log(`  vendorId 0x${device.vendorId.toString(16)} productId 0x${device.productId.toString(16)}`);
+  log(`  USB ${device.usbVersionMajor}.${device.usbVersionMinor}`);
+
+  const expected = device.vendorId === BMCV_VID && device.productId === BMCV_PID;
+  if (!expected) log('  (that is not the BMCV this page expects)');
+
+  try {
+    await device.open();
+    log('  opened');
+    if (!device.configuration) await device.selectConfiguration(1);
+
+    for (const iface of device.configuration.interfaces) {
+      const alt = iface.alternate;
+      const eps = alt.endpoints.map(e => `${e.direction}${e.endpointNumber} ${e.type} ${e.packetSize}B`).join(', ');
+      log(`  interface ${iface.interfaceNumber}: class ${alt.interfaceClass} [${eps || 'no endpoints'}]`
+        + `${iface.claimed ? ' (claimed)' : ''}`);
+    }
+
+    // The decisive step. A system driver holding the interface refuses here.
+    await device.claimInterface(BMCV_VENDOR_INTERFACE);
+    log(`  claimed interface ${BMCV_VENDOR_INTERFACE} - WinUSB is bound and WebUSB works.`);
+    await device.releaseInterface(BMCV_VENDOR_INTERFACE);
+    await device.close();
+  } catch (e) {
+    log(`  FAILED: ${e.name}: ${e.message}`);
+    log('  A device that opens but will not give up interface 1 is one Windows has');
+    log('  bound something else to. One that will not open at all has no WinUSB.');
+    try { await device.close(); } catch { /* already gone */ }
+  }
+}
+
 /* ---- what is actually on the bus ----------------------------------------- */
 
 // No theory, just bytes.
@@ -253,6 +317,23 @@ async function withModule(fn) {
   log(`firmware ${version}`);
   return fn(input, output);
 }
+
+el('run-webusb')?.addEventListener('click', async () => {
+  const button = el('run-webusb');
+  button.disabled = true;
+  ui.verdict.hidden = true;
+  ui.log.textContent = '';
+  setStatus('pick the BMCV in the browser\'s device list');
+
+  try {
+    await checkWebUsb();
+    setStatus('done - copy the log');
+  } catch (e) {
+    setStatus(`${e.name}: ${e.message}`);
+  } finally {
+    button.disabled = false;
+  }
+});
 
 el('run-diagnose')?.addEventListener('click', async () => {
   const button = el('run-diagnose');

@@ -31,6 +31,13 @@
 </p>
 
 <p class="lede">
+  <strong>Check WebUSB</strong> asks whether this browser can reach the module
+  directly, without going through MIDI at all. Pick the BMCV from the list it
+  offers. If it can claim the module's vendor interface, Windows bound WinUSB to
+  it and the WebUSB route is available.
+</p>
+
+<p class="lede">
   <strong>Diagnose the bus</strong> asks nothing and assumes nothing: it opens
   every port, reports its state, sends one identity request to each output, and
   prints every byte that comes back. Use it when a module that is plainly there
@@ -45,6 +52,7 @@
 <p>
   <button id="run-snapshots" type="button">measure the snapshot rate</button>
   <button id="run-diagnose" type="button">diagnose the bus</button>
+  <button id="run-webusb" type="button">check WebUSB</button>
   <span id="status" class="muted">starting up</span>
 </p>
 
