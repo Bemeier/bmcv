@@ -15,6 +15,7 @@
 #include "midi.h"
 #include "presets.h"
 #include "stm32g474xx.h"
+#include "usblink.h"
 #include "version.h"
 #include "ws2811.h"
 #include <stdint.h>
@@ -120,7 +121,13 @@ static int8_t fram_load(void* user, EngineConfig* cfg, int8_t slot)
   return preset_load(cfg, slot);
 }
 
-static const PresetIo fram_preset_io = {.store = fram_store, .load = fram_load, .user = NULL};
+static int8_t fram_clear(void* user)
+{
+  (void) user;
+  return preset_clear();
+}
+
+static const PresetIo fram_preset_io = {.store = fram_store, .load = fram_load, .clear = fram_clear, .user = NULL};
 
 void bmcv_init(uint16_t _mpc_interrupt_pin, ADC_TypeDef* _slider_adc)
 {
@@ -343,6 +350,19 @@ void bmcv_main(uint32_t now_us)
 
     [[maybe_unused]] const uint32_t t_tick_start = PROFILE_NOW();
 
+    // Reset and forget-everything, asked for from outside. Before the input is
+    // folded because it may rebuild the whole instance, which is not something
+    // to do halfway through a tick.
+    usblink_take_remote_command(&bmcv.command);
+    bmcv_instance_take_command(&bmcv, &fram_preset_io, now_us);
+
+    // Anything a host has sent over MIDI, moved into the instance here rather
+    // than in the USB interrupt that received it: input_fold is about to read
+    // this mailbox, and an interrupt writing it halfway through that read is
+    // the one thing its design does not tolerate. Nothing can interleave
+    // between these two lines.
+    usblink_take_remote_input(&bmcv.input.remote);
+
     // input_fold points bmcv.ux.hw_state at the frame it just filled.
     // engine_fps is measured inside engine_tick, so every host agrees on it.
     uint8_t dirty = bmcv_state_update(now_us);
@@ -403,6 +423,17 @@ void bmcv_main(uint32_t now_us)
   {
     midi_publish();
   }
+
+  // Snapshots go out on their own endpoint, so this competes with nothing.
+  //
+  // Over MIDI they shared one with the control changes above, and since only a
+  // System Real-Time message may interleave a SysEx, every snapshot had to hold
+  // the endpoint for eleven milliseconds while the engine's output waited. That
+  // whole problem is gone with the transport that caused it.
+  //
+  // Still outside the tick, so the copy it takes is between two of them and is
+  // internally consistent.
+  usblink_poll(&bmcv);
 
   if (led_poll && ws2811_dma_completed())
   {

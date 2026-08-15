@@ -7,17 +7,22 @@
 // now, and the two canvases sit in one box so the geometry cannot drift.
 
 import { IN_ORDER, SCOPE_ORDER } from './spec.js';
-import { EFF, sim, SCOPE_LEN } from './sim.js';
-import { CELL_FILL, CELL_GAP, IN_V, SCOPE_SECONDS, SCOPE_SECONDS_LIVE, SCOPE_V, TRACE, TRACE_IN } from './const.js';
+import { EFF, sim, SCOPE_LEN, INPUT_MODE_NAMES, SHAPE_NAMES } from './sim.js';
+import {
+  CELL_FILL, CELL_GAP, IN_V, INPUT_MODE_COLORS, SCOPE_SECONDS,
+  SCOPE_V, SHAPE_MODE_COLORS, TRACE, TRACE_IN,
+} from './const.js';
 import { mode } from './mode.js';
 
 // How many samples that span works out to, given whatever is filling the ring.
-// Recomputed per draw because a probe's rate is measured rather than declared,
+// Recomputed per draw because a link's rate is measured rather than declared,
 // and clamped: never more history than the ring holds, never so few points that
 // a "trace" is two of them.
+//
+// The seconds are the same whatever is driving the page; only the rate the ring
+// fills at differs, which is exactly what this converts.
 export function spanSamples() {
-  const seconds = mode.live ? SCOPE_SECONDS_LIVE : SCOPE_SECONDS;
-  return Math.max(2, Math.min(SCOPE_LEN, Math.round(seconds * mode.captureHz)));
+  return Math.max(2, Math.min(SCOPE_LEN, Math.round(SCOPE_SECONDS * mode.captureHz)));
 }
 
 const scopeCanvas = document.getElementById('scope');
@@ -59,7 +64,7 @@ function fitCanvas(canvas, { aspect, cssHeight }) {
 
 // One cell: voltage grid, then the trace, then a border. `data` is the whole
 // channel-major ring; `lane` picks which channel or jack out of it.
-function drawCell(c, { x0, y0, cw, ch, data, lane, head, span, valid, vRange, pad, label, aliased, trace }) {
+function drawCell(c, { x0, y0, cw, ch, data, lane, head, span, valid, vRange, pad, label, labelColor, aliased, trace }) {
   const k = dpr();
   const plotH = ch - pad * 2;
   const mid = y0 + pad + plotH / 2;
@@ -123,7 +128,10 @@ function drawCell(c, { x0, y0, cw, ch, data, lane, head, span, valid, vRange, pa
   if (label) {
     const lfs = Math.max(11, Math.round(8 * k));
     c.font = `600 ${lfs}px ui-monospace, SFMono-Regular, Menlo, monospace`;
-    c.fillStyle = '#aab2bd';
+    // A label may name its own colour. The inputs use it to say what each jack
+    // is configured as in the same hue the module's own LED shows for that
+    // mode, so the two do not have to be matched up by memory.
+    c.fillStyle = labelColor || '#aab2bd';
     c.fillText(label, x0 + lfs * 0.55, y0 + pad + lfs * 0.85);
   }
 
@@ -148,7 +156,7 @@ function drawCell(c, { x0, y0, cw, ch, data, lane, head, span, valid, vRange, pa
   c.restore();
 }
 
-function drawGrid(c, canvas, { cols, rows, lanes, data, head, span, valid, vRange, pad, label, aliased, trace }) {
+function drawGrid(c, canvas, { cols, rows, lanes, data, head, span, valid, vRange, pad, label, labelColor, aliased, trace }) {
   const W = canvas.width, H = canvas.height;
   const cw = W / cols, ch = H / rows;
 
@@ -170,6 +178,7 @@ function drawGrid(c, canvas, { cols, rows, lanes, data, head, span, valid, vRang
       data, head, span, valid, vRange, pad, trace,
       lane: lanes[cell],
       label: label ? label(lanes[cell]) : null,
+      labelColor: labelColor ? labelColor(lanes[cell]) : null,
       aliased: aliased ? aliased(lanes[cell]) : false,
     });
   }
@@ -178,7 +187,18 @@ function drawGrid(c, canvas, { cols, rows, lanes, data, head, span, valid, vRang
 export function drawScopes() {
   const head = sim.scopeHead();
   const span = spanSamples();
-  const valid = mode.contiguous;
+  // Two limits on how far back a cell may draw, and the smaller wins.
+  //
+  // contiguous is about *time*: a tab in the background stops being sampled, so
+  // everything before the gap would be drawn as though the axis meant something
+  // across it.
+  //
+  // scopeFilled is about *provenance*: the ring is cleared when the page
+  // changes what fills it, and until it refills, the samples behind the newest
+  // one are either zeroes or the source that was on screen a moment ago. A
+  // simulation showing the tail of a module it is no longer connected to is one
+  // trace that appears to have done something abrupt.
+  const valid = Math.min(mode.contiguous, sim.scopeFilled());
 
   // Only worth asking on hardware. The simulator captures every engine tick, so
   // its Nyquist limit is 2kHz and no channel comes close; a probe's is around
@@ -193,31 +213,93 @@ export function drawScopes() {
       lanes: SCOPE_ORDER,
       data: sim.scope(),
       head, span, valid, vRange: SCOPE_V, pad: 4, trace: TRACE,
-      label: c => `CH${c}`,
+
+      // The channel and the shape it is running, in the hue the module lights
+      // that shape with - the same arrangement the inputs below use, and for
+      // the same reason. It was a column in the channel table, where it was a
+      // word to be looked up against a row number; here it is on the trace it
+      // describes, which is where you are already looking when a channel is not
+      // doing what you expected.
+      label: c => {
+        const shape = SHAPE_NAMES[sim.shapeMode(c)] ?? '';
+        return shape ? `CH${c} ${shape}` : `CH${c}`;
+      },
+      labelColor: c => SHAPE_MODE_COLORS[sim.shapeMode(c)] ?? null,
       aliased: isAliased,
     });
   }
 
   if (inCanvas.width) {
     drawGrid(inCtx, inCanvas, {
-      cols: 2, rows: 2,
+      cols: 4, rows: 1,
       lanes: IN_ORDER,
       data: sim.inputScope(),
       head, span, valid, vRange: IN_V, pad: 4 * dpr(), trace: TRACE_IN,
-      label: i => `IN${i}`,
+      // The jack and what it is configured as, together. It was under the
+      // scope with the controls, which meant it disappeared along with them
+      // whenever a module was driving the page - exactly when knowing an
+      // input's mode matters most.
+      label: i => {
+        const mode = INPUT_MODE_NAMES[sim.inputMode(i)] ?? '';
+        return mode && mode !== '—' ? `IN${i} ${mode}` : `IN${i}`;
+      },
+      labelColor: i => INPUT_MODE_COLORS[sim.inputMode(i)] ?? null,
     });
   }
+}
+
+/* ---- pointing at an input cell ------------------------------------------- */
+
+// Which input a point on the input canvas is in, and what voltage its height
+// means.
+//
+// Exported rather than worked out again in inputs.js, because it is the inverse
+// of what drawCell does and the two have to agree exactly: a fader that sets 3V
+// where the trace draws 3.2V is worse than no fader. The pad and the inset are
+// the same ones drawGrid lays the cells out with.
+//
+// Returns null outside the canvas. Inside it every point belongs to a column,
+// including the gap between two of them - a pointer a pixel into the seam
+// plainly meant one of the jacks either side of it, and the column it lands in
+// is the one it is nearer.
+export function inputCellAt(clientX, clientY) {
+  const r = inCanvas.getBoundingClientRect();
+  if (!r.width || !r.height) return null;
+
+  // Client pixels to canvas pixels, which differ by the device ratio.
+  const x = ((clientX - r.left) / r.width) * inCanvas.width;
+  const y = ((clientY - r.top) / r.height) * inCanvas.height;
+
+  const cols = IN_ORDER.length;
+  const cw = inCanvas.width / cols;
+  const col = Math.floor(x / cw);
+  if (col < 0 || col >= cols) return null;
+
+  const g = Math.round(CELL_GAP * dpr());
+  const pad = 4 * dpr();
+  const y0 = g / 2;
+  const ch = inCanvas.height - g;
+
+  const plotH = ch - pad * 2;
+  const mid = y0 + pad + plotH / 2;
+  const vScale = (plotH / 2) / IN_V;
+
+  // Above the plot reads as the top of the range and below it as the bottom,
+  // rather than as nothing: the pad is a couple of pixels and a click that
+  // lands in it plainly meant the end of the travel.
+  const volts = Math.max(-IN_V, Math.min(IN_V, (mid - y) / vScale));
+  return { index: IN_ORDER[col], volts };
 }
 
 // Both canvases size themselves from their container, on resize only.
 // getBoundingClientRect() forces a layout, so doing it per frame - which the
 // input scope used to - is a cost for nothing: the size only changes when the
 // window does.
-// The input canvas is measured after the output one and given its height, so
-// the order matters: the outputs decide the geometry and the inputs follow.
+// The inputs are one row under the outputs' two, at the same width, so they get
+// half the height rather than being matched to it.
 const fitAll = () => {
   const outH = fitCanvas(scopeCanvas, { aspect: OUT_ASPECT });
-  fitCanvas(inCanvas, { cssHeight: outH || inCanvas.getBoundingClientRect().width * 0.88 });
+  fitCanvas(inCanvas, { cssHeight: (outH || 440) / 2 });
 };
 new ResizeObserver(fitAll).observe(scopeCanvas.parentElement);
 new ResizeObserver(fitAll).observe(inCanvas.parentElement);

@@ -126,20 +126,27 @@ TEST_CASE(encoder_delta_is_the_change_since_the_last_tick)
   Rig r;
   rig_init(&r);
 
+  // The first fold establishes where the encoders are; only what happens after
+  // it is movement. See InputFrames.baseline.
   r.sample.encoder_pos[0] = 10;
-  CHECK(rig_fold(&r, MS(1)) != 0); // movement makes the tick dirty
-  CHECK(r.ux.hw_state->encoder_delta[0] == 10);
+  CHECK(rig_fold(&r, MS(1)) == 0);
+  CHECK(r.ux.hw_state->encoder_delta[0] == 0);
   CHECK(r.ux.hw_state->encoder_state[0] == 10);
 
-  r.sample.encoder_pos[0] = 13;
-  rig_fold(&r, MS(2));
+  r.sample.encoder_pos[0] = 20;
+  CHECK(rig_fold(&r, MS(2)) != 0); // movement makes the tick dirty
+  CHECK(r.ux.hw_state->encoder_delta[0] == 10);
+  CHECK(r.ux.hw_state->encoder_state[0] == 20);
+
+  r.sample.encoder_pos[0] = 23;
+  rig_fold(&r, MS(3));
   CHECK(r.ux.hw_state->encoder_delta[0] == 3);
 
   // No movement: delta returns to zero and the tick is clean.
   CHECK(rig_fold(&r, MS(3)) == 0);
   CHECK(r.ux.hw_state->encoder_delta[0] == 0);
 
-  r.sample.encoder_pos[0] = 8;
+  r.sample.encoder_pos[0] = 18;
   rig_fold(&r, MS(4));
   CHECK(r.ux.hw_state->encoder_delta[0] == -5);
 }
@@ -556,10 +563,14 @@ TEST_CASE(two_instances_keep_separate_input_state)
   rig_init(&a);
   rig_init(&b);
 
-  a.sample.encoder_pos[0] = 10;
-  a.sample.button_down[3] = 1;
+  // Past the baseline fold on both, so what follows is movement.
   rig_fold(&a, MS(1));
   rig_fold(&b, MS(1));
+
+  a.sample.encoder_pos[0] = 10;
+  a.sample.button_down[3] = 1;
+  rig_fold(&a, MS(2));
+  rig_fold(&b, MS(2));
 
   CHECK(a.ux.hw_state->encoder_delta[0] == 10);
   CHECK(b.ux.hw_state->encoder_delta[0] == 0);
@@ -567,10 +578,279 @@ TEST_CASE(two_instances_keep_separate_input_state)
   CHECK(b.ux.hw_state->button_state[3] == 0);
 }
 
+// -- the remote input mailbox ----------------------------------------------
+
+// Publish whatever is in the mailbox. A writer bumps seq on every update, which
+// is both what separates one from the next and the heartbeat that keeps the
+// whole struct believed - see RemoteInput.
+static void rig_remote_publish(Rig* r) { r->in.remote.seq++; }
+
+TEST_CASE(remote_is_ignored_until_a_seq_is_written)
+{
+  Rig r;
+  rig_init(&r);
+
+  // Everything set, nothing published. seq 0 means never written, so a mailbox
+  // that a host has filled but not yet handed over does nothing.
+  r.in.remote.button_down[3] = 1;
+  r.in.remote.encoder_pos[0] = 5;
+  r.in.remote.slider_raw     = 6000;
+
+  rig_fold(&r, MS(1));
+  CHECK(r.ux.hw_state->button_state[3] == 0);
+  CHECK(r.ux.hw_state->encoder_delta[0] == 0);
+  CHECK(r.ux.hw_state->slider_state == SLIDER_MIN_VALUE);
+
+  rig_remote_publish(&r);
+  rig_fold(&r, MS(2));
+  CHECK(r.ux.hw_state->button_state[3] == 1);
+  CHECK(r.ux.hw_state->slider_state == 6000);
+}
+
+TEST_CASE(remote_buttons_or_with_the_physical_panel)
+{
+  Rig r;
+  rig_init(&r);
+
+  r.in.remote.button_down[2] = 1;
+  rig_remote_publish(&r);
+  rig_fold(&r, MS(1));
+  CHECK(r.ux.hw_state->button_state[2] == 1);
+
+  // Both at once is the same button held, not two presses.
+  r.sample.button_down[2] = 1;
+  rig_remote_publish(&r);
+  rig_fold(&r, MS(2));
+  CHECK(r.ux.hw_state->button_state[2] == 1);
+
+  // The remote lets go; the finger has not.
+  r.in.remote.button_down[2] = 0;
+  rig_remote_publish(&r);
+  rig_fold(&r, MS(3));
+  CHECK(r.ux.hw_state->button_state[2] == 1);
+
+  r.sample.button_down[2] = 0;
+  rig_remote_publish(&r);
+  rig_fold(&r, MS(4));
+  CHECK(r.ux.hw_state->button_state[2] == 0);
+}
+
+TEST_CASE(remote_encoders_sum_with_the_physical_one)
+{
+  Rig r;
+  rig_init(&r);
+
+  rig_remote_publish(&r);
+  rig_fold(&r, MS(1));
+
+  r.in.remote.encoder_pos[0] += 3;
+  rig_remote_publish(&r);
+  rig_fold(&r, MS(2));
+  CHECK(r.ux.hw_state->encoder_delta[0] == 3);
+
+  // Both move on the same tick and the module sees one turn of five.
+  r.in.remote.encoder_pos[0] += 3;
+  r.sample.encoder_pos[0] += 2;
+  rig_remote_publish(&r);
+  rig_fold(&r, MS(3));
+  CHECK(r.ux.hw_state->encoder_delta[0] == 5);
+
+  // Opposite directions cancel, which is what "one encoder, two hands" means.
+  r.in.remote.encoder_pos[0] -= 4;
+  r.sample.encoder_pos[0] += 4;
+  rig_remote_publish(&r);
+  rig_fold(&r, MS(4));
+  CHECK(r.ux.hw_state->encoder_delta[0] == 0);
+}
+
+// The writer picks its own encoder origin and never has to learn the module's.
+// So a mailbox can arrive holding any position at all, and arriving must not
+// read as a turn of that size.
+TEST_CASE(remote_encoder_origin_is_not_a_turn)
+{
+  Rig r;
+  rig_init(&r);
+
+  r.sample.encoder_pos[1] = 40;
+  rig_fold(&r, MS(1));
+
+  r.in.remote.encoder_pos[1] = 1000;
+  rig_remote_publish(&r);
+  rig_fold(&r, MS(2));
+  CHECK(r.ux.hw_state->encoder_delta[1] == 0);
+  CHECK(r.ux.hw_state->encoder_state[1] == 1040);
+
+  // And going away again is not a turn back.
+  rig_fold(&r, MS(2) + REMOTE_TIMEOUT_US + 1);
+  CHECK(r.ux.hw_state->encoder_delta[1] == 0);
+  CHECK(r.ux.hw_state->encoder_state[1] == 40);
+}
+
+TEST_CASE(remote_stops_being_believed_when_it_stops_talking)
+{
+  Rig r;
+  rig_init(&r);
+
+  r.in.remote.button_down[5] = 1;
+  rig_remote_publish(&r);
+  rig_fold(&r, MS(1));
+  CHECK(r.ux.hw_state->button_state[5] == 1);
+
+  // Still held, still inside the window: a writer that is merely quiet for a
+  // frame has not gone anywhere.
+  rig_fold(&r, MS(1) + REMOTE_TIMEOUT_US - 1);
+  CHECK(r.ux.hw_state->button_state[5] == 1);
+
+  // Past it, the levels stop standing - this is what stops a refreshed page
+  // from stranding the module holding a button.
+  rig_fold(&r, MS(1) + REMOTE_TIMEOUT_US + 1);
+  CHECK(r.ux.hw_state->button_state[5] == 0);
+
+  // And a writer that comes back is believed again.
+  rig_remote_publish(&r);
+  rig_fold(&r, MS(500));
+  CHECK(r.ux.hw_state->button_state[5] == 1);
+}
+
+TEST_CASE(remote_slider_overrides_and_sticks)
+{
+  Rig r;
+  rig_init(&r);
+
+  r.sample.slider_raw = 2000;
+  rig_fold(&r, MS(1));
+  CHECK(r.ux.hw_state->slider_state == 2000);
+
+  r.in.remote.slider_raw = 6000;
+  rig_remote_publish(&r);
+  rig_fold(&r, MS(2));
+  CHECK(r.ux.hw_state->slider_state == 6000);
+
+  // Sticky: the remote keeps it without having to re-assert a new position,
+  // and noise on the physical fader does not count as a hand on it.
+  r.sample.slider_raw = 2000 + REMOTE_SLIDER_RELEASE_RAW;
+  rig_remote_publish(&r);
+  rig_fold(&r, MS(3));
+  CHECK(r.ux.hw_state->slider_state == 6000);
+
+  // Handing it back explicitly.
+  r.in.remote.slider_raw = REMOTE_SLIDER_NONE;
+  rig_remote_publish(&r);
+  rig_fold(&r, MS(4));
+  CHECK(r.ux.hw_state->slider_state == 2000 + REMOTE_SLIDER_RELEASE_RAW);
+}
+
+// Last mover wins: moving the physical fader far enough takes it back, and
+// moving the remote one takes it again.
+TEST_CASE(moving_the_physical_slider_takes_it_back)
+{
+  Rig r;
+  rig_init(&r);
+
+  r.sample.slider_raw    = 2000;
+  r.in.remote.slider_raw = 6000;
+  rig_remote_publish(&r);
+  rig_fold(&r, MS(1));
+  CHECK(r.ux.hw_state->slider_state == 6000);
+
+  r.sample.slider_raw = 2000 + REMOTE_SLIDER_RELEASE_RAW + 1;
+  rig_remote_publish(&r);
+  rig_fold(&r, MS(2));
+  CHECK(r.ux.hw_state->slider_state == 2000 + REMOTE_SLIDER_RELEASE_RAW + 1);
+
+  // Still held down by the same stale value in the mailbox - having lost it,
+  // the remote does not get it back by saying nothing.
+  r.sample.slider_raw = 3000;
+  rig_remote_publish(&r);
+  rig_fold(&r, MS(3));
+  CHECK(r.ux.hw_state->slider_state == 3000);
+
+  // Moving the remote fader takes it again, and re-references the physical one
+  // where it now sits.
+  r.in.remote.slider_raw = 6500;
+  rig_remote_publish(&r);
+  rig_fold(&r, MS(4));
+  CHECK(r.ux.hw_state->slider_state == 6500);
+
+  r.sample.slider_raw = 3000 + REMOTE_SLIDER_RELEASE_RAW;
+  rig_remote_publish(&r);
+  rig_fold(&r, MS(5));
+  CHECK(r.ux.hw_state->slider_state == 6500);
+}
+
+// The module's own patch still applies to a fader being driven from elsewhere.
+TEST_CASE(slider_cv_sums_into_a_remote_position)
+{
+  Rig r;
+  rig_init(&r);
+
+  r.cfg.input_mode[0]                     = INPUT_SLIDER;
+  r.sample.cv_raw[r.hw->input_adc_idx[0]] = 500;
+
+  r.in.remote.slider_raw = 6000;
+  rig_remote_publish(&r);
+  rig_fold(&r, MS(1));
+  CHECK(r.ux.hw_state->slider_state == 6000 - 1000);
+}
+
+// A remote press is a press: it marks the tick dirty, so the UX layer runs and
+// answers it exactly as it answers a finger.
+TEST_CASE(remote_input_marks_the_tick_dirty)
+{
+  Rig r;
+  rig_init(&r);
+
+  rig_remote_publish(&r);
+  CHECK(rig_fold(&r, MS(1)) == 0);
+
+  r.in.remote.button_down[7] = 1;
+  rig_remote_publish(&r);
+  CHECK(rig_fold(&r, MS(2)) != 0);
+
+  rig_remote_publish(&r);
+  CHECK(rig_fold(&r, MS(3)) == 0);
+
+  r.in.remote.encoder_pos[2] += 1;
+  rig_remote_publish(&r);
+  CHECK(rig_fold(&r, MS(4)) != 0);
+}
+
+// The bug this was written for, and it took hardware to find.
+//
+// Encoder positions are free-running counters the instance does not own. A
+// module that has been played for a while has them at some arbitrary value, and
+// rebuilding the instance - which is what a remote reset does - zeroes the
+// frame they are compared against. The difference is not a turn, but the first
+// fold read it as one and applied it to the selected parameter, which
+// config_defaults deliberately sets to OFS. What that looked like on the bench
+// was a module whose every setting returned to default except the offset.
+TEST_CASE(a_rebuilt_instance_does_not_read_the_panel_as_a_gesture)
+{
+  Rig r;
+  rig_init(&r);
+
+  // A module that has been played: the encoders are a long way from zero and
+  // a button happens to be held.
+  r.sample.encoder_pos[0] = 5000;
+  r.sample.encoder_pos[3] = -2000;
+  r.sample.button_down[2] = 1;
+
+  CHECK(rig_fold(&r, MS(1)) == 0); // nothing moved; nothing happened
+  CHECK(r.ux.hw_state->encoder_delta[0] == 0);
+  CHECK(r.ux.hw_state->encoder_delta[3] == 0);
+
+  // But the positions are adopted, so the next real turn measures from them.
+  CHECK(r.ux.hw_state->encoder_state[0] == 5000);
+  r.sample.encoder_pos[0] = 5002;
+  CHECK(rig_fold(&r, MS(2)) != 0);
+  CHECK(r.ux.hw_state->encoder_delta[0] == 2);
+}
+
 int main(void)
 {
   RUN_TEST(trig_step_has_hysteresis);
   RUN_TEST(encoder_delta_is_the_change_since_the_last_tick);
+  RUN_TEST(a_rebuilt_instance_does_not_read_the_panel_as_a_gesture);
   RUN_TEST(encoder_delta_survives_int16_wraparound);
   RUN_TEST(button_level_changes_mark_the_tick_dirty);
   RUN_TEST(cv_is_scaled_from_adc_units_into_dac_units);
@@ -590,5 +870,14 @@ int main(void)
   RUN_TEST(null_preset_io_is_safe);
   RUN_TEST(frames_carry_time_and_dt);
   RUN_TEST(two_instances_keep_separate_input_state);
+  RUN_TEST(remote_is_ignored_until_a_seq_is_written);
+  RUN_TEST(remote_buttons_or_with_the_physical_panel);
+  RUN_TEST(remote_encoders_sum_with_the_physical_one);
+  RUN_TEST(remote_encoder_origin_is_not_a_turn);
+  RUN_TEST(remote_stops_being_believed_when_it_stops_talking);
+  RUN_TEST(remote_slider_overrides_and_sticks);
+  RUN_TEST(moving_the_physical_slider_takes_it_back);
+  RUN_TEST(slider_cv_sums_into_a_remote_position);
+  RUN_TEST(remote_input_marks_the_tick_dirty);
   return TESTKIT_SUMMARY();
 }

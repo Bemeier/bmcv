@@ -116,13 +116,13 @@ TEST_CASE(turning_pattern_length_records_a_channel_edit)
   CHECK(f.engine_state.channels_last_delta[5] != 0);
 }
 
-// In MON the channel button is picking a routing source, so the same hand
+// In MIX the channel button is picking a routing source, so the same hand
 // holding it must not also drive the encoder into the amp mode.
 TEST_CASE(holding_the_button_in_mon_blocks_the_amp_mode_encoder)
 {
   Fixture f;
   fixture_init(&f);
-  f.ui_state.shift_state = SHIFT_STATE_MON;
+  f.ui_state.shift_state = SHIFT_STATE_MIX;
 
   int8_t start = f.engine_config.channel_state[6].input_amp_mode;
 

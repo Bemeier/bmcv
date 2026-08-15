@@ -51,6 +51,9 @@ function setSending(on) {
 let access = null;
 let port = null;
 
+// Never a dash. Every other readout on the page uses one for "no number yet",
+// which is a different thing from a port that is deliberately not sending -
+// this one always knows its own answer, and "off" is an answer.
 function setStatus(text, cls) {
   ui.status.textContent = text;
   ui.status.className = cls ? `value ${cls}` : 'value';
@@ -192,14 +195,18 @@ const meters = [...ui.table.querySelectorAll('.meter')].map(m => ({
 
 const setText = (node, value) => { if (node.textContent !== value) node.textContent = value; };
 
+// One word each. This sits in a row of readouts whose values are numbers, and a
+// sentence where they have a figure makes the row look broken - the rate it
+// forwards at is a constant of the protocol and belongs in the note below,
+// not in a value that changes.
+//
 // null is "nothing said yet", which covers both reasons the module stays quiet:
 // MIDI is the clock source, or no beat has been detected on the jack. Naming
-// either one here would be a guess, so the note in index.html says when it
-// sends and this only says whether it is.
+// either one here would be a guess.
 const CLOCK_TEXT = {
-  true: 'forwarding at 24 PPQN',
+  true: 'sending',
   false: 'stopped',
-  null: 'not sending',
+  null: 'silent',
 };
 
 export function drawMidi() {

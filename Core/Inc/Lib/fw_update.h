@@ -8,8 +8,11 @@
 // not guessed: after a direct jump the core had SCB->VTOR = 0x1FFF0000, so the
 // bootloader was demonstrably executing, but the USB and SYSCFG registers could
 // not be read over SWD at all - their clocks were still gated - and the module
-// never enumerated. Coming in through FN2 works because BOOT0 hands over a chip
+// never enumerated. Coming in through CPY works because BOOT0 hands over a chip
 // that has just reset, and this is how the software path gets the same thing.
+//
+// CPY is what the button is lettered on the panel; the schematic calls the same
+// net FN2/Boot, which is the name to search the KiCad files for.
 
 // Ask for the ROM bootloader, then reset into it. Never returns.
 //

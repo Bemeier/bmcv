@@ -18,6 +18,7 @@
 #include "ui_mode.h"
 #include "ui_state.h"
 #include "ux_setup.h"
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -37,6 +38,12 @@ struct BmcvSim
   InputSample sample;
   SimTrigLatch trig;
 
+  // Outgoing, for a module that is not this one - see the header. Deliberately
+  // not s->m.input.remote: that field belongs to whatever instance is loaded
+  // here, and in probe mode every snapshot overwrites it.
+  RemoteInput remote_out;
+  RemoteCommand command_out;
+
   SlotStore storage;
   PresetIo io;
 
@@ -49,6 +56,16 @@ struct BmcvSim
   float scope[N_CHANNELS * BMCV_SIM_SCOPE_LEN];
   float input_scope[N_INPUTS * BMCV_SIM_SCOPE_LEN];
   uint32_t scope_head;
+
+  // How much of the ring has been written since it was last cleared, so a host
+  // does not draw the zeroes in front of the first sample - or, worse, whatever
+  // the source before this one left in there.
+  uint32_t scope_filled;
+
+  // Ticks since the last scope sample. Only bmcv_sim_run decimates; an imported
+  // snapshot is one sample by definition - it is the only picture of that
+  // module there is - so bmcv_sim_import pushes unconditionally.
+  uint32_t scope_div;
 };
 
 static void sim_boot(BmcvSim* s)
@@ -62,6 +79,7 @@ static void sim_boot(BmcvSim* s)
   bmcv_instance_init(&s->m, &s->io, 0);
 
   sim_input_slider(&s->sample, 0.0f);
+  bmcv_sim_remote_clear(s);
 }
 
 BmcvSim* bmcv_sim_create(void)
@@ -129,27 +147,135 @@ void bmcv_sim_fire_gate(BmcvSim* s, int32_t input)
   sim_trig_fire(&s->trig, s->m.hw_setup->input_adc_idx[input]);
 }
 
+/* ---- driving another module --------------------------------------------- */
+
+// What a writer needs to hold to, and cannot check for itself: the mailbox goes
+// out over a transport that moves whole 32-bit words to word addresses, and the
+// sequence number has to be the last of them so it can be sent after the fields
+// it describes.
+_Static_assert(offsetof(RemoteInput, seq) == sizeof(RemoteInput) - 4, "seq is the last word of the mailbox");
+_Static_assert(sizeof(RemoteInput) % 4 == 0, "the mailbox is a whole number of words");
+_Static_assert(offsetof(BmcvInstance, input.remote) % 4 == 0, "the mailbox starts on a word");
+_Static_assert(offsetof(RemoteCommand, seq) == sizeof(RemoteCommand) - 4, "seq is the last word of the command");
+_Static_assert(sizeof(RemoteCommand) % 4 == 0, "the command is a whole number of words");
+_Static_assert(offsetof(BmcvInstance, command) % 4 == 0, "the command starts on a word");
+
+void bmcv_sim_remote_button(BmcvSim* s, int32_t button, int32_t down)
+{
+  if (!s || button < 0 || button >= N_BUTTONS)
+    return;
+  s->remote_out.button_down[button] = down ? 1 : 0;
+}
+
+void bmcv_sim_remote_encoder(BmcvSim* s, int32_t encoder, int32_t detents)
+{
+  if (!s || encoder < 0 || encoder >= N_ENCODERS)
+    return;
+  s->remote_out.encoder_pos[encoder] = (int16_t) (s->remote_out.encoder_pos[encoder] + detents);
+}
+
+void bmcv_sim_remote_slider01(BmcvSim* s, float pos01)
+{
+  if (!s)
+    return;
+  s->remote_out.slider_raw = pos01 < 0.0f ? REMOTE_SLIDER_NONE : (int16_t) sim_slider_raw(pos01);
+}
+
+void bmcv_sim_remote_clear(BmcvSim* s)
+{
+  if (!s)
+    return;
+
+  // The sequence number survives, so that clearing is itself an update the far
+  // end acts on rather than a silence it has to time out. Restarting the count
+  // could repeat a value it has already seen and be ignored.
+  const uint32_t seq = s->remote_out.seq;
+  memset(&s->remote_out, 0, sizeof(s->remote_out));
+  s->remote_out.slider_raw = REMOTE_SLIDER_NONE;
+  s->remote_out.seq        = seq;
+}
+
+void bmcv_sim_remote_reset(BmcvSim* s, int32_t wipe_storage)
+{
+  if (!s)
+    return;
+
+  s->command_out.op = (uint8_t) (wipe_storage ? REMOTE_OP_RESET_WIPE : REMOTE_OP_RESET);
+
+  // Never zero, which is what a module that has never been asked anything
+  // holds - so the first command of a session cannot read as silence.
+  if (++s->command_out.seq == 0)
+    s->command_out.seq = 1;
+}
+
+int32_t bmcv_sim_command_offset(void) { return (int32_t) offsetof(BmcvInstance, command); }
+int32_t bmcv_sim_command_size(void) { return (int32_t) sizeof(RemoteCommand); }
+const void* bmcv_sim_command_blob(const BmcvSim* s) { return s ? &s->command_out : NULL; }
+
+int32_t bmcv_sim_remote_offset(void) { return (int32_t) offsetof(BmcvInstance, input.remote); }
+int32_t bmcv_sim_remote_size(void) { return (int32_t) sizeof(RemoteInput); }
+
+const void* bmcv_sim_remote_blob(BmcvSim* s)
+{
+  if (!s)
+    return NULL;
+
+  // Zero means never written, so a count that wraps has to skip it rather than
+  // hand the far end a mailbox that reads as untouched.
+  if (++s->remote_out.seq == 0)
+    s->remote_out.seq = 1;
+
+  return &s->remote_out;
+}
+
 /* ---- running ------------------------------------------------------------ */
 
-static void capture(BmcvSim* s)
+// One column of the scope ring. Split out of the readings below because the two
+// are wanted at different rates: everything a host reads as a number it wants
+// as current as possible, and the ring it wants at whatever rate makes its
+// window fit - see BMCV_SIM_SCOPE_DIV.
+static void push_scope(BmcvSim* s)
 {
-  uint32_t head = s->scope_head;
+  const uint32_t head = s->scope_head;
 
   for (uint8_t c = 0; c < N_CHANNELS; c++)
-  {
-    // Not channels_output_level[]: mute is an output-stage gain, so what
-    // leaves the module is the gated level engine_tick published. The same
-    // array the firmware hands to the DAC.
-    float v                                 = sim_dac_to_volts(s->m.engine_state.channels_gated_level[c]);
-    s->outputs_v[c]                         = v;
-    s->scope[c * BMCV_SIM_SCOPE_LEN + head] = v;
-  }
+    s->scope[c * BMCV_SIM_SCOPE_LEN + head] = s->outputs_v[c];
 
   for (uint8_t i = 0; i < N_INPUTS; i++)
   {
     // input_state[] is in DAC units (four times the ADC reading), so the same
     // conversion the outputs use applies.
     s->input_scope[i * BMCV_SIM_SCOPE_LEN + head] = sim_dac_to_volts(s->m.ux.hw_state->input_state[i]);
+  }
+
+  s->scope_head = (head + 1) & (BMCV_SIM_SCOPE_LEN - 1);
+
+  if (s->scope_filled < BMCV_SIM_SCOPE_LEN)
+    s->scope_filled++;
+}
+
+void bmcv_sim_scope_clear(BmcvSim* s)
+{
+  if (!s)
+    return;
+
+  memset(s->scope, 0, sizeof s->scope);
+  memset(s->input_scope, 0, sizeof s->input_scope);
+  s->scope_head   = 0;
+  s->scope_filled = 0;
+  s->scope_div    = 0;
+}
+
+int32_t bmcv_sim_scope_filled(const BmcvSim* s) { return s ? (int32_t) s->scope_filled : 0; }
+
+static void capture(BmcvSim* s)
+{
+  for (uint8_t c = 0; c < N_CHANNELS; c++)
+  {
+    // Not channels_output_level[]: mute is an output-stage gain, so what
+    // leaves the module is the gated level engine_tick published. The same
+    // array the firmware hands to the DAC.
+    s->outputs_v[c] = sim_dac_to_volts(s->m.engine_state.channels_gated_level[c]);
   }
 
   for (uint8_t c = 0; c < N_CHANNELS; c++)
@@ -167,8 +293,6 @@ static void capture(BmcvSim* s)
     out[BMCV_EFF_GCD]        = (float) e->gcd;
     out[BMCV_EFF_PHASE_OFS]  = e->phase_offset;
   }
-
-  s->scope_head = (head + 1) & (BMCV_SIM_SCOPE_LEN - 1);
 
   for (uint8_t i = 0; i < LED_COUNT; i++)
   {
@@ -200,6 +324,21 @@ void bmcv_sim_run(BmcvSim* s, int32_t dt_us, int32_t n_ticks)
     s->now_us += dt_us;
     bmcv_instance_tick(&s->m, &s->sample, s->now_us);
     capture(s);
+
+    // Every tick would be four thousand samples a second, and the ring holds
+    // 4096 of them - a second's worth, where a module over a link fills the
+    // same ring at its own rate and gets tens of seconds. The two scopes then
+    // showed different spans of time in the same size cell.
+    //
+    // Decimated rather than the ring made bigger: the engine ticks at 4kHz and
+    // nothing it produces goes near a tenth of that, so every other sample is
+    // still a gross oversample of the signal - and the alternative costs both
+    // the memory and a line segment per sample on every frame drawn.
+    if (++s->scope_div >= BMCV_SIM_SCOPE_DIV)
+    {
+      s->scope_div = 0;
+      push_scope(s);
+    }
   }
 }
 
@@ -306,6 +445,80 @@ const char* bmcv_sim_shape_mode_name(int32_t mode)
   return shape_mode_names[mode];
 }
 
+/* ---- how the module is configured ---------------------------------------- */
+
+// Unsized on purpose, so a mode added to the core without a name here fails the
+// assert rather than showing a host a blank cell. The same arrangement
+// shape_mode_names uses.
+static const char* const input_mode_names[] = {"—", "CLOCK", "RESET", "SLIDER"};
+_Static_assert(sizeof input_mode_names / sizeof input_mode_names[0] == INPUT_MODE_COUNT, "one name per input mode");
+
+static const char* const quantize_mode_names[] = {"off", "cont", "trig"};
+
+// How a channel folds an input into itself: not at all, added to its output, or
+// multiplied with it.
+static const char* const amp_mode_names[] = {"off", "add", "mult"};
+_Static_assert(sizeof amp_mode_names / sizeof amp_mode_names[0] == INPUT_AMP_MODE_COUNT, "one name per amp mode");
+_Static_assert(sizeof quantize_mode_names / sizeof quantize_mode_names[0] == QUANTIZE_MODE_COUNT, "one name per quantize mode");
+
+int32_t bmcv_sim_input_mode(const BmcvSim* s, int32_t input)
+{
+  if (!s || input < 0 || input >= N_INPUTS)
+    return 0;
+  return s->m.engine_config.input_mode[input];
+}
+
+const char* bmcv_sim_input_mode_name(int32_t mode)
+{
+  if (mode < 0 || mode >= INPUT_MODE_COUNT)
+    return NULL;
+  return input_mode_names[mode];
+}
+
+int32_t bmcv_sim_quantize_mask(const BmcvSim* s) { return s ? s->m.engine_config.quantize_mask : 0; }
+
+int32_t bmcv_sim_channel_quantize_mode(const BmcvSim* s, int32_t channel)
+{
+  if (!s || channel < 0 || channel >= N_CHANNELS)
+    return 0;
+  return s->m.engine_config.channel_state[channel].quantize_mode;
+}
+
+const char* bmcv_sim_quantize_mode_name(int32_t mode)
+{
+  if (mode < 0 || mode >= QUANTIZE_MODE_COUNT)
+    return NULL;
+  return quantize_mode_names[mode];
+}
+
+int32_t bmcv_sim_channel_trig_src(const BmcvSim* s, int32_t channel)
+{
+  if (!s || channel < 0 || channel >= N_CHANNELS)
+    return -1;
+  return s->m.engine_config.channel_state[channel].src_trig;
+}
+
+int32_t bmcv_sim_channel_src_input(const BmcvSim* s, int32_t channel)
+{
+  if (!s || channel < 0 || channel >= N_CHANNELS)
+    return -1;
+  return s->m.engine_config.channel_state[channel].src_input;
+}
+
+int32_t bmcv_sim_channel_amp_mode(const BmcvSim* s, int32_t channel)
+{
+  if (!s || channel < 0 || channel >= N_CHANNELS)
+    return 0;
+  return s->m.engine_config.channel_state[channel].input_amp_mode;
+}
+
+const char* bmcv_sim_amp_mode_name(int32_t mode)
+{
+  if (mode < 0 || mode >= INPUT_AMP_MODE_COUNT)
+    return NULL;
+  return amp_mode_names[mode];
+}
+
 /* ---- midi --------------------------------------------------------------- */
 
 // MidiMsg is exactly the four bytes the flat API promises, so the drain writes
@@ -329,6 +542,9 @@ int32_t bmcv_sim_midi_drain(BmcvSim* s, void* dst, int32_t max_msgs)
 /* ---- snapshots ----------------------------------------------------------- */
 
 int32_t bmcv_sim_instance_size(void) { return (int32_t) sizeof(BmcvInstance); }
+
+int32_t bmcv_sim_scope_len(void) { return BMCV_SIM_SCOPE_LEN; }
+int32_t bmcv_sim_scope_div(void) { return BMCV_SIM_SCOPE_DIV; }
 
 void bmcv_sim_export(const BmcvSim* s, void* dst)
 {
@@ -363,7 +579,12 @@ int32_t bmcv_sim_import(BmcvSim* s, const void* src, int32_t len)
   // Straight away rather than on the next run(): the published readings are the
   // whole reason to import, and a snapshot is not something a host may advance
   // a tick to see.
+  //
+  // Undecimated, unlike run(): one snapshot is one sample, because it is the
+  // only view of that module there is. The rate the ring fills at is then the
+  // rate snapshots arrive, which is what mode.captureHz reports.
   capture(s);
+  push_scope(s);
   return 1;
 }
 

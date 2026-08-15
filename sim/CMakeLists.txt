@@ -49,6 +49,17 @@ if(EMSCRIPTEN)
       _bmcv_sim_set_slider01
       _bmcv_sim_set_cv
       _bmcv_sim_fire_gate
+      _bmcv_sim_remote_button
+      _bmcv_sim_remote_encoder
+      _bmcv_sim_remote_slider01
+      _bmcv_sim_remote_clear
+      _bmcv_sim_remote_offset
+      _bmcv_sim_remote_size
+      _bmcv_sim_remote_blob
+      _bmcv_sim_remote_reset
+      _bmcv_sim_command_offset
+      _bmcv_sim_command_size
+      _bmcv_sim_command_blob
       _bmcv_sim_run
       _bmcv_sim_now_us
       _bmcv_sim_outputs_v
@@ -76,8 +87,21 @@ if(EMSCRIPTEN)
       _bmcv_sim_slider01
       _bmcv_sim_channel_shape_mode
       _bmcv_sim_shape_mode_name
+      _bmcv_sim_input_mode
+      _bmcv_sim_input_mode_name
+      _bmcv_sim_quantize_mask
+      _bmcv_sim_channel_quantize_mode
+      _bmcv_sim_quantize_mode_name
+      _bmcv_sim_channel_trig_src
+      _bmcv_sim_channel_src_input
+      _bmcv_sim_channel_amp_mode
+      _bmcv_sim_amp_mode_name
       _bmcv_sim_midi_drain
       _bmcv_sim_instance_size
+      _bmcv_sim_scope_len
+      _bmcv_sim_scope_div
+      _bmcv_sim_scope_clear
+      _bmcv_sim_scope_filled
       _bmcv_sim_export
       _bmcv_sim_import
       _bmcv_sim_storage_size

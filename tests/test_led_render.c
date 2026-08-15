@@ -144,7 +144,7 @@ TEST_CASE(parameter_buttons_go_dark_while_a_shift_mode_is_running)
 {
   Fixture f;
   fixture_init(&f);
-  f.ui_state.shift_state         = SHIFT_STATE_MON;
+  f.ui_state.shift_state         = SHIFT_STATE_MIX;
   f.engine_config.selected_param = CH_PARAM_AMP;
 
   ui_render(&f.ux);
@@ -558,7 +558,7 @@ TEST_CASE(while_a_source_is_held_only_valid_destinations_light)
 {
   Fixture f;
   fixture_init(&f);
-  f.ui_state.shift_state = SHIFT_STATE_MON; // a channel takes an input, nothing else
+  f.ui_state.shift_state = SHIFT_STATE_MIX; // a channel takes an input, nothing else
 
   ui_sel_press(&f.ux, TGT_CHANNEL, 0, 0);
   ui_render(&f.ux);

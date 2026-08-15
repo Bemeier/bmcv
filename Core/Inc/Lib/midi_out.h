@@ -9,9 +9,8 @@
 // What the module says about itself on the MIDI bus: eight channel outputs and
 // four CV inputs as control changes, plus a clock.
 //
-// The counterpart to midi_realtime.c and sysex.c, which read the bus. Like
-// them this is hardware-free - it produces MIDI messages and never touches an
-// endpoint. A host drains the queue into whatever transport it has: the
+// The counterpart to midi_realtime.c, which reads the bus. Like it this is
+// hardware-free - it produces MIDI messages and never touches an endpoint. A host drains the queue into whatever transport it has: the
 // firmware wraps each message into a USB-MIDI event packet, the browser hands
 // the bytes to a Web MIDI port.
 //

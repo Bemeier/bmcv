@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BMCV diagnostics</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body class="doc">
+
+<header>
+  <h1>BMCV</h1>
+  <details class="pages">
+    <summary>diagnostics</summary>
+    <nav>
+      <a href="../">Simulator &amp; live probe</a>
+      <a href="../manual/">Manual</a>
+      <a href="../update/">Firmware update</a>
+      <a href="../diagnostics/" aria-current="page">Diagnostics</a>
+      <a class="away" href="https://github.com/Bemeier/bmcv">Project on GitHub</a>
+    </nav>
+  </details>
+  <p class="tagline">Instruments for the link between this browser and a module.</p>
+</header>
+
+<main>
+
+<div class="step">
+  <h2>What this browser can see</h2>
+
+  <div class="cols">
+    <p class="lede"><strong>Inspect the device</strong> lists the module's
+    interfaces and endpoints, whether the vendor interface can be claimed - which
+    is what says the driver bound - and what firmware it runs.</p>
+
+    <p class="lede"><strong>Measure the snapshot rate</strong> streams snapshots
+    and decodes nothing. Fast here and slow on the
+    <a href="../">simulator</a> means the cost is in drawing them; slow here too
+    means the transport or the firmware.</p>
+  </div>
+
+  <div class="row">
+    <button id="run-webusb" type="button">Inspect the device</button>
+    <button id="run-snapshots" type="button">Measure the snapshot rate</button>
+    <span id="status" class="muted">starting up</span>
+  </div>
+
+  <div class="verdict" id="verdict" hidden></div>
+
+  <p class="note">Nothing here changes the module, and it streams only while
+  this page asks.</p>
+</div>
+
+<div class="step">
+  <h2>Send a MIDI clock</h2>
+
+  <div class="cols">
+    <p class="lede">Clocks the module from this browser, over the MIDI half of
+    the same cable. 24 clocks to the beat, scheduled ahead through Web MIDI
+    rather than fired from a timer, so what the module measures is the tempo
+    asked for and not this tab's jitter.</p>
+
+    <p class="note"><b>Set every input to <code>—</code> under
+    <b class="ref">SYS</b> first.</b> A patched clock always wins over one that
+    is not even physical, so with a jack still in <b>CLOCK</b> mode this does
+    nothing and looks broken. Watch <em>bpm in</em> and <em>bpm run</em> on the
+    <a href="../">simulator</a>.</p>
+  </div>
+
+  <div class="row">
+    <label class="field">port <select id="midi-out"><option value="">no MIDI access yet</option></select></label>
+    <label class="field">bpm <input id="midi-bpm" type="number" min="20" max="300" step="1" value="69"></label>
+    <button id="midi-start" type="button" disabled>Start clock</button>
+    <button id="midi-stop" type="button" disabled>Stop</button>
+    <span id="midi-status" class="muted"></span>
+  </div>
+
+  <div class="verdict" id="midi-verdict" hidden></div>
+
+</div>
+
+<div class="step">
+  <h2>Log</h2>
+  <div id="log"></div>
+</div>
+
+</main>
+
+<script src="../nav.js"></script>
+<script type="module" src="./diagnostics.js"></script>
+</body>
+</html>

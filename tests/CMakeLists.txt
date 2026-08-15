@@ -70,9 +70,28 @@ bmcv_add_test(test_ui_feedback)
 bmcv_add_test(test_ui_mode)
 bmcv_add_test(test_input_fold)
 bmcv_add_test(test_mcp_decode)
-bmcv_add_test(test_sysex)
 bmcv_add_test(test_midi_realtime)
 bmcv_add_test(test_midi_out)
+
+# The USB descriptors that get a browser talking to the module with no driver
+# installed. Compiled here rather than only into the firmware because they are
+# four nested byte counts that have to agree, and every way of getting that
+# wrong fails silently on the host - the device enumerates and is simply never
+# offered. usbd_webusb.c is free of every HAL header so that this can build it.
+bmcv_add_test(test_usb_descriptors)
+target_sources(test_usb_descriptors PRIVATE ${BMCV_ROOT}/USB_Device/App/usbd_webusb.c)
+target_include_directories(test_usb_descriptors PRIVATE ${BMCV_ROOT}/USB_Device/App)
+
+# The link itself, compiled against three fake headers rather than the ST stack
+# and the HAL - see tests/fakes/usb/. It is the only driver-layer file here, and
+# it earns the exception: everything in it is bookkeeping with no good failure
+# mode, since a credit not spent and a busy flag never cleared both present as a
+# module that answers nothing, which is what half the things on a bench also
+# look like. fakes/usb comes first on the include path so usblink.c's own
+# includes resolve to the stubs.
+bmcv_add_test(test_usblink)
+target_sources(test_usblink PRIVATE ${BMCV_LIB_SRC}/usblink.c)
+target_include_directories(test_usblink BEFORE PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/fakes/usb)
 
 # Characterises the phase-lock loop: settling, overshoot, ringing, frequency
 # slew and long-run alignment. pll_metrics.c is the measurement side, kept out
@@ -92,7 +111,7 @@ target_include_directories(test_slot_store PRIVATE ${BMCV_ROOT}/sim/include)
 target_include_directories(test_sim_rt PRIVATE ${BMCV_ROOT}/sim/include)
 
 # The flat C API itself, exercised where a debugger can reach it. Covers the
-# snapshot path a debug probe uses - see docs/plans/probe-bridge.md - which is
+# snapshot path a live link uses - see docs/live-module.md - which is
 # the one place a BmcvInstance arrives as bytes rather than being built in
 # place, and so the one place its internal pointers can be left dangling.
 bmcv_add_test(test_sim_import)

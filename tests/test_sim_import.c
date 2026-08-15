@@ -48,10 +48,10 @@ static void bring_to_life(BmcvSim* s)
 
 static void check_same_readings(const BmcvSim* a, const BmcvSim* b)
 {
-  const float* oa = bmcv_sim_outputs_v(a);
-  const float* ob = bmcv_sim_outputs_v(b);
-  const float* ea = bmcv_sim_effective(a);
-  const float* eb = bmcv_sim_effective(b);
+  const float* oa    = bmcv_sim_outputs_v(a);
+  const float* ob    = bmcv_sim_outputs_v(b);
+  const float* ea    = bmcv_sim_effective(a);
+  const float* eb    = bmcv_sim_effective(b);
   const uint16_t* la = bmcv_sim_leds_rgb(a);
   const uint16_t* lb = bmcv_sim_leds_rgb(b);
 
@@ -148,7 +148,7 @@ TEST_CASE(an_imported_snapshot_keeps_running_in_step)
 // back short. Neither may reach memcpy.
 TEST_CASE(a_blob_of_the_wrong_length_is_refused)
 {
-  BmcvSim* s = bmcv_sim_create();
+  BmcvSim* s      = bmcv_sim_create();
   const int32_t n = bmcv_sim_instance_size();
 
   void* blob = calloc(1, (size_t) n);
@@ -168,10 +168,7 @@ TEST_CASE(a_blob_of_the_wrong_length_is_refused)
 // The size is the one number a bridge has to agree with the module about before
 // it reads a byte, so it is worth stating that it is the struct and nothing
 // else - no header, no padding of the simulator's own.
-TEST_CASE(the_instance_size_is_the_struct_size)
-{
-  CHECK(bmcv_sim_instance_size() == (int32_t) sizeof(BmcvInstance));
-}
+TEST_CASE(the_instance_size_is_the_struct_size) { CHECK(bmcv_sim_instance_size() == (int32_t) sizeof(BmcvInstance)); }
 
 int main(void)
 {

@@ -12,6 +12,40 @@
 #include "ux_state.h"
 #include <stdint.h>
 
+// What a host outside this module can ask it to do.
+//
+// The remote input mailbox in input_fold.h covers everything a *panel* can say.
+// This covers the two things a panel cannot: start again, and forget what was
+// saved. Both are destructive and neither is a level, so this is an edge -
+// acted on once per change of `seq`, however often the mailbox is rewritten.
+//
+// Separate from RemoteInput, and written only when someone asks for it, because
+// the two have opposite shapes. Input is a level re-sent continuously and read
+// every tick; a command is a one-off whose whole risk is being performed twice.
+typedef enum
+{
+  REMOTE_OP_NONE = 0,
+
+  // Back to power-on, keeping whatever is in storage. What the panel has no
+  // gesture for and a debugger would otherwise do by halting the core.
+  REMOTE_OP_RESET = 1,
+
+  // The same, having first forgotten every stored preset. The module comes back
+  // on its first-boot defaults.
+  REMOTE_OP_RESET_WIPE = 2,
+} RemoteOp;
+
+typedef struct
+{
+  uint8_t op; // a RemoteOp
+  uint8_t _pad[3];
+
+  // Bumped by the writer after `op` is set. Zero means nothing has ever been
+  // asked, which is what a freshly booted module holds - so a host that starts
+  // its own count at one cannot have its first command mistaken for silence.
+  uint32_t seq;
+} RemoteCommand;
+
 // One module, in one struct.
 //
 // Everything a BMCV needs to run and nothing that belongs to a particular
@@ -38,6 +72,15 @@ typedef struct
   // because that struct is the signal path and this is not - a host that never
   // drains the queue simply never sends anything.
   MidiOut midi_out;
+
+  // Written by whoever is driving this module from outside it, and by nobody
+  // here. See RemoteCommand.
+  RemoteCommand command;
+
+  // The last command acted on. Outside the mailbox for the reason the input
+  // layer keeps its own bookkeeping outside RemoteInput: a writer that saw this
+  // change under it could not tell a stale mailbox from a fresh one.
+  uint32_t command_seq;
 } BmcvInstance;
 
 // Point every pointer in the instance at the right part of the instance, and at
@@ -67,5 +110,14 @@ void bmcv_instance_init(BmcvInstance* m, const PresetIo* io, uint32_t now_us);
 // The firmware does not use this - it needs to interleave its FPS accounting
 // between the two halves - but every host that has no such requirement should.
 uint8_t bmcv_instance_tick(BmcvInstance* m, const InputSample* sample, uint32_t now_us);
+
+// Perform a command left in the mailbox, if one is pending, and return non-zero
+// if anything was done. Call from the host loop between ticks - it may rebuild
+// the whole instance, which is not something to do underneath an engine tick.
+//
+// Idempotent per command: acting on it records the sequence number, so a
+// mailbox that keeps arriving - which is what both transports do - resets the
+// module once rather than continuously.
+uint8_t bmcv_instance_take_command(BmcvInstance* m, const PresetIo* io, uint32_t now_us);
 
 #endif /* INC_LIB_INSTANCE_H_ */

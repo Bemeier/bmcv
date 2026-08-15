@@ -5,7 +5,7 @@
 
 // What kind of thing a press addressed. The same physical button is a
 // different kind depending on the mode - a scene button is a scene in CPY and
-// an input in MON - so the mode descriptor says which, and callers do not
+// an input in MIX - so the mode descriptor says which, and callers do not
 // guess. See ui_mode.h.
 typedef enum
 {

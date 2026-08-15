@@ -45,8 +45,7 @@ void ui_scene_button(const SceneSetup* scene, UxState* state)
 
   case SCN_INPUT_MODE:
     if (pressed)
-      state->engine_config->input_mode[scene->id] =
-          (int8_t) ((state->engine_config->input_mode[scene->id] + 1) % INPUT_MODE_COUNT);
+      state->engine_config->input_mode[scene->id] = (int8_t) ((state->engine_config->input_mode[scene->id] + 1) % INPUT_MODE_COUNT);
     break;
 
   case SCN_PRESET:

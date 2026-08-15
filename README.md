@@ -22,8 +22,8 @@ Eight **channels**, each a low-frequency oscillator with six parameters -
 frequency, shape, modulation, phase, amplitude and offset. Every channel has an
 output jack and an endless encoder.
 
-Seven **scenes**, each holding a complete set of those parameters for all eight
-channels. The crossfader blends between two of them, **A** and **B**, so one
+Seven **scenes**, numbered 0-6, each holding a complete set of those parameters
+for all eight channels. The crossfader blends between two of them, **A** and **B**, so one
 slider morphs the whole patch. Scenes are the reason the module is not simply
 eight LFOs: you dial a state, assign it to A, dial another, assign it to B, and
 the fader is now a transition between them.
@@ -81,6 +81,23 @@ Both run this repository's `Core/Src/Lib` unmodified - the same `engine_tick`,
 the same UX layer, the same LED renderer - so what they do is what the module
 does. See [docs/architecture.md](docs/architecture.md) for how that is arranged
 and what each directory is for.
+
+## Trying it *with* hardware
+
+The same page will show a physical module instead of the simulation, and send
+input back to it - the panel, the scopes, the LEDs and the channel table all
+driven by the board on your bench. Plug the module into USB and press **Module
+over USB**; nothing else is needed.
+
+It works because the whole module is one struct and the wasm on the page is the
+firmware's own code, so it decodes a real module's memory with no parser, no
+unit conversions and no copy of anything on the JavaScript side. An ST-Link is
+supported too, and is the one route that still works on a module whose firmware
+has stopped answering. See [docs/live-module.md](docs/live-module.md).
+
+The same site carries a **manual** covering every control, a **firmware
+updater** and a **diagnostics** page; each links the others from the menu beside
+its title.
 
 ### Installing the Rack module without building it
 
@@ -199,12 +216,15 @@ Two things to know before plugging in:
   bootloader, which Windows has no driver for and Chrome therefore cannot
   claim. [Zadig](https://zadig.akeo.ie/) binds `WinUSB` to it: pick
   **STM32 BOOTLOADER**, choose **WinUSB**, Replace Driver. Once per machine.
-  macOS and Linux need nothing.
+  macOS and Linux need nothing. (This step has never actually been walked
+  through on a Windows machine — if you are the first, please report what
+  happened. The module's *own* interface needs none of it: it asks Windows for
+  WinUSB in its descriptors and gets it.)
 
 There are two ways into update mode. The page can ask the running firmware to
-reboot into it over MIDI, which is the normal path and turns the whole panel
-amber. Or hold **FN2** while the case powers up, which works even when the
-firmware is too broken to answer - FN2 is wired to the chip's BOOT0 pin, so
+reboot into it over its own USB interface, which is the normal path and turns
+the whole panel amber. Or hold **CPY** while the case powers up, which works even when the
+firmware is too broken to answer - CPY is wired to the chip's BOOT0 pin, so
 this happens before any of our code runs. That route leaves the panel dark,
 because at that point ST's bootloader is running and it does not know the panel
 exists.
@@ -316,7 +336,7 @@ early or late - and there negative is busy, positive is sparse.
 ### STA/STB - Assign Scenes
 
 - Scene Buttons:
-  - Assign Scene 1-7 to A/B
+  - Assign scene 0-6 to A/B
 - Channel Encoders (STA):
   - Stepped-random pattern length: how many steps a cycle is divided into, from
     a curated set (3..64). Per channel, not per scene - there is nothing between
@@ -328,7 +348,7 @@ early or late - and there negative is busy, positive is sparse.
 ### SYS - System Config & Channel Modes
 
 - Scene Buttons:
-  - Input mode (1-4)
+  - Input mode, jacks 0-3 on the first four buttons
   - TODO: Clock div
   - TODO: PLL sensitivity? Could also be per channel?
 - Channel:
@@ -337,7 +357,8 @@ early or late - and there negative is busy, positive is sparse.
 ### SAV - Save & Load
 
 - Scene Buttons:
-  - Save to/Load from slot 1-7
+  - Save to/Load from slot 0-6, one per scene button. A slot holds the whole
+    module - every scene at once - not the scene the button stands for.
 - Channel:
   - Output clamp, per channel: +/-10V (purple), +/-5V (dim purple), 0..10V
     (green), 0..5V (dim green). A clamp and not a scaling, so the parameters
@@ -345,7 +366,7 @@ early or late - and there negative is busy, positive is sparse.
     rather than what the patch is, which is why it is not per scene and why a
     channel clear leaves it alone.
 
-### MON - Monitor & Mixing
+### MIX - Cross Modulation & Monitoring
 
 Scene Buttons: - Display inputs (only the four that are inputs; the rest are
 dark and inert)
@@ -365,7 +386,7 @@ and reads as far too neutral for the one page that destroys things.
 
 Scene Buttons: - Select scene to clear
 Channel: - Tap clears that channel in the active scene. Hold clears the whole
-channel: every scene, plus its MON routing and cross-modulation mode, its QNT
+channel: every scene, plus its MIX routing and cross-modulation mode, its QNT
 mode and trigger source, its shape mode and pattern length. Not the output
 clamp.
 

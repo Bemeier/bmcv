@@ -74,6 +74,17 @@
 #define USB_MIDI_REPORT_DESC_SIZE (MIDI_IN_PORTS_NUM * 16 + MIDI_OUT_PORTS_NUM * 16 + 33)
 #define USB_MIDI_CONFIG_DESC_SIZE (USB_MIDI_REPORT_DESC_SIZE + USB_MIDI_CLASS_DESC_SHIFT)
 
+/* The vendor interface a browser claims, alongside MIDI rather than instead of
+   it - see USB_Device/App/usbd_webusb.h. One interface descriptor and two plain
+   bulk endpoint descriptors; the MIDI endpoints are nine bytes each because the
+   audio class extends them, these are the standard seven. */
+#define BMCV_VENDOR_EPIN_ADDR 0x82
+#define BMCV_VENDOR_EPOUT_ADDR 0x02
+#define BMCV_VENDOR_EP_SIZE 0x40
+#define USB_BMCV_VENDOR_DESC_SIZE (9 + 7 + 7)
+
+#define USB_BMCV_CONFIG_DESC_SIZE (USB_MIDI_CONFIG_DESC_SIZE + USB_BMCV_VENDOR_DESC_SIZE)
+
 #define MIDI_DESCRIPTOR_TYPE 0x21
 
 #define MIDI_REQ_SET_PROTOCOL 0x0B
@@ -167,6 +178,19 @@ extern void USBD_MIDI_DataInHandler(uint8_t* usb_rx_buffer, uint8_t usb_rx_buffe
 uint8_t USBD_MIDI_SendReport(USBD_HandleTypeDef* pdev, uint8_t* report, uint16_t len);
 uint8_t* USBD_MIDI_DeviceQualifierDescriptor(uint16_t* length);
 uint8_t USBD_MIDI_GetState(USBD_HandleTypeDef* pdev);
+
+/* The vendor interface. Both handlers are __weak here and overridden in Core -
+   the same arrangement USBD_MIDI_DataInHandler already uses, so the class stays
+   free of anything that knows what a BMCV is. */
+void USBD_BMCV_VendorDataOut(uint8_t* data, uint16_t len);
+const char* USBD_BMCV_Version(uint16_t* length);
+void USBD_BMCV_VendorDataIn(void);
+uint8_t USBD_BMCV_VendorSend(USBD_HandleTypeDef* pdev, uint8_t* data, uint16_t len);
+
+/* A host is starting a session on the vendor interface, and whatever the last
+   one left behind is not part of it. Called on enumeration and whenever a host
+   clears a halt on the vendor endpoints - see USBD_MIDI_Setup. */
+void USBD_BMCV_VendorReset(void);
 uint8_t USBD_MIDI_GetDeviceState(USBD_HandleTypeDef* pdev);
 
 /**

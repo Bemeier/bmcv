@@ -1,18 +1,19 @@
 // Page logic for the firmware updater: talk to the running module over
-// WebMIDI to get it into DFU, then talk to ST's ROM bootloader over WebUSB to
+// WebUSB to get it into DFU, then talk to ST's ROM bootloader over WebUSB to
 // write the image.
 //
 // The two halves are independent on purpose. If the firmware on the module is
-// too broken to answer MIDI, the user holds FN2 at power-on and the WebUSB half
+// too broken to answer at all, the user holds CPY at power-on and the second half
 // still works on its own.
+//
+// And this page depends on nothing that simulates a module. It talks to the
+// vendor interface through wire.js, which is numbers and two exchanges, rather
+// than through usblink.js, which instantiates the wasm - a page that recovers a
+// broken module must not need a simulator build to load.
 
 import { requestDfuDevice, describeImageProblem, FLASH_START, DfuError } from './dfuse.js';
 
-// F0 7D 42 4D <cmd> F7 - see Core/Inc/Lib/sysex.h. 0x7D is the non-commercial
-// manufacturer ID; 'B','M' after it is what keeps this from colliding with
-// every other project using the same ID.
-const SYSEX_ENTER_UPDATE = [0xf0, 0x7d, 0x42, 0x4d, 0x01, 0xf7];
-const SYSEX_IDENTITY_REQ = [0xf0, 0x7d, 0x42, 0x4d, 0x02, 0xf7];
+import { readVersion, enterDfuOn, BMCV_VID, BMCV_PID, VENDOR_INTERFACE } from '../probe/wire.js';
 
 const el = (id) => document.getElementById(id);
 
@@ -22,7 +23,7 @@ const ui = {
   windowsNote: el('windows-note'),
   btnConnect: el('btn-connect'),
   btnReboot: el('btn-reboot'),
-  midiStatus: el('midi-status'),
+  moduleStatus: el('module-status'),
   releaseSelect: el('release-select'),
   file: el('file'),
   fileStatus: el('file-status'),
@@ -33,7 +34,7 @@ const ui = {
 };
 
 let image = null;
-let midiOutput = null;
+let moduleDevice = null;
 
 function log(message, cls) {
   const line = document.createElement('div');
@@ -48,80 +49,80 @@ function setStatus(node, message, cls) {
   node.className = cls ?? 'muted';
 }
 
-// --- module side, over MIDI ------------------------------------------------
+// --- module side, over its vendor interface ---------------------------------
 
-function isModule(port) {
-  return /bmcv/i.test(port.name ?? '');
-}
-
-// Ask the module what version it is running, and give up quickly if nothing
-// answers. The reply is nine SysEx bytes; we only care about the last three
-// before the terminator.
-function requestVersion(input, output) {
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => {
-      input.onmidimessage = null;
-      resolve(null);
-    }, 500);
-
-    input.onmidimessage = (event) => {
-      const d = event.data;
-      if (d.length < 9 || d[0] !== 0xf0 || d[1] !== 0x7d || d[2] !== 0x42 || d[3] !== 0x4d || d[4] !== 0x02) {
-        return;
-      }
-      clearTimeout(timer);
-      input.onmidimessage = null;
-      resolve(`${d[5]}.${d[6]}.${d[7]}`);
-    };
-
-    output.send(SYSEX_IDENTITY_REQ);
-  });
-}
-
-async function connectMidi() {
-  if (!navigator.requestMIDIAccess) {
-    setStatus(ui.midiStatus, 'no WebMIDI in this browser', 'warn');
-    log('This browser has no WebMIDI. Use the FN2 route instead.', 'warn');
+// Find the module and ask it to reboot into its bootloader.
+//
+// Over the module's own vendor interface rather than over MIDI, which is what
+// this used to be. The page already flashes over WebUSB, so this makes the
+// whole of flashing one transport - and it removes the failure that made the
+// MIDI version unreliable in exactly this situation: a browser enumerates MIDI
+// once, and the thing this page does most is make the module leave the bus.
+async function connectModule() {
+  if (!navigator.usb) {
+    setStatus(ui.moduleStatus, 'no WebUSB in this browser', 'warn');
+    log('This browser has no WebUSB. Use the CPY route instead.', 'warn');
     return;
   }
 
-  let access;
   try {
-    access = await navigator.requestMIDIAccess({ sysex: true });
+    const granted = await navigator.usb.getDevices();
+    let device = granted.find(d => d.vendorId === BMCV_VID && d.productId === BMCV_PID);
+    if (!device) {
+      device = await navigator.usb.requestDevice({
+        filters: [{ vendorId: BMCV_VID, productId: BMCV_PID }],
+      });
+    }
+
+    await device.open();
+    if (!device.configuration) await device.selectConfiguration(1);
+    await device.claimInterface(VENDOR_INTERFACE);
+
+    // What it is running, so the version about to be written can be compared
+    // with the version being replaced. This came back with the move to WebUSB:
+    // the page used to read it over SysEx and lost the ability when that went.
+    const version = await readVersion(device).catch(() => null);
+
+    moduleDevice = device;
+    ui.btnReboot.disabled = false;
+    ui.btnConnect.textContent = 'Connected';
+    ui.btnConnect.disabled = true;
+    setStatus(ui.moduleStatus, version ? `connected, running ${version}` : 'connected', 'good');
+    log(version
+      ? `Module connected over USB, firmware ${version}.`
+      : 'Module connected over USB. It did not report a version, which older firmware will not.');
   } catch (err) {
-    setStatus(ui.midiStatus, 'permission denied', 'bad');
-    log(`MIDI access refused: ${err.message}`, 'bad');
-    return;
-  }
-
-  const output = [...access.outputs.values()].find(isModule);
-  const input = [...access.inputs.values()].find(isModule);
-
-  if (!output) {
-    setStatus(ui.midiStatus, 'module not found', 'warn');
-    log('No BMCV on the MIDI bus. Check the cable and that the case is powered, or use the FN2 route.', 'warn');
-    return;
-  }
-
-  midiOutput = output;
-  ui.btnReboot.disabled = false;
-
-  const version = input ? await requestVersion(input, output) : null;
-  if (version) {
-    setStatus(ui.midiStatus, `connected, running ${version}`, 'good');
-    log(`Module connected, firmware ${version}.`);
-  } else {
-    setStatus(ui.midiStatus, 'connected', 'good');
-    log('Module connected. It did not report a version, which older firmware will not.');
+    ui.btnReboot.disabled = true;
+    setStatus(ui.moduleStatus, 'module not found', 'warn');
+    log(err.name === 'NotFoundError' ? 'No module chosen.' : `${err.name}: ${err.message}`, 'warn');
+    log('Use the CPY route instead: hold CPY while powering the case on.', 'warn');
   }
 }
 
-function rebootIntoUpdateMode() {
-  midiOutput.send(SYSEX_ENTER_UPDATE);
+async function rebootIntoUpdateMode() {
+  const device = moduleDevice;
+
+  try {
+    await enterDfuOn(device);
+  } catch (err) {
+    // The module reboots as it is told, so the transfer that tells it often
+    // fails on the way out. That is success, not failure.
+    log(`(the module left mid-transfer, which is what being told to reboot looks like: ${err.name})`);
+  }
+
+  // Let go of the handle rather than dropping it. The device it refers to is
+  // about to stop existing under this VID/PID, so this usually fails - but a
+  // reboot that did not take leaves a module still on the bus, and holding a
+  // claim on it is what makes the next attempt fail for a different reason.
+  await device?.close().catch(() => {});
+
+  moduleDevice = null;
   ui.btnReboot.disabled = true;
-  setStatus(ui.midiStatus, 'rebooted into update mode', 'good');
+  ui.btnConnect.textContent = 'Connect to the module';
+  ui.btnConnect.disabled = false;
+  setStatus(ui.moduleStatus, 'rebooted into update mode', 'good');
   log('Told the module to reboot into update mode. The panel should be amber.');
-  log('It has left the MIDI bus and is now a DFU device.');
+  log('It has left the USB bus as a BMCV and come back as a DFU device.');
 }
 
 // --- bootloader side, over WebUSB -----------------------------------------
@@ -270,7 +271,7 @@ function init() {
     ui.windowsNote.hidden = false;
   }
 
-  ui.btnConnect.addEventListener('click', connectMidi);
+  ui.btnConnect.addEventListener('click', connectModule);
   ui.btnReboot.addEventListener('click', rebootIntoUpdateMode);
   ui.file.addEventListener('change', (e) => {
     ui.releaseSelect.value = '';

@@ -6,7 +6,7 @@
 
 import { spec, px } from './spec.js';
 import { sim } from './sim.js';
-import { mode } from './mode.js';
+import { input } from './input.js';
 import { initLeds, registerLed } from './leds.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -14,11 +14,28 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 // Part sizes in mm, matching the hardware: 6mm illuminated switches, 7mm
 // unlit tactiles, and an encoder body smaller than its 12mm courtyard.
 const ENC_R = 5.6;
-// The artwork's encoder cutout is 7.03mm across; sit just inside it so a
-// hairline of the cutout still shows.
-const ENC_CAP_R = 3.35;
+// The artwork's encoder cutout is 7.03mm across, so a cap that sits just inside
+// it leaves barely a millimetre of ring to catch. The cap is a target for one
+// click; the ring is a target you have to hold and drag, which wants the room
+// more.
+const ENC_CAP_R = 2.6;
 const BTN_SWITCH_R = 3.0;
 const BTN_TACTILE_R = 3.5;
+
+// The three tactile buttons are coloured plastic on the hardware, not RGB - so
+// they are drawn as a fill and nothing else. No halo and no LED registration:
+// there is no light behind them to spill, and a glow would say they were doing
+// something when the colour is simply what the cap is.
+//
+// Saturated, but mid-brightness. These have to read as coloured caps from
+// across the room while sitting among parts that light up - so the hue is
+// unambiguous and the value is not, which keeps them from competing with the
+// LEDs, where brightness is what means something.
+const TACTILE_FILL = {
+  CLR: '#c24f7d', // pink - the page that destroys things
+  CPY: '#3d7fc9', // blue - the page that duplicates them
+  MUT: '#2fa393', // teal
+};
 
 // 0 is the left end of travel. Scene A anchors at SLIDER_MAX_VALUE and sits on
 // the left of the panel, so the leftmost position is full scale.
@@ -34,34 +51,191 @@ const el = (name, attrs = {}, parent = svg) => {
   return n;
 };
 
-const hint = document.getElementById('hint');
-const setHint = t => { hint.textContent = t || ' '; };
+/* ---- what the pointer is over -------------------------------------------- */
 
-const describe = b => {
-  const r = b.roles, bits = [];
-  if (r.param_name) bits.push(`${r.param_name} / ${r.ctrl_name}`);
-  else if (r.ctrl_name) bits.push(r.ctrl_name);
-  if (r.scene !== undefined) bits.push(`scene ${r.scene}`);
-  if (r.semitone_name) bits.push(r.semitone_name);
-  if (r.channel !== undefined) bits.push(`ch${r.channel} push`);
-  return `${b.designator} — ${bits.join(' / ') || 'button ' + b.index}`;
+// Two lines: what it is, in the bracket beside the panel, and what it does,
+// under it.
+//
+// This used to be one line naming the part - "U6 - AMP / SAV / G#" - which is
+// what the panel spec knows rather than what a person wants. A designator
+// identifies a component on a board and a semitone only means anything on one
+// of nine pages; neither answers "what happens if I press this".
+
+const hintHelp = document.getElementById('hint-help');
+
+const IDLE = {
+  sections: [[
+    'Eight channels, seven scenes',
+    'Eight looping voltage sources, each locked to the beat by a ratio rather than a '
+      + 'frequency, so nothing drifts out of time. Every channel\'s six parameters are '
+      + 'stored per scene, and the crossfader blends the whole patch between any two of '
+      + 'the seven - one hand, every channel at once. The nine control buttons tap to '
+      + 'choose what the encoders edit and hold to open a page. Hover anything here to '
+      + 'read what it does.',
+  ]],
 };
 
+// The names of other things, boxed where a description mentions them, so a
+// sentence that sends you somewhere else says where without spelling out "the
+// page called". Built from the panel spec rather than listed, so a button
+// renamed in the hardware cannot leave a reference behind pointing at nothing.
+const REFERENCES = [...new Set(spec.buttons.flatMap(b =>
+  [b.roles?.ctrl_name, b.roles?.param_name].filter(Boolean)))];
+const REFERENCE_RE = new RegExp(`\\b(${REFERENCES.join('|')})\\b`, 'g');
+
+// Latched, not tracked.
+//
+// Every control on the panel used to clear this on the way out, so crossing the
+// board flickered between descriptions and the module's name - the text was
+// unreadable precisely while you were moving towards the thing you wanted to
+// read about. It now holds the last thing hovered until something else is
+// hovered, and only lets go when the pointer leaves the panel altogether.
+// The one place the latch lets go.
+if (typeof document !== 'undefined') {
+  const wrap = document.getElementById('panel-wrap');
+  wrap?.addEventListener('pointerleave', () => setHover(null));
+}
+
+function setHover(target) {
+  const t = target ?? IDLE;
+
+  // The bracket keeps saying what the module is. It named the hovered part for
+  // a while, which put the same words in two places a line apart - the heading
+  // below says it, and says it in more detail.
+  hintHelp.innerHTML = t.sections
+    .map(([heading, body]) => `<h3>${heading}</h3><p>${boxRefs(body)}</p>`)
+    .join('');
+}
+
+const boxRefs = text => text.replace(REFERENCE_RE, '<b class="ref">$1</b>');
+
+// What each control button's page does, in the order the panel lays them out.
+// Condensed from the Shift Modes section of the README, which is the same
+// source ui_mode.c's own table was written against.
+const CTRL_HELP = {
+  STA: 'Scene A. Tap to choose which scene the crossfader blends from; hold to open its '
+    + 'page, where the encoders set each channel\'s stepped-random pattern length.',
+  STB: 'Scene B. Tap to choose which scene the crossfader blends towards; hold to open '
+    + 'its page.',
+  SYS: 'System. Hold to open: the first four scene buttons set what each input jack is '
+    + 'for, and the encoders choose a channel\'s waveshape - wavetable, stepped random '
+    + 'or PWM.',
+  QNT: 'Quantizer. Hold to open: the scene buttons switch semitones in and out of the '
+    + 'scale, the encoders set each channel\'s quantize mode, and pressing one assigns '
+    + 'its sample trigger.',
+  MIX: 'Cross modulation. Hold to open: pressing an encoder picks the input a channel '
+    + 'mixes in, and turning it chooses how - off, added, or multiplied.',
+  SAV: 'Save and load. Hold to open: the scene buttons become seven preset slots, each '
+    + 'holding the whole module rather than one scene, and the encoders set each '
+    + 'channel\'s output clamp.',
+  MUT: 'Mute. Hold to open: press an encoder to mute that channel, or turn it - right '
+    + 'unmutes, left mutes, so a row can be muted by feel. A muted channel keeps '
+    + 'running and still feeds anything modulating from it.',
+  CPY: 'Copy. Hold to open: pick a scene or channel to copy from, then one to copy to.',
+  CLR: 'Clear. Hold to open: tap an encoder to clear that channel in the active scene, '
+    + 'or hold it to clear the channel everywhere - every scene, its routing, its '
+    + 'quantizer and its shape. Not its output clamp.',
+};
+
+// What each parameter is, for the tap rather than the hold.
+const PARAM_HELP = {
+  FRQ: 'a ratio against the beat rather than a level, so a channel stays locked to the '
+    + 'tempo wherever it is set',
+  SHP: 'the waveshape, as one continuous axis that wraps: square, sine at centre, '
+    + 'triangle, and round again',
+  MOD: 'what a shape does with its second dimension - wavetable skew, stepped-random '
+    + 'density, or the PWM envelope',
+  PHS: 'where in its cycle the channel starts, with phase 0 the rising edge in every '
+    + 'shape',
+  AMP: 'how far the channel swings. A module fresh out of the box is silent because '
+    + 'this is zero everywhere',
+  OFS: 'a fixed voltage added to the channel\'s output',
+};
+
+function describeButton(b) {
+  const r = b.roles ?? {};
+
+  // An encoder's own push. The encoder describes itself, so this only has to
+  // say what pressing adds.
+  if (r.channel !== undefined) {
+    return {
+        sections: [[
+        `Channel ${r.channel} — push`,
+        'Held while turning, this is fine adjust. On its own it is whatever the open page '
+          + 'does with a press: picking an input under MIX, assigning a trigger under QNT, '
+          + 'muting under MUT.',
+      ]],
+    };
+  }
+
+  // A scene button. The first four double as the input jacks on the pages that
+  // configure them, which is worth saying on the button rather than leaving to
+  // be discovered.
+  //
+  // Only the pages that act on *this scene* are named. Every shift mode gives
+  // these buttons something to do - semitones under QNT, preset slots under SAV
+  // - but those are seven buttons being borrowed as a row of seven, not seven
+  // scenes being operated on, and listing them here said the opposite.
+  if (r.scene !== undefined) {
+    const isInput = r.scene < 4;
+    const sections = [[
+      `Scene ${r.scene}`,
+      'One of the seven sets of parameters the crossfader blends between. Assign it to A '
+        + 'or B under STA or STB, clear it under CLR.',
+    ]];
+
+    if (isInput) {
+      sections.push([
+        `Input ${r.scene}`,
+        `On the pages that configure inputs this same button stands for input jack `
+          + `${r.scene}: its mode under SYS, its level under MIX.`,
+      ]);
+    }
+
+    return { sections };
+  }
+
+  // A control button: the page it opens, and the parameter it selects if it has
+  // one. Both, because the tap and the hold are different actions on one key.
+  if (r.ctrl_name) {
+    // Two things on one key, and they are not variations of each other: a tap
+    // chooses what the encoders edit, a hold repaints the whole panel. Saying
+    // them in one paragraph made the button sound like it did one vague thing.
+    const sections = [];
+
+    if (r.param_name) {
+      sections.push([
+        `${r.param_name} — parameter (tap)`,
+        `Tap to make ${r.param_name} what all eight encoders edit, in the active scene. `
+          + `It is ${PARAM_HELP[r.param_name]}.`,
+      ]);
+    }
+
+    sections.push([
+      `${r.ctrl_name} — page (hold to latch)`,
+      CTRL_HELP[r.ctrl_name] ?? `The ${r.ctrl_name} page.`,
+    ]);
+
+    return { sections };
+  }
+
+  return { sections: [[`Button ${b.index}`, 'No documented function.']] };
+}
 /* ---- interaction -------------------------------------------------------- */
 
 function bindButton(node, b) {
-  const down = ev => { ev.preventDefault(); if (mode.live) return; node.setPointerCapture(ev.pointerId); sim.setButton(b.index, 1); };
-  const up = () => { if (!mode.live) sim.setButton(b.index, 0); };
+  const down = ev => { ev.preventDefault(); node.setPointerCapture(ev.pointerId); input.setButton(b.index, 1); };
+  const up = () => input.setButton(b.index, 0);
   node.addEventListener('pointerdown', down);
   node.addEventListener('pointerup', up);
   node.addEventListener('pointercancel', up);
-  node.addEventListener('pointerenter', () => setHint(describe(b)));
-  node.addEventListener('pointerleave', () => setHint(''));
+  node.addEventListener('pointerenter', () => setHover(describeButton(b)));
 }
 
 // Cosmetic needle angles. The firmware's encoders are relative and endless, so
 // this only shows that something turned - but it has to move by exactly what
-// was sent, which is why every turn goes through turnEncoder().
+// the module ended up at, which is why the angle is read back from it rather
+// than accumulated here.
 // What the panel's own parts are drawn in.
 //
 // The artwork underneath is a dark, mostly transparent PNG, so these are lines
@@ -88,10 +262,23 @@ const PART = {
   jack: 'rgba(0, 0, 0, .45)',
   jackTip: 'rgba(255, 255, 255, .13)',
 
+  // And its outline is quieter than everything else's. There are twelve of
+  // them in two rows, none of them does anything on this page, and at the
+  // shared line colour a dozen bright rings drew the eye to the one part of
+  // the panel with nothing to say - a socket is a hole to be found when you
+  // need it, not a control to be read.
+  jackLine: 'rgba(139, 146, 157, .45)',
+
   // The parameter a control edits, and the shift mode it belongs to. The first
   // is what you read while playing; the second is reference.
-  label: '#ffffff',
-  labelSecondary: '#dfe3ea',
+  //
+  // Neither is white. Pure white is the brightest thing a screen has, and on
+  // this panel that belongs to the LEDs - they are the part that means
+  // something by being bright, and a ring of silkscreen at full strength was
+  // competing with them for it. Muted enough to sit behind the lights, still
+  // well clear of the panel artwork underneath.
+  label: '#b6bbc4',
+  labelSecondary: '#878c96',
 };
 
 // How far an LED's spill reaches past the part it sits behind, as a multiple of
@@ -107,8 +294,10 @@ const PART = {
 const HALO_ENCODER = 1.22;
 const HALO_BUTTON = 1.30;
 
-// Every outline on the panel, so none of them can drift from the others.
+// Every outline on the panel, so none of them can drift from the others - and
+// the jacks', which is the same line at a lower strength.
 const outline = { stroke: PART.line, 'stroke-width': PART.lineWidth, 'vector-effect': 'non-scaling-stroke' };
+const jackOutline = { ...outline, stroke: PART.jackLine };
 
 const encIndicators = new Map();
 
@@ -116,17 +305,12 @@ const encIndicators = new Map();
 // 7.5 detents - fast enough to read as movement, slow enough not to alias.
 const DEG_PER_DETENT = 12;
 
-function turnEncoder(index, detents) {
-  if (mode.live) return;
-  sim.addEncoder(index, detents);
-}
-
 function bindEncoder(ring, cap, e) {
   // Push is the centre cap; turning is the ring. Holding Shift while turning
   // asserts the push too, which is the press-and-turn the firmware treats as a
   // fine-adjust modifier.
-  const capDown = ev => { ev.preventDefault(); if (mode.live) return; cap.setPointerCapture(ev.pointerId); sim.setButton(e.push_button, 1); };
-  const capUp = () => { if (!mode.live) sim.setButton(e.push_button, 0); };
+  const capDown = ev => { ev.preventDefault(); cap.setPointerCapture(ev.pointerId); input.setButton(e.push_button, 1); };
+  const capUp = () => input.setButton(e.push_button, 0);
   cap.addEventListener('pointerdown', capDown);
   cap.addEventListener('pointerup', capUp);
   cap.addEventListener('pointercancel', capUp);
@@ -135,37 +319,46 @@ function bindEncoder(ring, cap, e) {
 
   ring.addEventListener('pointerdown', ev => {
     ev.preventDefault();
-    if (mode.live) return;
     ring.setPointerCapture(ev.pointerId);
     dragging = true; lastY = ev.clientY; accum = 0;
     shifted = ev.shiftKey;
-    if (shifted) sim.setButton(e.push_button, 1);
+    if (shifted) input.setButton(e.push_button, 1);
   });
   ring.addEventListener('pointermove', ev => {
     if (!dragging) return;
     accum += (lastY - ev.clientY) / 6;  // ~6px per detent, up = clockwise
     lastY = ev.clientY;
     const steps = Math.trunc(accum);
-    if (steps) { accum -= steps; turnEncoder(e.index, steps); }
+    if (steps) { accum -= steps; input.addEncoder(e.index, steps); }
   });
   const stop = () => {
     if (!dragging) return;
     dragging = false;
-    if (shifted) { sim.setButton(e.push_button, 0); shifted = false; }
+    if (shifted) { input.setButton(e.push_button, 0); shifted = false; }
   };
   ring.addEventListener('pointerup', stop);
   ring.addEventListener('pointercancel', stop);
 
   // On the cap as well as the ring: the cap is a good half of the knob, and
   // having the wheel do nothing over the middle of it reads as a dead spot.
-  const wheel = ev => { ev.preventDefault(); turnEncoder(e.index, ev.deltaY < 0 ? 1 : -1); };
+  const wheel = ev => { ev.preventDefault(); input.addEncoder(e.index, ev.deltaY < 0 ? 1 : -1); };
   ring.addEventListener('wheel', wheel, { passive: false });
   cap.addEventListener('wheel', wheel, { passive: false });
 
-  const label = `${e.designator} — encoder ${e.index}, channel ${e.channel}`;
+  const target = {
+    sections: [[
+      `Channel ${e.channel} — encoder`,
+      'Turning it edits whichever parameter the row under the crossfader has selected, in '
+        + 'the active scene - or that page\'s own setting while a shift mode is latched. '
+        + 'The centre is a button; hold it while turning for fine adjust.',
+    ], [
+      'On this page',
+      'Drag the ring to turn it, or use the scroll wheel over either part. Click the '
+        + 'centre to push, and hold Shift while turning for press-and-turn.',
+    ]],
+  };
   for (const n of [ring, cap]) {
-    n.addEventListener('pointerenter', () => setHint(label));
-    n.addEventListener('pointerleave', () => setHint(''));
+    n.addEventListener('pointerenter', () => setHover(target));
   }
 }
 
@@ -188,12 +381,11 @@ function bindSlider(hit, knob, cx, cy, travel, horizontal) {
   drawKnob = drawAt;
 
   const setFromPos = pos => {
-    sim.setSlider01(1 - pos);
+    input.setSlider01(1 - pos);
     drawAt(pos);
   };
 
   const apply = ev => {
-    if (mode.live) return;
     const r = svg.getBoundingClientRect();
     // Client px -> viewBox mm, then to 0..1. Right / up is 1.0.
     let pos;
@@ -206,15 +398,21 @@ function bindSlider(hit, knob, cx, cy, travel, horizontal) {
     }
     pos = Math.min(1, Math.max(0, pos));
     setFromPos(pos);
-    setHint(`slider ${pos.toFixed(3)}`);
+
   };
 
   hit.addEventListener('pointerdown', ev => { ev.preventDefault(); hit.setPointerCapture(ev.pointerId); dragging = true; apply(ev); });
   hit.addEventListener('pointermove', ev => { if (dragging) apply(ev); });
   hit.addEventListener('pointerup', () => { dragging = false; });
   hit.addEventListener('pointercancel', () => { dragging = false; });
-  hit.addEventListener('pointerenter', () => setHint('scene crossfader'));
-  hit.addEventListener('pointerleave', () => { if (!dragging) setHint(''); });
+  hit.addEventListener('pointerenter', () => setHover({
+    sections: [[
+      'Scene crossfader',
+      'Blends between the two scenes assigned to A and B. Every parameter of every channel '
+        + 'moves together, so one hand crossfades the whole patch. An input set to SLIDER '
+        + 'mode is summed into this, so it can be driven by a cable as well as by hand.',
+    ]],
+  }));
 
   return setFromPos;
 }
@@ -230,13 +428,34 @@ el('image', {
   preserveAspectRatio: 'none',
 });
 
-// Jacks. Position identifies these well enough - the outputs sit under their
-// own encoders and the inputs are the middle pair.
-for (const list of [spec.outputs, spec.inputs]) {
+// Jacks. Drawn as holes, and hoverable - which they were not, though they are
+// the only parts of the panel a cable actually goes into.
+for (const [list, kind] of [[spec.outputs, 'out'], [spec.inputs, 'in']]) {
   for (const j of list) {
     const [x, y] = px(j.pos_mm);
-    el('circle', { cx: x, cy: y, r: 3, fill: PART.jack, ...outline });
+    el('circle', { cx: x, cy: y, r: 3, fill: PART.jack, ...jackOutline });
     el('circle', { cx: x, cy: y, r: 1.1, fill: PART.jackTip });
+
+    // A hit area over the pair, larger than either: a 3mm circle is a small
+    // target and there is nothing else nearby to catch by mistake.
+    const hit = el('circle', { cx: x, cy: y, r: 4.5, fill: 'transparent', class: 'jack-hit' });
+    const target = kind === 'out'
+      ? {
+        sections: [[
+          `Channel ${j.channel} — output`,
+          'What the channel puts out, after its scene blend, anything mixed into it and its '
+            + 'output clamp. The scope beside this panel draws the same signal.',
+        ]],
+      }
+      : {
+        sections: [[
+          `Input ${j.index} — jack`,
+          'What this jack is for is set under SYS: a clock, a reset, the crossfader, or a '
+            + 'plain voltage a channel can mix in. Its trace is under the outputs, and its '
+            + 'mode is written beside it there.',
+        ]],
+      };
+    hit.addEventListener('pointerenter', () => setHover(target));
   }
 }
 
@@ -324,9 +543,10 @@ for (const b of spec.buttons) {
   if (lit) {
     registerLed(b.led, el('circle', { cx: x, cy: y, r: r * HALO_BUTTON, fill: '#000', 'fill-opacity': 0 }, haloLayer), 'halo');
   }
+  const capFill = TACTILE_FILL[b.roles?.ctrl_name];
   el('circle', {
     cx: x, cy: y, r,
-    fill: lit ? PART.fillLit : PART.fillUnlit,
+    fill: capFill ?? (lit ? PART.fillLit : PART.fillUnlit),
     ...outline,
   }, g);
   if (lit) {

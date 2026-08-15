@@ -21,4 +21,10 @@ int8_t preset_store(const EngineConfig* cfg, int8_t dst);
 
 int8_t preset_load(EngineConfig* cfg, int8_t src);
 
+// Forget every stored preset, by invalidating each slot's header. The payloads
+// are left where they are: nothing reads a slot whose magic does not match, and
+// rewriting 896 bytes a slot to hide bytes nobody looks at is a lot of FRAM
+// wear for no result.
+int8_t preset_clear(void);
+
 #endif /* INC_PRESETS_H_ */

@@ -9,8 +9,8 @@
 900ms   ctrl STA 0
 1100ms  ctrl QNT 1
 1120ms  ctrl QNT 0
-1400ms  ctrl MON 1
-1900ms  ctrl MON 0
-2100ms  ctrl MON 1
-2120ms  ctrl MON 0
+1400ms  ctrl MIX 1
+1900ms  ctrl MIX 0
+2100ms  ctrl MIX 1
+2120ms  ctrl MIX 0
 2400ms  end

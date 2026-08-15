@@ -30,7 +30,12 @@ const u16 = (ptr, len) => new Uint16Array(Module.HEAPU8.buffer, ptr, len);
 export const N_CH = 8;
 export const N_IN = 4;
 export const N_LEDS = 21;
-export const SCOPE_LEN = 4096;
+
+// Read out of the wasm rather than mirrored, unlike the counts above: the ring
+// length and the rate it is filled at are what the scope converts seconds into
+// samples with, and a stale copy here would draw a window of the wrong length
+// rather than fail.
+export const SCOPE_LEN = _('scope_len')();
 
 // Effective-value fields, matching the enum in bmcv_sim.h.
 export const EFF = { FREQ_HZ: 0, FREQ_RATIO: 1, PHASE: 2, SHAPE: 3, MOD: 4, AMP_V: 5, OFFSET_V: 6, GCD: 7, PHASE_OFS: 8, COUNT: 9 };
@@ -53,6 +58,21 @@ export const SHAPE_NAMES = (() => {
     names.push(Module.UTF8ToString(ptr));
   }
 })();
+
+// The same for the input modes and the quantizer's, so a mode added to the core
+// cannot appear here as a bare number.
+const namesFrom = fn => {
+  const names = [];
+  for (let i = 0; ; i++) {
+    const ptr = _(fn)(i);
+    if (!ptr) return names;
+    names.push(Module.UTF8ToString(ptr));
+  }
+};
+
+export const INPUT_MODE_NAMES = namesFrom('input_mode_name');
+export const QUANTIZE_MODE_NAMES = namesFrom('quantize_mode_name');
+export const AMP_MODE_NAMES = namesFrom('amp_mode_name');
 
 const storageSize = _('storage_size')();
 
@@ -82,6 +102,45 @@ export const sim = {
   // Volts on an input *jack*, not a converter channel.
   setCv: (input, volts) => _('set_cv')(handle, input, volts),
 
+  /* ---- driving another module ------------------------------------------- */
+  //
+  // The mailbox a physical module reads its remote panel out of. These do not
+  // touch this instance: they fill a small struct that the probe writes into
+  // the board's RAM, where its input layer merges it with the panel someone
+  // may also have their hands on. See web/input.js for who calls which, and
+  // Core/Inc/Lib/input_fold.h for the merge.
+  //
+  // The bytes are laid out by the wasm, never here - the same rule the read
+  // direction follows, and for the same reason: a copy of the struct written
+  // out in JS would be a second definition of it, free to drift.
+
+  remoteButton: (index, down) => _('remote_button')(handle, index, down ? 1 : 0),
+  remoteEncoder: (index, detents) => _('remote_encoder')(handle, index, detents),
+
+  // 0..1 to take the module's crossfader, negative to hand it back.
+  remoteSlider01: pos => _('remote_slider01')(handle, pos),
+  remoteClear: () => _('remote_clear')(handle),
+
+  remoteOffset: _('remote_offset')(),
+  remoteSize: _('remote_size')(),
+
+  // Ask a physical module to start again, and optionally to forget its stored
+  // presets first - the same two things the buttons do to the simulation, sent
+  // to whichever module the page is showing. Stamp it, then hand the bytes to
+  // the transport.
+  remoteReset: wipeStorage => _('remote_reset')(handle, wipeStorage ? 1 : 0),
+
+  commandOffset: _('command_offset')(),
+  commandSize: _('command_size')(),
+  commandBlob: () => u8(_('command_blob')(handle), sim.commandSize).slice(),
+
+  // Stamped with a fresh sequence number on every call - the far end reads it
+  // as a heartbeat, so a write that changes nothing still has to happen.
+  //
+  // Copied out rather than returned as a view: this is handed to WebUSB and
+  // awaited, and a view into the wasm heap does not survive it growing.
+  remoteBlob: () => u8(_('remote_blob')(handle), sim.remoteSize).slice(),
+
   /* ---- running ---------------------------------------------------------- */
 
   // Negative and zero counts are rejected inside, and the count is capped -
@@ -102,7 +161,29 @@ export const sim = {
   effective: () => f32(_('effective')(handle), N_CH * EFF.COUNT),
   scopeHead: () => _('scope_head')(handle),
 
+  // Forget the history, and how much of it there is. Called when the page
+  // changes what is filling the ring - see mode.drivenBy.
+  scopeClear: () => _('scope_clear')(handle),
+  scopeFilled: () => _('scope_filled')(handle),
+
   /* ---- introspection ---------------------------------------------------- */
+
+  // How the module is configured, as opposed to what it is doing. The values
+  // come out of engine_config and the names out of the firmware's own tables,
+  // so a mode added to the core cannot show up here as a bare number.
+  inputMode: input => _('input_mode')(handle, input),
+
+  // Twelve bits from C upwards.
+  quantizeMask: () => _('quantize_mask')(handle),
+  channelQuantizeMode: ch => _('channel_quantize_mode')(handle, ch),
+
+  // -1 when a channel listens to nothing. Indexed the way
+  // HwState.trigger_src is: the input jacks first, then the channels.
+  channelTrigSrc: ch => _('channel_trig_src')(handle, ch),
+
+  // Which input jack a channel mixes in, and how.
+  channelSrcInput: ch => _('channel_src_input')(handle, ch),
+  channelAmpMode: ch => _('channel_amp_mode')(handle, ch),
 
   shiftState: () => _('shift_state')(handle),
   selectedParam: () => _('selected_param')(handle),
@@ -155,12 +236,16 @@ export const sim = {
   // The whole running module as bytes, which is how a physical one gets onto
   // this page: its firmware keeps its instance in a single global, so a debug
   // probe reads those bytes out of RAM and `importInstance` makes every reading
-  // above report the hardware. See docs/plans/probe-bridge.md.
+  // above report the hardware. See docs/live-module.md.
   //
   // The scratch buffer is allocated once, not per import: this runs on every
   // frame that a probe is connected.
 
   instanceSize,
+
+  // How many engine ticks one scope sample covers while the simulation is the
+  // one running. See BMCV_SIM_SCOPE_DIV; mode.js turns it into a capture rate.
+  scopeDiv: _('scope_div')(),
 
   importInstance(bytes) {
     if (bytes.length !== instanceSize) return false;

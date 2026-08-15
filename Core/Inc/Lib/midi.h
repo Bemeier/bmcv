@@ -5,6 +5,13 @@
 #include "stm32g4xx_hal.h" // IWYU pragma: keep
 #include "usbd_midi.h"     // IWYU pragma: keep
 
+// The module on the MIDI bus: control changes out, a clock in.
+//
+// That is all this is now. Watching and driving the module from a browser used
+// to come through here as SysEx and has moved to the vendor interface - see
+// usblink.h - which left this file as the musical half it was always meant to
+// be.
+
 // How many messages one transfer carries: a USB-MIDI event packet is four
 // bytes, so the endpoint's 64 hold sixteen.
 #define MIDI_MSGS_PER_TRANSFER (MIDI_EPIN_SIZE / 4)
@@ -22,15 +29,6 @@
 void midi_send_msgs(const MidiMsg* msgs, uint8_t n);
 
 uint8_t midi_idle();
-
-// Non-zero once the host has asked the module to reboot into the ROM DFU
-// bootloader. Latched in the USB interrupt and never cleared - the main loop's
-// only correct response is fw_update_enter_dfu(), which does not return.
-uint8_t midi_dfu_requested();
-
-// Answer any pending host control request that needs the IN endpoint. Cheap
-// enough to call every pass; it does nothing until there is something to say.
-void midi_poll_control();
 
 // A MIDI Clock (0xF8) / Start (0xFA) byte was latched since the last call -
 // see midi_realtime.h for why Start and not Continue. Read-and-clear, the

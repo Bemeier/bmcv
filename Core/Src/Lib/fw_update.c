@@ -100,7 +100,7 @@ void fw_update_enter_dfu(void)
   // from +5V rather than by the MCU, so this colour survives the reset and is
   // what the panel shows for the whole DFU session - the only feedback there
   // is, because the ROM bootloader does not know this panel exists. Nothing can
-  // show the FN2 route into DFU; that one leaves the panel dark.
+  // show the CPY route into DFU; that one leaves the panel dark.
   //
   // The wait before the update matters as much as the one after it:
   // ws2811_update() returns without doing anything while a frame is still in

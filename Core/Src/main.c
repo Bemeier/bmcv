@@ -28,7 +28,7 @@
 #include "fw_update.h"
 #include "helpers.h"
 #include "mcp.h"
-#include "midi.h"
+#include "usblink.h"
 #include "ws2811_hal.h"
 #include <stdint.h>
 
@@ -176,11 +176,10 @@ int main(void)
   {
     bmcv_main(__HAL_TIM_GET_COUNTER(&htim2));
 
-    // Host control traffic, handled out here rather than in the USB interrupt
-    // that received it. Entering DFU tears down the USB stack, which is not
-    // something to do from inside its own ISR - and it never comes back.
-    midi_poll_control();
-    if (midi_dfu_requested())
+    // Handled out here rather than in the USB interrupt that received it:
+    // entering DFU tears down the USB stack, which is not something to do from
+    // inside its own ISR - and it never comes back.
+    if (usblink_dfu_requested())
     {
       fw_update_enter_dfu();
     }

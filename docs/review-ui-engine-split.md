@@ -18,7 +18,7 @@ all four `sim/flows/` golden files byte-identical, `web/smoke.mjs` and
 |---|---|---|
 | 1 | `UxState*` threaded through the DSP as a god pointer | **done** - narrow signatures |
 | 2 | `render_scene` still switched on `shift_state` | **done** - `scene_btn_base`, `xfade_end` |
-| 3 | `ui_select.c` had QNT/MON-specific branches | **done** - `assign_*` + `UiAction` dispatch |
+| 3 | `ui_select.c` had QNT/MIX-specific branches | **done** - `assign_*` + `UiAction` dispatch |
 | 4 | `input_state.c` drove the clock and the autosave | **done** - latches only |
 | 5 | `channel.c` was four modules in one file | **done** - `ui_channel.c`, `ui_scene.c` |
 | 6 | Mute was a mutating getter with a prose contract | **done** - `channels_gated_level[]` |
@@ -37,7 +37,7 @@ Found while applying, not in the original review:
   without `return`). This is the most consequential thing in the pass: those
   four are the newest suites, so everything they covered was unverified.
   Fixed, and `[[nodiscard]]` now prevents a repeat.
-- **Scene buttons 4-6 blinked as candidates in MON/QNT** for inputs that do not
+- **Scene buttons 4-6 blinked as candidates in MIX/QNT** for inputs that do not
   exist - the renderer and the handler disagreed about the `>= N_INPUTS` guard.
 - **`envelope.c` was entirely unused** - nothing outside the file referenced
   `trigger_envelope`, `update_envelope` or `ENVELOPE`, yet it compiled into

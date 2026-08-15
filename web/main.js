@@ -21,14 +21,15 @@
 
 import { MAX_CATCHUP_TICKS, TICK_US } from './const.js';
 import { sim } from './sim.js';
+import { activeSession } from './probe/session.js';
 import { drawEncoderIndicators, drawSliderFromModule, setSliderFromPos, SLIDER_START_POS } from './panel.js';
 import { drawLeds } from './leds.js';
 import { drawScopes } from './scope.js';
-import { runTicks } from './inputs.js';
-import { drawReadouts, setStatus } from './readouts.js';
+import { drawInputModes, runTicks } from './inputs.js';
+import { drawReadouts } from './readouts.js';
 import { forget, persist, restore } from './storage.js';
 import { drawMidi, initMidi, pumpMidi } from './midi.js';
-import { mode } from './mode.js';
+import { mode, SIM } from './mode.js';
 import { drawProbeRates, initProbe } from './probe/ui.js';
 
 /* ---- startup ------------------------------------------------------------ */
@@ -36,33 +37,49 @@ import { drawProbeRates, initProbe } from './probe/ui.js';
 // Restoring reboots the module, so it has to happen before the drawn slider
 // position is published - a reboot puts slider_raw back at one end, and the
 // panel would then disagree with the engine about where the handle is.
-if (restore()) setStatus('restored saved state');
+restore();
 setSliderFromPos(SLIDER_START_POS);
 
 const resetButton = document.getElementById('reset');
 const resetFramButton = document.getElementById('reset-fram');
 
-resetButton.addEventListener('click', () => {
-  sim.reset(false);          // reboot, keeping the stored presets
-  setSliderFromPos(SLIDER_START_POS);
-  setStatus('module reset');
-});
+// Both act on whatever module the page is showing.
+//
+// In the simulation that is the wasm instance in this tab. With a module
+// connected it is the module, over whichever link is carrying it - the command
+// goes into the same mailbox either way and the module performs it itself, so
+// nothing here needs to know which transport is in use.
+//
+// They used to be disabled whenever a module was driving the page, because
+// resetting the simulation nobody was looking at would have appeared to do
+// nothing. Now they do the thing the label promises in all three modes, and the
+// label says which module is about to be affected.
+function askModule(wipeStorage) {
+  if (mode.live) {
+    sim.remoteReset(wipeStorage);
+    activeSession()?.sendCommand();
+    return;
+  }
 
-resetFramButton.addEventListener('click', () => {
-  sim.reset(true);           // wipe the module's own preset slots too
-  forget();
+  sim.reset(wipeStorage);
+  if (wipeStorage) forget();
   setSliderFromPos(SLIDER_START_POS);
-  setStatus('FRAM cleared');
-});
+}
 
-// Both of these reset the simulator, which is not what the page is showing
-// while a module is driving it: the next snapshot lands a few milliseconds
-// later and overwrites the reset, and disconnecting restores the simulation
-// that was running before the probe was connected. So they would appear to do
-// nothing, which is worse than being unavailable.
-mode.onChange(live => {
-  resetButton.disabled = live;
-  resetFramButton.disabled = live;
+// No confirmation message. What either of these did is visible immediately in
+// everything the page is already showing - the panel, the scopes, the channel
+// table - so a line of text saying it happened was one more thing to place and
+// one more thing to time out, restating what the page had already said.
+resetButton.addEventListener('click', () => askModule(false));
+resetFramButton.addEventListener('click', () => askModule(true));
+
+// What the buttons are about to affect, said on the buttons themselves. The
+// difference between wiping a simulation and wiping a module's FRAM is worth
+// more than a tooltip.
+mode.onChange(source => {
+  const target = source === SIM ? 'the simulation' : 'the connected module';
+  resetButton.title = `Restart ${target}, keeping stored presets`;
+  resetFramButton.title = `Restart ${target} and forget every preset it has stored`;
 });
 
 // Not awaited: it ends in a permission prompt on some browsers and is absent on
@@ -120,6 +137,7 @@ function frame(now) {
   if (now - lastReadoutT > READOUT_INTERVAL_MS) {
     lastReadoutT = now;
     drawReadouts();
+    drawInputModes();
     drawMidi();
     drawProbeRates();
   }
@@ -128,6 +146,14 @@ function frame(now) {
   // of the hardware's patch, and mirroring it into browser storage would
   // quietly overwrite the simulator's own with it.
   if (!mode.live && now - lastPersistT > PERSIST_INTERVAL_MS) { lastPersistT = now; persist(); }
+
+  // The page starts dimmed and stops being so once there is something real on
+  // it. Not on load: the wasm has to be up, the panel built and one frame drawn
+  // before any of these numbers means anything, and undimming before that shows
+  // a complete-looking page full of dashes.
+  if (document.body.classList.contains('loading')) {
+    document.body.classList.remove('loading');
+  }
 
   requestAnimationFrame(frame);
 }

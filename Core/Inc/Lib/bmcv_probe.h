@@ -9,7 +9,7 @@
 // host holding an SWD probe can read the entire running state out of RAM in a
 // single transfer and hand it to bmcv_sim_import(), which decodes it with the
 // firmware's own code. That is how the web frontend shows a physical module;
-// docs/plans/probe-bridge.md is the long version.
+// docs/live-module.md is the long version.
 //
 // The problem this solves is finding it. `bmcv` sits wherever the linker put
 // it, and it moves whenever anything before it in .bss changes size, so its

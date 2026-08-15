@@ -18,7 +18,7 @@
 
 #if defined(__wasm32__) || defined(__arm__)
 
-_Static_assert(sizeof(BmcvInstance) == 2304, "BmcvInstance size");
+_Static_assert(sizeof(BmcvInstance) == 2384, "BmcvInstance size");
 _Static_assert(offsetof(BmcvInstance, hw_setup) == 0, "offset: hw_setup");
 _Static_assert(sizeof(((BmcvInstance*) 0)->hw_setup) == 4, "size: hw_setup");
 _Static_assert(offsetof(BmcvInstance, ux_setup) == 4, "offset: ux_setup");
@@ -337,32 +337,66 @@ _Static_assert(offsetof(BmcvInstance, input.prev.input_state) == 2142, "offset: 
 _Static_assert(sizeof(((BmcvInstance*) 0)->input.prev.input_state) == 8, "size: input.prev.input_state");
 _Static_assert(offsetof(BmcvInstance, input.prev.input_state[0]) == 2142, "offset: input.prev.input_state[0]");
 _Static_assert(sizeof(((BmcvInstance*) 0)->input.prev.input_state[0]) == 2, "size: input.prev.input_state[0]");
-_Static_assert(offsetof(BmcvInstance, midi_out.q) == 2152, "offset: midi_out.q");
+_Static_assert(offsetof(BmcvInstance, input.remote.button_down) == 2152, "offset: input.remote.button_down");
+_Static_assert(sizeof(((BmcvInstance*) 0)->input.remote.button_down) == 24, "size: input.remote.button_down");
+_Static_assert(offsetof(BmcvInstance, input.remote.button_down[0]) == 2152, "offset: input.remote.button_down[0]");
+_Static_assert(sizeof(((BmcvInstance*) 0)->input.remote.button_down[0]) == 1, "size: input.remote.button_down[0]");
+_Static_assert(offsetof(BmcvInstance, input.remote.encoder_pos) == 2176, "offset: input.remote.encoder_pos");
+_Static_assert(sizeof(((BmcvInstance*) 0)->input.remote.encoder_pos) == 16, "size: input.remote.encoder_pos");
+_Static_assert(offsetof(BmcvInstance, input.remote.encoder_pos[0]) == 2176, "offset: input.remote.encoder_pos[0]");
+_Static_assert(sizeof(((BmcvInstance*) 0)->input.remote.encoder_pos[0]) == 2, "size: input.remote.encoder_pos[0]");
+_Static_assert(offsetof(BmcvInstance, input.remote.slider_raw) == 2192, "offset: input.remote.slider_raw");
+_Static_assert(sizeof(((BmcvInstance*) 0)->input.remote.slider_raw) == 2, "size: input.remote.slider_raw");
+_Static_assert(offsetof(BmcvInstance, input.remote.seq) == 2196, "offset: input.remote.seq");
+_Static_assert(sizeof(((BmcvInstance*) 0)->input.remote.seq) == 4, "size: input.remote.seq");
+_Static_assert(offsetof(BmcvInstance, input.remote_seq) == 2200, "offset: input.remote_seq");
+_Static_assert(sizeof(((BmcvInstance*) 0)->input.remote_seq) == 4, "size: input.remote_seq");
+_Static_assert(offsetof(BmcvInstance, input.remote_seen_us) == 2204, "offset: input.remote_seen_us");
+_Static_assert(sizeof(((BmcvInstance*) 0)->input.remote_seen_us) == 4, "size: input.remote_seen_us");
+_Static_assert(offsetof(BmcvInstance, input.remote_slider_ref) == 2208, "offset: input.remote_slider_ref");
+_Static_assert(sizeof(((BmcvInstance*) 0)->input.remote_slider_ref) == 2, "size: input.remote_slider_ref");
+_Static_assert(offsetof(BmcvInstance, input.remote_slider_prev) == 2210, "offset: input.remote_slider_prev");
+_Static_assert(sizeof(((BmcvInstance*) 0)->input.remote_slider_prev) == 2, "size: input.remote_slider_prev");
+_Static_assert(offsetof(BmcvInstance, input.remote_live) == 2212, "offset: input.remote_live");
+_Static_assert(sizeof(((BmcvInstance*) 0)->input.remote_live) == 1, "size: input.remote_live");
+_Static_assert(offsetof(BmcvInstance, input.remote_slider_held) == 2213, "offset: input.remote_slider_held");
+_Static_assert(sizeof(((BmcvInstance*) 0)->input.remote_slider_held) == 1, "size: input.remote_slider_held");
+_Static_assert(offsetof(BmcvInstance, midi_out.q) == 2216, "offset: midi_out.q");
 _Static_assert(sizeof(((BmcvInstance*) 0)->midi_out.q) == 128, "size: midi_out.q");
-_Static_assert(offsetof(BmcvInstance, midi_out.q[0].status) == 2152, "offset: midi_out.q[0].status");
+_Static_assert(offsetof(BmcvInstance, midi_out.q[0].status) == 2216, "offset: midi_out.q[0].status");
 _Static_assert(sizeof(((BmcvInstance*) 0)->midi_out.q[0].status) == 1, "size: midi_out.q[0].status");
-_Static_assert(offsetof(BmcvInstance, midi_out.q[0].d1) == 2153, "offset: midi_out.q[0].d1");
+_Static_assert(offsetof(BmcvInstance, midi_out.q[0].d1) == 2217, "offset: midi_out.q[0].d1");
 _Static_assert(sizeof(((BmcvInstance*) 0)->midi_out.q[0].d1) == 1, "size: midi_out.q[0].d1");
-_Static_assert(offsetof(BmcvInstance, midi_out.q[0].d2) == 2154, "offset: midi_out.q[0].d2");
+_Static_assert(offsetof(BmcvInstance, midi_out.q[0].d2) == 2218, "offset: midi_out.q[0].d2");
 _Static_assert(sizeof(((BmcvInstance*) 0)->midi_out.q[0].d2) == 1, "size: midi_out.q[0].d2");
-_Static_assert(offsetof(BmcvInstance, midi_out.q[0].len) == 2155, "offset: midi_out.q[0].len");
+_Static_assert(offsetof(BmcvInstance, midi_out.q[0].len) == 2219, "offset: midi_out.q[0].len");
 _Static_assert(sizeof(((BmcvInstance*) 0)->midi_out.q[0].len) == 1, "size: midi_out.q[0].len");
-_Static_assert(offsetof(BmcvInstance, midi_out.head) == 2280, "offset: midi_out.head");
+_Static_assert(offsetof(BmcvInstance, midi_out.head) == 2344, "offset: midi_out.head");
 _Static_assert(sizeof(((BmcvInstance*) 0)->midi_out.head) == 1, "size: midi_out.head");
-_Static_assert(offsetof(BmcvInstance, midi_out.tail) == 2281, "offset: midi_out.tail");
+_Static_assert(offsetof(BmcvInstance, midi_out.tail) == 2345, "offset: midi_out.tail");
 _Static_assert(sizeof(((BmcvInstance*) 0)->midi_out.tail) == 1, "size: midi_out.tail");
-_Static_assert(offsetof(BmcvInstance, midi_out.last_cc) == 2282, "offset: midi_out.last_cc");
+_Static_assert(offsetof(BmcvInstance, midi_out.last_cc) == 2346, "offset: midi_out.last_cc");
 _Static_assert(sizeof(((BmcvInstance*) 0)->midi_out.last_cc) == 12, "size: midi_out.last_cc");
-_Static_assert(offsetof(BmcvInstance, midi_out.last_cc[0]) == 2282, "offset: midi_out.last_cc[0]");
+_Static_assert(offsetof(BmcvInstance, midi_out.last_cc[0]) == 2346, "offset: midi_out.last_cc[0]");
 _Static_assert(sizeof(((BmcvInstance*) 0)->midi_out.last_cc[0]) == 1, "size: midi_out.last_cc[0]");
-_Static_assert(offsetof(BmcvInstance, midi_out.last_publish_us) == 2296, "offset: midi_out.last_publish_us");
+_Static_assert(offsetof(BmcvInstance, midi_out.last_publish_us) == 2360, "offset: midi_out.last_publish_us");
 _Static_assert(sizeof(((BmcvInstance*) 0)->midi_out.last_publish_us) == 4, "size: midi_out.last_publish_us");
-_Static_assert(offsetof(BmcvInstance, midi_out.have_published) == 2300, "offset: midi_out.have_published");
+_Static_assert(offsetof(BmcvInstance, midi_out.have_published) == 2364, "offset: midi_out.have_published");
 _Static_assert(sizeof(((BmcvInstance*) 0)->midi_out.have_published) == 1, "size: midi_out.have_published");
-_Static_assert(offsetof(BmcvInstance, midi_out.clk_slot) == 2301, "offset: midi_out.clk_slot");
+_Static_assert(offsetof(BmcvInstance, midi_out.clk_slot) == 2365, "offset: midi_out.clk_slot");
 _Static_assert(sizeof(((BmcvInstance*) 0)->midi_out.clk_slot) == 1, "size: midi_out.clk_slot");
-_Static_assert(offsetof(BmcvInstance, midi_out.clk_running) == 2302, "offset: midi_out.clk_running");
+_Static_assert(offsetof(BmcvInstance, midi_out.clk_running) == 2366, "offset: midi_out.clk_running");
 _Static_assert(sizeof(((BmcvInstance*) 0)->midi_out.clk_running) == 1, "size: midi_out.clk_running");
+_Static_assert(offsetof(BmcvInstance, command.op) == 2368, "offset: command.op");
+_Static_assert(sizeof(((BmcvInstance*) 0)->command.op) == 1, "size: command.op");
+_Static_assert(offsetof(BmcvInstance, command._pad) == 2369, "offset: command._pad");
+_Static_assert(sizeof(((BmcvInstance*) 0)->command._pad) == 3, "size: command._pad");
+_Static_assert(offsetof(BmcvInstance, command._pad[0]) == 2369, "offset: command._pad[0]");
+_Static_assert(sizeof(((BmcvInstance*) 0)->command._pad[0]) == 1, "size: command._pad[0]");
+_Static_assert(offsetof(BmcvInstance, command.seq) == 2372, "offset: command.seq");
+_Static_assert(sizeof(((BmcvInstance*) 0)->command.seq) == 4, "size: command.seq");
+_Static_assert(offsetof(BmcvInstance, command_seq) == 2376, "offset: command_seq");
+_Static_assert(sizeof(((BmcvInstance*) 0)->command_seq) == 4, "size: command_seq");
 
 #endif /* four-byte pointers */
 

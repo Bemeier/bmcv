@@ -53,3 +53,17 @@ int8_t preset_load(EngineConfig* cfg, int8_t src)
   // build knows the version, converts it if so, and validates what it produced.
   return config_migrate(rec.hdr.version, rec.hdr.length, &rec.data, cfg);
 }
+
+int8_t preset_clear(void)
+{
+  // A zeroed header, which fails the magic check in preset_load and so reads as
+  // an empty slot - the same state a module has before it is ever saved to.
+  const FramRecordHeader empty = {0};
+
+  for (int8_t slot = 0; slot < FRAM_CONFIG_SLOTS; slot++)
+  {
+    uint16_t addr = FRAM_CONFIG_BASE_ADDR + (uint16_t) slot * FRAM_CONFIG_SLOT_SIZE;
+    fram_Write(addr, (uint8_t*) &empty, sizeof(empty));
+  }
+  return 1;
+}

@@ -13,7 +13,7 @@ typedef enum
   SHIFT_STATE_STA,
   SHIFT_STATE_SYS,
   SHIFT_STATE_QNT,
-  SHIFT_STATE_MON,
+  SHIFT_STATE_MIX,
   SHIFT_STATE_SAV,
   SHIFT_STATE_STB,
   SHIFT_STATE_MUT,
@@ -26,7 +26,7 @@ typedef enum
 // What each shift mode does, as data rather than as a switch arm repeated in
 // every handler and every renderer. The dispatcher and the renderer read the
 // same descriptor, which is what stops "what blinks" and "what responds" from
-// drifting apart - they had already drifted in CPY, QNT and MON.
+// drifting apart - they had already drifted in CPY, QNT and MIX.
 //
 // A new mode should be one row in ui_mode.c. If adding one needs an edit to
 // ui_render.c, scene.c or channel.c, then whatever it needed is missing from
@@ -52,7 +52,7 @@ typedef enum
 //
 // In a shift mode this is the mode's own setting and nothing else. The output
 // level is only shown when no mode is active: mixing the two meant a channel's
-// colour on, say, the MON page was partly "what this channel is putting out"
+// colour on, say, the MIX page was partly "what this channel is putting out"
 // and partly "what this input does to it", which is two facts in one LED.
 typedef enum
 {
@@ -126,7 +126,7 @@ typedef struct
   uint8_t immediate;
 
   // Pressing the source again undoes the assignment rather than being
-  // ignored (MON: press the channel again to unroute its input).
+  // ignored (MIX: press the channel again to unroute its input).
   uint8_t allow_deselect;
 
   // Which TargetKind a press on each button group addresses in this mode.

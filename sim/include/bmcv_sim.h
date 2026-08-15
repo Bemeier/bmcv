@@ -28,6 +28,26 @@ extern "C"
 // Per-channel scope history, in frames. Power of two: the ring wraps by mask.
 #define BMCV_SIM_SCOPE_LEN 4096
 
+// How many engine ticks one scope sample covers when this instance is the one
+// running. One is every tick, which at 4kHz fills the ring in a second - and a
+// host drawing a two-second window would then be asking for history that was
+// never kept, while the same host watching a real module over a link gets tens
+// of seconds from the same ring. Decimating is what lets one window span mean
+// the same thing in both.
+//
+// Nothing is lost to it: the engine ticks at 4kHz and its fastest output is
+// three orders of magnitude below that.
+//
+// Does not apply to bmcv_sim_import - a snapshot is one sample however it was
+// obtained, and the ring then fills at whatever rate they arrive.
+#define BMCV_SIM_SCOPE_DIV 2
+
+// The two above, for a host that has to convert between samples and seconds.
+// Read rather than assumed: a frontend holding its own copy of either is a
+// second definition free to drift from this one.
+int32_t bmcv_sim_scope_len(void);
+int32_t bmcv_sim_scope_div(void);
+
 typedef struct BmcvSim BmcvSim;
 
 BmcvSim* bmcv_sim_create(void);
@@ -54,6 +74,68 @@ void bmcv_sim_set_cv(BmcvSim* s, int32_t input, float volts);
 
 // Fire a single trigger on an input jack without synthesising a voltage ramp.
 void bmcv_sim_fire_gate(BmcvSim* s, int32_t input);
+
+/* ---- driving another module --------------------------------------------- */
+//
+// The setters above are this instance's own panel. These fill a *mailbox* to be
+// written into a different module's memory - the write direction of the debug
+// probe bridge, where the page in front of you drives the board on the bench.
+// See RemoteInput in Core/Inc/Lib/input_fold.h for what the far end does with
+// it, and docs/live-module.md for why it is shaped this way.
+//
+// Nothing here touches this instance. A host drives one or the other.
+//
+// The bytes are built here rather than in the caller for the same reason
+// bmcv_sim_import() decodes a snapshot here: a JS frontend that laid out this
+// struct itself would be a second definition of it, free to drift from the one
+// the firmware compiles.
+
+void bmcv_sim_remote_button(BmcvSim* s, int32_t button, int32_t down);
+
+// Detents to add, exactly like bmcv_sim_add_encoder. The absolute position this
+// accumulates into is an origin of this host's choosing - the far end reads
+// only how far it moves - so it may wrap and never has to match anything.
+void bmcv_sim_remote_encoder(BmcvSim* s, int32_t encoder, int32_t detents);
+
+// 0.0..1.0 to take the far module's crossfader, negative to hand it back. The
+// claim is sticky: it holds until handed back, or until the physical fader is
+// moved far enough to take itself back.
+void bmcv_sim_remote_slider01(BmcvSim* s, float pos01);
+
+// Let go of everything - buttons up, crossfader released, encoder origin reset.
+// For entering and leaving a session, so a press held when a connection ended
+// is not still held when the next one starts.
+void bmcv_sim_remote_clear(BmcvSim* s);
+
+// Ask the far module to start again, and optionally to forget its stored
+// presets first. `wipe_storage` matches bmcv_sim_reset's argument, so the same
+// two buttons mean the same two things whichever module they are pointed at.
+//
+// One call rather than a setter and a blob getter: unlike the input mailbox
+// this is an edge, sent once when someone asks for it, so there is no state to
+// keep between calls.
+void bmcv_sim_remote_reset(BmcvSim* s, int32_t wipe_storage);
+
+// Where the command mailbox sits inside a BmcvInstance, how big it is, and its
+// bytes - the same three the input mailbox offers, and used the same way.
+int32_t bmcv_sim_command_offset(void);
+int32_t bmcv_sim_command_size(void);
+const void* bmcv_sim_command_blob(const BmcvSim* s);
+
+// Where the mailbox sits inside a BmcvInstance, and how big it is. The layout
+// assertions in layout_target.h are what make this offset the *target's*
+// offset, so a host that has read an instance's address knows where to write
+// without the firmware publishing anything further.
+int32_t bmcv_sim_remote_offset(void);
+int32_t bmcv_sim_remote_size(void);
+
+// The mailbox as bytes, stamped with a fresh sequence number. Call it for every
+// write, including ones that change nothing: the far end treats the sequence as
+// a heartbeat and stops believing a mailbox that has gone quiet.
+//
+// A writer that cannot deliver all of it at once must send the last four bytes
+// - the sequence number - after the rest.
+const void* bmcv_sim_remote_blob(BmcvSim* s);
 
 /* ---- running ------------------------------------------------------------ */
 
@@ -94,6 +176,18 @@ const uint16_t* bmcv_sim_leds_rgb(const BmcvSim* s);
 // [ch * BMCV_SIM_SCOPE_LEN + i]; the newest sample is at head-1 (mod len).
 const float* bmcv_sim_scope(const BmcvSim* s);
 uint32_t bmcv_sim_scope_head(const BmcvSim* s);
+
+// Throw away the scope history.
+//
+// For a host that has changed what is filling the ring - stopped simulating and
+// started importing a real module's snapshots, or the other way round. The two
+// are different signals from different places, and drawing them end to end in
+// one cell reads as one trace that did something abrupt.
+void bmcv_sim_scope_clear(BmcvSim* s);
+
+// How many samples the ring holds since that clear, up to BMCV_SIM_SCOPE_LEN.
+// Draw no more than this or the cell shows the zeroes behind the oldest sample.
+int32_t bmcv_sim_scope_filled(const BmcvSim* s);
 
 // The same history for the 4 CV inputs, sharing bmcv_sim_scope_head(). This is
 // what the engine actually saw - the value latched into HwState each tick, not
@@ -173,6 +267,32 @@ float bmcv_sim_slider01(const BmcvSim* s);
 // reason the mode names are - one table, asserted against the enum it came from.
 int32_t bmcv_sim_channel_shape_mode(const BmcvSim* s, int32_t channel);
 const char* bmcv_sim_shape_mode_name(int32_t mode);
+
+/* ---- how the module is configured ---------------------------------------- */
+//
+// What a host needs to explain what it is drawing. The values come out of
+// engine_config, and the names out of the firmware's own tables, so a mode
+// added to the core cannot show up here as a bare number.
+
+// What an input jack is being used for: an InputMode.
+int32_t bmcv_sim_input_mode(const BmcvSim* s, int32_t input);
+const char* bmcv_sim_input_mode_name(int32_t mode);
+
+// The semitones the quantizer will snap to, as twelve bits from C upwards.
+int32_t bmcv_sim_quantize_mask(const BmcvSim* s);
+
+// Per channel: whether it quantizes at all, and what makes it do so.
+int32_t bmcv_sim_channel_quantize_mode(const BmcvSim* s, int32_t channel);
+const char* bmcv_sim_quantize_mode_name(int32_t mode);
+
+// Which trigger source a channel listens to, or -1 for none. Indexed the way
+// HwState.trigger_src is - the input jacks first, then the channels.
+int32_t bmcv_sim_channel_trig_src(const BmcvSim* s, int32_t channel);
+
+// Which input jack a channel mixes in, or -1 for none, and how it mixes it.
+int32_t bmcv_sim_channel_src_input(const BmcvSim* s, int32_t channel);
+int32_t bmcv_sim_channel_amp_mode(const BmcvSim* s, int32_t channel);
+const char* bmcv_sim_amp_mode_name(int32_t mode);
 
 // What each channel is *actually* doing, after the scene crossfade and the
 // parameter maths, in units a person can read. 8 * BMCV_EFF_COUNT floats,
