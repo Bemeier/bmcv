@@ -86,7 +86,7 @@ const REFERENCE_RE = new RegExp(`\\b(${REFERENCES.join('|')})\\b`, 'g');
 // Latched, not tracked.
 //
 // Every control on the panel used to clear this on the way out, so crossing the
-// board flickered between descriptions and the module\'s name - the text was
+// board flickered between descriptions and the module's name - the text was
 // unreadable precisely while you were moving towards the thing you wanted to
 // read about. It now holds the last thing hovered until something else is
 // hovered, and only lets go when the pointer leaves the panel altogether.
@@ -125,8 +125,9 @@ const CTRL_HELP = {
     + 'its sample trigger.',
   MIX: 'Cross modulation. Hold to open: pressing an encoder picks the input a channel '
     + 'mixes in, and turning it chooses how - off, added, or multiplied.',
-  SAV: 'Save and load. Hold to open: the scene buttons are seven preset slots, and the '
-    + 'encoders set each channel\'s output clamp.',
+  SAV: 'Save and load. Hold to open: the scene buttons become seven preset slots, each '
+    + 'holding the whole module rather than one scene, and the encoders set each '
+    + 'channel\'s output clamp.',
   MUT: 'Mute. Hold to open: press an encoder to mute that channel, or turn it - right '
     + 'unmutes, left mutes, so a row can be muted by feel. A muted channel keeps '
     + 'running and still feeds anything modulating from it.',
@@ -170,20 +171,24 @@ function describeButton(b) {
   // A scene button. The first four double as the input jacks on the pages that
   // configure them, which is worth saying on the button rather than leaving to
   // be discovered.
+  //
+  // Only the pages that act on *this scene* are named. Every shift mode gives
+  // these buttons something to do - semitones under QNT, preset slots under SAV
+  // - but those are seven buttons being borrowed as a row of seven, not seven
+  // scenes being operated on, and listing them here said the opposite.
   if (r.scene !== undefined) {
     const isInput = r.scene < 4;
     const sections = [[
       `Scene ${r.scene}`,
       'One of the seven sets of parameters the crossfader blends between. Assign it to A '
-        + 'or B under STA or STB, save and load it under SAV, clear it under CLR.',
+        + 'or B under STA or STB, clear it under CLR.',
     ]];
 
     if (isInput) {
       sections.push([
         `Input ${r.scene}`,
         `On the pages that configure inputs this same button stands for input jack `
-          + `${r.scene}: its mode under SYS, its level under MIX, its place in the scale `
-          + `under QNT.`,
+          + `${r.scene}: its mode under SYS, its level under MIX.`,
       ]);
     }
 
@@ -257,10 +262,23 @@ const PART = {
   jack: 'rgba(0, 0, 0, .45)',
   jackTip: 'rgba(255, 255, 255, .13)',
 
+  // And its outline is quieter than everything else's. There are twelve of
+  // them in two rows, none of them does anything on this page, and at the
+  // shared line colour a dozen bright rings drew the eye to the one part of
+  // the panel with nothing to say - a socket is a hole to be found when you
+  // need it, not a control to be read.
+  jackLine: 'rgba(139, 146, 157, .45)',
+
   // The parameter a control edits, and the shift mode it belongs to. The first
   // is what you read while playing; the second is reference.
-  label: '#ffffff',
-  labelSecondary: '#dfe3ea',
+  //
+  // Neither is white. Pure white is the brightest thing a screen has, and on
+  // this panel that belongs to the LEDs - they are the part that means
+  // something by being bright, and a ring of silkscreen at full strength was
+  // competing with them for it. Muted enough to sit behind the lights, still
+  // well clear of the panel artwork underneath.
+  label: '#b6bbc4',
+  labelSecondary: '#878c96',
 };
 
 // How far an LED's spill reaches past the part it sits behind, as a multiple of
@@ -276,8 +294,10 @@ const PART = {
 const HALO_ENCODER = 1.22;
 const HALO_BUTTON = 1.30;
 
-// Every outline on the panel, so none of them can drift from the others.
+// Every outline on the panel, so none of them can drift from the others - and
+// the jacks', which is the same line at a lower strength.
 const outline = { stroke: PART.line, 'stroke-width': PART.lineWidth, 'vector-effect': 'non-scaling-stroke' };
+const jackOutline = { ...outline, stroke: PART.jackLine };
 
 const encIndicators = new Map();
 
@@ -413,7 +433,7 @@ el('image', {
 for (const [list, kind] of [[spec.outputs, 'out'], [spec.inputs, 'in']]) {
   for (const j of list) {
     const [x, y] = px(j.pos_mm);
-    el('circle', { cx: x, cy: y, r: 3, fill: PART.jack, ...outline });
+    el('circle', { cx: x, cy: y, r: 3, fill: PART.jack, ...jackOutline });
     el('circle', { cx: x, cy: y, r: 1.1, fill: PART.jackTip });
 
     // A hit area over the pair, larger than either: a 3mm circle is a small

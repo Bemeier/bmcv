@@ -8,8 +8,27 @@
 </head>
 <body class="loading">
 
+<!-- The source switch lives up here rather than in the box below that reports
+     on it. It is the one control on the page that changes what everything else
+     means, so it belongs where a page's primary switch belongs: on the title
+     row, at the far end, in the same place whatever it is currently set to. -->
 <header>
-  <h1>BMCV <span class="sub">simulator &amp; live probe</span></h1>
+  <h1>BMCV</h1>
+  <details class="pages">
+    <summary>simulator &amp; live probe</summary>
+    <nav>
+      <a href="./" aria-current="page">Simulator &amp; live probe</a>
+      <a href="manual/">Manual</a>
+      <a href="update/">Firmware update</a>
+      <a href="diagnostics/">Diagnostics</a>
+      <a class="away" href="https://github.com/Bemeier/bmcv">Project on GitHub</a>
+    </nav>
+  </details>
+  <div class="sources">
+    <button id="src-sim" class="src src-sim" title="the simulation running in this tab">Module simulator</button>
+    <button id="src-usb" class="src src-usb" title="a module on the other end of its own USB cable - no probe needed">Module over USB</button>
+    <button id="src-probe" class="src src-probe" title="a module on the other end of an ST-Link on its programming header, for when it is not answering">Module over probe</button>
+  </div>
 </header>
 
 <main>
@@ -31,9 +50,14 @@
         <canvas id="scope" width="1000" height="440"></canvas>
 
         <div class="bracket"><i></i><span>inputs</span><i></i></div>
-        <canvas id="inscope"></canvas>
 
-        <div id="in-controls"></div>
+        <!-- The controls sit on the cells rather than under them. They are
+             small, they belong to the jack whose trace is behind them, and a
+             row of their own cost the scope the height it took. -->
+        <div class="in-stack">
+          <canvas id="inscope"></canvas>
+          <div id="in-controls"></div>
+        </div>
       </div>
     </div>
 
@@ -41,7 +65,6 @@
       <div class="readouts rates">
         <div class="readout"><span class="label">mode</span><span id="r-shift" class="value">—</span></div>
         <div class="readout"><span class="label">param</span><span id="r-param" class="value">—</span></div>
-        <div class="readout"><span class="label">scene</span><span id="r-scene" class="value">—</span></div>
         <div class="readout"><span class="label">bpm in</span><span id="r-bpm-in" class="value">—</span></div>
         <div class="readout"><span class="label">bpm run</span><span id="r-bpm" class="value">—</span></div>
         <div class="readout readout-keys"><div id="keys" class="keys"></div></div>
@@ -49,18 +72,20 @@
       <!-- Filled in by readouts.js once the wasm is up; the rows are here so
            the page has its real shape from the first paint rather than growing
            one table's worth of height a moment later. web/frontend-check.mjs
-           holds this to the same eight rows and ten columns that file builds,
-           since a skeleton that has drifted is worse than none. -->
+           holds this to the same rows, columns and header classes that file
+           builds, since a skeleton that has drifted is worse than none - the
+           classes carry the column widths, so a missing one is a table that
+           visibly re-proportions itself the moment the wasm arrives. -->
       <table id="params">
-        <tr><th>ch</th><th>mode</th><th>ratio</th><th>shape</th><th>mod</th><th>phs</th><th>amp</th><th>ofs</th><th>src</th><th>qnt</th><th>out</th></tr>
-        <tr><td>0</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
-        <tr><td>1</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
-        <tr><td>2</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
-        <tr><td>3</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
-        <tr><td>4</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
-        <tr><td>5</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
-        <tr><td>6</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
-        <tr><td>7</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><th class="c-ch">ch</th><th class="c-ratio">ratio</th><th class="c-shape">shape</th><th class="c-mod">mod</th><th class="c-phs">phs</th><th class="c-amp">amp</th><th class="c-ofs">ofs</th><th class="c-mix">mix</th><th class="c-qnt">qnt</th><th class="c-out">out</th></tr>
+        <tr><td>0</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>1</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>2</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>3</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>4</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>5</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>6</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>7</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
       </table>
     </div>
 
@@ -69,13 +94,8 @@
         <div class="readout">
           <span class="label">source</span><span id="source-name" class="value muted">simulation</span>
         </div>
-        <div class="sources">
-          <button id="src-sim" class="src src-sim" title="the simulation running in this tab">Simulator</button>
-          <button id="src-usb" class="src src-usb" title="a module on the other end of a USB cable">USB Probe</button>
-          <button id="src-probe" class="src src-probe" title="a module on the other end of an ST-Link, for when it is not answering">STLink Probe</button>
-        </div>
 
-        <!-- Pushed to the far end. Picking a source and acting on one are
+        <!-- Pushed to the far end. Reporting on a source and acting on one are
              different kinds of thing, and the gap says so more quietly than a
              second row did. -->
         <div class="actions">
@@ -100,21 +120,22 @@
 
       <div class="when-sim" id="midi">
         <div class="readouts">
-          <div class="readout"><span class="label">MIDI status</span><span id="midi-status" class="value muted">off</span></div>
+          <div class="readout"><span class="label">MIDI out status</span><span id="midi-status" class="value muted">off</span></div>
           <div class="readout">
             <span class="label">MIDI out port</span>
             <select id="midi-port"><option value="">off</option></select>
           </div>
-          <div class="readout when-midi"><span class="label">clock</span><span id="midi-clock" class="value">—</span></div>
+          <div class="readout when-midi"><span class="label">MIDI clock send</span><span id="midi-clock" class="value">—</span></div>
         </div>
         <div id="midi-cc" class="when-midi"></div>
-        <p class="note when-midi">Everything on MIDI channel&nbsp;1.</p>
+        <p class="note when-midi">Channel&nbsp;1. Clock forwards at 24&nbsp;PPQN.</p>
       </div>
     </div>
     </div>
   </section>
 </main>
 
+<script src="nav.js"></script>
 <script type="module" src="main.js"></script>
 </body>
 </html>

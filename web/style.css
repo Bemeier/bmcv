@@ -78,6 +78,7 @@
    silkscreened. Applied by name so the same rule covers a readout's label, a
    section heading and a button face. */
 .label,
+h2,
 button {
   font-size: .68rem;
   font-weight: 600;
@@ -124,12 +125,23 @@ body::before {
     url('bg-tokyo.jpg') center / cover no-repeat;
 }
 
+/* How wide the page is allowed to get, on the title row and the content alike -
+   one number, because a header wider than the content it titles puts the source
+   buttons somewhere the right edge of the page is not.
+
+   1200px, down from 1600. The extra width went on the scopes, and past a point
+   a wider trace tells you nothing a taller one would not: what it cost was the
+   panel, the table and the scopes no longer fitting on one screen together,
+   which is the whole argument for having them side by side. */
+:root { --page: 1200px; }
+
+header, main { max-width: var(--page); }
+
 main {
   display: grid;
   grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
   gap: 2.5rem;
   align-items: start;
-  max-width: 1600px;
 }
 @media (max-width: 860px) { main { grid-template-columns: 1fr; } }
 
@@ -139,7 +151,10 @@ main {
 #side-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 2.25rem;
+  /* Tight enough that the three boxes read as one column of related things.
+     They were 2.25rem apart, which is a section break - and the page only has
+     room for so many of those before the scopes leave the screen. */
+  gap: 1.5rem;
   align-items: start;
 }
 
@@ -271,35 +286,34 @@ kbd { background: rgba(255, 255, 255, .09); padding: .05em .35em; font-size: .9e
   gap: .5rem .45rem;
   align-items: stretch;
 }
-#in-controls { grid-column: 2; }
+/* The stack holds both; the controls are positioned inside it. */
+.in-stack { grid-column: 2; }
 
 /* A bracket, not a rule: two segments with a square tick turned in at each far
-   end and the label sitting in the break between them. Vertical now that the
-   scopes are stacked, reading bottom-to-top.
-
-   The ticks are pseudo-elements on the segments rather than borders on the
-   container, so rotating the label cannot move which side they land on. */
+   end and the label sitting in the break between them. Vertical beside the
+   scopes, reading bottom-to-top; lying down under the panel.
+ *
+ * Borders, not a background plus a positioned pseudo-element. Two boxes whose
+ * edges have to meet is exactly what a border corner is, and it is mitred for
+ * free - where the old arrangement put the tick inside the segment with left/
+ * right offsets and landed a pixel out at both ends, so the line ran past the
+ * corner instead of turning it.
+ *
+ * One length for the tick whichever way round the bracket is, so the two can
+ * never disagree about how far they turn in. */
 .bracket {
+  --tick: 6px;
   display: flex; flex-direction: column; align-items: center;
   gap: .35rem;
-  padding: 1px 0;
 }
 .bracket i {
-  position: relative;
   flex: 1;
-  width: 1px;
+  width: var(--tick);
   min-height: 6px;
-  background: var(--line);
+  border-left: 1px solid var(--line);
 }
-.bracket i::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  width: 5px; height: 1px;
-  background: var(--line);
-}
-.bracket i:first-of-type::before { top: 0; }
-.bracket i:last-of-type::before { bottom: 0; }
+.bracket i:first-of-type { border-top: 1px solid var(--line); }
+.bracket i:last-of-type { border-bottom: 1px solid var(--line); }
 .bracket span {
   writing-mode: vertical-rl;
   transform: rotate(180deg);
@@ -310,13 +324,17 @@ kbd { background: rgba(255, 255, 255, .09); padding: .05em .35em; font-size: .9e
   white-space: nowrap;
 }
 
-/* The same bracket lying down, for the panel. Everything that was a height is a
-   width and the ticks turn the other way; the label stops being rotated. */
-.bracket.horizontal { flex-direction: row; padding: 0 1px; margin-top: .55rem; }
-.bracket.horizontal i { flex: 1; width: auto; height: 1px; min-height: 0; min-width: 6px; }
-.bracket.horizontal i::before { width: 1px; height: 5px; left: auto; top: auto; }
-.bracket.horizontal i:first-of-type::before { left: 0; bottom: 0; }
-.bracket.horizontal i:last-of-type::before { right: 0; bottom: 0; }
+/* The same bracket lying down, for the panel. Every border moves round one
+   quarter turn: the line becomes the bottom edge and the ticks stand up from
+   its ends. */
+.bracket.horizontal { flex-direction: row; margin-top: .55rem; }
+.bracket.horizontal i {
+  width: auto; min-width: 6px;
+  height: var(--tick); min-height: 0;
+  border: 0; border-bottom: 1px solid var(--line);
+}
+.bracket.horizontal i:first-of-type { border-left: 1px solid var(--line); }
+.bracket.horizontal i:last-of-type { border-right: 1px solid var(--line); }
 .bracket.horizontal span { writing-mode: horizontal-tb; transform: none; }
 
 /* Both declare their ratio so the page reserves the space before the first
@@ -326,85 +344,47 @@ kbd { background: rgba(255, 255, 255, .09); padding: .05em .35em; font-size: .9e
 #scope { width: 100%; display: block; aspect-ratio: 1000 / 440; }
 #inscope { width: 100%; display: block; aspect-ratio: 1000 / 220; }
 
-/* Four columns of controls, one under each input cell, aligned to the trace
-   above it. They used to be overlaid on the cells - which cost the trace the
-   space they took, and put a fader across the signal it was setting. */
+/* The canvas and the controls on top of it, in one box so the overlay can be
+   positioned against the cells rather than against the page. */
+.in-stack { position: relative; grid-column: 2; min-width: 0; }
+
+/* Four columns of controls, one per input cell, laid over the canvas.
+ *
+ * The columns are plain fractions of the same box the canvas divides into
+ * quarters, so a control sits in the cell whose trace is behind it without
+ * either side being told where the other put things. They were a row of their
+ * own underneath for a while, which cost the scope that height and put a
+ * control a whole cell away from the signal it belonged to. */
 #in-controls {
+  position: absolute;
+  inset: 0;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: .5rem;
-  margin: .15rem 0 .1rem;
+  /* Nothing here is a target except the controls themselves - the rest of this
+     layer is over the input scope, which takes a drag to set a level. */
+  pointer-events: none;
 }
-.in-cell {
-  display: flex; flex-direction: column; gap: .3rem;
-  min-width: 0;
-}
+.in-cell { display: flex; min-width: 0; }
 
-/* What the input is being used for, out of the module's own config: an input in
-   CLOCK mode behaves nothing like one in SLIDER, and until this was shown the
-   only way to know which was to remember. */
-.in-head {
-  display: flex; align-items: baseline; justify-content: space-between;
-  gap: .4rem;
-  font-size: .62rem; letter-spacing: var(--track); text-transform: uppercase;
-}
-.in-head .who { color: var(--muted); }
-.in-head .mode { color: var(--accent); }
-.in-head .mode.off { color: var(--muted); opacity: .5; }
-
-
-.in-ctl {
-  display: flex; flex-flow: row wrap; align-items: center;
-  gap: .25rem .35rem;
-}
-.in-ctl button,
-.in-ctl input[type=number] { height: 1.4rem; }
-
-.in-ctl input[type=number]::-webkit-outer-spin-button,
-.in-ctl input[type=number]::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-.in-ctl button {
-  padding: 0 .5rem;
-  font-size: .58rem;
-  letter-spacing: .06em;
-}
-
-.bracket i:first-of-type { border-left: 1px solid var(--line); }
-.bracket i:last-of-type { border-right: 1px solid var(--line); }
-
-/* The input scopes are one canvas on a 2x2 grid, exactly like the output
-   scopes, with the controls overlaid on the cells rather than wrapped in boxes
-   of their own. */
-/* Its height is matched to the output scope's in scope.js, so the two boxes end
-   level whatever widths the grid gives them. */
-.in-cell .spacer { flex: 1; pointer-events: none; }
-/* One row, not a column: the clock cell carries a bpm box as well as a pulse
-   button, and stacking them cost a line of the cell for nothing. */
 /* Bottom left of the cell, and centred against each other rather than against
    the cell: the pulse button and the bpm field want to sit on one line, not in
-   the middle of a scope trace. The left margin keeps them clear of the fader.
+   the middle of a scope trace. The margins keep them off the cell's edges.
    Every control in the row is the same height, or they read as one having
    slipped off a common baseline. */
 .in-ctl {
   display: flex; flex-flow: row wrap; align-items: center;
   align-self: flex-end;
-  margin-left: .5rem;
-  gap: .25rem .35rem; pointer-events: none;
+  margin: 0 .5rem .4rem;
+  gap: .25rem .35rem;
 }
+.in-ctl > * { pointer-events: auto; }
 .in-ctl button,
 .in-ctl input[type=number] { height: 1.4rem; }
 
-.in-ctl input[type=number]::-webkit-outer-spin-button,
-.in-ctl input[type=number]::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-.in-ctl > * { pointer-events: auto; }
 /* The gate buttons sit inside a scope cell with a few millimetres to spare, so
    they keep the uppercase face but drop most of the tracking and all of the
-   padding - the page's button proportions do not fit in an overlay. */
+   padding - the page's button proportions do not fit in an overlay. A backing
+   fill because a trace may run behind them. */
 .in-ctl button {
   padding: 0 .5rem;
   font-size: .58rem;
@@ -418,20 +398,21 @@ kbd { background: rgba(255, 255, 255, .09); padding: .05em .35em; font-size: .9e
    for [hidden] and show a clock generator on every input.
 
    visibility rather than display: a jack that is not a clock keeps the space
-   its generator would take, so the row of controls is the same height whichever
-   inputs happen to be clocks. */
+   its generator would take, so the pulse buttons stay in one line across the
+   four cells whichever of them happen to be clocks. */
 .in-ctl .clock[hidden] { display: flex; visibility: hidden; }
+
+/* The shared field face, shrunk to sit on a scope trace: the same background,
+   border and lack of spinner, at the size a control 1.4rem tall can carry. */
 .in-ctl input[type=number] {
-  width: 3.4em; background: rgba(20, 22, 27, .7); color: var(--fg);
-  border: 1px solid var(--line); padding: 0 .25rem;
-  font: inherit; font-size: .7rem; font-family: var(--mono);
-  /* No spinner. It is two arrows a few pixels tall inside a control that is
-     already only 1.4rem, sitting on top of a scope trace - unhittable, and
-     drawn in whatever grey the browser fancies. The field takes typing and the
-     wheel, which is how a tempo gets set anyway. */
-  appearance: textfield;
-  -moz-appearance: textfield;
+  width: 3.4em;
+  padding: 0 .25rem;
+  font: .7rem/1 var(--mono);
+  letter-spacing: normal;
 }
+
+.bracket i:first-of-type { border-left: 1px solid var(--line); }
+.bracket i:last-of-type { border-right: 1px solid var(--line); }
 
 /* Vertical fader, filled from the centre so 0V reads as "no offset". A native
    range input fills from its minimum, which put a solid bar at -10V. */
@@ -439,11 +420,19 @@ kbd { background: rgba(255, 255, 255, .09); padding: .05em .35em; font-size: .9e
    label in the corner; the knob and the fill from centre say where the level is
    without one. */
 
-.row { display: flex; align-items: center; gap: .5rem; font-size: .8rem; color: var(--muted); }
+.row { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; font-size: .8rem; color: var(--muted); }
 .row input[type=range] { flex: 1; }
+
+/* A field and the word that names it, kept together when the row wraps. The
+   label is the quiet half - it says what the control is, and the control says
+   what it is set to. */
+.field { display: flex; align-items: center; gap: .4rem; color: var(--muted); }
+.field input[type=number] { width: 5em; text-align: right; font-family: var(--mono); }
 .row output { font-family: var(--mono); width: 5.5em; text-align: right; color: var(--fg); }
 
-.note { margin: .9rem 0 0; font-size: .78rem; line-height: 1.7; max-width: 68ch; color: var(--muted); }
+/* An aside, not fine print: quieter than the body by colour, the same size
+   within a hair. */
+.note { margin: .9rem 0 0; font-size: .86rem; line-height: 1.7; color: var(--muted); }
 code { background: #2b2f36; padding: 0 .25em; font-size: .9em; }
 
 /* Fixed layout and tabular figures: the columns used to resize on every value
@@ -456,7 +445,21 @@ table {
 /* Rows twice as tall as they were. A dense grid of numbers is the one place on
    this page where space genuinely helps you read: the eye needs a line to
    travel along, and 0.2rem of padding was not giving it one. */
-th, td { padding: .45rem .5rem; text-align: right; border-bottom: 1px solid var(--line); }
+/* One line per cell, always.
+ *
+ * A row is read across, and a cell that wraps makes its row taller than its
+ * neighbours - so the eye loses the line it was travelling along, which is the
+ * one thing the padding above exists to give it. "trig CH3" in the quantizer
+ * column was enough to do it.
+ *
+ * Clipped rather than wrapped or shrunk. An ellipsis would cost a character of
+ * the width it is trying to save, and the columns below are sized so that the
+ * longest thing each one can actually hold fits - this is the guarantee that a
+ * narrow window degrades by hiding rather than by reflowing. */
+th, td {
+  padding: .45rem .4rem; text-align: right; border-bottom: 1px solid var(--line);
+  white-space: nowrap; overflow: hidden;
+}
 th:first-child, td:first-child { text-align: left; color: var(--muted); }
 th {
   color: var(--muted);
@@ -472,7 +475,9 @@ tr.muted-row td { opacity: .4; }
    browser does not relayout anything. */
 /* min-height for the same reason #params has one: the meters are built from
    JavaScript, so without it the note under them starts higher and drops. */
-#midi-cc { display: flex; gap: .5rem; align-items: flex-end; margin-top: 1rem; min-height: 9rem; }
+/* Close under the readouts above: this is what the port in that row is
+   sending, not a section of its own. */
+#midi-cc { display: flex; gap: .5rem; align-items: flex-end; margin-top: .1rem; min-height: 8.5rem; }
 .meter { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: .4rem; }
 
 .meter-track {
@@ -497,21 +502,25 @@ tr.muted-row td { opacity: .4; }
    0V would be, and faded rather than hidden so the row keeps its shape. */
 .meter.silent .meter-track i { opacity: .18; }
 
+/* Which channel the meter above it is. These name twelve columns three pixels
+   wide, so they are the only thing telling one from another - which is why
+   they are neither small nor grey. They were both, at .58rem in the muted
+   grey, and the row read as a texture rather than as twelve labelled things. */
 .meter-name {
-  font-size: .58rem; font-weight: 600;
+  font-size: .68rem; font-weight: 600;
   text-transform: uppercase; letter-spacing: .06em;
-  color: var(--muted);
+  color: var(--fg);
 }
 
-/* Which control change the meter above is, under the name of what it carries.
-   It was in the hover title, which is the one place a number nobody can guess
-   should not be: CC 16 is not derivable from "ch 0". */
+/* Which control change it is, under the name of what it carries. It was in the
+   hover title, which is the one place a number nobody can guess should not be:
+   CC 16 is not derivable from "ch 0". Quieter than the name above it, because
+   the name is what you read and this is what you look up. */
 .meter-cc {
-  margin-top: -.3rem;
-  font-size: .52rem;
+  margin-top: -.25rem;
+  font-size: .58rem;
   font-family: var(--mono);
   color: var(--muted);
-  opacity: .65;
 }
 
 /* On the header cell as well as the body: table-layout is fixed, which takes
@@ -519,31 +528,61 @@ tr.muted-row td { opacity: .4; }
    is ignored and the four columns come out equal. */
 #midi-cc th:nth-child(4), #midi-cc td:nth-child(4) { width: 45%; }
 
-/* The port picker is a control in a row of controls, so it wears the button's
-   face rather than the operating system's. appearance:none drops the native
-   chrome; the arrow is drawn as a background so there is no extra element. */
-/* Shaped like a button, but not lettered like one. A button's face is a label
-   we wrote and can uppercase; a select shows data - a version tag, a port name -
-   and `v0.10.0` rendered as `V0.10.0` is the control editing its own contents.
-   The weight and border carry the family resemblance instead. */
-#midi-port {
+/* ---- fields -------------------------------------------------------------- */
+
+/* A picker and a typed value are controls in a row of controls, so they wear
+   the button's face rather than the operating system's. appearance:none drops
+   the native chrome.
+ *
+ * Shaped like a button, but not lettered like one. A button's face is a label
+ * we wrote and can uppercase; these show data - a version tag, a port name, a
+ * tempo - and `v0.10.0` rendered as `V0.10.0` is the control editing its own
+ * contents. The weight and border carry the family resemblance instead.
+ *
+ * By element rather than by id, which is how this started: the rule was written
+ * for the simulator's port picker and named after it, so the diagnostics page -
+ * which loads this same stylesheet - showed raw operating-system widgets beside
+ * buttons styled like these. Two pages, one face. */
+select,
+input[type=number] {
   appearance: none;
-  background:
-    linear-gradient(45deg, transparent 50%, var(--muted) 50%) calc(100% - 1.05rem) 55% / 5px 5px no-repeat,
-    linear-gradient(-45deg, transparent 50%, var(--muted) 50%) calc(100% - .7rem) 55% / 5px 5px no-repeat;
+  background: rgba(20, 22, 27, .7);
   color: var(--fg);
   border: 1px solid var(--line);
-  padding: .55rem 2.2rem .55rem 1.1rem;
-  margin-top: .35rem;
-  width: 100%;
-  cursor: pointer;
+  padding: .55rem 1.1rem;
   font: 500 .78rem/1 var(--font);
   letter-spacing: .04em;
 }
-#midi-port:hover { border-color: var(--accent); color: var(--accent); }
+
+/* The arrow, drawn as a background so there is no extra element to place. */
+select {
+  background:
+    linear-gradient(45deg, transparent 50%, var(--muted) 50%) calc(100% - 1.05rem) 55% / 5px 5px no-repeat,
+    linear-gradient(-45deg, transparent 50%, var(--muted) 50%) calc(100% - .7rem) 55% / 5px 5px no-repeat,
+    rgba(20, 22, 27, .7);
+  padding-right: 2.2rem;
+  cursor: pointer;
+}
+
+select:hover { border-color: var(--accent); color: var(--accent); }
+select:focus-visible,
+input:focus-visible { outline: none; border-color: var(--accent); }
+
 /* The open list is drawn by the OS, which does not inherit any of the above -
    naming the colours here is what keeps it from being a white popup. */
-#midi-port option { background: #1b1e23; color: var(--fg); text-transform: none; letter-spacing: normal; }
+option { background: #1b1e23; color: var(--fg); text-transform: none; letter-spacing: normal; }
+
+/* No spinner anywhere. Two arrows a few pixels tall, drawn in whatever grey the
+   browser fancies, inside controls that are mostly too short to hit them in.
+   The field takes typing and the wheel, which is how a tempo gets set anyway.
+   Two rules because the two engines suppress it differently. */
+input[type=number] { -moz-appearance: textfield; }
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button { appearance: none; margin: 0; }
+
+/* The simulator's port picker fills the readout it sits in; the face above is
+   the part every page shares. */
+#midi-port { margin-top: .35rem; width: 100%; }
 
 /* Outlined and quiet by default, so the one button that does something
    irreversible or connects hardware can be the only coloured thing in its row.
@@ -617,7 +656,11 @@ body:not(.live) .when-live { display: none; }
    whatever is patched into it, so they do nothing there - but they stay where
    they are and go grey, because a row of controls that disappears takes the
    height of the page with it and everything below jumps. */
-body.live #in-controls { opacity: .3; pointer-events: none; }
+/* Dimmed as a group, so the words between the controls - "bpm" - go with them.
+   What makes them inert is the disabled attribute inputs.js sets; pointer-events
+   cannot do it here, because the controls re-enable it for themselves to be
+   clickable over the canvas and that override wins. */
+body.live #in-controls { opacity: .3; }
 
 /* ---- the quantizer's scale ---------------------------------------------- */
 
@@ -664,15 +707,43 @@ body.live #in-controls { opacity: .3; pointer-events: none; }
 .keys .nat.on { fill: var(--key-white); }
 .keys .acc.on { fill: var(--key-black); }
 
-/* The channel table's two columns that do not want an equal share: the channel
-   number is one character, and the quantizer column carries a mode and a
-   source. Everything else is a number of similar width and is left alone. */
+/* The channel table's columns, as shares of whatever width it gets.
+ *
+ * Three widths rather than ten, because there are only three kinds of column
+ * here. Percentages rather than em, so the shares hold at any page width and
+ * the table cannot end up wider than the box it is in.
+ *
+ *   ch        one digit, and nothing else will ever be in it
+ *   mix, qnt  a mode and the thing it points at - "IN3 x", "trig CH3" - which
+ *             is the longest content in the table by some margin
+ *   the rest  a signed number of two or three significant figures, all of
+ *             them the same shape, so they get equal shares of what is left
+ *
+ * The two wide ones are what set the floor: at the page's max width the qnt
+ * column holds "trig CH3" with a character to spare, and it is the first thing
+ * to clip as the window narrows - which is the intended order, since a mode
+ * with no room to name its source is still legible as a mode. */
 /* min-height reserves the space before the rows exist: the table is built from
    JavaScript after the wasm has loaded, and without it everything below jumps
    down when it arrives. */
 #params { table-layout: fixed; width: 100%; min-height: 15.5rem; }
-#params .c-ch { width: 1.8em; }
-#params .c-qnt { width: 5.2em; }
+/* Sized by its heading rather than its content: the cells hold one digit, but
+   "CH" in the header's uppercase face is wider than that, and a clipped column
+   name is worse than a slightly loose column. */
+#params .c-ch { width: 5%; }
+#params .c-mix { width: 12.5%; }
+#params .c-qnt { width: 13.5%; }
+
+/* The output is not the same shape as the numbers to its left, though it looks
+   like one: it carries a sign and a unit, so "-10.01 V" is half again as long
+   as anything in the parameter columns.
+ *
+ * Worth its own width rather than an equal share, because of which end clips.
+ * These cells are right-aligned, so content that does not fit loses its *first*
+ * characters - and the first character of an output is its sign. Every other
+ * column degrades into something shorter but still true; this one degrades into
+ * a negative voltage that reads as a positive one. */
+#params .c-out { width: 11%; }
 
 /* ---- picking a source ---------------------------------------------------- */
 
@@ -683,9 +754,10 @@ body.live #in-controls { opacity: .3; pointer-events: none; }
 }
 .source-row > .readout { flex: 0 1 auto; }
 
-/* Sized like the readout beside them rather than stretched to the row: they
-   are the one control that says where the page is, so they should read as its
-   equal and not as a banner. */
+/* The buttons themselves live on the title row - see the header rules further
+   down. They are the one control that changes what every other number on the
+   page means, and putting them beside the box that reports on that made them
+   read as part of the report. */
 .sources { display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; }
 .src { padding: .55rem 1rem; }
 
@@ -770,8 +842,18 @@ body.switching #source-name { opacity: 1; }
 /* ---- the page's own name ------------------------------------------------- */
 
 /* Matching the update page, which is the only other page here and had a title
-   while this one did not. */
-header { margin: 0 0 2rem; }
+   while this one did not.
+
+   The title row also carries the source switch, at the far end. align-items is
+   baseline rather than centre so the buttons sit on the title's line instead of
+   on the middle of its box, and the row wraps to two lines on a narrow window
+   rather than squeezing the buttons - they are the widest thing here and the
+   first to run out of room. */
+header {
+  margin: 0 0 1.5rem;
+  display: flex; align-items: baseline; flex-wrap: wrap;
+  gap: .6rem 1.2rem;
+}
 h1 {
   margin: 0;
   font-size: 1.5rem; font-weight: 700;
@@ -779,16 +861,286 @@ h1 {
 }
 h1 .sub { color: var(--muted); font-weight: 400; }
 
+/* Everything after the title goes to the right of it. */
+header .sources { margin-left: auto; }
+
 /* ---- naming another control inside a description ------------------------- */
 
-/* A description that sends you to another page says which, and the name is set
-   off so the sentence does not have to spell out "the page called". Quiet: this
-   marks a word as a name, it does not ask to be clicked. */
-.help .ref {
+/* A control of the module, named in a sentence about something else: a page,
+   a parameter, an input mode. Set off so the sentence does not have to spell
+   out "the page called", and quiet - this marks a word as a name, it does not
+   ask to be clicked.
+ *
+ * By class rather than by where it sits. The simulator's hover text boxes these
+ * automatically (see REFERENCES in panel.js); the manual and the other document
+ * pages write <b class="ref">CPY</b> by hand, and both should look the same,
+ * because they are naming the same button. */
+.ref {
+  display: inline-block;
   font-weight: 600;
   font-size: .82em;
   letter-spacing: .06em;
   padding: .1em .35em;
   border: 1px solid var(--line);
   color: var(--fg);
+  white-space: nowrap;
 }
+
+/* ==========================================================================
+   The document pages: the manual, the updater, the diagnostics instruments.
+
+   One stylesheet for all four pages rather than two. It was two - the simulator
+   had one and the documents shared another that restated its palette, its type
+   and its buttons - and the copies drifted exactly where you would expect: the
+   page menu sat a few pixels differently on the simulator because its header
+   rule was written separately from theirs.
+
+   The document pages carry `class="doc"` on the body. Everything above this
+   line is shared; everything below either belongs to those pages or is a value
+   they need different.
+   ========================================================================== */
+
+/* 15px, not 14. The simulator's text sits beside a panel and a scope and is
+   mostly labels; on a document page it is the whole content.
+
+   The width cap goes on --page, which header and main already read, so a
+   document page is capped the same way the simulator is. */
+body.doc {
+  --page: 64rem;
+  padding: 2.25rem 2.5rem 4rem;
+  font-size: 15px;
+  line-height: 1.6;
+}
+body.doc main { display: block; max-width: var(--page); }
+
+/* The tagline under the name and the menu. flex-basis rather than a wrapper:
+   it is the only thing in the header that wants its own row. */
+.tagline { flex-basis: 100%; margin: .35rem 0 0; color: var(--muted); }
+
+/* A section heading takes its face from the .label rule at the top of this
+   file - a heading is a label for a section - and adds only what is its own. */
+h2 { margin: 0 0 .8rem; color: var(--muted); }
+
+/* No cards. A rule across the top and room underneath separates one step from
+   the next, which is all the card was doing - and a numbered heading already
+   says where one step ends. */
+.step {
+  border-top: 1px solid var(--line);
+  padding: 1.35rem 0 0;
+  margin-bottom: 1.75rem;
+}
+.step[hidden] { display: none; }
+.step > :last-child { margin-bottom: 0; }
+.step p { margin: .55rem 0; }
+
+/* Two columns under the heading, and the rule above them running the full width
+   of both.
+ *
+ * The rule used to be three times the length of the text under it, which read
+ * as a section that had lost its right-hand half. Widening the page and filling
+ * it is the fix rather than shortening the rule: a column of about sixty
+ * characters is what these want to be, and two of them is a page. */
+.cols {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .1rem 3rem;
+  align-items: start;
+}
+.cols > * { min-width: 0; }
+.cols > :first-child > :first-child,
+.cols > :nth-child(2) > :first-child { margin-top: 0; }
+
+/* One column again when there is not room for two. 46rem is where a column
+   drops below about forty characters, which is where prose stops reading as
+   prose. */
+@media (max-width: 46rem) {
+  .cols { grid-template-columns: minmax(0, 1fr); gap: .1rem; }
+}
+
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #06090c;
+}
+button.primary:not(:disabled):hover { background: #93d4ff; border-color: #93d4ff; color: #06090c; }
+
+button:disabled { opacity: .35; cursor: default; }
+
+
+/* A typed value wears the same face as the picker beside it. The diagnostics
+   page asks for a tempo; nothing on the updater does, but the rule belongs with
+   its neighbours rather than in one page's head. */
+input[type=number] {
+  appearance: none;
+  -moz-appearance: textfield;
+  background: rgba(20, 22, 27, .7);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  padding: .55rem 1.1rem;
+  font: 500 .78rem/1 var(--font);
+  letter-spacing: .04em;
+}
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button { appearance: none; margin: 0; }
+
+/* The filename sits beside the button, so it stays quiet and monospaced while
+   the button itself matches every other button on the page. */
+input[type=file] {
+  font: 400 .8rem/1 var(--mono);
+  color: var(--muted);
+  max-width: 100%;
+}
+input[type=file]::file-selector-button {
+  font: 600 .68rem/1 var(--font);
+  text-transform: uppercase;
+  letter-spacing: var(--track);
+  color: var(--fg);
+  background: transparent;
+  border: 1px solid var(--line);
+  padding: .55rem 1.1rem;
+  margin-right: .7rem;
+  cursor: pointer;
+  transition: color .12s, border-color .12s;
+}
+input[type=file]:hover::file-selector-button { color: var(--accent); border-color: var(--accent); }
+
+
+.bad { color: var(--bad); }
+.good { color: var(--good); }
+
+.lede { color: var(--muted); font-size: .92rem; line-height: 1.65; }
+.lede strong { color: var(--fg); font-weight: 600; }
+
+
+.lede { color: var(--muted); font-size: .92rem; line-height: 1.65; }
+.lede strong { color: var(--fg); font-weight: 600; }
+
+.row + .row { margin-top: .5rem; }
+
+
+progress {
+  width: 100%;
+  height: .5rem;
+  accent-color: var(--accent);
+}
+
+/* What a run found, set off from the prose around it. */
+.verdict {
+  padding: .7rem .9rem;
+  background: rgba(255, 255, 255, .06);
+  margin: .9rem 0;
+  font-size: .92rem;
+}
+.verdict[hidden] { display: none; }
+
+#log {
+  font: 12.5px/1.6 var(--mono);
+  color: var(--muted);
+  background: rgba(0, 0, 0, .35);
+  padding: .8rem .9rem;
+  max-height: 12rem;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+
+dl { margin: .7rem 0; }
+dt { font-weight: 700; margin-top: .85rem; }
+dd { margin: .35rem 0 0; color: var(--muted); }
+
+/* A figure fills its column and says what it is underneath. The surface behind
+   it is the one the simulator gives the panel, so a screenshot of that page
+   sits on the same ground here as it does there. */
+figure { margin: .3rem 0 1rem; }
+figure img {
+  display: block; width: 100%; height: auto;
+  background: rgba(0, 0, 0, .15);
+}
+figcaption {
+  margin-top: .5rem;
+  color: var(--muted); font-size: .82rem; line-height: 1.55;
+}
+
+/* Where an illustration is wanted and there is not one yet. Deliberately plain
+   and deliberately labelled - an empty box that looked designed would get left
+   in. */
+.placeholder {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 11rem; padding: 1rem;
+  border: 1px dashed var(--line);
+  color: var(--muted); font-size: .82rem; text-align: center;
+}
+
+code { background: rgba(255, 255, 255, .09); padding: 0 .25em; font-family: var(--mono); font-size: .9em; }
+
+
+/* ---- the page menu ------------------------------------------------------- */
+.pages {
+  position: relative;
+  display: inline-block;
+}
+
+/* Sized and coloured like the subtitle it replaces, plus a caret. list-style
+   and the webkit marker both have to go or the browser draws its own triangle
+   in front. */
+/* The size and face the subtitle had when it was a <span> inside the h1: this
+   replaced it, so it has to sit on the title's line and read as part of it. */
+.pages > summary {
+  list-style: none;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 1.5rem; font-weight: 400;
+  text-transform: uppercase; letter-spacing: .06em;
+  white-space: nowrap;
+}
+.pages > summary::-webkit-details-marker { display: none; }
+.pages > summary::after {
+  content: '';
+  display: inline-block;
+  margin-left: .45em;
+  vertical-align: .12em;
+  border: .3em solid transparent;
+  border-top-color: currentColor;
+  border-bottom: 0;
+}
+.pages > summary:hover { color: var(--fg); }
+.pages[open] > summary { color: var(--fg); }
+.pages > summary:focus-visible { outline: 1px solid var(--accent); outline-offset: .2em; }
+
+/* Over the page, not in the flow: opening the menu must not move the content
+   under it. */
+.pages nav {
+  position: absolute;
+  top: calc(100% + .5rem);
+  left: 0;
+  z-index: 20;
+  min-width: max(100%, 15rem);
+  display: flex;
+  flex-direction: column;
+  background: #1b1e23;
+  border: 1px solid var(--line);
+}
+
+/* The same face every other label on the page wears, so the menu reads as part
+   of the instrument rather than as a browser widget. */
+.pages nav a {
+  padding: .6rem .9rem;
+  color: var(--fg);
+  text-decoration: none;
+  font-size: .68rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: var(--track);
+  white-space: nowrap;
+}
+.pages nav a + a { border-top: 1px solid rgba(255, 255, 255, .07); }
+.pages nav a:hover { background: rgba(255, 255, 255, .06); color: var(--accent); }
+
+/* The page you are on, listed rather than omitted: a menu whose contents change
+   from page to page is one you have to read every time. */
+.pages nav a[aria-current] { color: var(--muted); }
+.pages nav a[aria-current]:hover { background: none; color: var(--muted); cursor: default; }
+
+/* Off to the project itself, which is the one destination that leaves. */
+.pages nav a.away { color: var(--muted); }
+.pages nav a.away:hover { color: var(--accent); }
+.pages nav a.away::after { content: ' ↗'; }

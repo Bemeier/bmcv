@@ -1,4 +1,5 @@
-// The numbers: mode, parameter, scene, tempo, and the per-channel table.
+// The numbers: shift mode, parameter, tempo, the scale, and the per-channel
+// table.
 //
 // The table shows what each channel is *actually* doing after the scene
 // crossfade and the parameter maths - EngineState.channels_effective[] - rather
@@ -6,7 +7,7 @@
 // whenever the crossfader is anywhere but an end stop.
 
 import { PARAM_NAMES } from './spec.js';
-import { sim, EFF, N_CH, N_IN, SHAPE_NAMES, SHIFT_NAMES, QUANTIZE_MODE_NAMES, AMP_MODE_NAMES } from './sim.js';
+import { sim, EFF, N_CH, N_IN, SHIFT_NAMES, QUANTIZE_MODE_NAMES, AMP_MODE_NAMES } from './sim.js';
 
 // The frequency parameter is a ratio against the beat rate, dialled in as
 // musical fractions, so show it that way rather than as 0.333.
@@ -27,8 +28,12 @@ function ratioText(r) {
 
 // The live phase is already on the scope, moving; what is not visible anywhere
 // else is the phase *offset* that was dialled in, so that is the column.
+//
+// The shape mode is not here. It is on the scope cell, beside the channel name
+// and in the colour the module lights that shape with - a mode is a fact about
+// the trace you are looking at, and reading it off a table row meant counting
+// rows to find the channel you had just been watching.
 const EFF_COLS = [
-  ['mode', (_c, ch) => SHAPE_NAMES[sim.shapeMode(ch)] ?? '—'],
   // No absolute frequency column: the ratio is what was dialled in and what the
   // channel is locked to, and the Hz it works out to is the tempo times that.
   ['ratio', c => ratioText(c[EFF.FREQ_RATIO])],
@@ -38,20 +43,21 @@ const EFF_COLS = [
   ['amp', c => c[EFF.AMP_V].toFixed(2)],
   ['ofs', c => c[EFF.OFFSET_V].toFixed(2)],
 
-  // Whether the channel snaps to the scale, and what makes it do so. "trig"
-  // without a source is a channel waiting on something nothing is patched to,
-  // which looks identical to a broken quantizer until the source is shown
-  // beside it.
-  // Which input the channel folds in, and how. A source with the mixing off is
-  // a patch someone set up and then disabled, which is worth being able to see
-  // rather than having it vanish from the table.
-  ['src', (_c, ch) => {
+  // Which input the channel folds in, and how - named after the MIX page that
+  // sets it, so the column and the button that changes it say the same word. A
+  // source with the mixing off is a patch someone set up and then disabled,
+  // which is worth being able to see rather than having it vanish.
+  ['mix', (_c, ch) => {
     const mode = AMP_MODE_NAMES[sim.channelAmpMode(ch)] ?? '?';
     const src = sim.channelSrcInput(ch);
     if (src < 0) return '—';
     return `IN${src} ${mode === 'add' ? '+' : mode === 'mult' ? '\u00d7' : 'off'}`;
   }],
 
+  // Whether the channel snaps to the scale, and what makes it do so. "trig"
+  // without a source is a channel waiting on something nothing is patched to,
+  // which looks identical to a broken quantizer until the source is shown
+  // beside it.
   ['qnt', (_c, ch) => {
     const mode = sim.channelQuantizeMode(ch);
     const name = QUANTIZE_MODE_NAMES[mode] ?? '?';
@@ -69,7 +75,7 @@ function trigName(src) {
 
 const paramsTable = document.getElementById('params');
 paramsTable.innerHTML =
-  `<tr><th class="c-ch">ch</th>${EFF_COLS.map(([h]) => `<th class="c-${h}">${h}</th>`).join('')}<th>out</th></tr>` +
+  `<tr><th class="c-ch">ch</th>${EFF_COLS.map(([h]) => `<th class="c-${h}">${h}</th>`).join('')}<th class="c-out">out</th></tr>` +
   Array.from({ length: N_CH }, (_, c) =>
     `<tr data-ch="${c}"><td>${c}</td>${EFF_COLS.map(() => '<td>0</td>').join('')}<td>0.00</td></tr>`).join('');
 const paramRows = [...paramsTable.querySelectorAll('tr[data-ch]')];
@@ -139,7 +145,6 @@ function drawScale() {
 
 const rShift = document.getElementById('r-shift');
 const rParam = document.getElementById('r-param');
-const rScene = document.getElementById('r-scene');
 const rBpm = document.getElementById('r-bpm');
 const rBpmIn = document.getElementById('r-bpm-in');
 
@@ -151,7 +156,6 @@ export function drawReadouts() {
   drawScale();
   setText(rShift, SHIFT_NAMES[sim.shiftState()] ?? '—');
   setText(rParam, PARAM_NAMES[sim.selectedParam()] ?? '—');
-  setText(rScene, String(sim.activeScene()));
   // Detected is what the clock jack is doing right now and reads as nothing
   // when there is no clock; running is what the oscillators are locked to,
   // which free-runs at the last tempo after the pulses stop.

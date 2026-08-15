@@ -3,58 +3,90 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>BMCV — diagnostics</title>
+<title>BMCV diagnostics</title>
 <link rel="stylesheet" href="../style.css">
-<style>
-  body { max-width: 46rem; margin: 0 auto; padding: 2rem 1.5rem; }
-  h1 { font-size: 1.1rem; letter-spacing: .08em; text-transform: uppercase; }
-  .lede { max-width: 40rem; }
-  table { border-collapse: collapse; width: 100%; margin: 1.25rem 0; }
-  th, td { text-align: left; padding: .35rem .75rem .35rem 0; }
-  th { font-weight: normal; opacity: .6; }
-  td.n { font-family: var(--mono, monospace); text-align: right; width: 9rem; }
-  td.note { opacity: .6; }
-  #log { font-family: var(--mono, monospace); font-size: .8rem;
-         white-space: pre-wrap; margin-top: 1.25rem; opacity: .75; }
-  .verdict { padding: .75rem 1rem; background: rgba(255,255,255,.06); margin: 1rem 0; }
-</style>
 </head>
-<body>
+<body class="doc">
 
-<h1>Diagnostics</h1>
+<header>
+  <h1>BMCV</h1>
+  <details class="pages">
+    <summary>diagnostics</summary>
+    <nav>
+      <a href="../">Simulator &amp; live probe</a>
+      <a href="../manual/">Manual</a>
+      <a href="../update/">Firmware update</a>
+      <a href="../diagnostics/" aria-current="page">Diagnostics</a>
+      <a class="away" href="https://github.com/Bemeier/bmcv">Project on GitHub</a>
+    </nav>
+  </details>
+  <p class="tagline">Instruments for the link between this browser and a module.</p>
+</header>
 
-<p class="lede">
-  <strong>Measure the snapshot rate</strong> asks for whole module snapshots the
-  way the simulator page does, but decodes nothing and draws nothing. If snapshots are fast here and slow on the
-  simulator page, the transport is fine and the cost is in decoding and drawing
-  them. If they are slow here too, it is the transport or the firmware.
-</p>
+<main>
 
-<p class="lede">
-  <strong>Inspect the device</strong> reports what this browser can see of the
-  module: its interfaces and endpoints, whether the vendor interface can be
-  claimed - which is what says the driver bound correctly - and what firmware it
-  is running. Pick the BMCV from the list it offers.
-</p>
+<div class="step">
+  <h2>What this browser can see</h2>
 
+  <div class="cols">
+    <p class="lede"><strong>Inspect the device</strong> lists the module's
+    interfaces and endpoints, whether the vendor interface can be claimed - which
+    is what says the driver bound - and what firmware it runs.</p>
 
-<p class="lede">
-  Nothing here changes the module: no reset, no stored preset touched, nothing
-  written but requests for what it is already doing. The module streams only
-  while this page keeps asking, so closing the tab stops it.
-</p>
+    <p class="lede"><strong>Measure the snapshot rate</strong> streams snapshots
+    and decodes nothing. Fast here and slow on the
+    <a href="../">simulator</a> means the cost is in drawing them; slow here too
+    means the transport or the firmware.</p>
+  </div>
 
-<p>
-  <button id="run-webusb" type="button">inspect the device</button>
-  <button id="run-snapshots" type="button">measure the snapshot rate</button>
-  <span id="status" class="muted">starting up</span>
-</p>
+  <div class="row">
+    <button id="run-webusb" type="button">Inspect the device</button>
+    <button id="run-snapshots" type="button">Measure the snapshot rate</button>
+    <span id="status" class="muted">starting up</span>
+  </div>
 
-<div class="verdict" id="verdict" hidden></div>
+  <div class="verdict" id="verdict" hidden></div>
 
+  <p class="note">Nothing here changes the module, and it streams only while
+  this page asks.</p>
+</div>
 
-<div id="log"></div>
+<div class="step">
+  <h2>Send a MIDI clock</h2>
 
+  <div class="cols">
+    <p class="lede">Clocks the module from this browser, over the MIDI half of
+    the same cable. 24 clocks to the beat, scheduled ahead through Web MIDI
+    rather than fired from a timer, so what the module measures is the tempo
+    asked for and not this tab's jitter.</p>
+
+    <p class="note"><b>Set every input to <code>—</code> under
+    <b class="ref">SYS</b> first.</b> A patched clock always wins over one that
+    is not even physical, so with a jack still in <b>CLOCK</b> mode this does
+    nothing and looks broken. Watch <em>bpm in</em> and <em>bpm run</em> on the
+    <a href="../">simulator</a>.</p>
+  </div>
+
+  <div class="row">
+    <label class="field">port <select id="midi-out"><option value="">no MIDI access yet</option></select></label>
+    <label class="field">bpm <input id="midi-bpm" type="number" min="20" max="300" step="1" value="69"></label>
+    <button id="midi-start" type="button" disabled>Start clock</button>
+    <button id="midi-stop" type="button" disabled>Stop</button>
+    <span id="midi-status" class="muted"></span>
+  </div>
+
+  <div class="verdict" id="midi-verdict" hidden></div>
+
+</div>
+
+<div class="step">
+  <h2>Log</h2>
+  <div id="log"></div>
+</div>
+
+</main>
+
+<script src="../nav.js"></script>
 <script type="module" src="./diagnostics.js"></script>
 </body>
 </html>

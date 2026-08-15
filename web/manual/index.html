@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BMCV manual</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body class="doc">
+
+<header>
+  <h1>BMCV</h1>
+  <details class="pages">
+    <summary>manual</summary>
+    <nav>
+      <a href="../">Simulator &amp; live probe</a>
+      <a href="./" aria-current="page">Manual</a>
+      <a href="../update/">Firmware update</a>
+      <a href="../diagnostics/">Diagnostics</a>
+      <a class="away" href="https://github.com/Bemeier/bmcv">Project on GitHub</a>
+    </nav>
+  </details>
+  <p class="tagline">What every control does, and why it is where it is.</p>
+</header>
+
+<!-- panel.png, lights.png and scopes.png are captured from the simulator page
+     with the photographic backdrop hidden - it shows through the panel artwork,
+     which makes a flat screenshot into a heavy photographic one. Recapture by
+     opening the simulator, hiding body::before, and screenshotting #panel-wrap
+     and #scope. -->
+<main>
+
+<div class="step">
+  <h2>What it is</h2>
+  <div class="cols">
+    <div>
+      <p>Eight <b>channels</b>, each a low-frequency oscillator with six
+      parameters, an output jack and an endless encoder. Seven <b>scenes</b>,
+      numbered <b>0&ndash;6</b>, each holding a complete set of those parameters
+      for all eight channels. The crossfader blends between two of them, so one
+      slider morphs the whole patch.</p>
+
+      <p>Channel frequencies are <b>ratios of the incoming beat</b> rather than
+      free rates, so everything stays in phase with the rest of the patch. With
+      no clock the module free-runs at the last tempo it saw.</p>
+    </div>
+    <div>
+      <p class="note">A module fresh out of the box is silent, because
+      <b class="ref">AMP</b> is zero everywhere. Tap <b class="ref">AMP</b> and
+      wind a channel's encoder up — that is the whole of making a sound.</p>
+
+      <p class="note">Everything on this page can be tried without hardware on
+      the <a href="../">simulator</a>, which runs the module's own firmware
+      compiled for the browser.</p>
+    </div>
+  </div>
+</div>
+
+<div class="step">
+  <h2>The panel</h2>
+  <div class="cols">
+    <div>
+      <dl>
+        <dt>Four input jacks, eight output jacks</dt>
+        <dd>The outputs sit under their own encoders. What each input is for is
+        set under <b class="ref">SYS</b>: a clock, a reset, the crossfader, or a
+        plain voltage a channel can mix in.</dd>
+
+        <dt>Eight encoders</dt>
+        <dd>One per channel, endless, and each is a button as well. Turning edits
+        whatever the parameter row has selected; pressing does whatever the open
+        page does with a press. Hold one in while turning for fine adjust.</dd>
+
+        <dt>Seven scene buttons</dt>
+        <dd>Scenes <b>0&ndash;6</b>, the ones the crossfader blends between.
+        Every page borrows the row for something — semitones, preset slots, input
+        modes — so what they do depends on which page is open.</dd>
+
+        <dt>The parameter row</dt>
+        <dd><b class="ref">FRQ</b> <b class="ref">SHP</b> <b class="ref">MOD</b>
+        <b class="ref">PHS</b> <b class="ref">AMP</b> <b class="ref">OFS</b>. Tap
+        to choose what the eight encoders edit; each glows in its own colour, so
+        the row says which colour means which parameter.</dd>
+
+        <dt>Three coloured caps</dt>
+        <dd><b class="ref">CLR</b> <b class="ref">CPY</b> <b class="ref">MUT</b>.
+        Plain plastic, not lit — they are pages, not settings.</dd>
+
+        <dt>The crossfader</dt>
+        <dd>Blends scene A into scene B across every channel at once.</dd>
+      </dl>
+
+      <p class="note"><b>Holding a control button opens a page.</b> Hold any of
+      the nine for a moment and the module latches into that shift mode: the
+      panel repaints, and the encoders and scene buttons mean something else
+      until you tap the same button to leave.</p>
+    </div>
+    <figure>
+      <img src="panel.png" alt="The BMCV panel: four input and eight output
+                                jacks, eight encoders, the parameter row, the
+                                crossfader and the seven scene buttons.">
+      <figcaption>The panel as the simulator draws it. Jacks along the top,
+      encoders in two rows of four with the control buttons between them, then
+      the crossfader and the row of seven scenes.</figcaption>
+    </figure>
+  </div>
+</div>
+
+<div class="step">
+  <h2>The six parameters</h2>
+  <div class="cols">
+    <div>
+      <p>Every one of these is per channel <em>and</em> per scene, so the
+      crossfader moves all forty-eight of them together.</p>
+
+      <dl>
+        <dt><b class="ref">FRQ</b> — frequency</dt>
+        <dd>A ratio against the beat, not a rate, so a channel stays locked to
+        the tempo wherever it is set. Fine adjust steps between the ratios rather
+        than by a fixed amount.</dd>
+
+        <dt><b class="ref">SHP</b> — shape</dt>
+        <dd>One continuous axis that wraps: square fully left, <b>sine at
+        centre</b>, triangle, a pointy extreme, and round to the square again.
+        What the axis holds depends on the channel's shape mode — see
+        <b class="ref">SYS</b>.</dd>
+
+        <dt><b class="ref">MOD</b> — the second axis</dt>
+        <dd>Whatever the shape mode's second dimension is: wavetable skew,
+        stepped random density, or the PWM envelope. Negative leans early,
+        positive leans late — except in stepped random, where negative is busy
+        and positive sparse.</dd>
+
+        <dt><b class="ref">PHS</b> — phase offset</dt>
+        <dd>Where in its cycle the channel starts. Phase 0 is the rising edge in
+        every shape, so a square channel at a whole division is a clock divider
+        whose gate opens on the beat.</dd>
+
+        <dt><b class="ref">AMP</b> — amplitude</dt>
+        <dd>How far the channel swings.</dd>
+
+        <dt><b class="ref">OFS</b> — offset</dt>
+        <dd>A fixed voltage added to the output.</dd>
+      </dl>
+    </div>
+    <div>
+      <figure>
+        <img src="scopes.png" alt="Eight scope cells, one per channel, each
+                                   drawing that channel's output over two
+                                   seconds.">
+        <figcaption>Eight channels at different ratios of one beat. The label on
+        each cell names the channel and its shape mode.</figcaption>
+      </figure>
+
+      <p class="note">With no page open, pressing a parameter button clears that
+      parameter in the active scene; holding clears it in every scene. Holding
+      while turning is fine adjust and clears nothing.</p>
+    </div>
+  </div>
+</div>
+
+<div class="step">
+  <h2>Scenes and the crossfader</h2>
+  <div class="cols">
+    <div>
+      <p>A scene is a complete set of parameters for all eight channels. Dial a
+      state and assign it to <b>A</b>; dial another and assign it to <b>B</b>.
+      The crossfader is now a transition between them, and one hand moves every
+      channel at once.</p>
+
+      <p>This is the reason the module is not simply eight LFOs. Scenes are
+      assigned under <b class="ref">STA</b> and <b class="ref">STB</b>, copied
+      under <b class="ref">CPY</b>, cleared under <b class="ref">CLR</b> — and an
+      input jack set to <b>SLIDER</b> mode is summed into the fader, so the blend
+      can be driven by a cable as well as by hand.</p>
+
+      <p class="note">With no page open, <b>holding</b> a scene button makes that
+      scene active for as long as you hold it.</p>
+    </div>
+    <figure>
+      <div class="placeholder">Illustration: scene A and scene B as two sets of
+      eight parameter values, with the fader between them.</div>
+      <figcaption>One fader, forty-eight parameters.</figcaption>
+    </figure>
+  </div>
+</div>
+
+<div class="step">
+  <h2>The nine pages</h2>
+  <div class="cols">
+    <div>
+      <p>Hold to open, tap the same button to leave. Below, "scenes" means the
+      row of seven and "encoders" means the row of eight.</p>
+
+      <dl>
+        <dt><b class="ref">STA</b> / <b class="ref">STB</b> — assign scenes</dt>
+        <dd>Scenes: pick which scene the crossfader blends from, and towards.
+        Encoders on <b class="ref">STA</b>: stepped-random pattern length, per
+        channel rather than per scene — there is nothing between 8 steps and 12,
+        so a crossfaded value would mean nothing. Dark on channels that are not
+        in a stepped mode.</dd>
+
+        <dt><b class="ref">SYS</b> — system and channel modes</dt>
+        <dd>Scenes: the first four set what input jacks 0&ndash;3 are for.
+        Encoders: the channel's shape mode — wavetable, stepped random, or
+        PWM.</dd>
+
+        <dt><b class="ref">QNT</b> — quantizer</dt>
+        <dd>Scenes: switch semitones in and out of the scale. Encoders: turn for
+        the channel's quantize mode, press to assign its sample trigger.</dd>
+
+        <dt><b class="ref">MIX</b> — cross modulation</dt>
+        <dd>Scenes: show what the four inputs are doing. Encoders: press to pick
+        the input a channel mixes in, turn to choose how — off, added, or
+        multiplied.</dd>
+      </dl>
+    </div>
+    <div>
+      <dl>
+        <dt><b class="ref">SAV</b> — save and load</dt>
+        <dd>Scenes: seven preset slots, <b>0&ndash;6</b>, each holding <em>the
+        whole module</em> rather than one scene. Encoders: the channel's output
+        clamp — ±10V, ±5V, 0..10V, 0..5V. A clamp, not a scaling, so the
+        parameters keep meaning what they say; it describes what the module is
+        patched into rather than what the patch is, which is why it is not per
+        scene.</dd>
+
+        <dt><b class="ref">MUT</b> — mute</dt>
+        <dd>Encoders: press to mute that channel, or turn — right unmutes, left
+        mutes, so a row can be muted by feel. Ramped over 5ms so it does not
+        click. A muted channel keeps running: it still feeds cross-modulation and
+        still works as a trigger source. Mute clears on a power cycle.</dd>
+
+        <dt><b class="ref">CPY</b> — copy</dt>
+        <dd>Pick a scene or a channel to copy from, then one to copy to.</dd>
+
+        <dt><b class="ref">CLR</b> — clear</dt>
+        <dd>Scenes: pick a scene to clear. Encoders: tap clears that channel in
+        the active scene; hold clears it everywhere — every scene, its
+        <b class="ref">MIX</b> routing, its <b class="ref">QNT</b> mode and
+        trigger, its shape mode and pattern length. Not the output clamp.</dd>
+      </dl>
+
+      <p class="note">Holds that destroy something show what they are about to do
+      while you hold them, and only act on release. A held press dips out once as
+      it crosses each threshold — that is the module saying the press registered,
+      not that something is in progress.</p>
+    </div>
+  </div>
+</div>
+
+<div class="step">
+  <h2>Reading the lights</h2>
+  <div class="cols">
+    <div>
+      <p>One fact per LED, and the same colour for the same idea on every page.</p>
+
+      <dl>
+        <dt>Setting states</dt>
+        <dd><b>Purple</b> is index 0 of every setting — disabled, default,
+        neutral. <b>Cyan</b> is continuous or level-following, <b>green</b>
+        additive or half-way, <b>yellow</b> triggered, clocked or stepped,
+        <b>red</b> reset. <b>Pink</b> is destructive and belongs to
+        <b class="ref">CLR</b> alone.</dd>
+
+        <dt>White is assignment</dt>
+        <dd>And nothing else uses it. A short white flash means "you can pick
+        this". Once something is held, the places it can go are steady white, the
+        held source is saturated purple, and everything that cannot be pressed
+        goes dark.</dd>
+
+        <dt>The encoder rings</dt>
+        <dd>With no page open they are output level meters. Touching an encoder
+        or tapping a parameter button shows that parameter on <em>all eight</em>
+        for a couple of seconds — the point of seeing it is to compare the
+        channels — then decays back to the meter.</dd>
+
+        <dt><b class="ref">FRQ</b> is a ratio, not a level</dt>
+        <dd>So its ring codes three facts instead of drawing a bar. Hue is the
+        kind of division: green straight, yellow triplet, orange quintuplet.
+        Saturation is how far off the grid the value sits. Brightness pulses at
+        the channel's own output rate, which is what says fast from slow.</dd>
+
+        <dt>Confirmations</dt>
+        <dd>A brief flash on top: purple wrote, pink cleared, cyan loaded. Red is
+        errors only.</dd>
+      </dl>
+    </div>
+    <div>
+      <figure>
+        <img src="lights.png" alt="The panel with its LEDs lit: eight encoder
+                                   rings in reds, oranges and greens, and the
+                                   parameter row glowing in six colours.">
+        <figcaption>Eight channels at different ratios. The ring hues are the
+        kind of division — green straight, yellow triplet, orange quintuplet —
+        and the parameter row shows <b class="ref">FRQ</b> selected.</figcaption>
+      </figure>
+
+      <p class="note">Settings clamp rather than wrap, so spinning an encoder
+      fully left resets one without looking.</p>
+    </div>
+  </div>
+</div>
+
+<div class="step">
+  <h2>The USB port</h2>
+  <div class="cols">
+    <div>
+      <p>The module publishes its eight outputs and four inputs as MIDI control
+      changes and forwards its clock, so the same eight clock-locked LFOs
+      modulate a DAW's plugins as readily as they modulate a rack. It takes MIDI
+      Clock in as well, as the clock source when no jack is patched for the
+      job.</p>
+    </div>
+    <div>
+      <p>The same cable carries a second, vendor interface. That is what the
+      <a href="../">simulator</a> uses to show a physical module and drive it,
+      what the <a href="../update/">updater</a> uses to reboot it into its
+      bootloader, and what the <a href="../diagnostics/">diagnostics</a> page
+      measures.</p>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<script src="../nav.js"></script>
+</body>
+</html>
