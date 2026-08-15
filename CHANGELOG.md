@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.14.0 (2026-08-15)
+
+### Feat
+
+- **build**: flash over USB, with the module still in the rack
+- **ui**: a parameter button gives you its parameter, on the way out of a page too
+
+### Fix
+
+- **web**: the scope gap belongs between the cells, not around them
+- **ui**: a press and a turn in the same tick is a fine adjust, not a reset
+
 ## v0.13.0 (2026-08-15)
 
 ### Feat
