@@ -93,9 +93,26 @@ async function diagnose(access) {
     };
   }
 
+  // Does this browser notice a device coming or going at all?
+  //
+  // That is the question behind the transport's one real annoyance: ports go
+  // stale when the module leaves the bus and only a browser restart brings them
+  // back. If statechange fires, the browser is watching and there may be
+  // something a page can do; if it never fires while a module is plainly
+  // unplugged, the browser is not looking and nothing on this side can help.
+  //
+  // Power-cycle the module during the wait to find out.
+  let changes = 0;
+  access.onstatechange = ev => {
+    changes++;
+    log(`  ! ${ev.port.type} "${ev.port.name}" -> ${ev.port.state} / ${ev.port.connection}`);
+  };
+
   log('');
-  log('listening for 3s, saying nothing...');
-  await new Promise(r => setTimeout(r, 3000));
+  log('listening for 8s, saying nothing.');
+  log('Power-cycle the module now if you want to know whether this browser notices.');
+  await new Promise(r => setTimeout(r, 8000));
+  log(changes ? `  ${changes} port state changes seen` : '  no port state changes seen');
 
   for (const [name, n] of passive) {
     log(`  "${name}": ${n} messages${n ? ` (first: ${sample.get(name)})` : ''}`);
