@@ -51,7 +51,7 @@
      rather than something is selected. */
   --src-sim: var(--danger);
   --src-usb: #6fc3ff;
-  --src-probe: #7fd8c0;
+  --src-probe: #c0a3ff;
 
   /* The quantizer's keyboard. Off is one translucent grey whatever the key is;
      on is opaque, and only then does it matter which kind of key it was. */
@@ -548,15 +548,13 @@ button {
    service, offering to do something it would refuse. */
 button:not(:disabled):hover { color: var(--hover); border-color: var(--hover); }
 
-/* Two exceptions, and both are exceptions for the same reason: they are the
-   only buttons here that change the module rather than the page, so they carry
-   what they do rather than waiting to be hovered. Amber for the one that can be
-   undone by playing, red for the one that cannot be undone at all.
-
-   They keep the shared hover, so hovering still says "this is the control you
-   are about to use" in the same voice everywhere. */
-#reset { color: var(--warn); border-color: var(--warn); }
-#reset-fram { color: var(--danger); border-color: var(--danger); }
+/* The two that change the module rather than the page. Quiet like everything
+   else until approached, then their own colour instead of the shared one: amber
+   for the reset that playing undoes, red for the wipe that nothing does. A
+   button that is permanently red reads as a warning about the page; one that
+   turns red under the pointer reads as a warning about the click. */
+#reset:not(:disabled):hover { color: var(--warn); border-color: var(--warn); }
+#reset-fram:not(:disabled):hover { color: var(--danger); border-color: var(--danger); }
 
 button:disabled { opacity: .35; cursor: default; }
 
@@ -596,11 +594,6 @@ body:not(.live) .when-live { display: none; }
 
 /* Buttons on one line, wrapping, with the status message trailing them rather
    than on a line of its own. */
-.buttons {
-  display: flex; align-items: center; flex-wrap: wrap;
-  gap: .6rem; margin: 1.25rem 0 .25rem;
-}
-
 .value.ok { color: #7fd88f; }
 .value.warn { color: var(--warn); }
 
@@ -679,14 +672,33 @@ body.live #in-controls { display: none; }
 .sources { display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; }
 .src { padding: .55rem 1rem; }
 
+/* margin-left:auto rather than a spacer element: it is the same growth without
+   an empty div to explain. Falls back to sitting under the sources when the row
+   wraps, which is what it should do. */
+.actions {
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: .4rem .6rem;
+  margin-left: auto;
+}
+
 /* Quiet like every other button until it is the one the page is on. A row of
    three permanently coloured buttons said "three things are happening"; only
-   one ever is. */
+   one ever is.
+
+   These hover to their own colour rather than to the shared one, because for
+   these buttons hovering is a preview: it shows the colour the page is about to
+   take, and the readout beside them will say the same. Everywhere else the
+   hover is the shared purple, since a plain button has no colour of its own to
+   promise. */
 .src { background: transparent; }
 .src.active { border-color: currentColor; }
-.src-sim.active { color: var(--src-sim); }
-.src-usb.active { color: var(--src-usb); }
-.src-probe.active { color: var(--src-probe); }
+
+.src-sim.active,
+.src-sim:not(:disabled):hover { color: var(--src-sim); border-color: var(--src-sim); }
+.src-usb.active,
+.src-usb:not(:disabled):hover { color: var(--src-usb); border-color: var(--src-usb); }
+.src-probe.active,
+.src-probe:not(:disabled):hover { color: var(--src-probe); border-color: var(--src-probe); }
 
 /* Beats the page's own rule for a disabled button, which dims it to 35% - right
    for a button that cannot be used, wrong for one that is already doing its
@@ -698,7 +710,7 @@ body.live #in-controls { display: none; }
    which two happen to be clickable. */
 .src-sim.active { background: rgba(232, 112, 95, .18); }
 .src-usb.active { background: rgba(111, 195, 255, .18); }
-.src-probe.active { background: rgba(127, 216, 192, .18); }
+.src-probe.active { background: rgba(192, 163, 255, .18); }
 
 /* A source this browser cannot reach at all, as opposed to one it is already
    on. The only other reason one of these is disabled. */

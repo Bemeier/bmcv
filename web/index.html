@@ -70,14 +70,17 @@
           <button id="src-usb" class="src src-usb" title="a module on the other end of a USB cable">USB Probe</button>
           <button id="src-probe" class="src src-probe" title="a module on the other end of an ST-Link, for when it is not answering">STLink Probe</button>
         </div>
+
+        <!-- Pushed to the far end. Picking a source and acting on one are
+             different kinds of thing, and the gap says so more quietly than a
+             second row did. -->
+        <div class="actions">
+          <button id="reset">Reset module</button>
+          <button id="reset-fram">Clear FRAM</button>
+          <span id="status" class="muted"></span>
+        </div>
       </div>
       <p id="source-detail" class="note"></p>
-
-      <div class="buttons">
-        <button id="reset">Reset module</button>
-        <button id="reset-fram">Clear FRAM</button>
-        <span id="status" class="muted"></span>
-      </div>
 
       <!-- Everything below belongs to one source or another. A page showing
            hardware has nothing to say about a MIDI port it is not driving, and

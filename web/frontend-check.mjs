@@ -487,8 +487,10 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   const css2 = readFileSync(new URL('style.css', import.meta.url), 'utf8');
   for (const src of ['sim', 'usb', 'probe']) {
     check(new RegExp(`--src-${src}:`).test(css2), `the ${src} source declares a colour`);
-    check(new RegExp(`\\.src-${src}\\.active\\s*\\{[^}]*var\\(--src-${src}\\)`).test(css2),
+    check(new RegExp(`\\.src-${src}\\.active[^{]*\\{[^}]*var\\(--src-${src}\\)`).test(css2),
       `the ${src} button wears it when active`);
+    check(new RegExp(`\\.src-${src}:not\\(:disabled\\):hover[^{]*\\{[^}]*var\\(--src-${src}\\)`).test(css2),
+      `and previews it on hover`);
     check(new RegExp(`#source-name\\.on-${src}\\s*\\{[^}]*var\\(--src-${src}\\)`).test(css2),
       `and so does the readout`);
   }
@@ -752,8 +754,10 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   const css2 = readFileSync(new URL('style.css', import.meta.url), 'utf8');
   for (const src of ['sim', 'usb', 'probe']) {
     check(new RegExp(`--src-${src}:`).test(css2), `the ${src} source declares a colour`);
-    check(new RegExp(`\\.src-${src}\\.active\\s*\\{[^}]*var\\(--src-${src}\\)`).test(css2),
+    check(new RegExp(`\\.src-${src}\\.active[^{]*\\{[^}]*var\\(--src-${src}\\)`).test(css2),
       `the ${src} button wears it when active`);
+    check(new RegExp(`\\.src-${src}:not\\(:disabled\\):hover[^{]*\\{[^}]*var\\(--src-${src}\\)`).test(css2),
+      `and previews it on hover`);
     check(new RegExp(`#source-name\\.on-${src}\\s*\\{[^}]*var\\(--src-${src}\\)`).test(css2),
       `and so does the readout`);
   }
