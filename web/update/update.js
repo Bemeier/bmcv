@@ -1,9 +1,9 @@
 // Page logic for the firmware updater: talk to the running module over
-// WebMIDI to get it into DFU, then talk to ST's ROM bootloader over WebUSB to
+// WebUSB to get it into DFU, then talk to ST's ROM bootloader over WebUSB to
 // write the image.
 //
 // The two halves are independent on purpose. If the firmware on the module is
-// too broken to answer MIDI, the user holds FN2 at power-on and the WebUSB half
+// too broken to answer at all, the user holds FN2 at power-on and the second half
 // still works on its own.
 
 import { requestDfuDevice, describeImageProblem, FLASH_START, DfuError } from './dfuse.js';
@@ -22,7 +22,7 @@ const ui = {
   windowsNote: el('windows-note'),
   btnConnect: el('btn-connect'),
   btnReboot: el('btn-reboot'),
-  midiStatus: el('midi-status'),
+  moduleStatus: el('midi-status'),
   releaseSelect: el('release-select'),
   file: el('file'),
   fileStatus: el('file-status'),
@@ -48,7 +48,7 @@ function setStatus(node, message, cls) {
   node.className = cls ?? 'muted';
 }
 
-// --- module side, over MIDI ------------------------------------------------
+// --- module side, over its vendor interface ---------------------------------
 
 // Find the module and ask it to reboot into its bootloader.
 //
@@ -59,7 +59,7 @@ function setStatus(node, message, cls) {
 // once, and the thing this page does most is make the module leave the bus.
 async function connectModule() {
   if (!navigator.usb) {
-    setStatus(ui.midiStatus, 'no WebUSB in this browser', 'warn');
+    setStatus(ui.moduleStatus, 'no WebUSB in this browser', 'warn');
     log('This browser has no WebUSB. Use the FN2 route instead.', 'warn');
     return;
   }
@@ -79,10 +79,13 @@ async function connectModule() {
 
     moduleDevice = device;
     ui.btnReboot.disabled = false;
-    setStatus(ui.midiStatus, `connected to ${device.productName || 'BMCV'}`, 'good');
+    ui.btnConnect.textContent = 'Connected';
+    ui.btnConnect.disabled = true;
+    setStatus(ui.moduleStatus, `connected to ${device.productName || 'BMCV'}`, 'good');
     log(`Module connected over USB${device.serialNumber ? `, serial ${device.serialNumber}` : ''}.`);
   } catch (err) {
-    setStatus(ui.midiStatus, 'module not found', 'warn');
+    ui.btnReboot.disabled = true;
+    setStatus(ui.moduleStatus, 'module not found', 'warn');
     log(err.name === 'NotFoundError' ? 'No module chosen.' : `${err.name}: ${err.message}`, 'warn');
     log('Use the FN2 route instead: hold FN2 while powering the case on.', 'warn');
   }
@@ -99,7 +102,9 @@ async function rebootIntoUpdateMode() {
 
   moduleDevice = null;
   ui.btnReboot.disabled = true;
-  setStatus(ui.midiStatus, 'rebooted into update mode', 'good');
+  ui.btnConnect.textContent = 'Connect to the module';
+  ui.btnConnect.disabled = false;
+  setStatus(ui.moduleStatus, 'rebooted into update mode', 'good');
   log('Told the module to reboot into update mode. The panel should be amber.');
   log('It has left the USB bus as a BMCV and come back as a DFU device.');
 }

@@ -126,20 +126,27 @@ TEST_CASE(encoder_delta_is_the_change_since_the_last_tick)
   Rig r;
   rig_init(&r);
 
+  // The first fold establishes where the encoders are; only what happens after
+  // it is movement. See InputFrames.baseline.
   r.sample.encoder_pos[0] = 10;
-  CHECK(rig_fold(&r, MS(1)) != 0); // movement makes the tick dirty
-  CHECK(r.ux.hw_state->encoder_delta[0] == 10);
+  CHECK(rig_fold(&r, MS(1)) == 0);
+  CHECK(r.ux.hw_state->encoder_delta[0] == 0);
   CHECK(r.ux.hw_state->encoder_state[0] == 10);
 
-  r.sample.encoder_pos[0] = 13;
-  rig_fold(&r, MS(2));
+  r.sample.encoder_pos[0] = 20;
+  CHECK(rig_fold(&r, MS(2)) != 0); // movement makes the tick dirty
+  CHECK(r.ux.hw_state->encoder_delta[0] == 10);
+  CHECK(r.ux.hw_state->encoder_state[0] == 20);
+
+  r.sample.encoder_pos[0] = 23;
+  rig_fold(&r, MS(3));
   CHECK(r.ux.hw_state->encoder_delta[0] == 3);
 
   // No movement: delta returns to zero and the tick is clean.
   CHECK(rig_fold(&r, MS(3)) == 0);
   CHECK(r.ux.hw_state->encoder_delta[0] == 0);
 
-  r.sample.encoder_pos[0] = 8;
+  r.sample.encoder_pos[0] = 18;
   rig_fold(&r, MS(4));
   CHECK(r.ux.hw_state->encoder_delta[0] == -5);
 }
@@ -556,10 +563,14 @@ TEST_CASE(two_instances_keep_separate_input_state)
   rig_init(&a);
   rig_init(&b);
 
-  a.sample.encoder_pos[0] = 10;
-  a.sample.button_down[3] = 1;
+  // Past the baseline fold on both, so what follows is movement.
   rig_fold(&a, MS(1));
   rig_fold(&b, MS(1));
+
+  a.sample.encoder_pos[0] = 10;
+  a.sample.button_down[3] = 1;
+  rig_fold(&a, MS(2));
+  rig_fold(&b, MS(2));
 
   CHECK(a.ux.hw_state->encoder_delta[0] == 10);
   CHECK(b.ux.hw_state->encoder_delta[0] == 0);
@@ -804,10 +815,42 @@ TEST_CASE(remote_input_marks_the_tick_dirty)
   CHECK(rig_fold(&r, MS(4)) != 0);
 }
 
+// The bug this was written for, and it took hardware to find.
+//
+// Encoder positions are free-running counters the instance does not own. A
+// module that has been played for a while has them at some arbitrary value, and
+// rebuilding the instance - which is what a remote reset does - zeroes the
+// frame they are compared against. The difference is not a turn, but the first
+// fold read it as one and applied it to the selected parameter, which
+// config_defaults deliberately sets to OFS. What that looked like on the bench
+// was a module whose every setting returned to default except the offset.
+TEST_CASE(a_rebuilt_instance_does_not_read_the_panel_as_a_gesture)
+{
+  Rig r;
+  rig_init(&r);
+
+  // A module that has been played: the encoders are a long way from zero and
+  // a button happens to be held.
+  r.sample.encoder_pos[0] = 5000;
+  r.sample.encoder_pos[3] = -2000;
+  r.sample.button_down[2] = 1;
+
+  CHECK(rig_fold(&r, MS(1)) == 0); // nothing moved; nothing happened
+  CHECK(r.ux.hw_state->encoder_delta[0] == 0);
+  CHECK(r.ux.hw_state->encoder_delta[3] == 0);
+
+  // But the positions are adopted, so the next real turn measures from them.
+  CHECK(r.ux.hw_state->encoder_state[0] == 5000);
+  r.sample.encoder_pos[0] = 5002;
+  CHECK(rig_fold(&r, MS(2)) != 0);
+  CHECK(r.ux.hw_state->encoder_delta[0] == 2);
+}
+
 int main(void)
 {
   RUN_TEST(trig_step_has_hysteresis);
   RUN_TEST(encoder_delta_is_the_change_since_the_last_tick);
+  RUN_TEST(a_rebuilt_instance_does_not_read_the_panel_as_a_gesture);
   RUN_TEST(encoder_delta_survives_int16_wraparound);
   RUN_TEST(button_level_changes_mark_the_tick_dirty);
   RUN_TEST(cv_is_scaled_from_adc_units_into_dac_units);

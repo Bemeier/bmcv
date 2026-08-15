@@ -145,6 +145,20 @@ typedef struct
   int16_t remote_slider_prev; // the last slider value seen in the mailbox
   uint8_t remote_live;        // is anybody still there
   uint8_t remote_slider_held; // is the remote fader the one being obeyed
+
+  // The next fold establishes where things are rather than how far they moved.
+  //
+  // Encoder positions are free-running hardware counters that owe nothing to
+  // this struct, so a freshly initialised frame says zero while the panel says
+  // whatever it has accumulated since power-on. The difference is not a turn,
+  // but the first fold would read it as one - and apply it to whichever
+  // parameter is selected, which after a reset is deliberately OFS. A module
+  // told to start again came back with everything at its default except the
+  // offset, which had been edited by the width of that gap.
+  //
+  // Harmless at power-on, where both are zero. It is a reset of a module that
+  // has been played that has somewhere to fall from.
+  uint8_t baseline;
 } InputFrames;
 
 // Points ux->hw_state at a zeroed frame timestamped now_us. It keeps pointing

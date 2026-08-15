@@ -33,6 +33,10 @@ void input_frames_init(InputFrames* in, UxState* ux, uint32_t now_us)
   // wants to say.
   in->remote.slider_raw  = REMOTE_SLIDER_NONE;
   in->remote_slider_prev = REMOTE_SLIDER_NONE;
+
+  // Whatever the panel is doing when the next sample arrives is the starting
+  // point, not a change from one. See InputFrames.baseline.
+  in->baseline = 1;
 }
 
 // Which remote panel to obey this tick - the mailbox, or nothing - and the two
@@ -224,6 +228,18 @@ uint8_t input_fold(InputFrames* in, UxState* ux, const InputSample* sample, uint
     curr->encoder_state[e] = (int16_t) (sample->encoder_pos[e] + rem->encoder_pos[e]);
     curr->encoder_delta[e] = (int16_t) (curr->encoder_state[e] - prev->encoder_state[e]);
     dirty |= curr->encoder_delta[e] != 0;
+  }
+
+  // The first frame after an instance is built is a position, not a movement.
+  // Everything above compared it against a frame of zeroes, which is a
+  // difference rather than a gesture - so it is discarded, and this frame
+  // becomes the one the next is measured from.
+  if (in->baseline)
+  {
+    in->baseline = 0;
+    *prev        = *curr;
+    memset(curr->encoder_delta, 0, sizeof(curr->encoder_delta));
+    return 0;
   }
 
   return dirty;

@@ -43,11 +43,15 @@
     <p>Two ways in. The first is easier; the second works even if the firmware
     on the module is too broken to respond.</p>
 
+    <p class="note">Connecting asks the browser for the module over USB, so the
+    first time you will be offered a device to pick. The same cable carries the
+    reboot and the firmware that follows it.</p>
+
     <dl>
       <dt>From here</dt>
       <dd>
         <div class="row" style="margin:.4rem 0">
-          <button id="btn-connect">Connect over MIDI</button>
+          <button id="btn-connect">Connect to the module</button>
           <button id="btn-reboot" class="primary" disabled>Reboot into update mode</button>
           <span id="midi-status" class="muted"></span>
         </div>
