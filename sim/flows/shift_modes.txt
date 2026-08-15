@@ -2,6 +2,11 @@
 # Holding a ctrl button past UI_T_HOLD latches its shift mode; the
 # mode's own button taps out of it again. QNT is the exception that keeps its
 # buttons as a semitone keyboard, so other ctrl taps do not exit it.
+#
+# Watch the `param` column as well as `shift`. The six page buttons are also the
+# six parameter buttons, so the tap that leaves a page selects that button's
+# parameter in the same tick: out of QNT lands on MOD (2), out of MIX on PHS
+# (3). It starts at OFS (5), which is what a reset selects.
 0ms     slider 0.0
 100ms   ctrl QNT 1
 600ms   ctrl QNT 0

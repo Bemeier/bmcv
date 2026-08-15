@@ -24,17 +24,11 @@ void ui_ctrl_shift_mode(const CtrlButtonSetup* btn, UxState* state)
   if (btn->id == state->ui->shift_state || !ui_mode(state->ui->shift_state)->keyboard_overlay)
   {
     state->ui->shift_state = SHIFT_STATE_NONE;
-    // The tap is consumed by the exit. It used to also set selected_param in
-    // the same tick, so leaving a mode via an arbitrary button silently
-    // changed what the encoders edit.
-    state->ui->exit_consumed_tap = 1;
   }
 }
 
 void ui_ctrl_selected_param(const CtrlButtonSetup* btn, UxState* state)
 {
-  if (state->ui->exit_consumed_tap)
-    return;
   if (state->ui->shift_state == SHIFT_STATE_NONE && btn->id < CH_PARAM_COUNT && btn_ev(&state->ui->in, btn->button, BTN_EV_TAP))
   {
     state->engine_config->selected_param = (uint8_t) btn->id;
@@ -43,9 +37,15 @@ void ui_ctrl_selected_param(const CtrlButtonSetup* btn, UxState* state)
     // as touching one does - including when it is the parameter already
     // selected, which makes the button a "show me where these are set" key.
     //
-    // The tap that *left* a shift mode is excluded above, deliberately: coming
-    // out of a mode should land back on the output monitor rather than on a
-    // parameter the user did not ask to see.
+    // The tap that leaves a shift mode selects its parameter too, and reads the
+    // same as any other press of that button. This used to be suppressed, on
+    // the grounds that leaving a mode should not silently change what the
+    // encoders edit - but the six page buttons *are* the six parameter buttons,
+    // and the suppression meant leaving MIX by pressing AMP landed on whatever
+    // was selected before, so the way to reach AMP was to press it twice. One
+    // rule instead: a labelled button gives you the thing it is labelled with.
+    // ux_update runs this pass after the shift-mode pass, so the exit and the
+    // selection land in the same tick.
     ui_show_param_display(state->ui);
   }
 }

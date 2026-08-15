@@ -92,10 +92,9 @@
 // by the UI layer except through the explicit mutation functions.
 typedef struct UiState
 {
-  uint8_t shift_state;       // ShiftStates
-  uint8_t prev_shift_state;  // to spot mode entry
-  uint8_t exit_consumed_tap; // this tick's tap left a mode; it selects no param
-  int8_t momentary_scene;    // -1 when no scene button is held
+  uint8_t shift_state;      // ShiftStates
+  uint8_t prev_shift_state; // to spot mode entry
+  int8_t momentary_scene;   // -1 when no scene button is held
 
   // The selected parameter is deliberately NOT here: it is saved with the
   // patch, so it lives in EngineConfig. See the note beside it there.

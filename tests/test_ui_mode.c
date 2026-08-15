@@ -50,10 +50,13 @@ TEST_CASE(another_ctrl_button_exits_every_mode_except_the_quantizer)
   }
 }
 
-// The tap that leaves a mode is spent on leaving it. Previously it also set
-// selected_param in the same tick, so exiting via an arbitrary ctrl button
-// silently changed what the encoders edit.
-TEST_CASE(the_tap_that_exits_a_mode_does_not_also_change_the_selected_param)
+// The tap that leaves a mode leaves it *and* selects the parameter on the
+// button, in the same tick. The two are not in competition: the six page
+// buttons are the six parameter buttons, and a button that is labelled SHP
+// should give you SHP whether or not a page happened to be open. This was the
+// other way round for a while - the exit swallowed the tap, so getting to SHP
+// from a page meant pressing SHP, watching nothing happen, and pressing again.
+TEST_CASE(the_tap_that_exits_a_mode_selects_that_buttons_param)
 {
   Fixture f;
   fixture_init(&f);
@@ -63,10 +66,6 @@ TEST_CASE(the_tap_that_exits_a_mode_does_not_also_change_the_selected_param)
   fixture_press(&f, ctrl_btn(&f, CH_PARAM_SHP), MS(40));
 
   CHECK(f.ui_state.shift_state == SHIFT_STATE_NONE);
-  CHECK(f.engine_config.selected_param == CH_PARAM_FRQ);
-
-  // A second tap, now that no mode is active, does select it.
-  fixture_press(&f, ctrl_btn(&f, CH_PARAM_SHP), MS(40));
   CHECK(f.engine_config.selected_param == CH_PARAM_SHP);
 }
 
@@ -211,7 +210,7 @@ int main(void)
 {
   RUN_TEST(a_modes_own_button_always_exits_it);
   RUN_TEST(another_ctrl_button_exits_every_mode_except_the_quantizer);
-  RUN_TEST(the_tap_that_exits_a_mode_does_not_also_change_the_selected_param);
+  RUN_TEST(the_tap_that_exits_a_mode_selects_that_buttons_param);
   RUN_TEST(leaving_a_mode_drops_any_half_finished_selection);
   RUN_TEST(mute_toggles_on_release_rather_than_on_press);
   RUN_TEST(mute_only_affects_the_channel_whose_button_was_pressed);

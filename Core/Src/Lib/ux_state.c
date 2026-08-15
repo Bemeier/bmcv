@@ -81,7 +81,6 @@ static void age_timers(UxState* state, uint32_t dt)
 void ux_update(UxState* state, uint32_t now_us)
 {
   age_timers(state, state->ui->in.dt);
-  state->ui->exit_consumed_tap = 0;
 
   for (uint8_t b = 0; b < N_CTRL_BUTTONS; b++)
   {
@@ -97,6 +96,10 @@ void ux_update(UxState* state, uint32_t now_us)
     ui_sel_reset(state->ui);
   }
 
+  // After the shift-mode pass, not before it. The six page buttons are the six
+  // parameter buttons, so the tap that leaves a mode has to be able to select
+  // the parameter it is labelled with in the same tick - which it can only do
+  // once shift_state is back to NONE.
   for (uint8_t b = 0; b < N_CTRL_BUTTONS; b++)
   {
     ui_ctrl_selected_param(&state->ux_setup->ctrl_buttons[b], state);
