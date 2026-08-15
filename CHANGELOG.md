@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.12.0 (2026-08-15)
+
+### Feat
+
+- **panel**: the artwork becomes an opaque panel with the cutouts punched out
+
 ## v0.11.1 (2026-08-15)
 
 ### Fix
