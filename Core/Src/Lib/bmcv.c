@@ -15,6 +15,7 @@
 #include "midi.h"
 #include "presets.h"
 #include "stm32g474xx.h"
+#include "usblink.h"
 #include "version.h"
 #include "ws2811.h"
 #include <stdint.h>
@@ -352,7 +353,7 @@ void bmcv_main(uint32_t now_us)
     // Reset and forget-everything, asked for from outside. Before the input is
     // folded because it may rebuild the whole instance, which is not something
     // to do halfway through a tick.
-    midi_take_remote_command(&bmcv.command);
+    usblink_take_remote_command(&bmcv.command);
     bmcv_instance_take_command(&bmcv, &fram_preset_io, now_us);
 
     // Anything a host has sent over MIDI, moved into the instance here rather
@@ -360,7 +361,7 @@ void bmcv_main(uint32_t now_us)
     // this mailbox, and an interrupt writing it halfway through that read is
     // the one thing its design does not tolerate. Nothing can interleave
     // between these two lines.
-    midi_take_remote_input(&bmcv.input.remote);
+    usblink_take_remote_input(&bmcv.input.remote);
 
     // input_fold points bmcv.ux.hw_state at the frame it just filled.
     // engine_fps is measured inside engine_tick, so every host agrees on it.
@@ -418,32 +419,21 @@ void bmcv_main(uint32_t now_us)
   // asking how much of it fits. An empty queue costs a state read and a
   // compare, which is what the LED flush below does with its DMA for the same
   // reason.
-  // Not while a snapshot is partway out of the endpoint.
-  //
-  // USB-MIDI allows exactly one thing to interleave a SysEx on a cable: System
-  // Real-Time. A control change landing between two of a snapshot's fifty-seven
-  // transfers is a protocol violation, and what a host does with it is abandon
-  // the message it was assembling. The module then believes it sent a snapshot
-  // that the page never saw, so the page never asks for another and the stream
-  // stops dead. That is what "works for a moment, then goes quiet" was.
-  //
-  // Control changes wait rather than being lost: midi_out only emits on change,
-  // and a queue that overflows marks those entries CC_NEVER so the next slot
-  // says them again. What it costs is output latency while streaming, since a
-  // snapshot occupies the endpoint for about eleven milliseconds at a time and
-  // control changes get the gap between two of them.
-  if (midi_idle() && !midi_stream_active())
+  if (midi_idle())
   {
     midi_publish();
   }
 
-  // Outside the tick, so the copy a snapshot starts from is taken between two
-  // of them and is internally consistent. After midi_publish() rather than
-  // before, so the engine's own control changes keep their claim on the
-  // endpoint - midi_out only emits on change, so what they take is a few
-  // percent of it, and a note arriving late is worse than a frame arriving
-  // late.
-  midi_stream_poll(now_us, &bmcv);
+  // Snapshots go out on their own endpoint, so this competes with nothing.
+  //
+  // Over MIDI they shared one with the control changes above, and since only a
+  // System Real-Time message may interleave a SysEx, every snapshot had to hold
+  // the endpoint for eleven milliseconds while the engine's output waited. That
+  // whole problem is gone with the transport that caused it.
+  //
+  // Still outside the tick, so the copy it takes is between two of them and is
+  // internally consistent.
+  usblink_poll(&bmcv);
 
   if (led_poll && ws2811_dma_completed())
   {

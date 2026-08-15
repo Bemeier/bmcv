@@ -61,13 +61,6 @@ const storageSize = _('storage_size')();
 const instanceSize = _('instance_size')();
 const snapshotBuf = Module._malloc(instanceSize);
 
-// The same instance as it arrives over MIDI: seven-bit encoded, so bigger.
-// Allocated once beside the snapshot buffer because on a MIDI-backed page this
-// carries a whole module ninety times a second, and a malloc/free pair per
-// frame is work the main thread is already short of - it is the main thread
-// being short of it that decides the frame rate at all. See importSysex7.
-const wireSize = _('sysex7_encoded_len')(instanceSize);
-const wireBuf = Module._malloc(wireSize);
 
 // One drained MIDI message, matching MidiMsg in Core/Inc/Lib/midi_out.h.
 const MIDI_MSG_BYTES = 4;
@@ -121,40 +114,6 @@ export const sim = {
   commandOffset: _('command_offset')(),
   commandSize: _('command_size')(),
   commandBlob: () => u8(_('command_blob')(handle), sim.commandSize).slice(),
-
-  /* ---- over MIDI --------------------------------------------------------- */
-  //
-  // Anything between an F0 and an F7 has to be seven-bit, so a mailbox going out
-  // and a snapshot coming back are both encoded. This is the module's own
-  // sysex.c compiled to wasm - there is no copy of the codec in JS, for the
-  // reason there is no copy of the struct layout either.
-
-  sysex7EncodedLen: n => _('sysex7_encoded_len')(n),
-  sysex7DecodedLen: n => _('sysex7_decoded_len')(n),
-
-  sysex7Encode(bytes) {
-    const need = _('sysex7_encoded_len')(bytes.length);
-    const src = Module._malloc(bytes.length);
-    const dst = Module._malloc(need);
-    u8(src, bytes.length).set(bytes);
-    const n = _('sysex7_encode')(dst, src, bytes.length);
-    const out = u8(dst, n).slice();
-    Module._free(src);
-    Module._free(dst);
-    return out;
-  },
-
-  sysex7Decode(bytes) {
-    const need = _('sysex7_decoded_len')(bytes.length);
-    const src = Module._malloc(bytes.length);
-    const dst = Module._malloc(need);
-    u8(src, bytes.length).set(bytes);
-    const n = _('sysex7_decode')(dst, src, bytes.length);
-    const out = u8(dst, n).slice();
-    Module._free(src);
-    Module._free(dst);
-    return out;
-  },
 
   // Stamped with a fresh sequence number on every call - the far end reads it
   // as a heartbeat, so a write that changes nothing still has to happen.
@@ -242,23 +201,6 @@ export const sim = {
   // frame that a probe is connected.
 
   instanceSize,
-
-  // The wire form of an instance, in bytes. What a module's snapshot SysEx
-  // carries between its command byte and its terminator.
-  wireSize,
-
-  // Decode a snapshot straight into the import buffer and adopt it.
-  //
-  // Separate from sysex7Decode + importInstance, which is what this replaced,
-  // because that path allocated twice and copied the module three times over
-  // for every frame. Here the encoded bytes are copied in once and decoded
-  // directly where import wants them.
-  importSysex7(encoded) {
-    if (encoded.length !== wireSize) return false;
-    u8(wireBuf, wireSize).set(encoded);
-    if (_('sysex7_decode')(snapshotBuf, wireBuf, wireSize) !== instanceSize) return false;
-    return _('import')(handle, snapshotBuf, instanceSize) === 1;
-  },
 
   importInstance(bytes) {
     if (bytes.length !== instanceSize) return false;

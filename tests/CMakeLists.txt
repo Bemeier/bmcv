@@ -70,7 +70,6 @@ bmcv_add_test(test_ui_feedback)
 bmcv_add_test(test_ui_mode)
 bmcv_add_test(test_input_fold)
 bmcv_add_test(test_mcp_decode)
-bmcv_add_test(test_sysex)
 bmcv_add_test(test_midi_realtime)
 bmcv_add_test(test_midi_out)
 

@@ -4,7 +4,7 @@
 //
 //   SIM    the simulation in this tab. Its MIDI output can be pointed at a real
 //          port, which is the only thing optional about this mode.
-//   MIDI   a physical module, over the USB port it already enumerates.
+//   USB    a physical module, over its own USB cable.
 //   PROBE  a physical module, over an ST-Link on the programming header.
 //
 // The last two are the same picture by different means, so most of the page
@@ -18,13 +18,13 @@
 import { TICK_US } from './const.js';
 
 export const SIM = 'sim';
-export const MIDI = 'midi';
+export const USB = 'usb';
 export const PROBE = 'probe';
 
 // What each source is called where a person reads it.
 export const SOURCE_NAME = {
   [SIM]: 'simulation',
-  [MIDI]: 'module over USB',
+  [USB]: 'module over USB',
   [PROBE]: 'module over probe',
 };
 
@@ -105,7 +105,7 @@ export const mode = {
     if (current === was) return;
 
     document.body.classList.toggle('live', current !== SIM);
-    for (const name of [SIM, MIDI, PROBE]) {
+    for (const name of [SIM, USB, PROBE]) {
       document.body.classList.toggle(`mode-${name}`, current === name);
     }
     for (const fn of listeners) fn(current);

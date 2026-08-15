@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>BMCV — MIDI link diagnostics</title>
+<title>BMCV — USB link diagnostics</title>
 <link rel="stylesheet" href="../style.css">
 <style>
   body { max-width: 46rem; margin: 0 auto; padding: 2rem 1.5rem; }
@@ -21,7 +21,7 @@
 </head>
 <body>
 
-<h1>MIDI link diagnostics</h1>
+<h1>USB link diagnostics</h1>
 
 <p class="lede">
   <strong>Measure the snapshot rate</strong> asks for whole module snapshots the
@@ -37,12 +37,6 @@
   it and the WebUSB route is available.
 </p>
 
-<p class="lede">
-  <strong>Diagnose the bus</strong> asks nothing and assumes nothing: it opens
-  every port, reports its state, sends one identity request to each output, and
-  prints every byte that comes back. Use it when a module that is plainly there
-  answers nothing.
-</p>
 
 <p class="lede">
   Nothing is written to the module and nothing is stored. The module streams
@@ -51,7 +45,6 @@
 
 <p>
   <button id="run-snapshots" type="button">measure the snapshot rate</button>
-  <button id="run-diagnose" type="button">diagnose the bus</button>
   <button id="run-webusb" type="button">check WebUSB</button>
   <span id="status" class="muted">starting up</span>
 </p>

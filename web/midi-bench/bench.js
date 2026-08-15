@@ -1,17 +1,20 @@
-// Two instruments for the MIDI link, kept because they earned it.
+// Two instruments for the USB link, kept because they earned it.
 //
 // Every time a fault here was reasoned about it was diagnosed wrongly, and every
 // time one of these was pointed at it the answer arrived in a single run. The
-// snapshot rate separated a slow transport from a stalling one; the bus monitor
-// separated a dead endpoint from a lost reply. Both distinctions were invisible
-// from the simulator page, and both had been guessed at for several rounds.
+// snapshot rate separated a slow transport from a stalling one; the device check
+// separates a driver that did not bind from a module that is not answering.
+// Neither distinction is visible from the simulator page.
 //
 // See docs/live-module.md.
 
-import { identify, SYSEX_ID, CMD_IDENTITY_REQ, CMD_STREAM_REQ, CMD_SNAPSHOT } from '../probe/midiports.js';
-
 // How long the snapshot measurement runs.
 const SNAPSHOT_SECONDS = 8;
+
+// The instance size this page expects. Only used to size a read; the simulator
+// page gets it from the wasm, and this one deliberately loads no wasm at all so
+// that what it measures is the transport and nothing else.
+const INSTANCE_BYTES = 2384;
 
 const el = id => document.getElementById(id);
 const ui = {
@@ -102,220 +105,88 @@ async function checkWebUsb() {
   }
 }
 
-/* ---- what is actually on the bus ----------------------------------------- */
+/* ---- how fast can it actually go? ---------------------------------------- */
 
-// No theory, just bytes.
+// Snapshots over the vendor interface, decoding nothing and drawing nothing.
 //
-// Four attempts to find why a module that is plugged in, named, and running
-// answers nothing have each been a plausible guess, and each has been wrong in
-// a different way. This asks the bus instead: open every port, say what state
-// it is in, send the identity request to each output in turn, and print every
-// byte that arrives on any input.
-//
-// If the module answers, this shows what it said. If it does not, this shows
-// whether the request could even be sent - which is the fork the error message
-// alone cannot resolve.
-async function diagnose(access) {
-  const inputs = [...access.inputs.values()];
-  const outputs = [...access.outputs.values()];
+// The gap between this and the simulator page is the whole point of running it
+// here: fast here and slow there means the cost is in decoding and drawing;
+// slow here too means the transport or the firmware. Nothing else distinguishes
+// those, and guessing at it is what cost several evenings on the transport this
+// replaced.
+async function measureSnapshots(device, seconds = SNAPSHOT_SECONDS) {
+  const OP_SNAPSHOT_REQ = 0x01;
+  const EP = 2;
 
-  const hex = d => [...d].map(b => b.toString(16).padStart(2, '0')).join(' ');
+  const size = INSTANCE_BYTES;
+  const request = () => device.transferOut(EP, new Uint8Array([OP_SNAPSHOT_REQ]));
 
-  log(`inputs:  ${inputs.length}`);
-  for (const p of inputs) log(`  "${p.name}" [${p.manufacturer || 'no manufacturer'}] state=${p.state} connection=${p.connection}`);
-  log(`outputs: ${outputs.length}`);
-  for (const p of outputs) log(`  "${p.name}" [${p.manufacturer || 'no manufacturer'}] state=${p.state} connection=${p.connection}`);
+  await request();
+  await request();
 
-  log('');
-  log('opening every port...');
-  for (const p of [...inputs, ...outputs]) {
-    try {
-      await p.open();
-      log(`  ${p.type} "${p.name}" -> ${p.connection}`);
-    } catch (e) {
-      log(`  ${p.type} "${p.name}" -> FAILED: ${e.name} ${e.message}`);
+  const until = performance.now() + seconds * 1000;
+  let count = 0, bytes = 0, short = 0, first = 0, last = 0;
+  const gaps = [];
+
+  while (performance.now() < until) {
+    const r = await device.transferIn(EP, size);
+    if (r.status !== 'ok') {
+      log(`  transfer reported "${r.status}"`);
+      break;
     }
+    const now = performance.now();
+    if (!count) first = now; else gaps.push(now - last);
+    last = now;
+    count++;
+    bytes += r.data.byteLength;
+    if (r.data.byteLength !== size) short++;
+    request().catch(() => {});
   }
 
-  // Listen before asking anything.
-  //
-  // The module publishes its channel outputs as control changes continuously,
-  // whether or not anybody has spoken to it. So this separates the two failures
-  // that look identical from outside: control changes arriving means the IN
-  // endpoint works and only the reply is broken; total silence means the
-  // endpoint is producing nothing at all, and no amount of SysEx will help.
-  //
-  // The previous run of this tool already said which it was - one message
-  // heard, and that one was loopMIDI's own echo - and it was misread.
-  const passive = new Map(inputs.map(p => [p.name, 0]));
-  const sample = new Map();
+  const elapsed = (last - first) / 1000;
+  const rate = elapsed > 0 ? (count - 1) / elapsed : 0;
+  const sorted = [...gaps].sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)] ?? 0;
+  const worst = sorted[sorted.length - 1] ?? 0;
 
-  for (const input of inputs) {
-    input.onmidimessage = ev => {
-      passive.set(input.name, passive.get(input.name) + 1);
-      if (!sample.has(input.name)) sample.set(input.name, hex(ev.data.subarray(0, 8)));
-    };
-  }
-
-  // Does this browser notice a device coming or going at all?
-  //
-  // That is the question behind the transport's one real annoyance: ports go
-  // stale when the module leaves the bus and only a browser restart brings them
-  // back. If statechange fires, the browser is watching and there may be
-  // something a page can do; if it never fires while a module is plainly
-  // unplugged, the browser is not looking and nothing on this side can help.
-  //
-  // Power-cycle the module during the wait to find out.
-  let changes = 0;
-  access.onstatechange = ev => {
-    changes++;
-    log(`  ! ${ev.port.type} "${ev.port.name}" -> ${ev.port.state} / ${ev.port.connection}`);
-  };
-
-  log('');
-  log('listening for 8s, saying nothing.');
-  log('Power-cycle the module now if you want to know whether this browser notices.');
-  await new Promise(r => setTimeout(r, 8000));
-  log(changes ? `  ${changes} port state changes seen` : '  no port state changes seen');
-
-  for (const [name, n] of passive) {
-    log(`  "${name}": ${n} messages${n ? ` (first: ${sample.get(name)})` : ''}`);
-  }
-  if ((passive.get('BMCV') ?? 0) === 0) {
-    log('  BMCV sent nothing unprompted. It publishes its channel outputs as');
-    log('  control changes continuously, so silence here means the IN endpoint');
-    log('  is dead rather than the SysEx reply being lost.');
-  }
-
-  let heard = 0;
-  for (const input of inputs) {
-    input.onmidimessage = ev => {
-      heard++;
-      const d = ev.data;
-      const tag = d.length > 24 ? `${hex(d.subarray(0, 12))} ... (${d.length} bytes)` : hex(d);
-      log(`  <- "${input.name}": ${tag}`);
-    };
-  }
-
-  for (const output of outputs) {
-    log('');
-    log(`asking "${output.name}" who it is...`);
-    const before = heard;
-    try {
-      output.send([0xf0, ...SYSEX_ID, CMD_IDENTITY_REQ, 0xf7]);
-      log('  sent F0 7D 42 4D 02 F7');
-    } catch (e) {
-      log(`  send FAILED: ${e.name} ${e.message}`);
-      continue;
-    }
-    await new Promise(r => setTimeout(r, 700));
-    if (heard === before) log('  (nothing came back)');
-  }
-
-  log('');
-  log(`total messages heard: ${heard}`);
-  if (!heard) {
-    log('Nothing at all arrived. Either the module is not running this firmware,');
-    log('or its USB IN endpoint is holding a transfer nobody collected - which a');
-    log('power cycle clears, and which the current firmware recovers from itself.');
-  }
-
-  for (const input of inputs) input.onmidimessage = null;
-}
-
-/* ---- the snapshot rate, with nothing else in the way --------------------- */
-
-// The bench above measures what the endpoint can carry. This measures what the
-// real transport achieves, on a page that does no decoding and draws nothing.
-//
-// That gap is the whole point of running it here rather than on the simulator
-// page: if snapshots arrive quickly here and slowly there, the transport is fine
-// and the cost is in decoding and drawing them. If they are slow here too, it is
-// the transport or the firmware. Nothing else distinguishes those.
-function measureSnapshots(input, output) {
-  return new Promise(resolve => {
-    let count = 0, bytes = 0, first = 0, last = 0, short = 0;
-    const gaps = [];
-
-    const request = () => output.send([0xf0, ...SYSEX_ID, CMD_STREAM_REQ, 0xf7]);
-
-    input.onmidimessage = ev => {
-      const d = ev.data;
-      if (d.length < 6 || d[0] !== 0xf0) return;
-      if (d[1] !== SYSEX_ID[0] || d[2] !== SYSEX_ID[1] || d[3] !== SYSEX_ID[2]) return;
-      if (d[4] !== CMD_SNAPSHOT) return;
-
-      const now = performance.now();
-      if (!count) first = now;
-      else gaps.push(now - last);
-      last = now;
-      count++;
-      bytes += d.length;
-      if (d.length < 2000) short++;
-
-      // One credit back, immediately. Nothing is decoded, so this is as fast as
-      // a consumer can possibly ask - which makes it the ceiling for the paced
-      // arrangement the simulator page uses.
-      request();
-    };
-
-    // The same two the link opens with.
-    request();
-    request();
-
-    setTimeout(() => {
-      input.onmidimessage = null;
-      resolve({ count, bytes, first, last, short, gaps });
-    }, SNAPSHOT_SECONDS * 1000);
-  });
-}
-
-function reportSnapshots(r) {
-  const seconds = (r.last - r.first) / 1000;
-  const rate = seconds > 0 ? (r.count - 1) / seconds : 0;
+  log(`${count} snapshots in ${fmt(elapsed, 2)}s, ${fmt(bytes / 1024, 0)} kB`);
+  if (short) log(`${short} were not ${size} bytes`);
 
   ui.verdict.hidden = false;
-
-  if (r.count < 2) {
-    ui.verdict.textContent = 'The module sent no snapshots. It is running firmware without the stream command, or the request is not reaching it.';
-    return;
-  }
-
-  // The spread matters more than the average here. A steady stream and one that
-  // arrives in bursts can average the same and look completely different.
-  const sorted = [...r.gaps].sort((a, b) => a - b);
-  const median = sorted[Math.floor(sorted.length / 2)];
-  const worst = sorted[sorted.length - 1];
-
   ui.verdict.textContent =
-    `${fmt(rate, 1)} snapshots/s over ${fmt(seconds, 1)}s, decoding nothing and drawing nothing. `
-    + `Gap between them: ${fmt(median, 1)}ms typical, ${fmt(worst, 0)}ms worst. `
+    `${fmt(rate, 1)} snapshots/s, decoding nothing and drawing nothing. `
+    + `Gap: ${fmt(median, 1)}ms typical, ${fmt(worst, 0)}ms worst. `
     + (worst > median * 5
-      ? 'That spread means they are arriving in bursts, so something is stalling the stream rather than slowing it.'
+      ? 'That spread means they arrive in bursts, so something is stalling the stream rather than slowing it.'
       : 'Evenly spaced, so the transport itself is steady.');
-
-  log(`${r.count} snapshots, ${fmt(r.bytes / 1024, 0)} kB, ${kb(r.bytes / seconds)}`);
-  if (r.short) log(`${r.short} were shorter than a whole instance`);
 }
 
 /* ---- wiring -------------------------------------------------------------- */
 
-if (!navigator.requestMIDIAccess) {
-  setStatus('this browser has no Web MIDI');
-  for (const id of ['run-snapshots', 'run-diagnose']) el(id).disabled = true;
+if (!navigator.usb) {
+  setStatus('this browser has no WebUSB');
+  for (const id of ['run-snapshots', 'run-webusb']) el(id).disabled = true;
 } else {
   setStatus('ready');
 }
 
-// Both buttons share the connect-and-find preamble.
 async function withModule(fn) {
-  setStatus('asking for MIDI access');
-  const access = await navigator.requestMIDIAccess({ sysex: true });
-  const { input, output, version } = await findPorts(access);
-  log(`in:  ${input.name}`);
-  log(`out: ${output.name}`);
-  log(`firmware ${version}`);
-  return fn(input, output);
+  const granted = await navigator.usb.getDevices();
+  let device = granted.find(d => d.vendorId === BMCV_VID && d.productId === BMCV_PID);
+  if (!device) {
+    device = await navigator.usb.requestDevice({
+      filters: [{ vendorId: BMCV_VID, productId: BMCV_PID }],
+    });
+  }
+
+  await device.open();
+  if (!device.configuration) await device.selectConfiguration(1);
+  await device.claimInterface(BMCV_VENDOR_INTERFACE);
+  try {
+    await fn(device);
+  } finally {
+    try { await device.close(); } catch { /* already gone */ }
+  }
 }
 
 el('run-webusb')?.addEventListener('click', async () => {
@@ -335,25 +206,6 @@ el('run-webusb')?.addEventListener('click', async () => {
   }
 });
 
-el('run-diagnose')?.addEventListener('click', async () => {
-  const button = el('run-diagnose');
-  button.disabled = true;
-  ui.verdict.hidden = true;
-  ui.log.textContent = '';
-
-  try {
-    setStatus('asking for MIDI access');
-    const access = await navigator.requestMIDIAccess({ sysex: true });
-    setStatus('probing');
-    await diagnose(access);
-    setStatus('done - copy the log');
-  } catch (e) {
-    setStatus(`${e.name}: ${e.message}`);
-  } finally {
-    button.disabled = false;
-  }
-});
-
 el('run-snapshots')?.addEventListener('click', async () => {
   const button = el('run-snapshots');
   button.disabled = true;
@@ -361,15 +213,12 @@ el('run-snapshots')?.addEventListener('click', async () => {
   ui.log.textContent = '';
 
   try {
-    await withModule(async (input, output) => {
-      setStatus(`streaming for ${SNAPSHOT_SECONDS}s`);
-      reportSnapshots(await measureSnapshots(input, output));
-      setStatus('done');
-    });
+    setStatus(`streaming for ${SNAPSHOT_SECONDS}s`);
+    await withModule(measureSnapshots);
+    setStatus('done');
   } catch (e) {
-    setStatus(e.message);
+    setStatus(`${e.name}: ${e.message}`);
   } finally {
     button.disabled = false;
   }
 });
-

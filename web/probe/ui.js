@@ -10,22 +10,22 @@
 // an error state left the error text underneath a "live" status.
 
 import { sim } from '../sim.js';
-import { mode, SIM, MIDI, PROBE, SOURCE_NAME } from '../mode.js';
+import { mode, SIM, USB, PROBE, SOURCE_NAME } from '../mode.js';
 import { probe, webusbAvailable } from './probe.js';
-import { midilink, webmidiAvailable } from './midilink.js';
+import { usblink, webusbAvailable as webusbLinkAvailable } from './usblink.js';
 
 const el = id => document.getElementById(id);
 
-const links = { [MIDI]: midilink, [PROBE]: probe };
+const links = { [USB]: usblink, [PROBE]: probe };
 
 // Whichever link is doing something, or null when the simulation is running and
 // nothing has gone wrong. An error outlives the attempt that caused it, so it
 // stays on screen long enough to read.
 function speaking() {
-  for (const link of [midilink, probe]) {
+  for (const link of [usblink, probe]) {
     if (link.state === 'connecting' || link.state === 'live') return link;
   }
-  for (const link of [midilink, probe]) {
+  for (const link of [usblink, probe]) {
     if (link.state === 'error') return link;
   }
   return null;
@@ -33,10 +33,8 @@ function speaking() {
 
 /* ---- what each source has to say ----------------------------------------- */
 
-// A module over USB: which port it turned out to be, since the name is exactly
-// the thing that cannot be relied on to find it.
-const midiDetail = () =>
-  `${midilink.input?.name || 'unnamed port'}, firmware ${midilink.version}, no probe attached`;
+// A module over its own cable.
+const usbDetail = () => usblink.description;
 
 // A module over a probe. The read time is the diagnostic that matters when the
 // rate disappoints: against the interval between snapshots it says whether the
@@ -48,12 +46,10 @@ const probeDetail = () =>
 // Why the simulation is running rather than a module, when that is a fact about
 // the browser rather than a choice.
 function simDetail() {
-  if (!webmidiAvailable && !webusbAvailable) {
-    return 'This browser has neither Web MIDI nor WebUSB, so it cannot reach a module at all. '
-      + 'The simulation itself works everywhere.';
+  if (!webusbAvailable) {
+    return 'This browser has no WebUSB, so it cannot reach a module at all. Chromium has it; '
+      + 'the simulation itself works everywhere.';
   }
-  if (!webmidiAvailable) return 'This browser has no Web MIDI, so a module can only be reached through a debug probe.';
-  if (!webusbAvailable) return 'This browser has no WebUSB, so the debug probe route is unavailable. Chromium has it.';
   return '';
 }
 
@@ -62,8 +58,8 @@ function render() {
   const name = el('source-name');
   const detail = el('source-detail');
 
-  el('connect-midi').textContent = midilink.state === 'live' ? 'Disconnect'
-    : midilink.state === 'connecting' ? 'Finding…' : 'Connect over USB';
+  el('connect-usb').textContent = usblink.state === 'live' ? 'Disconnect'
+    : usblink.state === 'connecting' ? 'Finding…' : 'Connect over USB';
   el('connect-probe').textContent = probe.state === 'live' ? 'Disconnect'
     : probe.state === 'connecting' ? 'Connecting…' : 'Use a debug probe';
 
@@ -71,7 +67,7 @@ function render() {
   // underneath it - the page has one wasm instance and both would import into
   // it.
   const busy = link && link.state !== 'error';
-  el('connect-midi').disabled = !webmidiAvailable || (busy && link !== midilink);
+  el('connect-usb').disabled = !webusbLinkAvailable || (busy && link !== usblink);
   el('connect-probe').disabled = !webusbAvailable || (busy && link !== probe);
 
   if (!link || link.state === 'error') {
@@ -94,7 +90,7 @@ function render() {
   // page has just stopped asking. Saying "live" through it would be a lie about
   // numbers that have stopped moving.
   const paused = link === probe && probe.paused;
-  name.textContent = paused ? 'paused' : SOURCE_NAME[link === probe ? PROBE : MIDI];
+  name.textContent = paused ? 'paused' : SOURCE_NAME[link === probe ? PROBE : USB];
   name.className = paused ? 'value warn' : 'value ok';
 
   detail.textContent = paused
@@ -104,7 +100,7 @@ function render() {
       + 'module while working elsewhere, put this page in its own window and leave '
       + 'it visible - a window that is not focused is not throttled, only one that '
       + 'is hidden.'
-    : link === probe ? probeDetail() : midiDetail();
+    : link === probe ? probeDetail() : usbDetail();
 }
 
 /* ---- the rates ----------------------------------------------------------- */
@@ -148,20 +144,20 @@ export function drawProbeRates() {
 }
 
 export function initProbe() {
-  if (!el('connect-midi')) return;
+  if (!el('connect-usb')) return;
 
   rateEls.snapshots = el('r-probe-hz');
   rateEls.engine = el('r-engine-fps');
   rateEls.dac = el('r-dac-fps');
   rateEls.leds = el('r-led-fps');
 
-  midilink.onchange = render;
+  usblink.onchange = render;
   probe.onchange = render;
 
   // Both buttons toggle, and the label says which way.
-  el('connect-midi').addEventListener('click', () => {
-    if (midilink.state === 'live') midilink.disconnect();
-    else midilink.connect();
+  el('connect-usb').addEventListener('click', () => {
+    if (usblink.state === 'live') usblink.disconnect();
+    else usblink.connect();
   });
   el('connect-probe').addEventListener('click', () => {
     if (probe.state === 'live') probe.disconnect();

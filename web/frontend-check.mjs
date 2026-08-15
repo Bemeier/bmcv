@@ -246,17 +246,17 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
 // a cell that draws a fixed number of samples therefore shows two spans that
 // differ by a factor of a hundred - which is what it used to do, silently.
 {
-  const { mode, SIM, MIDI } = await import('./mode.js');
+  const { mode, SIM, USB } = await import('./mode.js');
   const { drawScopes, spanSamples } = await import('./scope.js');
 
   mode.drivenBy(SIM);
   check(spanSamples() === 1500, `the simulator draws 375ms of ticks (${spanSamples()} samples)`);
 
-  mode.drivenBy(MIDI, 30);
+  mode.drivenBy(USB, 30);
   check(spanSamples() === 60, `a probe at 30/s draws two seconds (${spanSamples()} samples)`);
 
   // The rate is measured, so the window has to follow it rather than a constant.
-  mode.drivenBy(MIDI, 10);
+  mode.drivenBy(USB, 10);
   check(spanSamples() === 20, `and follows the measured rate (${spanSamples()} samples)`);
 
   mode.drivenBy(SIM);
@@ -268,7 +268,7 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   // Carried, it capped how much of the buffer the scopes would draw: after a
   // session of ~900 snapshots the simulator drew 900 of its 1500 samples and
   // the trace stopped 60% of the way across every cell.
-  mode.drivenBy(MIDI, 30, 900);
+  mode.drivenBy(USB, 30, 900);
   check(mode.contiguous === 900, 'a live probe reports its own sample count');
   mode.drivenBy(SIM);
   check(mode.contiguous === Infinity, 'and disconnecting discards it, whatever is passed');
@@ -277,7 +277,7 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   // here is that asking the question does not throw with a probe's sample rate
   // in effect - the branch only runs when live, and only there reads effective
   // frequencies out of the wasm heap.
-  mode.drivenBy(MIDI, 30);
+  mode.drivenBy(USB, 30);
   let aliasThrew = null;
   try { drawScopes(); } catch (e) { aliasThrew = e; }
   check(!aliasThrew, `the aliasing check runs${aliasThrew ? ` (${aliasThrew.message})` : ''}`);
@@ -285,7 +285,7 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   // Coming back to a backgrounded tab: the buffer still holds whatever was in
   // it, but only a few samples were taken since. Drawing the rest would put
   // history from minutes ago on an axis that claims to be two seconds wide.
-  mode.drivenBy(MIDI, 30, 3);
+  mode.drivenBy(USB, 30, 3);
   check(mode.contiguous === 3, 'a resumed probe reports how little it has sampled');
   let gapThrew = null;
   try { drawScopes(); } catch (e) { gapThrew = e; }
@@ -342,7 +342,7 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
 // was looking at would have appeared to do nothing; they now act on whichever
 // module is being shown, and say which that is.
 {
-  const { mode, SIM, MIDI, PROBE } = await import('./mode.js');
+  const { mode, SIM, USB, PROBE } = await import('./mode.js');
   const cls = document.body.classList;
   const reset = document.getElementById('reset');
   const resetFram = document.getElementById('reset-fram');
@@ -354,14 +354,14 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   check(!cls.contains('live') && cls.contains('mode-sim'), 'the simulation is the default source');
   check(usable() && saysSimulation(), 'and the resets are available, aimed at the simulation');
 
-  mode.drivenBy(MIDI, 30);
-  check(cls.contains('live') && cls.contains('mode-midi'), 'a module over USB marks the page live');
+  mode.drivenBy(USB, 30);
+  check(cls.contains('live') && cls.contains('mode-usb'), 'a module over USB marks the page live');
   check(!cls.contains('mode-sim') && !cls.contains('mode-probe'), 'and only that source');
   check(usable() && saysModule(), 'the resets stay available, now aimed at the module');
 
   mode.drivenBy(PROBE, 70);
   check(cls.contains('live') && cls.contains('mode-probe'), 'a module over a probe is its own source');
-  check(!cls.contains('mode-midi'), 'and not confused with the other one');
+  check(!cls.contains('mode-usb'), 'and not confused with the other one');
   check(usable() && saysModule(), 'with the resets still aimed at the module');
 
   // The rest of it is CSS, and the bug was CSS: an id selector outranked
@@ -378,7 +378,7 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   // Every source the module knows about has a name to show for it, or a
   // readout somewhere says "undefined".
   const { SOURCE_NAME } = await import('./mode.js');
-  check([SIM, MIDI, PROBE].every(k => typeof SOURCE_NAME[k] === 'string' && SOURCE_NAME[k]),
+  check([SIM, USB, PROBE].every(k => typeof SOURCE_NAME[k] === 'string' && SOURCE_NAME[k]),
     'every source has a name a person can read');
 
   mode.drivenBy(SIM);
@@ -548,46 +548,223 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   check(blob.subarray(blob.length - 4).length === 4, 'and the sequence number is that word');
 }
 
-/* ---- the seven-bit codec, for the MIDI transport ------------------------- */
+/* ---- the three sources, and what each one shows --------------------------- */
 
-// The firmware and this page have to agree about this exactly, and they do it
-// by being the same compiled source - sysex.c, in the wasm. What is checked
-// here is that the binding reaches it and that nothing is lost on the way
-// through, since a codec that is subtly wrong produces a module made of noise
-// rather than an error.
+// The page is always in exactly one of three sources, and the body carries a
+// class per source so the stylesheet can show the MIDI-out controls or the link
+// statistics without any of it being decided in JavaScript.
+//
+// The reset buttons stay available in all three. They used to be disabled
+// whenever a module was driving the page, because resetting a simulation nobody
+// was looking at would have appeared to do nothing; they now act on whichever
+// module is being shown, and say which that is.
 {
-  check(sim.sysex7EncodedLen(48) === 55, 'the remote input mailbox encodes to 55 bytes');
-  // Derived, not written down: this used to be a literal and went stale the
-  // first time the instance grew, which is a check failing for being right.
-  const want = sim.instanceSize + Math.ceil(sim.instanceSize / 7);
-  check(sim.sysex7EncodedLen(sim.instanceSize) === want,
-    `an instance of ${sim.instanceSize} encodes to ${sim.sysex7EncodedLen(sim.instanceSize)} bytes`);
-  check(sim.sysex7DecodedLen(sim.sysex7EncodedLen(sim.instanceSize)) === sim.instanceSize, 'and decodes back to its own size');
+  const { mode, SIM, USB, PROBE } = await import('./mode.js');
+  const cls = document.body.classList;
+  const reset = document.getElementById('reset');
+  const resetFram = document.getElementById('reset-fram');
 
-  // Every byte value, including the high-bit ones that are the entire reason
-  // this encoding exists.
-  const raw = new Uint8Array(256).map((_, i) => i);
-  const enc = sim.sysex7Encode(raw);
-  check(enc.length === sim.sysex7EncodedLen(256), 'encoding 256 bytes gives the declared length');
-  check(enc.every(b => b < 0x80), 'nothing encoded has its high bit set');
+  const usable = () => !reset.disabled && !resetFram.disabled;
+  const saysSimulation = () => /simulation/.test(reset.title) && /simulation/.test(resetFram.title);
+  const saysModule = () => /module/.test(reset.title) && /module/.test(resetFram.title);
 
-  const back = sim.sysex7Decode(enc);
-  check(back.length === 256 && back.every((b, i) => b === i), 'and it round-trips byte for byte');
+  check(!cls.contains('live') && cls.contains('mode-sim'), 'the simulation is the default source');
+  check(usable() && saysSimulation(), 'and the resets are available, aimed at the simulation');
 
-  // A whole snapshot through the same path a module's would take.
-  const snapshot = sim.exportInstance();
-  const wire = sim.sysex7Encode(snapshot);
-  const recovered = sim.sysex7Decode(wire);
-  check(recovered.length === snapshot.length, 'a snapshot survives the encoding at full size');
-  check(recovered.every((b, i) => b === snapshot[i]), 'and byte for byte');
-  check(sim.importInstance(recovered), 'and is still an instance this build accepts');
+  mode.drivenBy(USB, 30);
+  check(cls.contains('live') && cls.contains('mode-usb'), 'a module over USB marks the page live');
+  check(!cls.contains('mode-sim') && !cls.contains('mode-probe'), 'and only that source');
+  check(usable() && saysModule(), 'the resets stay available, now aimed at the module');
 
-  // The path a MIDI-backed page actually takes, which skips the two allocations
-  // and the extra copies the pair above make. It has to agree with them exactly.
-  check(wire.length === sim.wireSize, `the wire form is ${sim.wireSize} bytes`);
-  check(sim.importSysex7(wire), 'a snapshot imports straight from its wire form');
-  check(!sim.importSysex7(wire.subarray(0, wire.length - 1)), 'and a truncated one is refused');
+  mode.drivenBy(PROBE, 70);
+  check(cls.contains('live') && cls.contains('mode-probe'), 'a module over a probe is its own source');
+  check(!cls.contains('mode-usb'), 'and not confused with the other one');
+  check(usable() && saysModule(), 'with the resets still aimed at the module');
+
+  // The rest of it is CSS, and the bug was CSS: an id selector outranked
+  // `button:disabled:hover`, so Reset FRAM went on lighting up amber while it
+  // was refusing to do anything. Every hover rule has to exclude disabled
+  // buttons itself, which is a thing about the stylesheet rather than the DOM.
+  const css = readFileSync(new URL('style.css', import.meta.url), 'utf8');
+  const bareHovers = [...css.matchAll(/^\s*([^{\n]*button[^{\n]*:hover[^{\n]*)\{/gm)]
+    .map(m => m[1].trim())
+    .filter(sel => !sel.includes(':not(:disabled)'));
+  check(bareHovers.length === 0,
+    `every button hover rule excludes disabled${bareHovers.length ? ` (${bareHovers.join(' / ')})` : ''}`);
+
+  // Every source the module knows about has a name to show for it, or a
+  // readout somewhere says "undefined".
+  const { SOURCE_NAME } = await import('./mode.js');
+  check([SIM, USB, PROBE].every(k => typeof SOURCE_NAME[k] === 'string' && SOURCE_NAME[k]),
+    'every source has a name a person can read');
+
+  mode.drivenBy(SIM);
+  check(!cls.contains('live') && cls.contains('mode-sim'), 'disconnecting hands the page back');
+  check(usable() && saysSimulation(), 'and the resets point at the simulation again');
 }
+
+/* ---- the rate readouts are wired ----------------------------------------- */
+
+// Three of the four come out of the wasm, and an export missing from
+// sim/CMakeLists.txt is undefined here rather than an error - so it only shows
+// up when something calls it. This calls it.
+{
+  const { drawProbeRates } = await import('./probe/ui.js');
+  runTicks(400);
+  drawProbeRates();
+
+  const val = id => document.getElementById(id).textContent;
+  check(val('r-engine-fps') !== '—', `the engine rate reaches the page (${val('r-engine-fps')})`);
+
+  // engine_fps is measured in engine.c and so exists in every host; the other
+  // two measure peripherals only the board has - the DAC service pass and the
+  // WS2811 flush. Blank is the correct reading here, and a number would mean
+  // something had started inventing one.
+  check(val('r-dac-fps') === '—', 'the dac rate is blank without a DAC loop to measure');
+  check(val('r-led-fps') === '—', 'as is the led rate without an LED driver to flush to');
+  check(val('r-probe-hz') === '—', 'and the probe rate with nothing connected');
+}
+
+/* ---- no transfer can hang the connection --------------------------------- */
+
+// WebUSB transfers have no timeout of their own. A probe left holding an unread
+// reply from a previous page answers the next session's first command with the
+// wrong data and the one after that with nothing - and the page sat in
+// "connecting" forever, because nothing was ever going to reject.
+{
+  const src = readFileSync(new URL('probe/stlink.js', import.meta.url), 'utf8');
+
+  const raw = [...src.matchAll(/await\s+(?:this\.)?(?:device\.)?transfer(?:In|Out)\(/g)];
+  check(raw.length === 0, `every transfer is wrapped${raw.length ? ` (${raw.length} bare)` : ''}`);
+  check(/device\.reset\(\)/.test(src), 'and a failed connection retries with a port reset');
+
+  // The endpoint toggles are what a refresh leaves out of step, and clearHalt
+  // is the only thing short of re-enumeration that puts them back - so losing
+  // this call turns "refresh the page" back into "unplug the probe".
+  check(/clearHalt\(/.test(src), 'and connecting resynchronises both pipes');
+  // Connecting drains whatever the last session abandoned, and that means
+  // reading an endpoint that may be empty. Such a read never completes and
+  // cannot be cancelled, so left pending it swallows this session's first real
+  // reply - which broke every healthy first connect once already. The only
+  // thing that cancels it is closing the device, so the deadline branch has to
+  // do exactly that.
+  check(/#drain\b/.test(src), 'and drains what the last session abandoned');
+  check(/=== QUIET[\s\S]{0,240}#reopen\(\)/.test(src),
+    'and a read that finds nothing is cancelled by dropping the handle');
+}
+
+/* ---- the poll loop yields without a clamped timer ------------------------- */
+
+// The loop's pacing is a MessageChannel message rather than a timer, because
+// nested setTimeout is clamped to 4ms and that was a sixth of the budget. What
+// is checked here is that the mechanism exists and resolves - if it silently
+// never fired, polling would stop dead after the first snapshot.
+{
+  check(typeof MessageChannel === 'function', 'MessageChannel is available to pace the loop');
+
+  const ch = new MessageChannel();
+  const fired = await new Promise(resolve => {
+    ch.port1.onmessage = () => resolve(true);
+    ch.port2.postMessage(0);
+    setTimeout(() => resolve(false), 100);
+  });
+  check(fired, 'and a message posted to it comes back');
+}
+
+/* ---- the probe descriptor decodes ---------------------------------------- */
+
+// These 28 bytes are what `arm-none-eabi-objdump -s -j .probe_info` prints for
+// a real build - the firmware saying where its state lives, which is the first
+// thing the browser reads off a module. Frozen here rather than read from the
+// ELF so the check runs on a fresh checkout, where no firmware has been built.
+//
+// Worth testing because a wrong offset here does not fail: it yields a
+// plausible-looking address, reads 2384 bytes of whatever is there, and shows a
+// module made of noise.
+{
+  const { decodeInfo } = await import('./probe/probe.js');
+
+  const bytes = new Uint8Array([
+    0x42, 0x4d, 0x43, 0x56, // "BMCV"
+    0x01, 0x00,             // descriptor version 1
+    0x50, 0x09,             // instance size, 0x0950 = 2384
+    0x70, 0x0f, 0x00, 0x20, // &bmcv = 0x20000f70
+    0x30, 0x2e, 0x31, 0x30, 0x2e, 0x30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // "0.10.0"
+  ]);
+
+  const info = decodeInfo(bytes);
+  check(info.instanceAddr === 0x20000f70, `reads the instance address (0x${info.instanceAddr.toString(16)})`);
+  check(info.instanceSize === 2384, `reads the instance size (${info.instanceSize})`);
+  check(info.version === '0.10.0', `reads the firmware version (${info.version})`);
+
+  // The size the descriptor reports is checked against this build's before a
+  // byte of state is believed, so it has to be the same number the wasm knows.
+  check(info.instanceSize === sim.instanceSize, 'and it matches what this build decodes');
+
+  const refuses = (mutate, what) => {
+    const bad = bytes.slice();
+    mutate(bad);
+    let threw = false;
+    try { decodeInfo(bad); } catch { threw = true; }
+    check(threw, what);
+  };
+  refuses(b => { b[0] = 0x41; }, 'a wrong magic is refused, not decoded');
+  refuses(b => { b[4] = 2; }, 'an unknown descriptor version is refused');
+}
+
+/* ---- the remote input mailbox -------------------------------------------- */
+
+// The write direction: the bytes this page pushes into a module's RAM so its
+// input layer merges them with the panel someone may have their hands on.
+//
+// Worth checking without hardware because none of it fails loudly. The offset
+// is a plain number added to an address, so a wrong one writes a valid-looking
+// mailbox over whatever else is there; and the sequence number is what the far
+// end reads as a heartbeat, so one that stopped moving would look like a page
+// that had gone away rather than like a bug here.
+{
+  check(sim.remoteSize > 0 && sim.remoteSize % 4 === 0, `the mailbox is ${sim.remoteSize} bytes, a whole number of words`);
+  check(sim.remoteOffset % 4 === 0, `it starts on a word (offset ${sim.remoteOffset})`);
+  check(sim.remoteOffset + sim.remoteSize <= sim.instanceSize, 'and lies inside the instance');
+
+  const seqOf = b => new DataView(b.buffer, b.byteOffset, b.byteLength).getUint32(b.length - 4, true);
+
+  sim.remoteClear();
+  const first = sim.remoteBlob();
+  check(first.length === sim.remoteSize, 'the blob is the size it declares');
+
+  // Every call, not only the ones that changed something - probe.js writes on
+  // every poll precisely so the far end keeps hearing from this page.
+  const second = sim.remoteBlob();
+  check(seqOf(second) !== seqOf(first), `each blob carries a fresh sequence number (${seqOf(first)} -> ${seqOf(second)})`);
+  check(seqOf(first) !== 0 && seqOf(second) !== 0, 'and never zero, which means never written');
+
+  // The panel's gestures have to reach it. A button is the one field that is a
+  // plain level, so it shows up in the bytes exactly where the struct says.
+  const b = spec.buttons[0].index;
+  sim.remoteButton(b, 1);
+  const held = sim.remoteBlob();
+  check(held[b] === 1, `a remote press lands in the blob (button ${b})`);
+
+  sim.remoteButton(b, 0);
+  check(sim.remoteBlob()[b] === 0, 'and releasing it clears the byte');
+
+  // Clearing is what connect and disconnect do, and it must not restart the
+  // count - a repeated sequence number reads as no update at all.
+  sim.remoteButton(b, 1);
+  const before = seqOf(sim.remoteBlob());
+  sim.remoteClear();
+  const cleared = sim.remoteBlob();
+  check(cleared[b] === 0, 'clearing lets go of everything');
+  check(seqOf(cleared) > before, 'and is itself an update, not a silence');
+
+  // The two-transfer split probe.js does: fields first, sequence number after,
+  // so a mailbox that half-arrives is not acted on until it is whole.
+  const blob = sim.remoteBlob();
+  check(blob.subarray(0, blob.length - 4).length === sim.remoteSize - 4, 'the body is everything but the last word');
+  check(blob.subarray(blob.length - 4).length === 4, 'and the sequence number is that word');
+}
+
 check(SHIFT_NAMES[0] === 'STA' && SHIFT_NAMES.at(-1) === '---', `shift names came from the firmware (${SHIFT_NAMES.join(',')})`);
 check(SHAPE_NAMES.length > 1 && SHAPE_NAMES[0] === 'LFO', `shape names came from the firmware (${SHAPE_NAMES.join(',')})`);
 

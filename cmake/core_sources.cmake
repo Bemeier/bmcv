@@ -25,7 +25,6 @@ set(BMCV_CORE_SOURCES
     quantizer.c
     scene.c
     stepped_random.c
-    sysex.c
     ui_channel.c
     ui_feedback.c
     ui_input.c
@@ -47,6 +46,7 @@ set(BMCV_DRIVER_SOURCES
     fw_update.c
     mcp.c
     midi.c
+    usblink.c
     presets.c
     ws2811.c
 )

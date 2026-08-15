@@ -8,12 +8,11 @@
 
 import { requestDfuDevice, describeImageProblem, FLASH_START, DfuError } from './dfuse.js';
 
-import { identify } from '../probe/midiports.js';
+import { usblink, BMCV_VID, BMCV_PID } from '../probe/usblink.js';
 
 // F0 7D 42 4D <cmd> F7 - see Core/Inc/Lib/sysex.h. 0x7D is the non-commercial
 // manufacturer ID; 'B','M' after it is what keeps this from colliding with
 // every other project using the same ID.
-const SYSEX_ENTER_UPDATE = [0xf0, 0x7d, 0x42, 0x4d, 0x01, 0xf7];
 
 const el = (id) => document.getElementById(id);
 
@@ -34,7 +33,7 @@ const ui = {
 };
 
 let image = null;
-let midiOutput = null;
+let moduleDevice = null;
 
 function log(message, cls) {
   const line = document.createElement('div');
@@ -51,62 +50,58 @@ function setStatus(node, message, cls) {
 
 // --- module side, over MIDI ------------------------------------------------
 
-async function connectMidi() {
-  if (!navigator.requestMIDIAccess) {
-    setStatus(ui.midiStatus, 'no WebMIDI in this browser', 'warn');
-    log('This browser has no WebMIDI. Use the FN2 route instead.', 'warn');
+// Find the module and ask it to reboot into its bootloader.
+//
+// Over the module's own vendor interface rather than over MIDI, which is what
+// this used to be. The page already flashes over WebUSB, so this makes the
+// whole of flashing one transport - and it removes the failure that made the
+// MIDI version unreliable in exactly this situation: a browser enumerates MIDI
+// once, and the thing this page does most is make the module leave the bus.
+async function connectModule() {
+  if (!navigator.usb) {
+    setStatus(ui.midiStatus, 'no WebUSB in this browser', 'warn');
+    log('This browser has no WebUSB. Use the FN2 route instead.', 'warn');
     return;
   }
 
-  let access;
   try {
-    access = await navigator.requestMIDIAccess({ sysex: true });
-  } catch (err) {
-    setStatus(ui.midiStatus, 'permission denied', 'bad');
-    log(`MIDI access refused: ${err.message}`, 'bad');
-    return;
-  }
+    const granted = await navigator.usb.getDevices();
+    let device = granted.find(d => d.vendorId === BMCV_VID && d.productId === BMCV_PID);
+    if (!device) {
+      device = await navigator.usb.requestDevice({
+        filters: [{ vendorId: BMCV_VID, productId: BMCV_PID }],
+      });
+    }
 
-  // Found by handshake rather than by name, and with the ports opened first.
-  //
-  // Both matter and neither is obvious. A MIDI port is named by the host
-  // driver, not by the device - this module publishes no jack strings at all,
-  // so there is nothing to name it after and nothing to match on. And send()
-  // and onmidimessage open a port implicitly but *asynchronously*, so a request
-  // issued straight away can go out before anything is listening and the reply
-  // lands on a port nobody holds. Both of those cost a long evening on the
-  // simulator page; see web/probe/midiports.js.
-  let found;
-  try {
-    found = await identify(access);
+    await device.open();
+    if (!device.configuration) await device.selectConfiguration(1);
+    await device.claimInterface(1);
+
+    moduleDevice = device;
+    ui.btnReboot.disabled = false;
+    setStatus(ui.midiStatus, `connected to ${device.productName || 'BMCV'}`, 'good');
+    log(`Module connected over USB${device.serialNumber ? `, serial ${device.serialNumber}` : ''}.`);
   } catch (err) {
     setStatus(ui.midiStatus, 'module not found', 'warn');
-    log(err.message, 'warn');
+    log(err.name === 'NotFoundError' ? 'No module chosen.' : `${err.name}: ${err.message}`, 'warn');
     log('Use the FN2 route instead: hold FN2 while powering the case on.', 'warn');
-    return;
-  }
-
-  const { output } = found;
-  midiOutput = output;
-  ui.btnReboot.disabled = false;
-
-  // identify() got this out of the module while proving it was the module.
-  const version = found.version;
-  if (version) {
-    setStatus(ui.midiStatus, `connected, running ${version}`, 'good');
-    log(`Module connected, firmware ${version}.`);
-  } else {
-    setStatus(ui.midiStatus, 'connected', 'good');
-    log('Module connected. It did not report a version, which older firmware will not.');
   }
 }
 
-function rebootIntoUpdateMode() {
-  midiOutput.send(SYSEX_ENTER_UPDATE);
+async function rebootIntoUpdateMode() {
+  try {
+    await usblink.enterDfuOn(moduleDevice);
+  } catch (err) {
+    // The module reboots as it is told, so the transfer that tells it often
+    // fails on the way out. That is success, not failure.
+    log(`(the module left mid-transfer, which is what being told to reboot looks like: ${err.name})`);
+  }
+
+  moduleDevice = null;
   ui.btnReboot.disabled = true;
   setStatus(ui.midiStatus, 'rebooted into update mode', 'good');
   log('Told the module to reboot into update mode. The panel should be amber.');
-  log('It has left the MIDI bus and is now a DFU device.');
+  log('It has left the USB bus as a BMCV and come back as a DFU device.');
 }
 
 // --- bootloader side, over WebUSB -----------------------------------------
@@ -255,7 +250,7 @@ function init() {
     ui.windowsNote.hidden = false;
   }
 
-  ui.btnConnect.addEventListener('click', connectMidi);
+  ui.btnConnect.addEventListener('click', connectModule);
   ui.btnReboot.addEventListener('click', rebootIntoUpdateMode);
   ui.file.addEventListener('change', (e) => {
     ui.releaseSelect.value = '';
