@@ -20,40 +20,10 @@
 import { sim } from '../sim.js';
 import { USB } from '../mode.js';
 import { Session } from './session.js';
-
-// Mirrors of Core/Inc/Lib/usblink.h.
-const OP_SNAPSHOT_REQ = 0x01;
-const OP_REMOTE_INPUT = 0x02;
-const OP_REMOTE_COMMAND = 0x03;
-const OP_ENTER_DFU = 0x04;
-
-const VENDOR_INTERFACE = 1;
-const EP_IN = 2;
-const EP_OUT = 2;
-
-export const BMCV_VID = 0x0483;
-export const BMCV_PID = 0x572b;
-
-// Mirrors BMCV_REQ_VERSION in USB_Device/App/usbd_webusb.h.
-const REQ_VERSION = 0x43;
-
-// Ask a module what firmware it is running.
-//
-// A control request, so it works on a device that has only been opened and
-// needs nothing claimed or streaming - which is what the update page wants, and
-// what a diagnostic wants before deciding anything else is worth trying.
-export async function readVersion(device) {
-  const r = await device.controlTransferIn({
-    requestType: 'vendor',
-    recipient: 'interface',
-    request: REQ_VERSION,
-    value: 0,
-    index: VENDOR_INTERFACE,
-  }, 32);
-
-  if (r.status !== 'ok' || !r.data?.byteLength) return null;
-  return new TextDecoder().decode(r.data).replace(/\0.*$/, '');
-}
+import {
+  BMCV_PID, BMCV_VID, EP_IN, EP_OUT, OP_REMOTE_COMMAND, OP_REMOTE_INPUT,
+  OP_SNAPSHOT_REQ, VENDOR_INTERFACE, readVersion,
+} from './wire.js';
 
 // One request buys one snapshot, so the page paces the module rather than the
 // other way round. Two outstanding at a time so the endpoint does not idle for
@@ -301,18 +271,9 @@ export class UsbLink {
     return this.#send(msg);
   }
 
-  // Hand the module to its bootloader. Here rather than over MIDI because the
-  // page that wants it is already flashing over USB - see web/update.
-  enterDfu() {
-    return this.#send(new Uint8Array([OP_ENTER_DFU]));
-  }
-
-  // The same, on a device this link does not own. The update page opens the
-  // module itself - it has no session and wants none - and this keeps the
-  // opcode in one place rather than written out again over there.
-  enterDfuOn(device) {
-    return device.transferOut(EP_OUT, new Uint8Array([OP_ENTER_DFU]));
-  }
+  // Handing the module to its bootloader is not here: the page that wants it is
+  // the updater, which owns no link and holds the device itself. See enterDfuOn
+  // in wire.js.
 
   /* ---- reading ----------------------------------------------------------- */
 
@@ -402,5 +363,3 @@ function describe(err) {
 }
 
 export const usblink = new UsbLink();
-
-export const webusbAvailable = typeof navigator !== 'undefined' && !!navigator.usb;

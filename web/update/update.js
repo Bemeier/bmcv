@@ -3,16 +3,17 @@
 // write the image.
 //
 // The two halves are independent on purpose. If the firmware on the module is
-// too broken to answer at all, the user holds FN2 at power-on and the second half
+// too broken to answer at all, the user holds CPY at power-on and the second half
 // still works on its own.
+//
+// And this page depends on nothing that simulates a module. It talks to the
+// vendor interface through wire.js, which is numbers and two exchanges, rather
+// than through usblink.js, which instantiates the wasm - a page that recovers a
+// broken module must not need a simulator build to load.
 
 import { requestDfuDevice, describeImageProblem, FLASH_START, DfuError } from './dfuse.js';
 
-import { usblink, readVersion, BMCV_VID, BMCV_PID } from '../probe/usblink.js';
-
-// F0 7D 42 4D <cmd> F7 - see Core/Inc/Lib/sysex.h. 0x7D is the non-commercial
-// manufacturer ID; 'B','M' after it is what keeps this from colliding with
-// every other project using the same ID.
+import { readVersion, enterDfuOn, BMCV_VID, BMCV_PID, VENDOR_INTERFACE } from '../probe/wire.js';
 
 const el = (id) => document.getElementById(id);
 
@@ -22,7 +23,7 @@ const ui = {
   windowsNote: el('windows-note'),
   btnConnect: el('btn-connect'),
   btnReboot: el('btn-reboot'),
-  moduleStatus: el('midi-status'),
+  moduleStatus: el('module-status'),
   releaseSelect: el('release-select'),
   file: el('file'),
   fileStatus: el('file-status'),
@@ -60,7 +61,7 @@ function setStatus(node, message, cls) {
 async function connectModule() {
   if (!navigator.usb) {
     setStatus(ui.moduleStatus, 'no WebUSB in this browser', 'warn');
-    log('This browser has no WebUSB. Use the FN2 route instead.', 'warn');
+    log('This browser has no WebUSB. Use the CPY route instead.', 'warn');
     return;
   }
 
@@ -75,7 +76,7 @@ async function connectModule() {
 
     await device.open();
     if (!device.configuration) await device.selectConfiguration(1);
-    await device.claimInterface(1);
+    await device.claimInterface(VENDOR_INTERFACE);
 
     // What it is running, so the version about to be written can be compared
     // with the version being replaced. This came back with the move to WebUSB:
@@ -94,18 +95,26 @@ async function connectModule() {
     ui.btnReboot.disabled = true;
     setStatus(ui.moduleStatus, 'module not found', 'warn');
     log(err.name === 'NotFoundError' ? 'No module chosen.' : `${err.name}: ${err.message}`, 'warn');
-    log('Use the FN2 route instead: hold FN2 while powering the case on.', 'warn');
+    log('Use the CPY route instead: hold CPY while powering the case on.', 'warn');
   }
 }
 
 async function rebootIntoUpdateMode() {
+  const device = moduleDevice;
+
   try {
-    await usblink.enterDfuOn(moduleDevice);
+    await enterDfuOn(device);
   } catch (err) {
     // The module reboots as it is told, so the transfer that tells it often
     // fails on the way out. That is success, not failure.
     log(`(the module left mid-transfer, which is what being told to reboot looks like: ${err.name})`);
   }
+
+  // Let go of the handle rather than dropping it. The device it refers to is
+  // about to stop existing under this VID/PID, so this usually fails - but a
+  // reboot that did not take leaves a module still on the bus, and holding a
+  // claim on it is what makes the next attempt fail for a different reason.
+  await device?.close().catch(() => {});
 
   moduleDevice = null;
   ui.btnReboot.disabled = true;

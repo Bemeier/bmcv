@@ -215,7 +215,11 @@ class Probe {
     sim.remoteClear();
     await this.#writeRemote().catch(() => {});
 
-    await this.link.close();
+    // Best effort, like the write above. A close that throws is a probe that
+    // was already gone; what must not happen is the rest of this being skipped
+    // over it, because then the session never ends, `active` still points here,
+    // and the page goes on believing a probe is driving it.
+    await this.link.close().catch(() => {});
     this.info = null;
     this.session.end();
     this.session.set('idle');
@@ -316,7 +320,3 @@ class Probe {
 }
 
 export const probe = new Probe();
-
-// WebUSB is Chromium's alone, and a page that simply has no button on Firefox
-// is a bug report waiting to happen. The UI asks this so it can say why.
-export const webusbAvailable = typeof navigator !== 'undefined' && !!navigator.usb;

@@ -11,8 +11,9 @@
 
 import { sim } from '../sim.js';
 import { mode, SIM, USB, PROBE, SOURCE_NAME } from '../mode.js';
-import { probe, webusbAvailable } from './probe.js';
+import { probe } from './probe.js';
 import { usblink } from './usblink.js';
+import { webusbAvailable } from './wire.js';
 
 const el = id => document.getElementById(id);
 
@@ -108,10 +109,16 @@ function render() {
 
 /* ---- switching ----------------------------------------------------------- */
 
-// Serialised, because these are buttons and buttons get clicked twice.
+// Serialised, because two of these running at once is two links importing into
+// one wasm instance - see below.
 let switching = null;
 
-// Put the page on a source, whatever it was on before.
+// Where a click during a switch wants to go instead. Not a queue: only the
+// latest one means anything, because they are all "put the page here" and the
+// last person to say it wins.
+let queued = null;
+
+// Take the page off whatever is driving it and put the named source on.
 //
 // Whatever is live gives the page up first, and is waited for. Two links at
 // once is not a thing that half-works: they import into the same wasm instance
@@ -121,8 +128,38 @@ let switching = null;
 //
 // Connecting is left to fail on its own terms. If it does, the page is already
 // back on the simulation and the error says why.
+async function run(source) {
+  for (const other of [usblink, probe]) {
+    if (other !== links[source] && (other.state === 'live' || other.state === 'connecting')) {
+      // Giving up a source is best effort, and its failures are not this
+      // switch's business. An ST-Link whose close throws used to reject here,
+      // before the new source was ever asked to connect - so the page stayed
+      // on the simulation, the console had an unhandled rejection in it, and
+      // the button looked broken. Whatever state the old link is left in, it
+      // is no longer the one driving the page.
+      try {
+        await other.disconnect();
+      } catch (e) {
+        console.warn('letting go of the previous source failed', e);
+      }
+    }
+  }
+  if (source !== SIM) await links[source].connect();
+}
+
+// One switch at a time, but a click during one redirects it rather than being
+// dropped.
+//
+// It used to return the switch already running and throw the new source away,
+// which made a lie of the buttons staying enabled - see render(). A connect
+// that is going nowhere takes three attempts and over a second, and that is
+// exactly when someone reaches for the simulator button; pressing it and having
+// nothing happen reads as a frozen page.
 function switchTo(source) {
-  if (switching) return switching;
+  if (switching) {
+    queued = source;
+    return switching;
+  }
 
   // Everything that depends on a module goes quiet for the duration. What is on
   // screen belongs to the source being left, and a page that keeps drawing it
@@ -131,14 +168,17 @@ function switchTo(source) {
   document.body.classList.add('switching');
 
   switching = (async () => {
-    for (const other of [usblink, probe]) {
-      if (other !== links[source] && (other.state === 'live' || other.state === 'connecting')) {
-        await other.disconnect();
-      }
+    let target = source;
+    while (target !== null) {
+      queued = null;
+      await run(target);
+      // A second click on the button we just arrived at is someone being
+      // impatient, not a second destination.
+      target = queued === target ? null : queued;
     }
-    if (source !== SIM) await links[source].connect();
   })().finally(() => {
     switching = null;
+    queued = null;
     document.body.classList.remove('switching');
   });
 
