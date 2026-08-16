@@ -111,6 +111,11 @@ hil-poke *ARGS:
 # from "the outputs are moving" - which is the pair that came apart the last
 # time the DAC's service was rearranged, with dac_fps reporting success.
 #
+#
+# It arms the channel first - SHAPE_LFO at full scale, in every scene so the
+# crossfader position cannot attenuate it - so the answer does not depend on
+# what the module was left doing. `--no-setup` measures it as it stands.
+#
 #   just dac-loopback                        # CH1 -> IN3
 #   just dac-loopback --ch 0 --jack 2 -n 80
 dac-loopback *ARGS:

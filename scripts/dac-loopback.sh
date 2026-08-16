@@ -47,6 +47,7 @@ CH=1
 JACK=3
 N=60
 ELF="build-rel/BMCVFirmware.elf"
+SETUP=1
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -54,11 +55,44 @@ while [[ $# -gt 0 ]]; do
     --jack) JACK="$2"; shift 2 ;;
     -n) N="$2"; shift 2 ;;
     -e|--elf) ELF="$2"; shift 2 ;;
-    *) echo "usage: dac-loopback.sh [--ch N] [--jack N] [-n COUNT] [-e ELF]" >&2; exit 2 ;;
+    --no-setup) SETUP=0; shift ;;
+    *) echo "usage: dac-loopback.sh [--ch N] [--jack N] [-n COUNT] [-e ELF] [--no-setup]" >&2; exit 2 ;;
   esac
 done
 
 cd "$(dirname "$0")/.."
+
+# Arm the channel before measuring, rather than hoping somebody left an LFO on
+# it. A reset reloads the saved preset, so a sine dialled in by hand disappears
+# the moment the module is reflashed - and this check then reports
+# `inconclusive` for a reason that has nothing to do with the DAC.
+#
+# Written to *every* scene, not the active one. The crossfader blends all seven
+# and its position is whatever it was left at, so a value set in one scene
+# arrives attenuated by however far the fader sits from it. The same value
+# everywhere makes the reading independent of the fader.
+#
+# A plain full-scale LFO: SHAPE_LFO, no phase distortion, no offset, AMP at
+# full. The rate is left as the clock's own - a slow shape is what makes the
+# correlation sharp, and anything fast enough to alias against an eight-samples-
+# a-second reader would be measuring the reader.
+if [[ "$SETUP" == "1" ]]; then
+  pokes=("bmcv.engine_config.channel_state[$CH].shape_mode=0" "bmcv.ui_state.muted[$CH]=0")
+  for s in 0 1 2 3 4 5 6; do
+    pokes+=("bmcv.engine_config.channel_state[$CH].params[$s][0]=0")     # FRQ: x1 the beat
+    pokes+=("bmcv.engine_config.channel_state[$CH].params[$s][1]=0")     # SHP
+    pokes+=("bmcv.engine_config.channel_state[$CH].params[$s][2]=0")     # MOD
+    pokes+=("bmcv.engine_config.channel_state[$CH].params[$s][3]=0")     # PHS
+    pokes+=("bmcv.engine_config.channel_state[$CH].params[$s][4]=32767") # AMP, full swing
+    pokes+=("bmcv.engine_config.channel_state[$CH].params[$s][5]=0")     # OFS
+  done
+
+  echo "arming CH$CH as a full-scale LFO..." >&2
+  if ! ./scripts/hil-poke.sh -e "$ELF" "${pokes[@]}" >/dev/null; then
+    echo "dac-loopback: could not set the channel up; use --no-setup to measure it as it is" >&2
+    exit 1
+  fi
+fi
 
 echo "CH$CH out -> IN$JACK, $N samples..." >&2
 
