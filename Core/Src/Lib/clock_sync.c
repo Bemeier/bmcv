@@ -116,15 +116,34 @@ void Clock_Poll(ClockState* clk, uint32_t now_us)
     float pulse_fraction = (float) dt_pulse / (float) clk->last_pulse_delta_us;
     float next_phase     = (clk->pulse_counter + pulse_fraction) / (float) clk->PULSES_PER_BEAT;
 
-    // A loop, not one subtraction. beat_phase leaves here for channel.c's
-    // target-phase term, and a value above 1.0 is whole beats of phase error
-    // applied to every channel at once. One subtraction is enough only while
-    // pulse_counter is below PULSES_PER_BEAT and the pulse is not overdue -
-    // Clock_SetPulsesPerBeat now keeps the first true, but the interval this
-    // interpolates against is the previous source's until a new pulse measures
-    // one, so the second is not guaranteed at the moment of a change.
-    while (next_phase >= 1.0f)
-      next_phase -= 1.0f;
+    // Held at the end of the beat, never wrapped past it.
+    //
+    // beat_phase leaves here for channel.c's target-phase term, which reads it
+    // *together with* beat_counter: the target is (beats_in % gcd) + beat_phase,
+    // scaled by the ratio. Only a pulse advances the counter, so wrapping the
+    // phase here says "a new beat has started" while the counter still says the
+    // old one - and for the handful of ticks between the beat falling due and
+    // its pulse arriving, every locked channel is yanked by a whole beat of
+    // target at once.
+    //
+    // That is what it did. Measured at a 312us tick, x0.75: a single-tick
+    // excursion of 0.25 cycles on every beat boundary, 240 seconds of them,
+    // with the RMS error staying clean the whole time because each one lasted
+    // one sample. It was invisible at 250us only because no tick happened to
+    // land in the window; the whole band from 280 to 345us showed it.
+    //
+    // Clamping is also the honest answer rather than merely the safe one. This
+    // is an interpolation between pulses, and the next pulse is the evidence
+    // that the beat turned over. Until it arrives, the most that is known is
+    // that the beat is at its end - so a late pulse stretches the beat, which
+    // is what a late pulse means.
+    //
+    // Just below 1.0 rather than at it: beat_phase is documented as 0..1
+    // exclusive, and at a super-period boundary (beats_in % gcd about to wrap)
+    // a phase of exactly 1.0 would land the target on the far side of the
+    // modulo.
+    if (next_phase >= 1.0f)
+      next_phase = 0.99999994f; // nextafterf(1.0f, 0.0f)
     if (next_phase < 0.0f)
       next_phase = 0.0f;
 

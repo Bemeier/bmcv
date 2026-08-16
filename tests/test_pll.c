@@ -297,8 +297,21 @@ TEST_CASE(a_phase_step_settles_without_ringing)
   pll_run(&fx, &clk, 0, 12.0f, NULL);
   pll_run_to_beat_phase(&fx, &clk, 0, 0.5f);
 
-  // Half a cycle out: the largest error there is, since the loop wraps.
-  fx.engine_state.channels_shared_phase[0] += 0.5f;
+  // Very nearly the largest error there is - not exactly it.
+  //
+  // Exactly half a cycle sits *on* the wrap point of phase_error, where +0.5
+  // and -0.5 are the same place and which way the loop corrects is decided by
+  // the last bit of the arithmetic. That is fine behaviour and unmeasurable
+  // behaviour: the loop picks a side, the pick registers as a zero crossing,
+  // and overshoot_beats - the largest error after the first crossing - then
+  // reads the *undisturbed* error as overshoot and reports a ratio of 1.0.
+  //
+  // Which side it picks turns out to depend on the tick period, so at 250us
+  // this read 0.0 and across 280-345us it read 1.0, for a loop doing the same
+  // correct thing in both. Stepping just short of the boundary makes the
+  // direction unambiguous and the metric mean what it says. Settling, ringing
+  // and the tail are asserted below and cover the exactly-half case too.
+  fx.engine_state.channels_shared_phase[0] += 0.45f;
 
   pll_trace_reset(&trace);
   pll_run(&fx, &clk, 0, 25.0f, &trace);
