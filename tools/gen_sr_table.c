@@ -173,6 +173,23 @@ static void gen_normalisation(void)
     }
   }
 
+  // The centring constant on its own, which is the half a channel cannot work
+  // out for itself: it is an average across every pattern length, and a channel
+  // knows only its own. 8 KB, against 90 KB for one length-indexed table - see
+  // docs/plans/stepped-random-modes.md.
+  printf("// The centring constant, indexed [MOD bin][orbit bin]. Length-\n");
+  printf("// independent, which is what makes the cycle boundary seamless: every\n");
+  printf("// length lands on this same value at phase 0.\n");
+  printf("static const float sr_centre_table[SR_MOD_BINS][SR_NORM_BINS] = {\n");
+  for (int mi = 0; mi < SR_MOD_BINS; mi++)
+  {
+    printf("    {");
+    for (int b = 0; b < SR_NORM_BINS; b++)
+      printf("%s%.6ff", b ? "," : "", centre[mi][b]);
+    printf("},\n");
+  }
+  printf("};\n\n");
+
   const char* names[2]                               = {"sr_norm_gain", "sr_norm_offset"};
   const float(*tables[2])[SR_MOD_BINS][SR_NORM_BINS] = {gain, offset};
 

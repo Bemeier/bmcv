@@ -10,6 +10,7 @@
 //   cc -O2 -I Core/Inc/Lib -o /tmp/dump_pat tools/sr_explore/dump_pattern.c -lm
 //   /tmp/dump_pat > /tmp/pat.txt
 #include "helpers.h"
+#include "stepped_random_norm.h"
 #include "stepped_random_pattern.h"
 #include "stepped_random_table.h"
 #include <stdio.h>
@@ -24,6 +25,13 @@ static float norm_lookup(const float t[SR_LENGTH_COUNT][SR_MOD_BINS][SR_NORM_BIN
 {
   return lerp(lerp(t[li][mb][b], t[li][mb][bn], bf), lerp(t[li][mb + 1][b], t[li][mb + 1][bn], bf), mf);
 }
+
+// Build with -DSR_COMPUTED to measure the correction worked out from the
+// pattern instead of read from the binned table - the two paths this is here to
+// compare. See docs/plans/stepped-random-modes.md.
+#ifdef SR_COMPUTED
+static const SrNormCtx sr_ctx = {&slots, sr_lengths, SR_LENGTH_COUNT, SR_JUMP_GRID, SR_HOLD_MAX};
+#endif
 
 static void norm_for(float shape, float mod, int li, float* gain, float* offset)
 {
@@ -43,8 +51,16 @@ static void norm_for(float shape, float mod, int li, float* gain, float* offset)
     mod_frac = 1.0f;
   }
 
+#ifdef SR_COMPUTED
+  float lo = lerp(sr_centre_table[mod_bin][bin], sr_centre_table[mod_bin][bin_next], bin_frac);
+  float hi = lerp(sr_centre_table[mod_bin + 1][bin], sr_centre_table[mod_bin + 1][bin_next], bin_frac);
+  SrNorm n = sr_norm_at(&sr_ctx, sr_lengths[li], mod, m.orbit, lerp(lo, hi, mod_frac));
+  *gain    = n.gain;
+  *offset  = n.offset;
+#else
   *gain   = norm_lookup(sr_norm_gain, li, mod_bin, mod_frac, bin, bin_next, bin_frac);
   *offset = norm_lookup(sr_norm_offset, li, mod_bin, mod_frac, bin, bin_next, bin_frac);
+#endif
 }
 
 static void emit(int li, const char* axis, float fixed, float pos, float shape, float mod)

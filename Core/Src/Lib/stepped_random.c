@@ -1,5 +1,6 @@
 #include "stepped_random.h"
 #include "helpers.h"
+#include "stepped_random_norm.h"
 #include "stepped_random_pattern.h"
 #include "stepped_random_table.h"
 
@@ -91,8 +92,24 @@ float stepped_random(float phase, float shape, float mod, int length_idx, float 
     mod_frac = 1.0f;
   }
 
+#ifdef SR_NORM_COMPUTE
+  // Spike scaffolding, not a shipping path: the correction worked out from the
+  // pattern on every call, which is O(length) per sample and far too slow for
+  // the module. It is here so the suite and the harness can measure what the
+  // architecture in docs/plans/stepped-random-modes.md will do, against the
+  // table it will replace. The real version scans one slot per tick and commits
+  // on the cycle wrap; when that lands, this knob and the two big tables go.
+  float centre = lerp(lerp(sr_centre_table[mod_bin][bin], sr_centre_table[mod_bin][bin_next], bin_frac),
+                      lerp(sr_centre_table[mod_bin + 1][bin], sr_centre_table[mod_bin + 1][bin_next], bin_frac), mod_frac);
+
+  static const SrNormCtx ctx = {&sr_slots, sr_lengths, SR_LENGTH_COUNT, SR_JUMP_GRID, SR_HOLD_MAX};
+  SrNorm n                   = sr_norm_at(&ctx, length, mod, m.orbit, centre);
+  float gain                 = n.gain;
+  float offset               = n.offset;
+#else
   float gain   = sr_norm_lookup(sr_norm_gain, length_idx, mod_bin, mod_frac, bin, bin_next, bin_frac);
   float offset = sr_norm_lookup(sr_norm_offset, length_idx, mod_bin, mod_frac, bin, bin_next, bin_frac);
+#endif
 
   return fclamp(value * gain + offset, -1.0f, 1.0f);
 }

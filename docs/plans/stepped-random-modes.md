@@ -1,6 +1,6 @@
 # Splitting stepped random into modes with distinct characters
 
-Status: **plan, nothing implemented.**
+Status: **phase 0 done, phase 1 in progress on `spike/stepped-modes`.**
 
 ## Where this comes from
 
@@ -242,21 +242,50 @@ half of this work.
 
 ## Staging
 
-**Phase 0 - make the correction callable.** Lift the body of
-`gen_sr_table.c` into a core header as `sr_norm_compute(...)`. The generator
-calls it to build the table; a build knob lets the sim and the tests call it
-directly. Prove byte-identical output against the checked-in table, so the
-refactor is provably nothing but a refactor.
+**Phase 0 - make the correction callable. DONE.** The body of
+`gen_sr_table.c` now lives in `Core/Inc/Lib/stepped_random_norm.h`, split into
+`sr_norm_centre()` and `sr_gain_for()`; the generator calls it and reproduces
+the checked-in table byte for byte, so the refactor is provably nothing but a
+refactor.
 
-**Phase 1 - prototype the modes in the simulator**, correction computed, cost
-ignored. `from_c.py` gains a mode column; the web sim is where they get played.
-Land the character first: it is the only part that cannot be decided by
-measurement alone.
+**Phase 1 - the architecture, before the modes. In progress.** Originally the other way
+round, and swapped once the centre/gain split showed how cheap this is: an 8 KB
+centring table plus a gain the channel scans for itself. Prototyping modes first
+would mean either three 180 KB tables in the sim - modes designed against a
+budget the module does not have, which is the one thing the spike must not
+produce - or building them twice.
 
-**Phase 2 - bring it to the module.** The split above: an 8 KB constant table
-per mode, the gain scanned incrementally per channel, the scan and commit rules,
-`engine_fps`/`dac_fps` measured on hardware with eight stepped channels under
-CV. If a mode turns out to need no correction at all, say so and skip it there.
+Behaviour is fixed and measurable here, which is what makes it the safe half to
+do first: the target is the shipping build's own numbers.
+
+Measured so far, with the correction computed exactly on every call
+(`-DSR_NORM_COMPUTE`, spike scaffolding - the real one scans incrementally):
+
+| | table | computed |
+|---|---|---|
+| worst length seam | 0.122 | **0.000** |
+| worst span anywhere | 0.584 | **0.900** |
+| character steer | 2.72 | 2.72 |
+| DC swing along a sweep | 0.39 | 0.38 |
+| small turn, SHP, L>=8 | 0.29-0.30 | 0.23-0.31 |
+
+Both invariants improve rather than survive. The seam is exact because nothing
+is interpolated any more. The span floor holds everywhere because it is now
+applied at the point itself: in the table it only ever arrived through the
+neighbourhood loop, which was written to survive interpolation and turned out to
+be carrying `SR_NORM_FLOOR` as a side effect - computing without it dropped the
+worst span through the 0.5 the suite holds, which is how this was found.
+
+The whole existing suite passes against the computed path.
+
+Left to do: the incremental per-channel scan, the commit-on-wrap rule,
+`engine_fps`/`dac_fps` measured with eight stepped channels under CV, and the
+180 KB gain/offset table deleted.
+
+**Phase 2 - the modes**, now that a per-mode value path costs 8 KB rather than
+180. `from_c.py` gains a mode column; the web sim is where they get played. Land
+the character here: it is the only part that cannot be decided by measurement
+alone. If a mode turns out to need no correction at all, say so and skip it.
 
 **Phase 3 - the rest.** Config (`ChannelConfig`, the mode enum,
 `CONFIG_STATE_VERSION`, a reset rather than a migration), the shape encoder and

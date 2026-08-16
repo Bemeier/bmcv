@@ -184,4 +184,31 @@ static inline SrNorm sr_norm_affine(float centre, float anchor, float gain)
   return n;
 }
 
+// The whole correction for one pattern, given the centring constant the table
+// carries: scan the pattern, take the gain its extremes ask for, build the
+// affine about slot 0.
+//
+// This is what a channel works out for itself. The scan is `length` slot
+// evaluations - affordable amortised over a cycle, not per sample; see
+// docs/plans/stepped-random-modes.md for the incremental version and when it is
+// allowed to take effect.
+//
+// Everything the binned table has to approximate, this gets exactly. Nothing is
+// interpolated, so out(0) lands on `centre` at every length instead of nearly
+// so, and the gain needs no neighbourhood padding to survive being blended with
+// its neighbours - which was a bias upward on every setting.
+static inline SrNorm sr_norm_at(const SrNormCtx* c, int length, float mod, float orbit, float centre)
+{
+  SrExtent e = sr_extent_of(c, length, mod, orbit);
+
+  // The floor is applied here, at the point itself. In the table it only ever
+  // arrived through the neighbourhood loop - which was written to survive
+  // interpolation and turned out to be carrying the floor as a side effect.
+  // Computing the correction without it dropped the worst span anywhere from
+  // 0.584 to 0.470, through the 0.5 the suite holds.
+  float g  = sr_gain_for(&e, centre);
+  float gf = sr_gain_floor(&e, centre);
+  return sr_norm_affine(centre, e.anchor, (gf > g) ? gf : g);
+}
+
 #endif /* INC_LIB_STEPPED_RANDOM_NORM_H_ */
