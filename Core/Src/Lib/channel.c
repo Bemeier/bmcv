@@ -376,19 +376,15 @@ void channel_compute(uint8_t ch, EngineState* es, const EngineConfig* cfg, const
   switch (chcfg->shape_mode)
   {
   case SHAPE_STEPPED:
-  case SHAPE_STEPPED_CTRL:
   {
-    // One pattern engine, two ways of driving it - what the mode changes is
-    // where the knobs go, which is one function rather than a second copy of
-    // the shape.
-    SrDrive d = sr_style_drive(shape_mode_style(chcfg->shape_mode), shape, mod);
+    SrDrive d = sr_drive(shape, mod);
 
     // The correction is measured a slot at a time rather than worked out here,
     // because working it out means walking the whole pattern. Scanned first, so
     // a channel that has just arrived in this mode is corrected on its first
     // tick rather than after a cycle of it.
-    sr_norm_scan(&es->channels_sr_scan[ch], d.shape, d.mod, *latched_idx, dt_s, ch == es->sr_scan_turn);
-    raw = stepped_random_with(phase, d.shape, d.mod, *latched_idx, d.hold, &es->channels_sr_scan[ch].norm, d.bias);
+    sr_norm_scan(&es->channels_sr_scan[ch], shape, mod, *latched_idx, dt_s, ch == es->sr_scan_turn);
+    raw = stepped_random_with(phase, shape, mod, *latched_idx, d.hold, &es->channels_sr_scan[ch].norm, d.bias);
     break;
   }
   case SHAPE_PWM:

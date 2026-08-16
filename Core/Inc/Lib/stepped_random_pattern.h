@@ -20,18 +20,20 @@
 // --------------------------------------------------------------------------
 // What SHP and MOD reach.
 //
-// SHP moves three things, so that a sweep is not a series of fresh random draws
-// from one fixed distribution - the reason it used to read as "nothing is
+// SHP moves three things here, so that a sweep is not a series of fresh random
+// draws from one fixed distribution - the reason it used to read as "nothing is
 // happening" however many distinct patterns it technically contained. Which
 // values the slots hold (as it always did), how those values are distributed
-// (SR_BEND), and how melodic the contour is (SR_CONTOUR).
+// (SR_BEND), and how melodic the contour is (SR_CONTOUR). A fourth lives
+// outside this header: sr_bias_map() leans the finished value, which is the one
+// thing the levers below cannot do, since SR_BEND is odd and so can only work
+// on the middle symmetrically.
 //
-// None of them is level. Both knobs steer character - rhythm, bend, contour -
-// and leave how loud and how centred the result is to AMP and OFFSET, which is
-// what those are for. SHP used to carry a fourth lever, SR_SPAN, which ducked
-// the peak-to-peak by up to 0.7; it read as the shape flattening and shifting
+// None of them is level. Both knobs steer character and leave how loud the
+// result is to AMP. SHP used to carry a lever that did move level, SR_SPAN,
+// which ducked the peak-to-peak by up to 0.7; it read as the shape flattening
 // as the knob turned rather than as character, and being a pure gain it moved
-// none of the character measurements. The normalisation in tools/gen_sr_table.c
+// none of the character measurements. The correction in stepped_random_norm.h
 // is what holds level steady now.
 //
 // MOD moves six: density as before, which steps tie (SR_SPIN), where the beat

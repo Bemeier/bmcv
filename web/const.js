@@ -102,13 +102,6 @@ const STATE_LEVEL = '#6fd8e0';   // cyan   - continuous, follows a level
 const STATE_EVENT = '#e3c341';   // yellow - triggered, clocked, discrete steps
 const STATE_RESET = '#e8705f';   // red    - resets something
 
-// A second axis, not a fifth colour. ui_render.c gives the two stepped modes
-// the same hue at VAL_BASE and VAL_LOW, which is what clamp_mode_color already
-// does to separate a range from a polarity; this is that cyan at the ratio
-// those two values read as on the panel.
-const STATE_LEVEL_DIM = '#3b7377';
-export const STATE_DIM_OF = {[STATE_LEVEL_DIM]: STATE_LEVEL};
-
 // Both of these are the same array ui_render.c holds, in the order config.h
 // declares the modes: input_mode_color[] and shape_mode_color[]. Written as the
 // same four names rather than as hex so the two stay a mapping from mode to
@@ -121,13 +114,8 @@ export const INPUT_MODE_COLORS = [
   STATE_LEVEL,   // SLIDER
 ];
 
-// The stepped modes are one family: same hue, dimmed for the second, which is
-// what ui_render.c does with brightness as a second axis. Dimming is spelled
-// out here rather than taken from a palette because the module's VAL_LOW is a
-// value in HSV, and this page works in hex.
 export const SHAPE_MODE_COLORS = [
-  STATE_DEFAULT,      // LFO          - a plain wavetable, the neutral case
-  STATE_LEVEL,        // STEPPED      - holds a level between steps
-  STATE_EVENT,        // PWM          - an edge, and where it falls
-  STATE_LEVEL_DIM, // STEPPED CTRL - the same family, driven for modulation
+  STATE_DEFAULT, // LFO     - a plain wavetable, the neutral case
+  STATE_LEVEL,   // STEPPED - holds a level between steps
+  STATE_EVENT,   // PWM     - an edge, and where it falls
 ];

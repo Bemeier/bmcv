@@ -16,35 +16,21 @@
 #define SR_HOLD_SEMI 0.5f
 #define SR_HOLD_HARD 0.85f
 
-// What a stepped channel is *for*, which is what SHP and MOD are spent on.
+// Where SHP and MOD go, which is most of what this shape is.
 //
-// One value path, two ways of driving it. Splitting the modes this way rather
-// than by algorithm is deliberate: the pattern engine is good and a second copy
-// of it would be a second thing to keep true, while what a bassline and a slow
-// modulation actually differ in is the distribution of the values and how the
-// curve moves between them - neither of which needs a new engine.
-//
-// Stored as an int8_t wherever it is persisted, like every other mode; see
-// config.h for why none of them are enum-typed there.
-typedef enum
-{
-  SR_STYLE_MELODIC, // notes: centred values, rhythm on MOD
-  SR_STYLE_CONTROL, // modulation: SHP is the bias, MOD is the motion
-  SR_STYLE_COUNT,
-} SrStyle;
-
-// The knobs, routed for a style. Everything downstream takes these rather than
-// SHP and MOD, so what a style *is* lives in one function instead of being
-// spread through the value path.
+// The two used to be routed two ways - one for notes, one for modulation - and
+// the notes one was dropped: it is where this arrived from rather than a second
+// thing worth keeping, and everything it did well this reaches with a knob
+// position instead of a mode. What survives is one routing, described here so
+// that what the mode *is* lives in one function rather than spread through the
+// value path.
 typedef struct
 {
-  float shape; // where the pattern is read
-  float mod;   // density, and everything that moves with it
-  float hold;  // how much of a step is spent sitting at its value
-  float bias;  // the distribution the finished value is reshaped into
+  float hold; // how much of a step is spent sitting at its value
+  float bias; // the distribution the finished value is reshaped into
 } SrDrive;
 
-SrDrive sr_style_drive(int8_t style, float shape, float mod);
+SrDrive sr_drive(float shape, float mod);
 
 // Reshapes the spread of the finished values, without moving the ends of the
 // range and without reordering anything.
@@ -95,35 +81,36 @@ static inline float sr_bias_map(float v, float bias)
 // to a near-full-scale 1.8 of 2.0.
 int sr_length_for_index(int length_idx);
 
-// Rhythmic random LFO shape.
+// Rhythmic random shape: a pattern of random values, locked to the beat.
 //
 //   phase       [0,1)  position in the cycle (already PLL-corrected by caller)
-//   shape       [-1,1] morph: continuously reshapes the pattern, periodic so
-//                      the knob wrapping past its end lands where it started.
-//                      Moves three things around one closed loop - which values
-//                      the steps hold, how those values are distributed (calm
-//                      and close together, or pushed to the extremes), and how
-//                      melodic the contour is (a walk, or independent leaps).
-//   mod         [-1,1] density: how often a step ties to the previous value
-//                      instead of taking a new one. 0 is the neutral 30% the
-//                      pattern was designed around, -1 gives a new value every
-//                      step, +1 leaves a handful of long notes per cycle.
-//                      Alongside it and moving with it: which steps tie, how
-//                      far the beat swings, and whether the cycle repeats a
-//                      quarter-length phrase. Not periodic - the density is
-//                      monotone across the knob, so -1 and +1 are opposite
-//                      ends rather than the same place.
+//   shape       [-1,1] the distribution the values are drawn into, and which
+//                      pattern they come from. Left: mostly low, with the peaks
+//                      still reaching - a modulation that sits down and
+//                      occasionally spikes. Centre: even. Right: bunched
+//                      against both rails, gate-like. The pattern advances
+//                      underneath it, so the knob reaches different patterns as
+//                      well as different distributions, and it is periodic -
+//                      past the end is where it started.
+//   mod         [-1,1] motion: at one end a new value every step, fully slewed
+//                      between them; at the other mostly tied, sitting still on
+//                      each value. Density, which steps tie, how far the beat
+//                      swings, whether the cycle repeats a quarter-length
+//                      phrase, and the ease all move together along it. Not
+//                      periodic - its ends are opposite ends.
 //   length_idx         pattern length; see sr_length_for_index()
-//   hold        [0,1)  how step-like the curve is (see SR_HOLD_* above)
+//   hold        [0,1)  how much of a step is spent sitting at its value. A
+//                      parameter here because the shape is general, but a
+//                      channel does not set it: sr_drive() takes it from MOD.
 //
 // Returns [-1,1]. Stateless and deterministic: the same arguments always give
 // the same value, which is what lets the caller re-derive phase from the PLL
 // every tick and blend scenes without the pattern drifting.
 //
-// Neither knob changes the level: the correction in the generated table holds
-// the peak-to-peak near constant and the pattern centred, so a turn changes
-// what the shape does and not how loud or how high it sits. That is what AMP
-// and OFFSET are for.
+// The knobs do not change how loud it is. The correction holds the pattern's
+// peak-to-peak near constant and its centre near zero before SHP's bias leans
+// it, so a turn changes what the shape does rather than how much of it there
+// is. Where it sits afterwards is SHP's business; how loud is AMP's.
 //
 // Slot values depend only on the slot index and the morph - never on the
 // length - so slot 0 reads the same at every length, and the correction's

@@ -172,10 +172,9 @@ void sr_norm_scan(SrScan* s, float shape, float mod, int length_idx, float dt_s,
   s->norm.offset += (s->target.offset - s->norm.offset) * k;
 }
 
-// How far MOD winds the ease up in the control style: fully slewed at one end,
-// SR_HOLD_HARD at the other, so the same knob carries a smooth wander through
-// to a held gate.
-#define SR_CTRL_HOLD SR_HOLD_HARD
+// How far MOD winds the ease up: fully slewed at one end, SR_HOLD_HARD at the
+// other, so one knob carries a smooth wander through to a held gate.
+#define SR_DRIVE_HOLD SR_HOLD_HARD
 
 // How far the ends of SHP drive the distribution.
 //
@@ -189,24 +188,21 @@ void sr_norm_scan(SrScan* s, float shape, float mod, int length_idx, float dt_s,
 // At this depth the low end sits at a mean of -0.51 with the peaks still
 // reaching, and the gate end empties the middle of the range from 54% of the
 // time to 34%.
-#define SR_CTRL_BIAS 0.6f
+#define SR_BIAS_DEPTH 0.6f
 
-SrDrive sr_style_drive(int8_t style, float shape, float mod)
+SrDrive sr_drive(float shape, float mod)
 {
-  SrDrive d = {shape, mod, SR_HOLD_SMOOTH, 0.0f};
+  SrDrive d;
 
-  if (style == SR_STYLE_CONTROL)
-  {
-    // SHP is the distribution, one traversal of it, with the pattern still
-    // advancing underneath - a knob that only reshaped would be a knob that
-    // never reaches a different pattern.
-    d.bias = SR_CTRL_BIAS * fclamp(shape, -1.0f, 1.0f);
+  // SHP is the distribution, one traversal of it, with the pattern still
+  // advancing underneath - a knob that only reshaped would be a knob that never
+  // reaches a different pattern.
+  d.bias = SR_BIAS_DEPTH * fclamp(shape, -1.0f, 1.0f);
 
-    // MOD is motion: new value every step and fully slewed at one end, mostly
-    // tied and hard-stepped at the other. Density already moves with it, so
-    // this is the same axis carrying the ease as well.
-    d.hold = SR_CTRL_HOLD * 0.5f * (fclamp(mod, -1.0f, 1.0f) + 1.0f);
-  }
+  // MOD is motion: a new value every step and fully slewed at one end, mostly
+  // tied and hard-stepped at the other. Density already moves with it, so this
+  // is the same axis carrying the ease as well.
+  d.hold = SR_DRIVE_HOLD * 0.5f * (fclamp(mod, -1.0f, 1.0f) + 1.0f);
   return d;
 }
 
