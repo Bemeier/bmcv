@@ -1,0 +1,297 @@
+# Splitting stepped random into modes with distinct characters
+
+Status: **plan, nothing implemented.**
+
+## Where this comes from
+
+Three rounds of widening SHP and MOD landed (range, layering, level). The
+verdict: it works, the areas are good, but
+
+1. **the typical results are hard to find again** - one mode covering everything
+   from a bassline to a slow modulation means every useful character is a small
+   island somewhere on a two-knob surface;
+2. **a small turn of SHP does too little** - the coarse clicks are already quick
+   enough to cross the knob, but each one barely changes the sound, which is why
+   fine adjust has never been wanted;
+3. **different jobs want different characters** - a baseline melody and a slow
+   modulation are not two points on one axis.
+
+The reference the feedback came with is Random8's **Style** parameter: eight
+named distributions (fBm, Perlin, high-low, Weibull, exponential, gamma, ROSC,
+uniform), each picked for a job. Two or three modes, not eight styles - a mode
+costs the user something to learn and to reach.
+
+## Decisions taken
+
+- **Three modes**: melodic, modulation, drift.
+- **Detent sizes stay** at 256 coarse / 32 fine. A click matters more because
+  the algorithm moves more per unit of travel, not because the click is bigger.
+- **The flash ceiling stops driving the design.** Prototype the modes in the
+  simulator, where the correction can simply be computed, then bring the
+  architecture back to the module.
+- **Level centring stays exactly as it ships**: one constant shared by every
+  length, so switching pattern length on the wrap is still seamless by
+  construction. Centring each length exactly - which a runtime correction would
+  make possible - is dropped. It would have bought ~0.2 of residual DC and cost
+  the one behaviour that is currently free and exact.
+- **Saved presets may break.** `ChannelConfig` and the mode enum are open, which
+  also means per-channel settings a mode needs (hold, length defaults) are on
+  the table.
+- **This runs as a spike on a branch.** See "How the spike runs" below.
+
+## What rounds one to three leave us
+
+Keep all of it. The engine is the pattern, and it is good: slot orbits, ties as
+a crossfade, gate rotation, swing, motif fold, easing, and the affine correction
+that holds level steady (peak-to-peak near 1.5, centred, `SR_NORM_EXP` 0.7 so
+the natural loud/quiet ordering survives). Also keep the rule that gives a
+phase-driven module what stochastic draws give Random8: **neighbouring knob
+positions stay related** (0.35 per 1% of travel from eight steps up).
+
+What the engine does **not** have, and what the Random8 list is really about, is
+an **asymmetric value distribution**. `sr_shape_blend` is odd: it compresses or
+expands the middle symmetrically. Low-bias-with-occasional-highs (Weibull,
+exponential, gamma) is exactly what it cannot make, and that is the family the
+feedback calls "modulation".
+
+## Architecture: tabulate the constant, compute the gain
+
+The normalisation table is `[11 lengths][16 MOD][128 orbit]` floats x2 =
+**180 KB**, against ~200 KB of free flash (firmware is 322 KB of 512 KB). Two
+value paths just fit; three do not. The length axis cannot be collapsed to buy
+room - measured, the gain still differs by 0.46 on average between 16 and 64
+steps at the same point, and by up to 8.9 where a short pattern needs lifting.
+
+The correction is `out = c + (v - anchor) * g`, and its two halves have opposite
+shapes:
+
+- **`c`, the centring constant, is length-independent but expensive**: it is an
+  average across all eleven lengths of what would centre each, which is why it
+  is shared and why the cycle boundary is seamless. A channel knows only its own
+  length, so it cannot compute this.
+- **`g`, the gain, is length-dependent but cheap**: the pattern's own span,
+  which is `length` evaluations of `sr_step_value`.
+
+So split them. **Tabulate `c` - `[16 MOD][128 orbit]` = 8 KB per mode, 24 KB for
+three - and compute `g` at runtime.** Per sample the scan is unaffordable;
+**amortised over the cycle it is one extra slot per tick per stepped channel**,
+roughly +40-50% on the stepped path, and only while a knob (or a CV on one) is
+moving - an unchanged pattern needs no rescan.
+
+What that buys, beyond 180 KB becoming 24 KB:
+
+- **per-mode value paths become free** - lever depths, rates, taps, anything;
+- **the length seam becomes exact.** Today's 0.044 (and 0.122 off-centre MOD)
+  is entirely interpolation: the table's gain and its anchor come from a bin
+  while slot 0's value is computed at the real orbit, so the two no longer
+  cancel. Compute the anchor and the gain at the real point and
+  `out(0) = c` exactly, at every length, for free;
+- **`SR_GAIN_SUBS` goes.** Fitting each bin's gain to the worst point in its
+  neighbourhood exists only to survive interpolation, and it biases every
+  setting upward. Level consistency improves as a side effect;
+- **the 88 KB of MOD resolution goes with it**, and the question of whether 8
+  bins would have done.
+
+What it costs, and how each is handled:
+
+- **CPU.** Measure before committing: `engine_fps` and `dac_fps` are reported by
+  the module, and the worst case is eight channels in a stepped mode with SHP
+  under CV. If one slot per tick is too slow to converge, scan a fixed subset -
+  the runtime already clamps, so an underestimated peak is a clipped sample for
+  a few ms rather than a failure.
+- **Per-channel state**, ~6 floats: the committed gain, the accumulating
+  min/max, and the scan index. The DC is not needed - it only ever fed `c`,
+  which stays in the table. `EngineState` already owns per-channel latches like
+  `channels_length_idx`; this sits with them. `stepped_random()` stays pure: the
+  correction becomes an argument, not a hidden cache.
+- **The correction changes while the pattern plays.** It must be constant across
+  a cycle or the loop stops closing, so commit a completed scan on the wrap and
+  slew between old and new over a few ms rather than stepping.
+
+**The seam rule still holds, and the spike is where it is at risk.** The
+prototype must not be a simulator-only behaviour: it is one function,
+`sr_norm_compute(mode, length, mod, orbit)`, called directly by the sim and the
+native tests, and *memoised* by the firmware for as long as it still has a
+table. Same output, different cost. What must never happen is a mode that sounds
+right in the browser because the browser can afford something the module cannot;
+that is the trap, and the point of the prototype is to decide what the module
+will do.
+
+A mode is also free to need **no correction at all**: a construction whose span
+is analytically bounded (see drift, below) skips this entirely. Prefer those
+where the character allows.
+
+## Making a small turn count
+
+Measured: a coarse detent is 256 counts of a 65536-count parameter, so **256
+detents cross SHP**; the character metric says a 2% turn (5 detents) moves ~0.8
+sigma, so one click moves ~0.16 sigma - below noticing. The budget is not the
+problem: sample movement per 1% is already 0.29-0.30 against the 0.35 limit.
+**The budget is being spent on the wrong thing.** It goes on the orbit
+re-drawing the values (jitter) rather than on the levers steering the character
+(steer), and jitter is what a small turn must not do.
+
+Three levers, to be set together against `from_c.py`:
+
+- **Slow the orbit.** `SR_MAX_ORBIT_RATE` is 4, so a slot's value can cross its
+  whole triangle four times in one sweep. Round one already measured the
+  converse: widening it to 10 raised jitter 59% and lowered steer. Narrowing it
+  frees budget and costs little.
+- **Raise the lever rates.** A rate-1 lever spends the whole knob on one
+  traversal, so a click is 1/256 of it. At rates 8-12 a click is a real fraction
+  of an excursion. The trade is honest and worth stating: **a character then
+  recurs several times across the knob.** That is acceptable because the rates
+  are coprime and the orbit is monotone, so the *combination* is still unique
+  everywhere - which is what round two's layering was for. What is bought is
+  that the knob has fewer unique destinations but every click reaches one.
+- **Post-maps are the cheapest steer there is.** A monotone reshaping of the
+  values changes the whole feel while leaving every step's ordering intact - it
+  cannot read as re-randomising, because nothing is re-drawn. The modulation
+  mode's bias axis is the best example, and it is a good reason to put a post-map
+  on SHP in every mode.
+
+Target: **~0.5 sigma of character per click**, with sample movement per 1% of
+travel unchanged at 0.35, `jitter` down and `steer` up.
+
+## The modes
+
+Three. Presets are open, so the enum can be ordered for sense rather than for
+compatibility: keep the stepped family contiguous.
+
+### 1. Melodic
+
+Notes: a line you would quantise. Centred, mid-biased values, no spikes.
+
+- **SHP** - interval width (calm and close together <-> wide leaps) crossed with
+  walk <-> independent leaps, both at rates that make a click audible.
+- **MOD** - rhythm: density (note lengths), swing, the quarter-cycle motif
+  repeat. As today.
+- **post-map** - mid-bias at one end, uniform at the other: Random8's ROSC (7)
+  and uniform (8).
+- **level** - centred.
+
+### 2. Modulation
+
+Something to modulate with: sits low, rises occasionally, or gates.
+
+- **SHP** - the **bias** axis, the one genuinely new thing here: deep low with
+  rare peaks (Weibull/exponential, 4-5) -> slight low bias (gamma, 6) -> uniform
+  -> bimodal high/low (3, gate-like). One traversal so the ends are the extremes,
+  with a faster second lever layered on it.
+- **MOD** - **motion**: `hold` from fully slewed to hard-stepped, crossed with
+  density. `hold` is hard-wired to `SR_HOLD_SMOOTH` in `channel.c` today and is
+  the axis that turns a pattern into an envelope. Free of the correction either
+  way - the span is measured on the step values and the eased curve passes
+  exactly through them.
+- **level** - the floor, not the mean. "Sits low with occasional peaks" *is* a DC
+  offset, so the centring is re-aimed per mode and the level test asserts the
+  floor is steady rather than the mean.
+
+### 3. Drift
+
+The invisible hand: slow, smooth, no audible steps. Random8's fBm and Perlin.
+
+- Not the slot engine: a sum of 2-4 octaves of triangles in the **phase** domain
+  at integer rates, so it closes on itself exactly and **needs no correction** -
+  its span is analytically bounded.
+- **SHP** - roughness: how much of the higher octaves, and which drift.
+- **MOD** - excursion, and how much of the step lattice shows through (0 =
+  smooth, 1 = stepped).
+- Cheapest and least risky of the three; third only because the feedback named
+  melody and modulation.
+
+## What we do not take from Random8
+
+- **PROB** - a channel advancing only sometimes is stochastic; we are phase
+  driven and re-derive the value from the PLL every tick. The tie crossfade is
+  the deterministic equivalent and we prefer it.
+- **DIVIDR + STEPS** - already covered. STEPS is `sr_length_idx`, including
+  their "shrink and regrow without losing the loop" (slot values do not depend on
+  the length). DIVIDR is the FRQ ratio.
+
+## How the spike runs
+
+Branch `spike/stepped-modes`. The character is the thing to find first, and it
+cannot be found while also holding every invariant, so during the spike:
+
+**May be relaxed, temporarily and visibly** - each one noted in this file as it
+happens, with what it will take to restore it:
+
+- flash: the correction may be computed the slow way everywhere, no table;
+- CPU: no budget on the stepped path;
+- `tests/test_stepped_random.c` may run against one mode while the others are
+  in flux, and the small-turn and level bounds may be loosened to explore;
+- `just check-all` may fail on the firmware target;
+- the manual and the LED language may lag.
+
+**May not be relaxed at any point**, because these are what make the spike worth
+merging rather than throwing away:
+
+- one core, one value path per mode, no host-only behaviour;
+- the loop closes: the waveform is continuous across the cycle boundary;
+- neighbouring knob positions stay related - the small-turn property may be
+  re-tuned but not abandoned, since it is what we have instead of stochastic
+  draws.
+
+**Before merging back to main**: firmware builds and fits, the whole suite
+passes per mode with bounds set from measurement rather than loosened, the
+flash and CPU numbers are recorded here, `just check-all` is green, and the
+docs and manual describe what the module actually does. That last stretch -
+getting an architecture that runs on the module - is expected to be the larger
+half of this work.
+
+## Staging
+
+**Phase 0 - make the correction callable.** Lift the body of
+`gen_sr_table.c` into a core header as `sr_norm_compute(...)`. The generator
+calls it to build the table; a build knob lets the sim and the tests call it
+directly. Prove byte-identical output against the checked-in table, so the
+refactor is provably nothing but a refactor.
+
+**Phase 1 - prototype the modes in the simulator**, correction computed, cost
+ignored. `from_c.py` gains a mode column; the web sim is where they get played.
+Land the character first: it is the only part that cannot be decided by
+measurement alone.
+
+**Phase 2 - bring it to the module.** The split above: an 8 KB constant table
+per mode, the gain scanned incrementally per channel, the scan and commit rules,
+`engine_fps`/`dac_fps` measured on hardware with eight stepped channels under
+CV. If a mode turns out to need no correction at all, say so and skip it there.
+
+**Phase 3 - the rest.** Config (`ChannelConfig`, the mode enum,
+`CONFIG_STATE_VERSION`, a reset rather than a migration), the shape encoder and
+five LED states (precedent is `clamp_mode_color`: hue plus brightness, so the
+stepped family stays cyan and separates by brightness), `web/const.js`,
+`frontend-check.mjs`'s "shapes reuse the input hues" check (its reason needs
+rewriting, not deleting), `sim/src/bmcv_sim.c` names, `docs/led-language.md`,
+the manual, and the test suite run per mode.
+
+## Concerns
+
+1. **The prototype must not become a fork.** One function, two cost strategies -
+   never a behaviour the sim has and the module does not. Phase 0 exists to make
+   that structural rather than a matter of discipline.
+2. **CPU is a number nobody has yet.** The stepped path went 4.2x then 5.0x
+   across rounds one and two and the module reported no change, but that was
+   with the correction free. Measure at the start of phase 2, not the end.
+3. **Three modes plus new axes is a lot of surface.** Each mode needs the whole
+   invariant suite (loop closure, small turn, flat floor, level, cyclicity) plus
+   a character claim of its own, or "distinct characters" is just an assertion.
+4. **Breaking presets is cheap now and expensive later.** If the record is going
+   to change, change it once, in phase 3, with everything the modes turned out to
+   need.
+
+## Unresolved questions
+
+1. **Does the modulation mode want its own pattern length default?** Envelopes
+   want fewer steps than melodies. Length is per channel; changing it on a mode
+   switch would overwrite a user's setting.
+2. **How far can the lever rates go before a click reads as re-randomising?**
+   The suite measures sample movement per 1% of travel, not per click; a
+   per-click figure probably needs to join it.
+3. **Does the drift mode belong in the stepped family at all?** It shares the
+   knobs' meaning and the phase lock but not the value path, and on the panel it
+   is closer to the wavetable mode. It is grouped here because it is random.
+4. Carried over, still live: is `SR_NORM_EXP` 0.7 the right amount of level
+   normalisation; is 0.35 the right small-turn budget; and swing on odd lengths
+   still makes step 0 and step L-1 both wide at lengths 3 and 5.
