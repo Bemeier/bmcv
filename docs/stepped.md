@@ -63,6 +63,47 @@ the table could only approximate:
   than arriving through a neighbourhood rule written for interpolation. Worst
   span anywhere went 0.584 to 0.900 of the 2.0 range.
 
+### What a step costs, and why it is paid once
+
+What a step shows, and what the next one shows, depend on which step the
+playhead is in and **not on where inside it** - only the ease between them
+varies within a step. The shape is sampled far faster than the steps move: at
+0.5 Hz over 64 steps, ninety-one consecutive ticks were computing the same two
+numbers from scratch.
+
+So a channel keeps an `StStepCache` and pays per *step* rather than per tick.
+Two things fall out of it:
+
+- **Within a step there is nothing to compute but the ease.**
+- **Crossing into the next step costs one slot evaluation, not a walk.**
+  `st_step_next()` returns exactly `st_step_value(next)`, so what the last step
+  eased *toward* is by definition what this one eases *from* - the pair advances
+  by computing only its new far end. That is the part that helps a fast LFO,
+  where the cache itself never hits.
+
+Only a jump pays the full route: a phase correction, a knob turn, or a rate high
+enough to skip a step outright (above roughly 45-60 Hz at length 64). **The
+worst case is unimproved and is still bounded** - `st_step_value()` is
+O(`ST_JUMP_GRID`) regardless of pattern length.
+
+Measured on the module, seven stepped channels at 0.5 Hz over 64 steps:
+`engine` 296.5 → 197.3 µs, `load` 1.30 → 0.90, overruns 100% → 3.2%, resyncs
+9923 → 3. It is what first let the engine hold its nominal 4 kHz.
+
+The cache changes when the work happens, never what comes out.
+`tests/test_stepped_cache.c` asserts the cached and uncached routes are
+bit-identical, and that is not decoration: the cache key has to name every input
+`st_morph()` and `st_step_pair()` read, and a lever added to `StMorph` driven by
+something outside the key would leave a channel drawing its old pattern - no
+crash, no drift in level, just the wrong shape, sounding plausible.
+
+Writing that test found a real one. `st_tie_run()` *breaks* when a tie weight
+reaches 1, so `st_step_value()` returns the slot's offer outright - while
+`st_step_next()` computed `lerp(from, offer, 1.0f)`, and `from + (offer - from)`
+is not `offer` in floating point. At length 3, where `st_tie_fade` lets a weight
+reach exactly 1, the two disagreed in the sixth digit. The discrepancy predates
+the cache; nothing had ever compared the two routes.
+
 ### The scan
 
 `st_norm_scan()` measures one slot per tick and slews the result into place over

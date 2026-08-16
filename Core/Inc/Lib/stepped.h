@@ -175,6 +175,51 @@ float stepped_shape_with(float phase, float shape, float mod, int length_idx, co
 // pattern at once.
 StNorm st_norm_exact(float shape, float mod, int length_idx);
 
+// What a channel remembers between ticks so it does not redo work that cannot
+// have changed.
+//
+// The shape is sampled far faster than the pattern moves. What a step shows,
+// and what the next one shows, depend on which step the playhead is in and not
+// on where inside it - so at a 0.5Hz rate over 64 steps, ninety-one consecutive
+// ticks were computing the same two numbers from scratch. All that actually
+// varies within a step is the ease between them.
+//
+// Zeroed is "nothing cached", which is what a fresh EngineState gives.
+//
+// **The first four fields are a cache key, and they mirror the argument lists
+// of st_morph() and st_step_pair() on purpose.** Every input those two read has
+// to appear here, or a pattern that changed goes on being drawn from a stale
+// pair - quietly, and sounding plausible. A lever added to StMorph that is
+// driven by something not in this struct is the way this breaks;
+// test_stepped_cache.c is what catches it, by asserting the cached path is
+// bit-identical to the uncached one.
+typedef struct
+{
+  float shape;
+  float mod;
+  int16_t length_idx;
+  int16_t step; // which step from/to describe; -1 for none
+
+  StMorph morph; // st_morph() for those knobs
+  float from;    // what `step` shows
+  float to;      // what the step after it shows
+  uint8_t valid;
+} StStepCache;
+
+// stepped_shape_with(), with a channel's cache to work from.
+//
+// Returns bit-for-bit what stepped_shape_with() returns for the same arguments.
+// The cache changes when the work happens, never what it produces, and the test
+// holds it to that.
+//
+// Two ways it avoids work. Within a step - the common case by a wide margin -
+// there is nothing to compute but the ease. Crossing into the *next* step, what
+// the last one eased toward is by definition what this one eases from, so the
+// pair advances for one slot evaluation instead of a walk of up to
+// ST_JUMP_GRID. Only a jump - a phase correction, a knob turn, a rate high
+// enough to skip a step outright - pays the full route.
+float stepped_shape_cached(StStepCache* c, float phase, float shape, float mod, int length_idx, const StDrive* drive, const StNorm* norm);
+
 // A channel's rolling measurement of its own pattern.
 //
 // Zeroed is "nothing measured yet", which is what a fresh EngineState gives and

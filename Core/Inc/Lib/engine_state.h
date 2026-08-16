@@ -125,6 +125,12 @@ typedef struct
   // one.
   StScan channels_stepped_scan[N_CHANNELS];
 
+  // And what each one remembers of the pattern it is playing, so that a shape
+  // sampled far faster than its own steps move is not recomputed from scratch
+  // every tick. See StStepCache: it changes when the work happens, never what
+  // comes out, and test_stepped_cache.c holds it to that.
+  StStepCache channels_stepped_cache[N_CHANNELS];
+
   // Whose turn it is to measure. One slot of one channel's pattern per tick:
   // measuring is nearly as expensive as playing the shape, so eight channels
   // each measuring every tick cost the engine a third of its ticks on the

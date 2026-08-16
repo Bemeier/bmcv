@@ -217,23 +217,13 @@ StDrive st_drive(float shape, float mod)
   return d;
 }
 
-float stepped_shape_with(float phase, float shape, float mod, int length_idx, const StDrive* drive, const StNorm* norm)
+// Everything after the pair is known: hold, ease, correct, reshape.
+//
+// Its own function so the cached and uncached routes cannot drift apart. They
+// are required to agree bit for bit, and the cheapest way to guarantee the tail
+// of that is for there to be one tail.
+static float st_blend_out(float from, float to, float within, const StDrive* drive, const StNorm* norm)
 {
-  length_idx = iclamp(length_idx, 0, ST_LENGTH_COUNT - 1);
-  int length = st_lengths[length_idx];
-
-  StMorph m = st_morph(shape, mod, length, ST_HOLD_MAX);
-
-  // Which step the playhead is in. The steps are not all the same width - MOD
-  // skews alternate ones long and short - so this is a small search rather than
-  // a multiply, but still O(1).
-  float within;
-  int step = st_step_at(phase, length, st_swing_amount(mod), &within);
-  int next = (step + 1 == length) ? 0 : step + 1;
-
-  float from, to;
-  st_step_pair(step, next, &m, &st_slots, ST_JUMP_GRID, &from, &to);
-
   // Hold, then ease.
   float span = 1.0f - drive->hold;
   float ease = (span <= 0.0f) ? 1.0f : fclamp((within - drive->hold) / span, 0.0f, 1.0f);
@@ -251,6 +241,69 @@ float stepped_shape_with(float phase, float shape, float mod, int length_idx, co
   // reading as a fresh draw.
   float corrected = fclamp(value * norm->gain + norm->offset, -1.0f, 1.0f);
   return st_terrace_map(st_bias_map(corrected, drive->bias), drive->terrace);
+}
+
+float stepped_shape_with(float phase, float shape, float mod, int length_idx, const StDrive* drive, const StNorm* norm)
+{
+  length_idx = iclamp(length_idx, 0, ST_LENGTH_COUNT - 1);
+  int length = st_lengths[length_idx];
+
+  StMorph m = st_morph(shape, mod, length, ST_HOLD_MAX);
+
+  // Which step the playhead is in. The steps are not all the same width - MOD
+  // skews alternate ones long and short - so this is a small search rather than
+  // a multiply, but still O(1).
+  float within;
+  int step = st_step_at(phase, length, st_swing_amount(mod), &within);
+  int next = (step + 1 == length) ? 0 : step + 1;
+
+  float from, to;
+  st_step_pair(step, next, &m, &st_slots, ST_JUMP_GRID, &from, &to);
+
+  return st_blend_out(from, to, within, drive, norm);
+}
+
+float stepped_shape_cached(StStepCache* c, float phase, float shape, float mod, int length_idx, const StDrive* drive, const StNorm* norm)
+{
+  length_idx = iclamp(length_idx, 0, ST_LENGTH_COUNT - 1);
+  int length = st_lengths[length_idx];
+
+  // st_morph() reads the two knobs and the length and nothing else, so this is
+  // exactly the condition under which last tick's morph is still this tick's.
+  // Exact float compares, like st_norm_scan's: anything looser would keep
+  // drawing an old pattern through a slow turn.
+  if (!c->valid || c->shape != shape || c->mod != mod || c->length_idx != (int16_t) length_idx)
+  {
+    c->morph      = st_morph(shape, mod, length, ST_HOLD_MAX);
+    c->shape      = shape;
+    c->mod        = mod;
+    c->length_idx = (int16_t) length_idx;
+    c->step       = -1; // the pattern moved under it; the pair means nothing now
+    c->valid      = 1;
+  }
+
+  float within;
+  int step = st_step_at(phase, length, st_swing_amount(mod), &within);
+  int next = (step + 1 == length) ? 0 : step + 1;
+
+  if (step != (int) c->step)
+  {
+    // One step on, wrap included: the pair the last tick held ends on this
+    // step's value, because st_step_next() returns exactly st_step_value(next).
+    // So the walk is already done and only the new far end is missing.
+    if (c->step >= 0 && step == (int) ((c->step + 1) % (int16_t) length))
+    {
+      c->from = c->to;
+      c->to   = st_step_next(step, next, &c->morph, &st_slots, ST_JUMP_GRID, c->from);
+    }
+    else
+    {
+      st_step_pair(step, next, &c->morph, &st_slots, ST_JUMP_GRID, &c->from, &c->to);
+    }
+    c->step = (int16_t) step;
+  }
+
+  return st_blend_out(c->from, c->to, within, drive, norm);
 }
 
 float stepped_shape(float phase, float shape, float mod, int length_idx, float hold)

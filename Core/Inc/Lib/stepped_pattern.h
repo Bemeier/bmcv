@@ -352,25 +352,53 @@ static inline float st_step_value(int step, const StMorph* m, const StSlots* s, 
   return v;
 }
 
-// The two values one sample needs: what the current step shows and what the
-// next one does, in a single walk.
+// What the step after `step` shows, given what `step` shows.
 //
 // The next step is nearly always the one after this in the same run of ties, so
 // it is the current value crossfaded one place further. Only when it opens a
 // new run - or wraps to slot 0 - does it need a value of its own, and that is
 // one call because a pinned slot has no look-back.
+//
+// **This returns exactly st_step_value(next).** Both branches do: the second by
+// construction, and the first because st_step_value's walk is that same lerp
+// applied one slot at a time, so crossfading `from` one place further is one
+// more turn of its own recursion - the same operations in the same order, not
+// an approximation of them.
+//
+// That identity is worth stating because a caller advancing through the pattern
+// one step at a time can carry this tick's `to` into next tick's `from` and
+// never call st_step_value at all. See stepped_shape_cached().
+static inline float st_step_next(int step, int next, const StMorph* m, const StSlots* s, int jump_grid, float from)
+{
+  if (next == step + 1 && (next % jump_grid) != 0)
+  {
+    float w = st_tie_weight(next, m, s, jump_grid);
+
+    // A weight of 1 means the step takes its own value outright and the run of
+    // ties starts here - which is exactly where st_tie_run() stops walking, so
+    // st_step_value() would return the offer and never reach a crossfade.
+    //
+    // Mirroring that break is what makes the identity above exact rather than
+    // nearly exact. lerp(from, offer, 1.0f) is `from + (offer - from)`, and in
+    // floating point that is not `offer`: at length 3, where st_tie_fade lets a
+    // weight reach exactly 1, the two routes differed in the sixth digit. Small,
+    // and it would have propagated through every carried step until the next
+    // pinned slot reset it.
+    if (w >= 1.0f)
+    {
+      return st_slot_offer(next, m, s);
+    }
+    return lerp(from, st_slot_offer(next, m, s), w);
+  }
+  return st_step_value(next, m, s, jump_grid); // a pinned slot or a wrap: no look-back
+}
+
+// The two values one sample needs: what the current step shows and what the
+// next one does, in a single walk.
 static inline void st_step_pair(int step, int next, const StMorph* m, const StSlots* s, int jump_grid, float* from, float* to)
 {
   *from = st_step_value(step, m, s, jump_grid);
-
-  if (next == step + 1 && (next % jump_grid) != 0)
-  {
-    *to = lerp(*from, st_slot_offer(next, m, s), st_tie_weight(next, m, s, jump_grid));
-  }
-  else
-  {
-    *to = st_step_value(next, m, s, jump_grid); // a pinned slot: no look-back
-  }
+  *to   = st_step_next(step, next, m, s, jump_grid, *from);
 }
 
 // How wide each step is, as a fraction of the cycle.

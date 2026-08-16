@@ -51,6 +51,7 @@ endfunction()
 
 bmcv_add_test(test_helpers)
 bmcv_add_test(test_stepped)
+bmcv_add_test(test_stepped_cache)
 bmcv_add_test(test_wavetable)
 target_sources(test_wavetable PRIVATE pll_metrics.c)
 bmcv_add_test(test_channel)
