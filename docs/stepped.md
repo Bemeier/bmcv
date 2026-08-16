@@ -70,9 +70,14 @@ the table could only approximate:
 
 - **The engine hands out one measurement per tick**, in turn, across all
   channels. A slot evaluation is nearly as expensive as the shape itself - a
-  step value walks a run of ties, each slot a four-tap contour and a motif fold
-  - so eight channels each measuring every tick cost 88 µs of a 310 µs tick on
-  the module, and the engine answered by dropping every third one.
+  step value walks a run of ties, each slot a four-tap contour and a motif fold.
+  Eight channels each measuring every tick cost 88 µs of a 310 µs tick, and the
+  engine answered by dropping every third one. **Measured on the `-O0` debug
+  build** (`just flash-usb` flashes that one; `just flash-usb-rel` is the
+  optimised firmware), so the absolute figures are 5x pessimistic - the host
+  gap between -O0 and -O2 for this shape is 437 ns against 83. The rota bounds
+  the cost either way and costs a standing channel nothing, but whether it is
+  *needed* at -O2 has not been measured.
 - **A standing channel stops measuring.** Re-measuring an unchanged pattern can
   only give the answer it already has, so what the scan costs is a knob moving.
 - **A length change restarts the pass** rather than paying for a full
@@ -161,5 +166,8 @@ are ordering-based and were blind to the reshapings entirely.
   *through* the reshapings and set the gain from the output span.
 - **Swing on odd lengths** makes step 0 and step L-1 both wide at lengths 3 and
   5 - a lopsided shuffle.
-- **The module ticks at ~3.3 kHz, not the nominal 4**, before any of this, and
-  drops about one tick in six. Unexplained, and worth its own look.
+- **Every hardware measurement here was taken on the `-O0` debug build**, which
+  is what `just flash-usb` flashes. That is where "the module ticks at 3.3 kHz
+  rather than the nominal 4" came from, and it is a property of that build
+  rather than of the module. Re-measure with `just flash-usb-rel` before
+  treating any of these numbers as the module's own.
