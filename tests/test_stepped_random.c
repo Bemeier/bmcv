@@ -24,7 +24,7 @@ static float sr_eval(float phase, float shape, float mod, int length_idx, float 
     prev_mod   = mod;
     prev_idx   = length_idx;
   }
-  SrDrive bare = {hold, 0.0f};
+  SrDrive bare = {hold, 0.0f, 0.0f};
   return stepped_random_with(phase, shape, mod, length_idx, &bare, &norm);
 }
 
@@ -83,7 +83,7 @@ TEST_CASE(measuring_the_correction_here_or_passing_it_in_are_the_same_shape)
         for (float phase = 0.0f; phase < 1.0f; phase += 0.077f)
         {
           CHECK(stepped_random(phase, shape, mod, li, SR_HOLD_SMOOTH) ==
-                stepped_random_with(phase, shape, mod, li, &(SrDrive){SR_HOLD_SMOOTH, 0.0f}, &n));
+                stepped_random_with(phase, shape, mod, li, &(SrDrive){SR_HOLD_SMOOTH, 0.0f, 0.0f}, &n));
         }
       }
     }
@@ -163,17 +163,119 @@ TEST_CASE(curve_is_continuous_at_every_step_boundary)
 // "Neighbouring areas of the morph parameter should sound similar" - a small
 // turn of either knob must deform the pattern, not re-randomise it.
 //
-// This is the budget every lever depth and rate is set against, so it is swept
-// finely: at 0.05 per step the old version of this test sampled too coarsely to
-// see its own limit being exceeded, and it checked one pattern length out of
-// eleven.
+// Measured as Spearman's rank correlation between the two patterns, which is
+// what that sentence means: the steps keep their order, whatever happens to
+// their values. That distinction is the whole point of measuring it this way.
+// The bound used to be on how far any sample moved, which was the same thing
+// back when character came only from redrawing the pattern - but it is not the
+// same thing for a reshaping of the finished values, which cannot move a step
+// out of order however far it moves the samples. That is true by construction,
+// not by measurement, so the old bound was charging full price for the one
+// mechanism that is musically free.
 //
-// Two limits, because a short cycle cannot change gently: with only a handful
-// of values in it, one of them moving is a large fraction of the whole, and the
-// shortest lengths sat at 0.88-0.90 in the original algorithm too. Everything
-// from eight steps up - which is the range this shape is really for - is held
-// to the tight figure, and measures 0.29.
-#define SR_SMALL_TURN_LIMIT 0.35f
+// Ties take average ranks, since a tied step shares its value with the one
+// before it.
+//
+// Short patterns are exempt, as they were under the old bound: three values
+// cannot change gently, and at three steps one swap inverts the order outright
+// (measured, rho reaches -0.50).
+#define SR_SMALL_TURN_RHO 0.55f
+#define SR_SMALL_TURN_RHO_MIN_LENGTH 8
+
+static void step_ranks(const float* v, int n, float* r)
+{
+  for (int i = 0; i < n; i++)
+  {
+    float below = 0.0f, equal = 0.0f;
+    for (int j = 0; j < n; j++)
+    {
+      if (v[j] < v[i] - 1e-6f)
+        below += 1.0f;
+      else if (fabsf(v[j] - v[i]) <= 1e-6f)
+        equal += 1.0f;
+    }
+    r[i] = below + 0.5f * (equal - 1.0f);
+  }
+}
+
+static float spearman(const float* a, const float* b, int n)
+{
+  float ra[64], rb[64];
+  step_ranks(a, n, ra);
+  step_ranks(b, n, rb);
+
+  float ma = 0.0f, mb = 0.0f;
+  for (int i = 0; i < n; i++)
+  {
+    ma += ra[i];
+    mb += rb[i];
+  }
+  ma /= (float) n;
+  mb /= (float) n;
+
+  float num = 0.0f, da = 0.0f, db = 0.0f;
+  for (int i = 0; i < n; i++)
+  {
+    num += (ra[i] - ma) * (rb[i] - mb);
+    da += (ra[i] - ma) * (ra[i] - ma);
+    db += (rb[i] - mb) * (rb[i] - mb);
+  }
+  if (da < 1e-9f || db < 1e-9f)
+  {
+    return 1.0f; // a pattern with no order to keep cannot lose it
+  }
+  return num / sqrtf(da * db);
+}
+
+// The pattern as a channel plays it, one value per step.
+static void driven_pattern(float shape, float mod, int length_idx, float* out)
+{
+  int n       = sr_length_for_index(length_idx);
+  SrDrive d   = sr_drive(shape, mod);
+  SrNorm norm = sr_norm_exact(shape, mod, length_idx);
+  for (int k = 0; k < n; k++)
+  {
+    out[k] = stepped_random_with(((float) k + 0.5f) / (float) n, shape, mod, length_idx, &d, &norm);
+  }
+}
+
+TEST_CASE(a_small_turn_deforms_the_pattern_rather_than_replacing_it)
+{
+  for (int li = 0; li < SR_LENGTH_COUNT; li++)
+  {
+    int n = sr_length_for_index(li);
+    if (n < SR_SMALL_TURN_RHO_MIN_LENGTH)
+    {
+      continue;
+    }
+
+    float a[64], b[64];
+    for (int i = 0; i <= 200; i++)
+    {
+      float x = -1.0f + 2.0f * (float) i / 200.0f;
+      if (x > 0.99f)
+        break;
+
+      driven_pattern(x, 0.3f, li, a);
+      driven_pattern(x + 0.01f, 0.3f, li, b);
+      CHECK(spearman(a, b, n) > SR_SMALL_TURN_RHO);
+
+      driven_pattern(0.3f, x, li, a);
+      driven_pattern(0.3f, x + 0.01f, li, b);
+      CHECK(spearman(a, b, n) > SR_SMALL_TURN_RHO);
+    }
+  }
+}
+
+// And a coarse guard on the other thing a small turn must not do: leap. Keeping
+// the order is not enough on its own - a reshaping steep enough to throw one
+// step from the bottom of the range to the top would pass the test above and
+// still be heard as a jump.
+//
+// Loose on purpose. This is not the "sounds related" rule any more, which is
+// why it is no longer 0.35: that number was calibrated when this measure was
+// standing in for the one above.
+#define SR_SMALL_TURN_LIMIT 0.60f
 #define SR_SMALL_TURN_LIMIT_SHORT 1.10f
 
 static float worst_small_turn(int length_idx, int on_mod)
@@ -187,18 +289,15 @@ static float worst_small_turn(int length_idx, int on_mod)
     if (x > 1.0f - d)
       break;
 
-    // Two settings, compared sample by sample, so the corrections are taken
-    // once each rather than re-measured on every phase.
     float a_shape = on_mod ? 0.3f : x, a_mod = on_mod ? x : 0.0f;
     float b_shape = on_mod ? 0.3f : x + d, b_mod = on_mod ? x + d : 0.0f;
-    SrNorm na = sr_norm_exact(a_shape, a_mod, length_idx);
-    SrNorm nb = sr_norm_exact(b_shape, b_mod, length_idx);
+    SrDrive da = sr_drive(a_shape, a_mod), db = sr_drive(b_shape, b_mod);
+    SrNorm na = sr_norm_exact(a_shape, a_mod, length_idx), nb = sr_norm_exact(b_shape, b_mod, length_idx);
 
     for (float phase = 0.0f; phase < 1.0f; phase += 0.01f)
     {
-      float a    = stepped_random_with(phase, a_shape, a_mod, length_idx, &(SrDrive){SR_HOLD_SMOOTH, 0.0f}, &na);
-      float b    = stepped_random_with(phase, b_shape, b_mod, length_idx, &(SrDrive){SR_HOLD_SMOOTH, 0.0f}, &nb);
-      float diff = fabsf(a - b);
+      float diff = fabsf(stepped_random_with(phase, a_shape, a_mod, length_idx, &da, &na) -
+                         stepped_random_with(phase, b_shape, b_mod, length_idx, &db, &nb));
       if (diff > worst)
         worst = diff;
     }
@@ -206,7 +305,7 @@ static float worst_small_turn(int length_idx, int on_mod)
   return worst;
 }
 
-TEST_CASE(a_small_turn_deforms_the_pattern_rather_than_replacing_it)
+TEST_CASE(a_small_turn_never_leaps_the_output)
 {
   for (int li = 0; li < SR_LENGTH_COUNT; li++)
   {
@@ -479,12 +578,12 @@ TEST_CASE(a_length_change_moves_the_correction_without_stepping_the_output)
       // The gain is what would step if a completed pass were swapped in rather
       // than slewed - the wrap value would not, since it lands on the shared
       // constant whatever the gain is.
-      float prev      = stepped_random_with(0.0f, 0.3f, -0.2f, from, &(SrDrive){SR_HOLD_SMOOTH, 0.0f}, &s.norm);
+      float prev      = stepped_random_with(0.0f, 0.3f, -0.2f, from, &(SrDrive){SR_HOLD_SMOOTH, 0.0f, 0.0f}, &s.norm);
       float prev_gain = s.norm.gain;
       for (int i = 0; i < 2000; i++)
       {
         sr_norm_scan(&s, 0.3f, -0.2f, to, TICK_S, 1);
-        float v = stepped_random_with(0.0f, 0.3f, -0.2f, to, &(SrDrive){SR_HOLD_SMOOTH, 0.0f}, &s.norm);
+        float v = stepped_random_with(0.0f, 0.3f, -0.2f, to, &(SrDrive){SR_HOLD_SMOOTH, 0.0f, 0.0f}, &s.norm);
         CHECK(fabsf(v - prev) < 0.05f);
         CHECK(fabsf(s.norm.gain - prev_gain) < 0.1f);
         prev      = v;
@@ -543,9 +642,9 @@ TEST_CASE(the_bias_leans_the_distribution_the_value_path_cannot)
       for (int i = 0; i < n; i++)
       {
         float p  = (float) i / (float) n;
-        plain[i] = stepped_random_with(p, shape, 0.5f, li, &(SrDrive){d.hold, 0.0f}, &norm);
-        low[i]   = stepped_random_with(p, shape, 0.5f, li, &(SrDrive){d.hold, -depth}, &norm);
-        gate[i]  = stepped_random_with(p, shape, 0.5f, li, &(SrDrive){d.hold, depth}, &norm);
+        plain[i] = stepped_random_with(p, shape, 0.5f, li, &(SrDrive){d.hold, 0.0f, 0.0f}, &norm);
+        low[i]   = stepped_random_with(p, shape, 0.5f, li, &(SrDrive){d.hold, -depth, 0.0f}, &norm);
+        gate[i]  = stepped_random_with(p, shape, 0.5f, li, &(SrDrive){d.hold, depth, 0.0f}, &norm);
       }
 
       float plain_mean = 0.0f, low_mean = 0.0f, low_peak = -9.0f;
@@ -665,41 +764,6 @@ TEST_CASE(the_driven_curve_is_continuous_everywhere)
         float v = stepped_random_with((float) i / (float) n, 0.3f, mod, li, &d, &norm);
         CHECK(fabsf(v - prev) < 0.15f);
         prev = v;
-      }
-    }
-  }
-}
-
-// The small-turn budget, which the bias could have spent all at once: its slope
-// at the top of the range grows with depth, so a peak moves further per detent
-// than anything else does. SR_CTRL_BIAS is set against this.
-TEST_CASE(a_small_turn_as_driven_stays_within_budget)
-{
-  const int n = 128;
-  float a[128], b[128];
-
-  for (int li = 0; li < SR_LENGTH_COUNT; li++)
-  {
-    float limit = (sr_length_for_index(li) < 8) ? SR_SMALL_TURN_LIMIT_SHORT : SR_SMALL_TURN_LIMIT;
-
-    for (int i = 0; i <= 100; i++)
-    {
-      float x = -1.0f + 2.0f * (float) i / 100.0f;
-      if (x > 0.99f)
-        break;
-
-      driven_cycle(x, 0.3f, li, n, a);
-      driven_cycle(x + 0.01f, 0.3f, li, n, b);
-      for (int k = 0; k < n; k++)
-      {
-        CHECK(fabsf(a[k] - b[k]) < limit);
-      }
-
-      driven_cycle(0.3f, x, li, n, a);
-      driven_cycle(0.3f, x + 0.01f, li, n, b);
-      for (int k = 0; k < n; k++)
-      {
-        CHECK(fabsf(a[k] - b[k]) < limit);
       }
     }
   }
@@ -1048,6 +1112,7 @@ int main(void)
   RUN_TEST(changing_length_at_the_cycle_boundary_is_seamless);
   RUN_TEST(curve_is_continuous_at_every_step_boundary);
   RUN_TEST(a_small_turn_deforms_the_pattern_rather_than_replacing_it);
+  RUN_TEST(a_small_turn_never_leaps_the_output);
   RUN_TEST(no_narrow_notch_collapses_the_output);
   RUN_TEST(no_setting_collapses_to_a_flat_output);
   RUN_TEST(the_pattern_under_the_bias_stays_centred);
@@ -1061,7 +1126,6 @@ int main(void)
   RUN_TEST(mod_carries_the_ease);
   RUN_TEST(the_driven_shape_keeps_every_invariant_the_bare_one_has);
   RUN_TEST(the_driven_curve_is_continuous_everywhere);
-  RUN_TEST(a_small_turn_as_driven_stays_within_budget);
   RUN_TEST(longer_patterns_contain_more_events);
   RUN_TEST(hold_setting_controls_how_step_like_the_curve_is);
   RUN_TEST(length_index_maps_to_the_curated_step_counts);

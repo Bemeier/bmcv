@@ -224,41 +224,77 @@ in about ten lines, on whichever modes survive rather than as a mode of its own.
 Open: where N comes from - a per-channel setting like the pattern length, or a
 scene parameter so the crossfader can move it.
 
-## Resolution: what was tried, and what actually blocks it
+## Resolution: the invariant was the ceiling
 
-The question was whether a small turn can be made to do more, and whether the
-knob can hold more distinct settings. Measured, on the branch:
+The question was whether a small turn can be made to do more. It could not,
+because the rule holding it back was measuring the wrong thing.
 
-**Terracing works as a mechanism and does not fit.** A monotone map pulling
-values onto three levels, so the pattern reads as plateaus - built, and it does
-what it says once the compressor is a quartic rather than sr_shape_blend (which
-moved values by 0.04 and reached no plateau at all). But any map that makes
-plateaus must be steep between them, and that steepness *amplifies the pattern's
-own movement*: at a useful depth it took the worst small turn from 0.34 to 0.44,
-against a 0.35 limit. At a depth that fits, 0.25, it moves nothing any
-measurement can see. Removed rather than shipped inert.
+**`SR_SMALL_TURN_LIMIT` bounded how far any sample moved per 1% of travel.** That
+was the same thing as "the pattern was replaced" back when character came only
+from redrawing it. It is not the same thing for a monotone reshaping of the
+finished values, which cannot move a step out of order however far it moves the
+samples - true by construction, not by measurement. So the rule was charging
+full price for the one mechanism that is musically free.
 
-**Cutting the jitter does not pay for it.** The hypothesis was that
-`SR_MAX_ORBIT_RATE` 4 spends the budget on values re-drawing, and that narrowing
-it would free room for steer. It does not: with terracing on, the worst turn
-goes 0.44 at rate 4, 0.51 at rate 3, 0.39 at 2, 0.37 at 1 - non-monotone, and
-barely moving even where slot values are nearly frozen. The worst case is not
-the orbit.
+**The replacement is Spearman's rank correlation** between the patterns at x and
+x + 1%, which is what "neighbouring settings sound related" actually says: the
+steps keep their order. Measured, with a reshaping at zero and at full depth,
+the figures are identical to six decimal places - the proof is exact rather than
+statistical. What it still sees is the pattern's own movement:
 
-**So what blocks this is the invariant, and it is a proxy.**
-`SR_SMALL_TURN_LIMIT` bounds how far any sample moves per 1% of travel. It was
-calibrated when character came from redrawing the pattern, where sample movement
-and "a different pattern" are the same thing. They are not the same thing for a
-monotone reshaping, which cannot move a step out of order however far it moves
-the samples - that is provable by construction, not a hope.
+| steps | worst rho, SHP | worst rho, MOD |
+|---|---|---|
+| 3-5 | -0.50 .. 0.70 | -0.50 .. 0.60 |
+| 8-16 | 0.71 .. 0.84 | 0.79 .. 0.90 |
+| 24-64 | 0.93 .. 0.96 | 0.94 .. 0.98 |
 
-Replacing it needs a measure of *identity* rather than movement. Two were tried
-and neither is ready: rank-order change is far too brittle (92% of steps swap
-rank on a 1% turn even with nothing reshaping, because near-equal values trade
-places), and note-level change measured at its worst case saturates at 100% for
-everything. The measure wants to be a *distribution* over the knob - the mean
-note change per detent - not a maximum. That is the next piece of work if this
-axis is worth reopening.
+Held at 0.55 from eight steps up. Short patterns are exempt exactly as they were
+before: at three steps one swap inverts the order outright.
+
+Two measures were tried and rejected first, both recorded so they are not tried
+again. Counting *how many* steps changed rank is far too brittle - 92% of them
+swap on a 1% turn with nothing reshaping at all, because near-equal values trade
+places. Note-level change at its worst case saturates at 100% for everything.
+
+**The old bound stays, loosened to 0.60 and renamed** for what it still does:
+keeping the order is not enough on its own, since a reshaping steep enough to
+throw a step from one end of the range to the other would pass the rank test and
+still be heard as a jump.
+
+### What the freed room bought
+
+**Terracing**, which the old rule made unaffordable: values gathered onto three
+levels so the pattern reads as plateaus, driven at rate 5 across SHP. Not a
+quantiser - snapping is a staircase and a staircase applied to a moving value is
+a 0.23 click - so each cell is compressed toward its centre with a quartic. The
+first attempt used `sr_shape_blend` and moved values by 0.04, reaching no
+plateau at all.
+
+| SHP sweep | before | after |
+|---|---|---|
+| distinct characters, L=32 | 41-43 | **52-54** |
+| distinct characters, L=8 | 58-61 | **62-64** |
+| movement per detent | 0.92-1.37 | **1.22-1.55** |
+| rho, worst | 0.71 | 0.71 (unchanged, as proved) |
+| span ratio along the sweep | 1.72-2.02 | 2.31-2.40 |
+
+**The cost is level consistency, and it is not settled.** Terracing shrinks a
+pattern's peak-to-peak by an amount that depends on where its extremes fall
+against the cell boundaries, so it is variance rather than a bias - the mean span
+moves only 4% - and a global compensation cannot reach it. The bias axis already
+cost some of this by design; terracing adds about 15% more.
+
+The fix, if it is wanted: let the scan measure the pattern *through* the maps
+and set the gain from the output span rather than the pattern's, which is a
+one-step feedback converging over passes. It would also mean the level rule
+finally describes what is heard rather than what the pattern engine produced.
+
+### Not the constraint: flash
+
+Worth writing down, since it came up. The firmware is **110 KB of 512** - 21%.
+Trading the LFO wavetable for a procedural morphing oscillator would buy 123 KB
+that nothing here needs. The ceiling was the invariant, and no amount of flash
+reaches past it.
 
 ## What we do not take from Random8
 

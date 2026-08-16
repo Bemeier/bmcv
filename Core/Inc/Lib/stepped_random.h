@@ -26,18 +26,61 @@
 // value path.
 typedef struct
 {
-  float hold; // how much of a step is spent sitting at its value
-  float bias; // the distribution the finished value is reshaped into
+  float hold;    // how much of a step is spent sitting at its value
+  float bias;    // the distribution the finished value is reshaped into
+  float terrace; // how far the values are gathered onto a few levels
 } SrDrive;
 
 SrDrive sr_drive(float shape, float mod);
 
-// Reshapes the finished value: monotone, so it changes the distribution without
-// moving a single step out of order, which is what lets a knob drive it hard
-// without the result reading as a fresh draw. Applied after the correction, so
-// it cannot disturb the level that just established, nor the loop point, nor
-// the continuity of the curve.
+// Two reshapings of the finished value, and between them most of what a turn of
+// SHP sounds like. Both are monotone, so neither moves a step out of order
+// however far it moves the values - which is what lets a knob drive them hard
+// without the result reading as a fresh draw, and is exactly what the suite's
+// small-turn rule measures. Both land after the correction, so neither can
+// disturb the level it just established, nor the loop point, nor the continuity
+// of the curve.
+
+// Levels per unit, so 1.5 puts them at 0 and +/-2/3 - three plateaus across a
+// pattern that spans about 1.5. More would make each cell too narrow for a
+// value to be pulled anywhere audible, which is what 3 did.
+#define SR_TERRACE_LEVELS 1.5f
+
+// Never the whole way. At full depth the map is flat across most of a cell,
+// which is a quantiser: neighbouring settings would collapse onto identical
+// patterns, the opposite of what this is for.
+#define SR_TERRACE_LIMIT 0.9f
+
+// Gathers the values onto those levels, so the pattern reads as a few plateaus
+// rather than as a continuous spread.
 //
+// Not a quantiser, for a reason that had to be measured: snapping to the
+// nearest level is a staircase, and a staircase applied to a moving value is a
+// discontinuity - 0.23 of a jump at every crossing, which is a click. So each
+// cell is compressed toward its own centre instead. Values bunch on the levels,
+// the ramps between them survive, and because a cell still spans exactly its
+// own width the curve joins at every boundary.
+//
+// The compressor is a quartic rather than sr_shape_blend, which was the first
+// try: halving a cell moves a value by a fraction of that cell's width and
+// nothing reaches a plateau - measured, the pattern's values shifted by 0.04 at
+// full depth. The quartic pulls eight times harder in the middle of a cell,
+// still reaches exactly its edge, and costs two multiplies.
+static inline float sr_terrace_map(float v, float depth)
+{
+  if (depth <= 0.0f)
+  {
+    return v;
+  }
+
+  float u    = v * SR_TERRACE_LEVELS;
+  float cell = (float) (int) (u + (u < 0.0f ? -0.5f : 0.5f)); // the nearest level
+  float x    = 2.0f * (u - cell);                             // -1..1 across the cell
+  float x2   = x * x;
+
+  return (cell + 0.5f * lerp(x, copysignf(x2 * x2, x), fclamp(depth, 0.0f, SR_TERRACE_LIMIT))) / SR_TERRACE_LEVELS;
+}
+
 // Leans the values, without moving the ends of the range.
 //
 //   bias < 0  most pushed low, a few still reaching the top: modulation that

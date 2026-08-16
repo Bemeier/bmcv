@@ -190,9 +190,20 @@ void sr_norm_scan(SrScan* s, float shape, float mod, int length_idx, float dt_s,
 // time to 34%.
 #define SR_BIAS_DEPTH 0.6f
 
+// How deep the terracing goes, and how many times it comes and goes across SHP.
+//
+// A rate above one is the point of it: the depth can be changed quickly without
+// the pattern being redrawn, so this is where a detent gets something to do.
+// What it costs is nothing the small-turn rule charges for - rho is identical to
+// six decimal places with it at zero and at full depth - and 0.10 of the leap
+// guard, which is what that guard is for.
+#define SR_TERRACE 0.7f
+#define SR_TERRACE_RATE 5
+
 SrDrive sr_drive(float shape, float mod)
 {
   SrDrive d;
+  d.terrace = SR_TERRACE * sr_bump(0.5f * (fclamp(shape, -1.0f, 1.0f) + 1.0f), SR_TERRACE_RATE);
 
   // SHP is the distribution, one traversal of it, with the pattern still
   // advancing underneath - a knob that only reshaped would be a knob that never
@@ -238,12 +249,13 @@ float stepped_random_with(float phase, float shape, float mod, int length_idx, c
   // neither the loop point, nor the continuity, nor the level just established
   // - and it cannot reorder a step, which is what keeps a fast knob from
   // reading as a fresh draw.
-  return sr_bias_map(fclamp(value * norm->gain + norm->offset, -1.0f, 1.0f), drive->bias);
+  float corrected = fclamp(value * norm->gain + norm->offset, -1.0f, 1.0f);
+  return sr_terrace_map(sr_bias_map(corrected, drive->bias), drive->terrace);
 }
 
 float stepped_random(float phase, float shape, float mod, int length_idx, float hold)
 {
   SrNorm n  = sr_norm_exact(shape, mod, length_idx);
-  SrDrive d = {hold, 0.0f};
+  SrDrive d = {hold, 0.0f, 0.0f};
   return stepped_random_with(phase, shape, mod, length_idx, &d, &n);
 }
