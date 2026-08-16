@@ -1,6 +1,7 @@
 # Splitting stepped random into modes with distinct characters
 
-Status: **phase 0 done, phase 1 in progress on `spike/stepped-modes`.**
+Status: **phases 0 and 1 done and confirmed on hardware; phase 2 next.**
+All on `spike/stepped-modes`.
 
 ## Where this comes from
 
@@ -248,7 +249,7 @@ half of this work.
 the checked-in table byte for byte, so the refactor is provably nothing but a
 refactor.
 
-**Phase 1 - the architecture, before the modes. In progress.** Originally the other way
+**Phase 1 - the architecture, before the modes. DONE.** Originally the other way
 round, and swapped once the centre/gain split showed how cheap this is: an 8 KB
 centring table plus a gain the channel scans for itself. Prototyping modes first
 would mean either three 180 KB tables in the sim - modes designed against a
@@ -309,8 +310,8 @@ probe - the USB page's own snapshot streaming runs in the main loop and costs
 
 | | main | scan, per channel | scan, one per tick |
 |---|---|---|---|
-| standing | 3.3 kHz | 3.2 | to measure |
-| every parameter moving | 3.3 kHz | **2.5** | to measure |
+| standing | 3.3 kHz | 3.2 | 3.2 |
+| every parameter moving | 3.3 kHz | **2.5** | **3.2** |
 
 The module runs at **3.3 kHz, not the nominal 4**, before any of this - it is
 already dropping about one tick in six, which is pre-existing, unexplained, and
@@ -332,7 +333,15 @@ latency: a channel gets every eighth tick, so a pass over a 64-step pattern
 takes ~160ms rather than 20. The correction is a level, and it trails a moving
 knob by that much before settling - which is the thing to listen for.
 
-Left to do: re-measure with the rota.
+Re-measured with the rota: back to main's rate, sweeping or standing. On the
+ear, at eight channels: level consistent across SHP, scene crossfades clean, no
+audible lag from the ~160ms a pass now takes, no artefact from the glide a
+length change produces.
+
+One thing the rota also covers, unplanned: the crossfader is an ADC input, so
+unless it is hard at an end its own noise keeps the scene blend moving, and with
+it every channel's measurement. Before the rota that made the worst case the
+normal case.
 
 **Phase 2 - the modes**, now that a per-mode value path costs 8 KB rather than
 180. `from_c.py` gains a mode column; the web sim is where they get played. Land
