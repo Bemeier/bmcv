@@ -125,18 +125,11 @@ typedef struct
   // one.
   StScan channels_stepped_scan[N_CHANNELS];
 
-  // And what each one remembers of the pattern it is playing, so that a shape
-  // sampled far faster than its own steps move is not recomputed from scratch
-  // every tick. See StStepCache: it changes when the work happens, never what
-  // comes out, and test_stepped_cache.c holds it to that.
-  StStepCache channels_stepped_cache[N_CHANNELS];
-
-  // What each slot of each channel's pattern offers, remembered while the knobs
-  // are still. The step cache above removed everything *above* the slot
-  // evaluations; this is the slot evaluations themselves, and between them they
-  // are the whole of what a stepped channel costs. Shared with the scan, which
-  // walks the same slots for the same setting.
-  StSlotMemo channels_stepped_slots[N_CHANNELS];
+  // What each channel remembers of the pattern it is playing - the step pair
+  // and the slot values - is *not* here. It is SteppedScratch, at the end of
+  // BmcvInstance, because it is derived state that a host copying the module
+  // out has no use for: see BMCV_SNAPSHOT_BYTES. Keeping it in this struct put
+  // 2.7KB of memo into every snapshot and doubled what the USB link ships.
 
   // Whose turn it is to measure. One slot of one channel's pattern per tick:
   // measuring is nearly as expensive as playing the shape, so eight channels

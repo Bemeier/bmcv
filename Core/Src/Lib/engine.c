@@ -84,7 +84,7 @@ void engine_tick(UxState* state, uint32_t now_us, uint8_t input_dirty)
 
   for (uint8_t c = 0; c < N_CHANNELS; c++)
   {
-    channel_compute(c, state->engine_state, state->engine_config, state->hw_state);
+    channel_compute(c, state->engine_state, state->engine_config, state->hw_state, &state->stepped_scratch[c]);
   }
 
   for (uint8_t c = 0; c < N_CHANNELS; c++)

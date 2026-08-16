@@ -114,7 +114,7 @@ TEST_CASE(a_request_buys_exactly_one_snapshot)
 
   usblink_poll(&module);
   CHECK(tx.calls == 1);
-  CHECK(tx.last_len == sizeof(BmcvInstance));
+  CHECK(tx.last_len == BMCV_SNAPSHOT_BYTES);
 
   // And the credit is spent. Polling again without another request sends
   // nothing, which is the whole of the pacing: the module cannot get ahead of

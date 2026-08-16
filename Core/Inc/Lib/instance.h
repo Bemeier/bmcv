@@ -10,6 +10,7 @@
 #include "ui_state.h"
 #include "ux_setup.h"
 #include "ux_state.h"
+#include <stddef.h>
 #include <stdint.h>
 
 // What a host outside this module can ask it to do.
@@ -81,7 +82,26 @@ typedef struct
   // layer keeps its own bookkeeping outside RemoteInput: a writer that saw this
   // change under it could not tell a stale mailbox from a fresh one.
   uint32_t command_seq;
+  // Derived state, and the last member on purpose.
+  //
+  // What each channel remembers of the pattern it is playing: the step pair and
+  // the slot values. Rebuilt from the setting whenever the setting moves, and
+  // meaningful to nobody but that channel's own evaluation - so a host copying
+  // the module out stops before it, which is what BMCV_SNAPSHOT_BYTES is.
+  //
+  // It is 2.7KB of the 5.9KB this struct would otherwise be. Snapshotting it
+  // doubled what the USB link ships per frame to say nothing a decoder can use.
+  SteppedScratch stepped_scratch[N_CHANNELS];
+
 } BmcvInstance;
+
+// How much of the instance a host copies out to show the module.
+//
+// Everything up to `stepped_scratch`, which is derived and rebuilds itself from
+// the setting. It is what usblink ships, what the probe descriptor advertises,
+// and what bmcv_sim_import() accepts - the three have to agree, so they all
+// read this.
+#define BMCV_SNAPSHOT_BYTES (offsetof(BmcvInstance, stepped_scratch))
 
 // Point every pointer in the instance at the right part of the instance, and at
 // this host's setup tables and preset store. Everything else here is plain data.

@@ -125,7 +125,7 @@ BmcvInstance bmcv;
 __attribute__((section(".probe_info"), used)) const BmcvProbeInfo bmcv_probe_info = {
     .magic         = BMCV_PROBE_MAGIC,
     .info_version  = BMCV_PROBE_INFO_VERSION,
-    .instance_size = (uint16_t) sizeof(BmcvInstance),
+    .instance_size = (uint16_t) BMCV_SNAPSHOT_BYTES,
     .instance_addr = (uint32_t) &bmcv,
     .version       = STRINGIFY(FW_VERSION_MAJOR) "." STRINGIFY(FW_VERSION_MINOR) "." STRINGIFY(FW_VERSION_PATCH),
 };

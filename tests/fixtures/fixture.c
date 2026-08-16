@@ -13,12 +13,13 @@ void fixture_init(Fixture* f)
   f->hw_setup = HwSetup_Get();
   f->ux_setup = UxSetup_InitFromHw(f->hw_setup);
 
-  f->ux.hw_setup      = f->hw_setup;
-  f->ux.ux_setup      = f->ux_setup;
-  f->ux.hw_state      = &f->hw_state;
-  f->ux.engine_config = &f->engine_config;
-  f->ux.engine_state  = &f->engine_state;
-  f->ux.ui            = &f->ui_state;
+  f->ux.hw_setup        = f->hw_setup;
+  f->ux.ux_setup        = f->ux_setup;
+  f->ux.hw_state        = &f->hw_state;
+  f->ux.engine_config   = &f->engine_config;
+  f->ux.engine_state    = &f->engine_state;
+  f->ux.stepped_scratch = f->stepped_scratch;
+  f->ux.ui              = &f->ui_state;
 
   f->engine_config.scene_a       = 0;
   f->engine_config.scene_b       = 0;

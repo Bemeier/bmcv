@@ -39,7 +39,7 @@ static volatile bool dfu_requested = false;
 // One instance, frozen while it goes out. The stack splits it into packets
 // itself and reports completion once, at the end, so this has to sit still for
 // the whole transfer - which is why it is a copy and not the live instance.
-static uint8_t snapshot[sizeof(BmcvInstance)];
+static uint8_t snapshot[BMCV_SNAPSHOT_BYTES];
 
 // What this build is, for a host that has just found the device and has no
 // other way to ask. The same string the flash descriptor carries for a debug

@@ -4,6 +4,7 @@
 #include "config.h"
 #include "engine_state.h"
 #include "hw_state.h"
+#include "stepped.h"
 #include <stdint.h>
 
 // The signal path for one channel. Everything here takes exactly the state it
@@ -79,7 +80,7 @@ void channel_reset(uint8_t ch, EngineState* es, EngineConfig* cfg, int8_t scene)
 // One tick of this channel: blend the scene parameters, advance the phase,
 // lock it to the beat, generate, cross-modulate, quantize. Lands in
 // es->channels_output_level[] and es->channels_effective[].
-void channel_compute(uint8_t ch, EngineState* es, const EngineConfig* cfg, const HwState* hw);
+void channel_compute(uint8_t ch, EngineState* es, const EngineConfig* cfg, const HwState* hw, SteppedScratch* scratch);
 
 // Update this channel's own output-trigger edge state, so other channels can
 // use it as a trigger source.

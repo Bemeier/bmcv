@@ -166,15 +166,25 @@ TEST_CASE(a_blob_of_the_wrong_length_is_refused)
 }
 
 // The size is the one number a bridge has to agree with the module about before
-// it reads a byte, so it is worth stating that it is the struct and nothing
-// else - no header, no padding of the simulator's own.
-TEST_CASE(the_instance_size_is_the_struct_size) { CHECK(bmcv_sim_instance_size() == (int32_t) sizeof(BmcvInstance)); }
+// it reads a byte, so it is worth stating what it is - no header, no padding of
+// the simulator's own, and stopping short of the derived state at the end.
+//
+// If SteppedScratch ever drifts back inside the snapshotted region the size
+// goes up by ~2.7KB and the USB link ships it every frame to say nothing a
+// decoder can use. It would still round-trip, so nothing else here would
+// notice - which is why the bound is asserted and not just the equality.
+TEST_CASE(the_instance_size_is_the_snapshot_not_the_whole_struct)
+{
+  CHECK(bmcv_sim_instance_size() == (int32_t) BMCV_SNAPSHOT_BYTES);
+  CHECK((int32_t) BMCV_SNAPSHOT_BYTES < (int32_t) sizeof(BmcvInstance));
+  CHECK((size_t) BMCV_SNAPSHOT_BYTES == offsetof(BmcvInstance, stepped_scratch));
+}
 
 int main(void)
 {
   RUN_TEST(an_imported_snapshot_publishes_what_the_original_did);
   RUN_TEST(an_imported_snapshot_keeps_running_in_step);
   RUN_TEST(a_blob_of_the_wrong_length_is_refused);
-  RUN_TEST(the_instance_size_is_the_struct_size);
+  RUN_TEST(the_instance_size_is_the_snapshot_not_the_whole_struct);
   return TESTKIT_SUMMARY();
 }

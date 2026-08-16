@@ -13,12 +13,13 @@ void bmcv_instance_wire(BmcvInstance* m, const PresetIo* io)
   m->hw_setup = HwSetup_Get();
   m->ux_setup = UxSetup_InitFromHw(m->hw_setup);
 
-  m->ux.hw_setup      = m->hw_setup;
-  m->ux.ux_setup      = m->ux_setup;
-  m->ux.engine_config = &m->engine_config;
-  m->ux.engine_state  = &m->engine_state;
-  m->ux.ui            = &m->ui_state;
-  m->ux.presets       = io;
+  m->ux.hw_setup        = m->hw_setup;
+  m->ux.ux_setup        = m->ux_setup;
+  m->ux.engine_config   = &m->engine_config;
+  m->ux.engine_state    = &m->engine_state;
+  m->ux.stepped_scratch = m->stepped_scratch;
+  m->ux.ui              = &m->ui_state;
+  m->ux.presets         = io;
 
   // input_frames_init sets this too, as part of baselining the input layer.
   // Here as well because this is the list of every pointer in the instance, and

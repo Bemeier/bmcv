@@ -206,6 +206,19 @@ typedef struct
   uint8_t valid;
 } StStepCache;
 
+// Everything one channel remembers about the pattern it is playing.
+//
+// Bundled because it is all one thing - derived state, rebuilt from the setting
+// whenever the setting moves, meaningful to nobody outside this channel's own
+// evaluation. That is also why it is bundled *out* of EngineState: it lives at
+// the end of BmcvInstance so a host copying the module's state can stop before
+// it. See BMCV_SNAPSHOT_BYTES.
+typedef struct
+{
+  StStepCache step;
+  StSlotMemo slots;
+} SteppedScratch;
+
 // stepped_shape_with(), with a channel's cache to work from.
 //
 // Returns bit-for-bit what stepped_shape_with() returns for the same arguments.

@@ -4,6 +4,7 @@
 #include "config.h"
 #include "engine_state.h"
 #include "hw_state.h"
+#include "stepped.h"
 #include "ui_input.h"
 #include "ui_state.h"
 #include "ux_setup.h"
@@ -42,6 +43,11 @@ typedef struct UxState
   EngineState* engine_state;
   UiState* ui;
   const PresetIo* presets;
+
+  // Per-channel derived state for the stepped shape. A pointer like the rest,
+  // because it lives outside EngineState - at the end of the instance, where a
+  // snapshot stops. See BMCV_SNAPSHOT_BYTES.
+  SteppedScratch* stepped_scratch;
 
   // Autosave bookkeeping. Here because this struct owns the preset io, and the
   // write is a cold path on a 2s timer. It used to live in the input layer,

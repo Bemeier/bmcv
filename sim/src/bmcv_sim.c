@@ -541,7 +541,7 @@ int32_t bmcv_sim_midi_drain(BmcvSim* s, void* dst, int32_t max_msgs)
 
 /* ---- snapshots ----------------------------------------------------------- */
 
-int32_t bmcv_sim_instance_size(void) { return (int32_t) sizeof(BmcvInstance); }
+int32_t bmcv_sim_instance_size(void) { return (int32_t) BMCV_SNAPSHOT_BYTES; }
 
 int32_t bmcv_sim_scope_len(void) { return BMCV_SIM_SCOPE_LEN; }
 int32_t bmcv_sim_scope_div(void) { return BMCV_SIM_SCOPE_DIV; }
@@ -550,12 +550,12 @@ void bmcv_sim_export(const BmcvSim* s, void* dst)
 {
   if (!s || !dst)
     return;
-  memcpy(dst, &s->m, sizeof(s->m));
+  memcpy(dst, &s->m, BMCV_SNAPSHOT_BYTES);
 }
 
 int32_t bmcv_sim_import(BmcvSim* s, const void* src, int32_t len)
 {
-  if (!s || !src || len != (int32_t) sizeof(BmcvInstance))
+  if (!s || !src || len != (int32_t) BMCV_SNAPSHOT_BYTES)
     return 0;
 
   memcpy(&s->m, src, sizeof(s->m));

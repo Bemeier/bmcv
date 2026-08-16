@@ -114,7 +114,7 @@ void channel_reset(uint8_t ch, EngineState* es, EngineConfig* cfg, int8_t scene)
   }
 }
 
-void channel_compute(uint8_t ch, EngineState* es, const EngineConfig* cfg, const HwState* hw)
+void channel_compute(uint8_t ch, EngineState* es, const EngineConfig* cfg, const HwState* hw, SteppedScratch* scratch)
 {
   const ChannelConfig* chcfg = &cfg->channel_state[ch];
   float dt_s                 = hw->dt * US_TO_S;
@@ -350,7 +350,7 @@ void channel_compute(uint8_t ch, EngineState* es, const EngineConfig* cfg, const
     // same pattern - the scan to measure it, the shape to play it - so they
     // share one memo, and this is the single point at which it is told which
     // pattern that is.
-    StSlotMemo* slots = &es->channels_stepped_slots[ch];
+    StSlotMemo* slots = &scratch->slots;
     st_slot_memo_begin(slots, shape, mod, st_length_for_index(*latched_idx));
 
     // The correction is measured a slot at a time rather than worked out here,
@@ -358,8 +358,7 @@ void channel_compute(uint8_t ch, EngineState* es, const EngineConfig* cfg, const
     // a channel that has just arrived in this mode is corrected on its first
     // tick rather than after a cycle of it.
     st_norm_scan(&es->channels_stepped_scan[ch], slots, shape, mod, *latched_idx, dt_s, ch == es->st_scan_turn);
-    raw = stepped_shape_cached(&es->channels_stepped_cache[ch], slots, phase, shape, mod, *latched_idx, &d,
-                               &es->channels_stepped_scan[ch].norm);
+    raw = stepped_shape_cached(&scratch->step, slots, phase, shape, mod, *latched_idx, &d, &es->channels_stepped_scan[ch].norm);
     break;
   }
   case SHAPE_PWM:

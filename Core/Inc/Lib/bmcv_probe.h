@@ -38,7 +38,7 @@ typedef struct
 {
   uint32_t magic;         // BMCV_PROBE_MAGIC
   uint16_t info_version;  // BMCV_PROBE_INFO_VERSION
-  uint16_t instance_size; // sizeof(BmcvInstance) - what to read, and the first
+  uint16_t instance_size; // BMCV_SNAPSHOT_BYTES - what to read, and the first
                           // check that the reader agrees about the layout
   uint32_t instance_addr; // &bmcv - what to read it from
   char version[16];       // the firmware version, "0.10.0", NUL-terminated
