@@ -33,8 +33,23 @@ if [[ -z "${addr:-}" ]]; then
   exit 1
 fi
 
-# The struct is 2 BmcvSpans (9 words each) then load, ticks, overruns, resyncs.
-words=$(cmd.exe /C "STM32_Programmer_CLI -c port=SWD mode=hotplug -r32 $addr 0x60" 2>&1 | tr -d '\r' |
+# Offsets from the ELF's own debug info rather than counted by hand here, for
+# the same reason sim/include/layout_target.h is generated: a struct that gains
+# a field silently turns hand-counted offsets into plausible nonsense, which is
+# exactly what happened the first time this was written.
+layout=$("${ARM_GCC_DIR:-$HOME/arm-gcc-xpack}/bin/arm-none-eabi-gdb-py3" -batch \
+  -ex 'print sizeof(BmcvProfile)' \
+  -ex 'print &((BmcvProfile *)0)->tick' \
+  -ex 'print &((BmcvProfile *)0)->load' \
+  -ex 'print &((BmcvSpan *)0)->avg_us' \
+  "$ELF" 2>/dev/null | grep -oP '\$\d+ = \(?[^)]*\)? ?\K[0-9]+' | tr '\n' ' ')
+read -r SIZE OFF_TICK OFF_LOAD OFF_AVG <<<"$layout"
+if [[ -z "${OFF_AVG:-}" ]]; then
+  echo "could not read the layout of BmcvProfile from $ELF" >&2
+  exit 1
+fi
+
+words=$(cmd.exe /C "STM32_Programmer_CLI -c port=SWD mode=hotplug -r32 $addr $(printf '0x%x' $((SIZE)))" 2>&1 | tr -d '\r' |
   grep -oP '^0x[0-9A-Fa-f]+\s*:\s*\K.*' | tr ' ' '\n' | grep -E '^[0-9A-Fa-f]{8}$')
 
 if [[ -z "${words:-}" ]]; then
@@ -42,19 +57,20 @@ if [[ -z "${words:-}" ]]; then
   exit 1
 fi
 
-python3 - "$addr" <<PY
+python3 - "$addr" "$OFF_TICK" "$OFF_LOAD" "$OFF_AVG" <<PY
 import struct, sys
 w = [int(x, 16) for x in """$words""".split()]
 raw = b"".join(struct.pack("<I", x) for x in w)
+off_tick, off_load, off_avg = (int(a) for a in sys.argv[2:5])
 
 def span(off):
-    last_c, min_c, max_c, max_at = struct.unpack_from("<4I", raw, off)
-    last, avg, mn, mx = struct.unpack_from("<4f", raw, off + 20)
+    max_at = struct.unpack_from("<I", raw, off + 12)[0]
+    last, avg, mn, mx = struct.unpack_from("<4f", raw, off + off_avg - 4)
     return dict(last=last, avg=avg, min=mn, max=mx, max_at=max_at)
 
 engine = span(0)
-tick   = span(36)
-load, ticks, overruns, resyncs = struct.unpack_from("<f3I", raw, 72)
+tick   = span(off_tick)
+load, ticks, overruns, resyncs = struct.unpack_from("<f3I", raw, off_load)
 
 print(f"bmcv_profile @ {sys.argv[1]}   {ticks} ticks since boot")
 print()
