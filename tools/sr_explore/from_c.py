@@ -29,7 +29,7 @@ import sys
 import numpy as np
 
 FEATURES = ["span", "rough", "turns", "edginess", "tie_frac", "maxrun",
-            "motif", "centroid", "lowfreq", "spread", "swing"]
+            "motif", "centroid", "lowfreq", "spread", "swing", "skew", "clump"]
 LEVEL = ("span", "spread", "centroid")
 SR_LENGTHS = [3, 4, 5, 6, 8, 12, 16, 24, 32, 48, 64]
 SMALL_MOVE = 0.02
@@ -71,10 +71,23 @@ def features(v, tied, widths):
         if n % p == 0:
             motif = max(motif, float((x * np.roll(x, p)).sum() / denom))
     F = np.abs(np.fft.rfft(x))
+
+    # The two the reshapings live in, and the reason they are here: everything
+    # above is either a level or an ordering, and both bias and terracing are
+    # monotone - they change the distribution while moving neither. Measured
+    # without these, adding terracing moved not one figure of thirteen.
+    sd = max(float(v.std()), 1e-6)
+    skew = float((((v - v.mean()) / sd) ** 3).mean())
+    # clumping: values gathered onto a few levels leave small gaps inside a
+    # cluster and large ones between, so the spread of the sorted gaps says how
+    # terraced the pattern is. Scale-free, so it is not the span in disguise.
+    gaps = np.diff(np.sort(v))
+    clump = float(gaps.std() / max(gaps.mean(), 1e-9)) if n > 2 else 0.0
+
     return np.array([span, rough, turns, edginess, float(tied.mean()),
                      max(runs) / n, motif, v.mean(),
                      float(F[1:3].sum() / max(F[1:].sum(), 1e-9)), v.std(),
-                     float(widths.std() / widths.mean())])
+                     float(widths.std() / widths.mean()), skew, clump])
 
 
 def feats(rows):

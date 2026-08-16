@@ -224,6 +224,42 @@ in about ten lines, on whichever modes survive rather than as a mode of its own.
 Open: where N comes from - a per-channel setting like the pattern length, or a
 scene parameter so the crossfader can move it.
 
+## Resolution: what was tried, and what actually blocks it
+
+The question was whether a small turn can be made to do more, and whether the
+knob can hold more distinct settings. Measured, on the branch:
+
+**Terracing works as a mechanism and does not fit.** A monotone map pulling
+values onto three levels, so the pattern reads as plateaus - built, and it does
+what it says once the compressor is a quartic rather than sr_shape_blend (which
+moved values by 0.04 and reached no plateau at all). But any map that makes
+plateaus must be steep between them, and that steepness *amplifies the pattern's
+own movement*: at a useful depth it took the worst small turn from 0.34 to 0.44,
+against a 0.35 limit. At a depth that fits, 0.25, it moves nothing any
+measurement can see. Removed rather than shipped inert.
+
+**Cutting the jitter does not pay for it.** The hypothesis was that
+`SR_MAX_ORBIT_RATE` 4 spends the budget on values re-drawing, and that narrowing
+it would free room for steer. It does not: with terracing on, the worst turn
+goes 0.44 at rate 4, 0.51 at rate 3, 0.39 at 2, 0.37 at 1 - non-monotone, and
+barely moving even where slot values are nearly frozen. The worst case is not
+the orbit.
+
+**So what blocks this is the invariant, and it is a proxy.**
+`SR_SMALL_TURN_LIMIT` bounds how far any sample moves per 1% of travel. It was
+calibrated when character came from redrawing the pattern, where sample movement
+and "a different pattern" are the same thing. They are not the same thing for a
+monotone reshaping, which cannot move a step out of order however far it moves
+the samples - that is provable by construction, not a hope.
+
+Replacing it needs a measure of *identity* rather than movement. Two were tried
+and neither is ready: rank-order change is far too brittle (92% of steps swap
+rank on a 1% turn even with nothing reshaping, because near-equal values trade
+places), and note-level change measured at its worst case saturates at 100% for
+everything. The measure wants to be a *distribution* over the knob - the mean
+note change per detent - not a maximum. That is the next piece of work if this
+axis is worth reopening.
+
 ## What we do not take from Random8
 
 - **PROB** - a channel advancing only sometimes is stochastic; we are phase

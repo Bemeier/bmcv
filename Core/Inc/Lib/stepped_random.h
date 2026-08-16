@@ -32,26 +32,26 @@ typedef struct
 
 SrDrive sr_drive(float shape, float mod);
 
-// Reshapes the spread of the finished values, without moving the ends of the
-// range and without reordering anything.
+// Reshapes the finished value: monotone, so it changes the distribution without
+// moving a single step out of order, which is what lets a knob drive it hard
+// without the result reading as a fresh draw. Applied after the correction, so
+// it cannot disturb the level that just established, nor the loop point, nor
+// the continuity of the curve.
 //
-//   bias < 0  most values pushed low, a few still reaching the top: modulation
-//             that sits down and occasionally spikes
-//   bias > 0  values pushed away from the middle: gate-like, mostly high or
-//             mostly low
+// Leans the values, without moving the ends of the range.
+//
+//   bias < 0  most pushed low, a few still reaching the top: modulation that
+//             sits down and occasionally spikes
+//   bias > 0  pushed away from the middle: gate-like, mostly high or mostly low
 //
 // This is the one thing the value path cannot do. sr_shape_blend() is odd - it
-// compresses or expands the middle symmetrically - so a distribution that
-// leans, which is what most of the useful modulation shapes are, was out of
-// reach however the levers were set.
+// works on the middle symmetrically - so a distribution that leans, which is
+// what most of the useful modulation shapes are, was out of reach however the
+// levers were set. Applied after the correction for the same reason as the
+// terracing, and for one more: the correction would otherwise measure the lean
+// and centre it straight back out.
 //
-// Applied after the correction rather than inside the pattern, for two reasons.
-// The correction would otherwise measure the leaning distribution and centre it
-// straight back out, and a monotone map of a levelled input is still levelled -
-// so every setting stays as consistent with its neighbours as it was.
-//
-// Cheap on purpose: a multiply-add per stage, no powf. Two stages, because one
-// reaches u^2, which is a lean and not a bias.
+// Two stages each way, because one reaches u^2, which is a lean and not a bias.
 static inline float sr_bias_map(float v, float bias)
 {
   float u = 0.5f * (fclamp(v, -1.0f, 1.0f) + 1.0f);
@@ -64,9 +64,7 @@ static inline float sr_bias_map(float v, float bias)
   }
   else if (bias > 0.0f)
   {
-    // Two stages here as well, and for the same reason: one is a lean and not a
-    // bias. smoothstep has zero slope at both ends, so values bunch against the
-    // rails - which is the gate-like end of the axis.
+    // smoothstep has zero slope at both ends, so values bunch against the rails
     u = lerp(u, smoothstep(u), bias);
     u = lerp(u, smoothstep(u), bias);
   }
@@ -118,14 +116,15 @@ int sr_length_for_index(int length_idx);
 // a cycle boundary seamless.
 float stepped_random(float phase, float shape, float mod, int length_idx, float hold);
 
-// The same shape, told what its correction is instead of working it out.
+// The same shape, told how it is driven and what its correction is instead of
+// working either out.
 //
 // Working it out means measuring the whole pattern - `length` slot evaluations
 // - which is affordable once but not four thousand times a second per channel.
 // So the engine keeps an SrScan per channel, spreads that measurement over the
 // cycle, and passes the result in here. Everything else is identical; at a
 // standing setting the two agree exactly.
-float stepped_random_with(float phase, float shape, float mod, int length_idx, float hold, const SrNorm* norm, float bias);
+float stepped_random_with(float phase, float shape, float mod, int length_idx, const SrDrive* drive, const SrNorm* norm);
 
 // The correction for one setting, measured in full. O(length): for tests,
 // tools, and the moments where a channel cannot wait for a scan - the first

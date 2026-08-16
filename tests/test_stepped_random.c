@@ -24,7 +24,8 @@ static float sr_eval(float phase, float shape, float mod, int length_idx, float 
     prev_mod   = mod;
     prev_idx   = length_idx;
   }
-  return stepped_random_with(phase, shape, mod, length_idx, hold, &norm, 0.0f);
+  SrDrive bare = {hold, 0.0f};
+  return stepped_random_with(phase, shape, mod, length_idx, &bare, &norm);
 }
 
 // Every property below is about the pattern itself, which is what MOD 0 gives:
@@ -82,7 +83,7 @@ TEST_CASE(measuring_the_correction_here_or_passing_it_in_are_the_same_shape)
         for (float phase = 0.0f; phase < 1.0f; phase += 0.077f)
         {
           CHECK(stepped_random(phase, shape, mod, li, SR_HOLD_SMOOTH) ==
-                stepped_random_with(phase, shape, mod, li, SR_HOLD_SMOOTH, &n, 0.0f));
+                stepped_random_with(phase, shape, mod, li, &(SrDrive){SR_HOLD_SMOOTH, 0.0f}, &n));
         }
       }
     }
@@ -195,8 +196,8 @@ static float worst_small_turn(int length_idx, int on_mod)
 
     for (float phase = 0.0f; phase < 1.0f; phase += 0.01f)
     {
-      float a    = stepped_random_with(phase, a_shape, a_mod, length_idx, SR_HOLD_SMOOTH, &na, 0.0f);
-      float b    = stepped_random_with(phase, b_shape, b_mod, length_idx, SR_HOLD_SMOOTH, &nb, 0.0f);
+      float a    = stepped_random_with(phase, a_shape, a_mod, length_idx, &(SrDrive){SR_HOLD_SMOOTH, 0.0f}, &na);
+      float b    = stepped_random_with(phase, b_shape, b_mod, length_idx, &(SrDrive){SR_HOLD_SMOOTH, 0.0f}, &nb);
       float diff = fabsf(a - b);
       if (diff > worst)
         worst = diff;
@@ -478,12 +479,12 @@ TEST_CASE(a_length_change_moves_the_correction_without_stepping_the_output)
       // The gain is what would step if a completed pass were swapped in rather
       // than slewed - the wrap value would not, since it lands on the shared
       // constant whatever the gain is.
-      float prev      = stepped_random_with(0.0f, 0.3f, -0.2f, from, SR_HOLD_SMOOTH, &s.norm, 0.0f);
+      float prev      = stepped_random_with(0.0f, 0.3f, -0.2f, from, &(SrDrive){SR_HOLD_SMOOTH, 0.0f}, &s.norm);
       float prev_gain = s.norm.gain;
       for (int i = 0; i < 2000; i++)
       {
         sr_norm_scan(&s, 0.3f, -0.2f, to, TICK_S, 1);
-        float v = stepped_random_with(0.0f, 0.3f, -0.2f, to, SR_HOLD_SMOOTH, &s.norm, 0.0f);
+        float v = stepped_random_with(0.0f, 0.3f, -0.2f, to, &(SrDrive){SR_HOLD_SMOOTH, 0.0f}, &s.norm);
         CHECK(fabsf(v - prev) < 0.05f);
         CHECK(fabsf(s.norm.gain - prev_gain) < 0.1f);
         prev      = v;
@@ -513,7 +514,7 @@ static void driven_cycle(float shape, float mod, int length_idx, int n, float* o
   SrNorm norm = sr_norm_exact(shape, mod, length_idx);
   for (int i = 0; i < n; i++)
   {
-    out[i] = stepped_random_with((float) i / (float) n, shape, mod, length_idx, d.hold, &norm, d.bias);
+    out[i] = stepped_random_with((float) i / (float) n, shape, mod, length_idx, &d, &norm);
   }
 }
 
@@ -542,9 +543,9 @@ TEST_CASE(the_bias_leans_the_distribution_the_value_path_cannot)
       for (int i = 0; i < n; i++)
       {
         float p  = (float) i / (float) n;
-        plain[i] = stepped_random_with(p, shape, 0.5f, li, d.hold, &norm, 0.0f);
-        low[i]   = stepped_random_with(p, shape, 0.5f, li, d.hold, &norm, -depth);
-        gate[i]  = stepped_random_with(p, shape, 0.5f, li, d.hold, &norm, depth);
+        plain[i] = stepped_random_with(p, shape, 0.5f, li, &(SrDrive){d.hold, 0.0f}, &norm);
+        low[i]   = stepped_random_with(p, shape, 0.5f, li, &(SrDrive){d.hold, -depth}, &norm);
+        gate[i]  = stepped_random_with(p, shape, 0.5f, li, &(SrDrive){d.hold, depth}, &norm);
       }
 
       float plain_mean = 0.0f, low_mean = 0.0f, low_peak = -9.0f;
@@ -658,10 +659,10 @@ TEST_CASE(the_driven_curve_is_continuous_everywhere)
       SrDrive d   = sr_drive(0.3f, mod);
       SrNorm norm = sr_norm_exact(0.3f, mod, li);
 
-      float prev = stepped_random_with(0.0f, 0.3f, mod, li, d.hold, &norm, d.bias);
+      float prev = stepped_random_with(0.0f, 0.3f, mod, li, &d, &norm);
       for (int i = 1; i <= n; i++)
       {
-        float v = stepped_random_with((float) i / (float) n, 0.3f, mod, li, d.hold, &norm, d.bias);
+        float v = stepped_random_with((float) i / (float) n, 0.3f, mod, li, &d, &norm);
         CHECK(fabsf(v - prev) < 0.15f);
         prev = v;
       }

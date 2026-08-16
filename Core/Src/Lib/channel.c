@@ -384,7 +384,7 @@ void channel_compute(uint8_t ch, EngineState* es, const EngineConfig* cfg, const
     // a channel that has just arrived in this mode is corrected on its first
     // tick rather than after a cycle of it.
     sr_norm_scan(&es->channels_sr_scan[ch], shape, mod, *latched_idx, dt_s, ch == es->sr_scan_turn);
-    raw = stepped_random_with(phase, shape, mod, *latched_idx, d.hold, &es->channels_sr_scan[ch].norm, d.bias);
+    raw = stepped_random_with(phase, shape, mod, *latched_idx, &d, &es->channels_sr_scan[ch].norm);
     break;
   }
   case SHAPE_PWM:

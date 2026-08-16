@@ -206,7 +206,7 @@ SrDrive sr_drive(float shape, float mod)
   return d;
 }
 
-float stepped_random_with(float phase, float shape, float mod, int length_idx, float hold, const SrNorm* norm, float bias)
+float stepped_random_with(float phase, float shape, float mod, int length_idx, const SrDrive* drive, const SrNorm* norm)
 {
   length_idx = iclamp(length_idx, 0, SR_LENGTH_COUNT - 1);
   int length = sr_lengths[length_idx];
@@ -224,8 +224,8 @@ float stepped_random_with(float phase, float shape, float mod, int length_idx, f
   sr_step_pair(step, next, &m, &sr_slots, SR_JUMP_GRID, &from, &to);
 
   // Hold, then ease.
-  float span = 1.0f - hold;
-  float ease = (span <= 0.0f) ? 1.0f : fclamp((within - hold) / span, 0.0f, 1.0f);
+  float span = 1.0f - drive->hold;
+  float ease = (span <= 0.0f) ? 1.0f : fclamp((within - drive->hold) / span, 0.0f, 1.0f);
 
   float value = lerp(from, to, smoothstep(ease));
 
@@ -234,11 +234,16 @@ float stepped_random_with(float phase, float shape, float mod, int length_idx, f
   // The bias reshapes what comes out of it and is monotone, so it cannot break
   // either property: a continuous curve stays continuous and the loop point
   // still meets itself.
-  return sr_bias_map(fclamp(value * norm->gain + norm->offset, -1.0f, 1.0f), bias);
+  // The reshaping is monotone and lands after the correction, so it can break
+  // neither the loop point, nor the continuity, nor the level just established
+  // - and it cannot reorder a step, which is what keeps a fast knob from
+  // reading as a fresh draw.
+  return sr_bias_map(fclamp(value * norm->gain + norm->offset, -1.0f, 1.0f), drive->bias);
 }
 
 float stepped_random(float phase, float shape, float mod, int length_idx, float hold)
 {
-  SrNorm n = sr_norm_exact(shape, mod, length_idx);
-  return stepped_random_with(phase, shape, mod, length_idx, hold, &n, 0.0f);
+  SrNorm n  = sr_norm_exact(shape, mod, length_idx);
+  SrDrive d = {hold, 0.0f};
+  return stepped_random_with(phase, shape, mod, length_idx, &d, &n);
 }
