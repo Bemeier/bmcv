@@ -81,6 +81,27 @@ where ELF="build-rel/BMCVFirmware.elf":
 profile ELF="build-rel/BMCVFirmware.elf":
 	./scripts/profile.sh {{ELF}}
 
+# Read named fields out of a running module over SWD, as TSV. Any scalar inside
+# `bmcv` - the whole instance comes back in one burst and the ELF says where the
+# field is in it, so nothing here has to be taught the struct.
+#
+#   just hil bmcv.engine_state.dac_fps
+#   just hil -n 60 -i 0.5 'bmcv.engine_state.channels_gated_level[0]'
+#
+# About eight samples a second, which is the connect cost and not the transfer.
+hil *ARGS:
+	./scripts/hil.sh {{ARGS}}
+
+# Patch CH1's output into IN3 and ask whether the DAC is really putting out what
+# the engine asked for. The one reading that separates "the SPI bus is busy"
+# from "the outputs are moving" - which is the pair that came apart the last
+# time the DAC's service was rearranged, with dac_fps reporting success.
+#
+#   just dac-loopback                        # CH1 -> IN3
+#   just dac-loopback --ch 0 --jack 2 -n 80
+dac-loopback *ARGS:
+	./scripts/dac-loopback.sh {{ARGS}}
+
 build-flash: build flash
 
 build-flash-usb: build flash-usb
