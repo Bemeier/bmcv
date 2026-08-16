@@ -92,6 +92,20 @@ profile ELF="build-rel/BMCVFirmware.elf":
 hil *ARGS:
 	./scripts/hil.sh {{ARGS}}
 
+# The other direction: write scalar fields of a running module over SWD.
+#
+#   just hil-poke 'bmcv.engine_config.channel_state[0].st_length_idx=10'
+#
+# What it is for is repeatable measurements. A profile taken at whatever the
+# knobs happened to be is an anecdote; setting the module from here is what lets
+# two builds be compared under the same conditions - eight stepped channels
+# wound past the tick rate, say, which is nobody's idea of a patch.
+#
+# It writes RAM under a running engine and the module may autosave what it
+# finds. Point it at a module whose preset you can afford to lose.
+hil-poke *ARGS:
+	./scripts/hil-poke.sh {{ARGS}}
+
 # Patch CH1's output into IN3 and ask whether the DAC is really putting out what
 # the engine asked for. The one reading that separates "the SPI bus is busy"
 # from "the outputs are moving" - which is the pair that came apart the last
