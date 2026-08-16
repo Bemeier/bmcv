@@ -4,6 +4,7 @@
 #include "clock_sync.h"
 #include "hw_setup.h"
 #include "led_curve.h" // IWYU pragma: keep - LED_UNIT is the unit of the fields below
+#include "stepped_random.h"
 #include <stdint.h>
 
 // The engine's running state: phases, output levels, trigger edges, the scene
@@ -115,6 +116,14 @@ typedef struct
   // says what is coming out. Written by channel_compute every tick and read by
   // the UI and by hosts; nothing in the signal path depends on it.
   ChannelEffective channels_effective[N_CHANNELS];
+
+  // Each stepped channel's rolling measurement of its own pattern, which is
+  // what the correction that holds its level steady is built from. One slot of
+  // it per tick: measuring a whole pattern is affordable once and not four
+  // thousand times a second. Zeroed means nothing measured yet, which is what
+  // makes a channel's first tick take the exact route instead of a half-filled
+  // one.
+  SrScan channels_sr_scan[N_CHANNELS];
 
   // Which scene currently dominates the crossfade. Derived from the slider
   // (and the momentary scene the UI passes in), so it is an engine output the

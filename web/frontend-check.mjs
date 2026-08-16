@@ -821,7 +821,7 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
 // ELF so the check runs on a fresh checkout, where no firmware has been built.
 //
 // Worth testing because a wrong offset here does not fail: it yields a
-// plausible-looking address, reads 2384 bytes of whatever is there, and shows a
+// plausible-looking address, reads 2736 bytes of whatever is there, and shows a
 // module made of noise.
 {
   const { decodeInfo } = await import('./probe/probe.js');
@@ -829,14 +829,14 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   const bytes = new Uint8Array([
     0x42, 0x4d, 0x43, 0x56, // "BMCV"
     0x01, 0x00,             // descriptor version 1
-    0x50, 0x09,             // instance size, 0x0950 = 2384
+    0xb0, 0x0a,             // instance size, 0x0ab0 = 2736
     0x70, 0x0f, 0x00, 0x20, // &bmcv = 0x20000f70
     0x30, 0x2e, 0x31, 0x30, 0x2e, 0x30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // "0.10.0"
   ]);
 
   const info = decodeInfo(bytes);
   check(info.instanceAddr === 0x20000f70, `reads the instance address (0x${info.instanceAddr.toString(16)})`);
-  check(info.instanceSize === 2384, `reads the instance size (${info.instanceSize})`);
+  check(info.instanceSize === 2736, `reads the instance size (${info.instanceSize})`);
   check(info.version === '0.10.0', `reads the firmware version (${info.version})`);
 
   // The size the descriptor reports is checked against this build's before a
@@ -1088,7 +1088,7 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
 // ELF so the check runs on a fresh checkout, where no firmware has been built.
 //
 // Worth testing because a wrong offset here does not fail: it yields a
-// plausible-looking address, reads 2384 bytes of whatever is there, and shows a
+// plausible-looking address, reads 2736 bytes of whatever is there, and shows a
 // module made of noise.
 {
   const { decodeInfo } = await import('./probe/probe.js');
@@ -1096,14 +1096,14 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   const bytes = new Uint8Array([
     0x42, 0x4d, 0x43, 0x56, // "BMCV"
     0x01, 0x00,             // descriptor version 1
-    0x50, 0x09,             // instance size, 0x0950 = 2384
+    0xb0, 0x0a,             // instance size, 0x0ab0 = 2736
     0x70, 0x0f, 0x00, 0x20, // &bmcv = 0x20000f70
     0x30, 0x2e, 0x31, 0x30, 0x2e, 0x30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // "0.10.0"
   ]);
 
   const info = decodeInfo(bytes);
   check(info.instanceAddr === 0x20000f70, `reads the instance address (0x${info.instanceAddr.toString(16)})`);
-  check(info.instanceSize === 2384, `reads the instance size (${info.instanceSize})`);
+  check(info.instanceSize === 2736, `reads the instance size (${info.instanceSize})`);
   check(info.version === '0.10.0', `reads the firmware version (${info.version})`);
 
   // The size the descriptor reports is checked against this build's before a

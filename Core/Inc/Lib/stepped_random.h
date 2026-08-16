@@ -1,6 +1,9 @@
 #ifndef STEPPED_RANDOM_H
 #define STEPPED_RANDOM_H
 
+#include "stepped_random_norm.h"
+#include <stdint.h>
+
 // Fraction of each step spent sitting at its value before easing to the next.
 //
 // A property of the curve, not a menu: only SR_HOLD_SMOOTH is wired to a shape
@@ -55,5 +58,51 @@ int sr_length_for_index(int length_idx);
 // constant is shared by every length too. That is what makes changing length at
 // a cycle boundary seamless.
 float stepped_random(float phase, float shape, float mod, int length_idx, float hold);
+
+// The same shape, told what its correction is instead of working it out.
+//
+// Working it out means measuring the whole pattern - `length` slot evaluations
+// - which is affordable once but not four thousand times a second per channel.
+// So the engine keeps an SrScan per channel, spreads that measurement over the
+// cycle, and passes the result in here. Everything else is identical; at a
+// standing setting the two agree exactly.
+float stepped_random_with(float phase, float shape, float mod, int length_idx, float hold, const SrNorm* norm);
+
+// The correction for one setting, measured in full. O(length): for tests,
+// tools, and the moments where a channel cannot wait for a scan - the first
+// tick in a stepped mode, and a change of pattern length, which swaps the whole
+// pattern at once.
+SrNorm sr_norm_exact(float shape, float mod, int length_idx);
+
+// A channel's rolling measurement of its own pattern.
+//
+// Zeroed is "nothing measured yet", which is what a fresh EngineState gives and
+// what makes the first tick take the exact route.
+typedef struct
+{
+  SrNorm norm;                // what the shape is being corrected by now
+  SrNorm target;              // what the last completed pass asked for
+  float lo, hi;               // the pass in progress
+  float anchor;               // slot 0, captured when the pass starts on it
+  float shape_seen, mod_seen; // where the knobs were on the last tick
+  int16_t slot;               // the next slot to measure
+  int8_t length_idx;
+  uint8_t measured;
+  uint8_t moved; // the knobs moved during the pass in progress
+} SrScan;
+
+// One slot of the measurement, to be called once per engine tick per stepped
+// channel before stepped_random_with().
+//
+// Costs nothing once a pattern is standing still and its measurement has
+// settled: re-measuring an unchanged pattern can only produce the answer it
+// already has. So what this really costs is a knob being turned, or a CV moving
+// one - which is when it is doing something.
+//
+// The result is slewed rather than swapped in, so that a pass whose pattern
+// changed under it - a length switch, a fast turn of SHP - moves the level
+// smoothly instead of stepping it. `dt_s` is the tick's own length, because the
+// engine has to be right at whatever rate its host ticks it.
+void sr_norm_scan(SrScan* s, float shape, float mod, int length_idx, float dt_s);
 
 #endif

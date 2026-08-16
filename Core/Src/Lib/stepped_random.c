@@ -38,18 +38,127 @@ _Static_assert(SR_JUMP_GRID <= SR_MAX_JUMP_GRID, "a run of ties must fit the wei
 
 int sr_length_for_index(int length_idx) { return sr_lengths[iclamp(length_idx, 0, SR_LENGTH_COUNT - 1)]; }
 
-// One value out of a [length][MOD][morph] table, interpolated on both bin axes.
-// The length is an index, not a bin: it is one of a curated set and there is
-// nothing between its entries.
-static float sr_norm_lookup(const float table[SR_LENGTH_COUNT][SR_MOD_BINS][SR_NORM_BINS], int length_idx, int mod_bin, float mod_frac,
-                            int bin, int bin_next, float bin_frac)
+// Where the centring constant is read from: the one part of the correction a
+// channel cannot work out for itself, because it is an average across every
+// pattern length and a channel knows only its own. Interpolated on both bin
+// axes; both endpoints of MOD sit exactly on a bin, so the top one is only ever
+// reached exactly.
+static float sr_centre_at(float mod, float morph)
 {
-  float lo = lerp(table[length_idx][mod_bin][bin], table[length_idx][mod_bin][bin_next], bin_frac);
-  float hi = lerp(table[length_idx][mod_bin + 1][bin], table[length_idx][mod_bin + 1][bin_next], bin_frac);
-  return lerp(lo, hi, mod_frac);
+  float bin_pos  = morph * (float) SR_NORM_BINS;
+  int bin        = (int) bin_pos;
+  float bin_frac = bin_pos - (float) bin;
+  bin            = bin % SR_NORM_BINS;
+  int bin_next   = (bin + 1) % SR_NORM_BINS;
+
+  float mod_pos  = (fclamp(mod, -1.0f, 1.0f) + 1.0f) * 0.5f * (float) (SR_MOD_BINS - 1);
+  int mod_bin    = (int) mod_pos;
+  float mod_frac = mod_pos - (float) mod_bin;
+  if (mod_bin >= SR_MOD_BINS - 1)
+  {
+    mod_bin  = SR_MOD_BINS - 2;
+    mod_frac = 1.0f;
+  }
+
+  return lerp(lerp(sr_centre_table[mod_bin][bin], sr_centre_table[mod_bin][bin_next], bin_frac),
+              lerp(sr_centre_table[mod_bin + 1][bin], sr_centre_table[mod_bin + 1][bin_next], bin_frac), mod_frac);
 }
 
-float stepped_random(float phase, float shape, float mod, int length_idx, float hold)
+static const SrNormCtx sr_ctx = {&sr_slots, sr_lengths, SR_LENGTH_COUNT, SR_JUMP_GRID, SR_HOLD_MAX};
+
+SrNorm sr_norm_exact(float shape, float mod, int length_idx)
+{
+  length_idx = iclamp(length_idx, 0, SR_LENGTH_COUNT - 1);
+  SrMorph m  = sr_morph(shape, mod, sr_lengths[length_idx], SR_HOLD_MAX);
+  return sr_norm_at(&sr_ctx, sr_lengths[length_idx], mod, m.orbit, sr_centre_at(mod, m.morph));
+}
+
+// How long the correction takes to follow a pattern that changed under it.
+//
+// A measurement takes `length` ticks to complete, which is 16ms at the longest
+// pattern and the engine's usual rate - so a comparable smoothing reads as the
+// level settling rather than as two settings being crossfaded, and a pass that
+// straddled a length switch cannot step the output.
+#define SR_NORM_SMOOTH_S 0.02f
+
+// Near enough that slewing further cannot be heard, and the point at which a
+// standing channel is allowed to stop working.
+#define SR_NORM_SETTLED 1e-6f
+
+void sr_norm_scan(SrScan* s, float shape, float mod, int length_idx, float dt_s)
+{
+  length_idx = (int8_t) iclamp(length_idx, 0, SR_LENGTH_COUNT - 1);
+  int length = sr_lengths[length_idx];
+
+  if (shape != s->shape_seen || mod != s->mod_seen)
+  {
+    // The pass in progress is now measuring two different patterns, so its
+    // result cannot be trusted to be the last word on either.
+    s->moved      = 1;
+    s->shape_seen = shape;
+    s->mod_seen   = mod;
+  }
+
+  // A standing pattern whose last pass ran start to finish without the knobs
+  // moving has already been measured exactly; measuring it again is arithmetic
+  // with a known answer. This is what keeps eight idle stepped channels free.
+  if (!s->moved && s->slot == 0 && s->measured && s->length_idx == (int8_t) length_idx &&
+      fabsf(s->norm.gain - s->target.gain) < SR_NORM_SETTLED && fabsf(s->norm.offset - s->target.offset) < SR_NORM_SETTLED)
+  {
+    s->norm = s->target; // land on it exactly, so this holds next tick too
+    return;
+  }
+
+  // Nothing measured yet, or the pattern was swapped wholesale by a length
+  // change: measure it in full rather than mixing two patterns into one pass.
+  if (!s->measured || s->length_idx != (int8_t) length_idx)
+  {
+    s->target     = sr_norm_exact(shape, mod, length_idx);
+    s->length_idx = (int8_t) length_idx;
+    s->slot       = 0;
+    if (!s->measured)
+    {
+      s->norm     = s->target; // a channel's first tick has nothing to slew from
+      s->measured = 1;
+    }
+  }
+  else
+  {
+    SrMorph m = sr_morph(shape, mod, length, SR_HOLD_MAX);
+    float v   = sr_step_value(s->slot, &m, &sr_slots, SR_JUMP_GRID);
+
+    if (s->slot == 0)
+    {
+      s->lo = s->hi = s->anchor = v; // the pass starts on the slot it is anchored to
+      s->moved                  = 0; // and from here it is measuring one pattern
+    }
+    else if (v < s->lo)
+    {
+      s->lo = v;
+    }
+    else if (v > s->hi)
+    {
+      s->hi = v;
+    }
+
+    if (++s->slot >= (int16_t) length)
+    {
+      s->slot = 0;
+
+      SrExtent e   = {s->lo, s->hi, 0.0f, s->anchor}; // the DC is the table's job, not this one
+      float centre = sr_centre_at(mod, m.morph);
+      float g      = sr_gain_for(&e, centre);
+      float gf     = sr_gain_floor(&e, centre);
+      s->target    = sr_norm_affine(centre, s->anchor, (gf > g) ? gf : g);
+    }
+  }
+
+  float k = fclamp(dt_s / SR_NORM_SMOOTH_S, 0.0f, 1.0f);
+  s->norm.gain += (s->target.gain - s->norm.gain) * k;
+  s->norm.offset += (s->target.offset - s->norm.offset) * k;
+}
+
+float stepped_random_with(float phase, float shape, float mod, int length_idx, float hold, const SrNorm* norm)
 {
   length_idx = iclamp(length_idx, 0, SR_LENGTH_COUNT - 1);
   int length = sr_lengths[length_idx];
@@ -72,44 +181,13 @@ float stepped_random(float phase, float shape, float mod, int length_idx, float 
 
   float value = lerp(from, to, smoothstep(ease));
 
-  // Lift patterns that would otherwise collapse toward flat (see the
-  // normalisation notes in tools/gen_sr_table.c). A constant affine correction
-  // across the cycle, so the loop still closes and the curve stays smooth.
-  float bin_pos  = m.morph * (float) SR_NORM_BINS;
-  int bin        = (int) bin_pos;
-  float bin_frac = bin_pos - (float) bin;
-  bin            = bin % SR_NORM_BINS;
-  int bin_next   = (bin + 1) % SR_NORM_BINS;
+  // The correction is one affine for the whole cycle, so the loop still closes
+  // and the curve stays smooth. See stepped_random_norm.h for what it aims at.
+  return fclamp(value * norm->gain + norm->offset, -1.0f, 1.0f);
+}
 
-  // The MOD axis of the same table. Both endpoints of the knob sit exactly on a
-  // bin, so the top one is only ever reached exactly.
-  float mod_pos  = (fclamp(mod, -1.0f, 1.0f) + 1.0f) * 0.5f * (float) (SR_MOD_BINS - 1);
-  int mod_bin    = (int) mod_pos;
-  float mod_frac = mod_pos - (float) mod_bin;
-  if (mod_bin >= SR_MOD_BINS - 1)
-  {
-    mod_bin  = SR_MOD_BINS - 2;
-    mod_frac = 1.0f;
-  }
-
-#ifdef SR_NORM_COMPUTE
-  // Spike scaffolding, not a shipping path: the correction worked out from the
-  // pattern on every call, which is O(length) per sample and far too slow for
-  // the module. It is here so the suite and the harness can measure what the
-  // architecture in docs/plans/stepped-random-modes.md will do, against the
-  // table it will replace. The real version scans one slot per tick and commits
-  // on the cycle wrap; when that lands, this knob and the two big tables go.
-  float centre = lerp(lerp(sr_centre_table[mod_bin][bin], sr_centre_table[mod_bin][bin_next], bin_frac),
-                      lerp(sr_centre_table[mod_bin + 1][bin], sr_centre_table[mod_bin + 1][bin_next], bin_frac), mod_frac);
-
-  static const SrNormCtx ctx = {&sr_slots, sr_lengths, SR_LENGTH_COUNT, SR_JUMP_GRID, SR_HOLD_MAX};
-  SrNorm n                   = sr_norm_at(&ctx, length, mod, m.orbit, centre);
-  float gain                 = n.gain;
-  float offset               = n.offset;
-#else
-  float gain   = sr_norm_lookup(sr_norm_gain, length_idx, mod_bin, mod_frac, bin, bin_next, bin_frac);
-  float offset = sr_norm_lookup(sr_norm_offset, length_idx, mod_bin, mod_frac, bin, bin_next, bin_frac);
-#endif
-
-  return fclamp(value * gain + offset, -1.0f, 1.0f);
+float stepped_random(float phase, float shape, float mod, int length_idx, float hold)
+{
+  SrNorm n = sr_norm_exact(shape, mod, length_idx);
+  return stepped_random_with(phase, shape, mod, length_idx, hold, &n);
 }

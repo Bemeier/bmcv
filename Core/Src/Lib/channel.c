@@ -376,7 +376,12 @@ void channel_compute(uint8_t ch, EngineState* es, const EngineConfig* cfg, const
   switch (chcfg->shape_mode)
   {
   case SHAPE_STEPPED:
-    raw = stepped_random(phase, shape, mod, *latched_idx, SR_HOLD_SMOOTH);
+    // The correction is measured a slot at a time rather than worked out here,
+    // because working it out means walking the whole pattern. Scanned first, so
+    // a channel that has just arrived in this mode is corrected on its first
+    // tick rather than after a cycle of it.
+    sr_norm_scan(&es->channels_sr_scan[ch], shape, mod, *latched_idx, dt_s);
+    raw = stepped_random_with(phase, shape, mod, *latched_idx, SR_HOLD_SMOOTH, &es->channels_sr_scan[ch].norm);
     break;
   case SHAPE_PWM:
     raw = pwm_shape(phase, shape, mod);

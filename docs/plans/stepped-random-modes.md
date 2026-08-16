@@ -278,9 +278,32 @@ worst span through the 0.5 the suite holds, which is how this was found.
 
 The whole existing suite passes against the computed path.
 
-Left to do: the incremental per-channel scan, the commit-on-wrap rule,
-`engine_fps`/`dac_fps` measured with eight stepped channels under CV, and the
-180 KB gain/offset table deleted.
+**The scan landed.** Each channel measures one slot of its own pattern per tick
+and corrects with what the last full pass found; the length-indexed tables are
+gone. The generated header went from 472 KB of text to 27 KB, and the firmware
+from **322 KB of flash to 152 KB** (110 KB at `-Os`), against 512 KB.
+
+Cost, measured on the dev machine at 4 kHz per channel:
+
+| | L=8 | L=32 |
+|---|---|---|
+| the shape itself | 49 ns | 71 ns |
+| scan, knob moving | +37 ns | +49 ns |
+| scan, channel standing | +3.2 ns | +3.2 ns |
+
+A standing channel costs almost nothing because re-measuring an unchanged
+pattern can only give the answer it already has, so it stops. What the scan
+really costs is a knob being turned or a CV moving one - which is when it is
+earning it. Wants confirming on hardware with `engine_fps`/`dac_fps`, eight
+stepped channels, SHP under CV.
+
+There is no commit-on-wrap rule after all: the correction is slewed into place
+over 20 ms instead. Latching to the wrap would leave a slow LFO uncorrected for
+its whole cycle - seconds - after a knob move, and the table it replaces never
+waited for a wrap either. What the slew is really protecting is a length change,
+which swaps the pattern wholesale.
+
+Left to do: hardware measurement.
 
 **Phase 2 - the modes**, now that a per-mode value path costs 8 KB rather than
 180. `from_c.py` gains a mode column; the web sim is where they get played. Land

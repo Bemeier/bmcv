@@ -6,9 +6,30 @@
 
 static const float HOLDS[] = {SR_HOLD_SMOOTH, SR_HOLD_SEMI, SR_HOLD_HARD};
 
+// The correction depends on the setting, not on the phase, and every loop below
+// walks phase at a standing setting - so remember the last one rather than
+// measure the whole pattern again for every sample. The engine does exactly
+// this with its rolling scan; this is the test's version of the same fact, and
+// without it the suite spends a minute re-measuring patterns it already knows.
+static float sr_eval(float phase, float shape, float mod, int length_idx, float hold)
+{
+  static float prev_shape = 9.0f, prev_mod = 9.0f;
+  static int prev_idx = -1;
+  static SrNorm norm;
+
+  if (shape != prev_shape || mod != prev_mod || length_idx != prev_idx)
+  {
+    norm       = sr_norm_exact(shape, mod, length_idx);
+    prev_shape = shape;
+    prev_mod   = mod;
+    prev_idx   = length_idx;
+  }
+  return stepped_random_with(phase, shape, mod, length_idx, hold, &norm);
+}
+
 // Every property below is about the pattern itself, which is what MOD 0 gives:
 // even steps, no skew. The MOD cases have their own tests at the end.
-static float sr_flat(float phase, float shape, int length_idx, float hold) { return stepped_random(phase, shape, 0.0f, length_idx, hold); }
+static float sr_flat(float phase, float shape, int length_idx, float hold) { return sr_eval(phase, shape, 0.0f, length_idx, hold); }
 #define HOLD_COUNT ((int) (sizeof(HOLDS) / sizeof(HOLDS[0])))
 
 // Peak-to-peak of one full cycle at a given setting.
@@ -45,6 +66,27 @@ TEST_CASE(output_stays_in_bipolar_range)
 }
 
 TEST_CASE(is_deterministic_for_same_inputs) { CHECK(sr_flat(0.37f, 0.1f, 4, SR_HOLD_SEMI) == sr_flat(0.37f, 0.1f, 4, SR_HOLD_SEMI)); }
+
+// The plain entry point measures the pattern for itself; the engine's hands it
+// the measurement. Same shape either way, or every test below is describing a
+// function the module does not call.
+TEST_CASE(measuring_the_correction_here_or_passing_it_in_are_the_same_shape)
+{
+  for (float shape = -1.0f; shape <= 1.0f; shape += 0.13f)
+  {
+    for (float mod = -1.0f; mod <= 1.0f; mod += 0.29f)
+    {
+      for (int li = 0; li < SR_LENGTH_COUNT; li++)
+      {
+        SrNorm n = sr_norm_exact(shape, mod, li);
+        for (float phase = 0.0f; phase < 1.0f; phase += 0.077f)
+        {
+          CHECK(stepped_random(phase, shape, mod, li, SR_HOLD_SMOOTH) == stepped_random_with(phase, shape, mod, li, SR_HOLD_SMOOTH, &n));
+        }
+      }
+    }
+  }
+}
 
 // The point of an integer, circularly-read lattice: the waveform closes on
 // itself, so the loop point is inaudible and stays put under the PLL.
@@ -143,12 +185,17 @@ static float worst_small_turn(int length_idx, int on_mod)
     if (x > 1.0f - d)
       break;
 
+    // Two settings, compared sample by sample, so the corrections are taken
+    // once each rather than re-measured on every phase.
+    float a_shape = on_mod ? 0.3f : x, a_mod = on_mod ? x : 0.0f;
+    float b_shape = on_mod ? 0.3f : x + d, b_mod = on_mod ? x + d : 0.0f;
+    SrNorm na = sr_norm_exact(a_shape, a_mod, length_idx);
+    SrNorm nb = sr_norm_exact(b_shape, b_mod, length_idx);
+
     for (float phase = 0.0f; phase < 1.0f; phase += 0.01f)
     {
-      float a =
-          on_mod ? stepped_random(phase, 0.3f, x, length_idx, SR_HOLD_SMOOTH) : stepped_random(phase, x, 0.0f, length_idx, SR_HOLD_SMOOTH);
-      float b    = on_mod ? stepped_random(phase, 0.3f, x + d, length_idx, SR_HOLD_SMOOTH)
-                          : stepped_random(phase, x + d, 0.0f, length_idx, SR_HOLD_SMOOTH);
+      float a    = stepped_random_with(phase, a_shape, a_mod, length_idx, SR_HOLD_SMOOTH, &na);
+      float b    = stepped_random_with(phase, b_shape, b_mod, length_idx, SR_HOLD_SMOOTH, &nb);
       float diff = fabsf(a - b);
       if (diff > worst)
         worst = diff;
@@ -192,7 +239,7 @@ TEST_CASE(no_narrow_notch_collapses_the_output)
         float lo = 9.0f, hi = -9.0f;
         for (int k = 0; k < length; k++)
         {
-          float v = stepped_random(((float) k + 0.5f) / (float) length, shape, mod, li, SR_HOLD_HARD);
+          float v = sr_eval(((float) k + 0.5f) / (float) length, shape, mod, li, SR_HOLD_HARD);
           if (v < lo)
             lo = v;
           if (v > hi)
@@ -233,7 +280,7 @@ static void cycle_level(float shape, float mod, int length_idx, float* dc, float
   float lo = 1e9f, hi = -1e9f, sum = 0.0f;
   for (int i = 0; i < n; i++)
   {
-    float v = stepped_random((float) i / (float) n, shape, mod, length_idx, SR_HOLD_SMOOTH);
+    float v = sr_eval((float) i / (float) n, shape, mod, length_idx, SR_HOLD_SMOOTH);
     if (v < lo)
       lo = v;
     if (v > hi)
@@ -312,6 +359,98 @@ TEST_CASE(neither_knob_changes_how_loud_the_pattern_is)
   }
 }
 
+// The engine cannot measure a whole pattern every sample, so it measures one
+// slot per tick and corrects with what the last full pass found. Whatever that
+// costs, it has to arrive at the same answer a full measurement would - or
+// every property in this file describes a shape the module does not play.
+//
+// Ticks at 4 kHz, which is the engine's own rate; a pass is `length` of them.
+#define TICK_S (1.0f / 4000.0f)
+
+TEST_CASE(the_rolling_measurement_lands_where_a_full_one_does)
+{
+  for (int li = 0; li < SR_LENGTH_COUNT; li++)
+  {
+    for (float shape = -1.0f; shape <= 1.0f; shape += 0.31f)
+    {
+      for (float mod = -1.0f; mod <= 1.0f; mod += 0.47f)
+      {
+        SrScan s    = {0};
+        SrNorm want = sr_norm_exact(shape, mod, li);
+
+        // A channel's first tick in a stepped mode has nothing measured yet, so
+        // it takes the full route rather than playing a cycle uncorrected.
+        sr_norm_scan(&s, shape, mod, li, TICK_S);
+        CHECK_NEAR(s.norm.gain, want.gain, 1e-4);
+        CHECK_NEAR(s.norm.offset, want.offset, 1e-4);
+
+        // and it stays there: every later pass measures the same standing
+        // pattern and asks for the same correction.
+        for (int i = 0; i < 4000; i++)
+        {
+          sr_norm_scan(&s, shape, mod, li, TICK_S);
+        }
+        CHECK_NEAR(s.norm.gain, want.gain, 1e-3);
+        CHECK_NEAR(s.norm.offset, want.offset, 1e-3);
+
+        // Once settled it stops measuring, since re-measuring a standing
+        // pattern can only give the answer it already has. So the knobs moving
+        // afterwards has to wake it up again - a channel left corrected for a
+        // pattern it is no longer playing is what that optimisation risks, and
+        // it would be silent until someone turned a knob and heard the level
+        // sit wrong.
+        float moved_shape = shape + 0.37f, moved_mod = mod - 0.21f;
+        SrNorm want_moved = sr_norm_exact(moved_shape, moved_mod, li);
+        for (int i = 0; i < 4000; i++)
+        {
+          sr_norm_scan(&s, moved_shape, moved_mod, li, TICK_S);
+        }
+        CHECK_NEAR(s.norm.gain, want_moved.gain, 1e-3);
+        CHECK_NEAR(s.norm.offset, want_moved.offset, 1e-3);
+      }
+    }
+  }
+}
+
+// The measurement is slewed into place rather than swapped in, so that a pass
+// whose pattern changed under it cannot step the output. Pattern length is the
+// hard case: it swaps the whole pattern at once, and the engine does it on the
+// cycle wrap precisely because the signal must not jump there.
+TEST_CASE(a_length_change_moves_the_correction_without_stepping_the_output)
+{
+  for (int from = 0; from < SR_LENGTH_COUNT; from++)
+  {
+    for (int to = 0; to < SR_LENGTH_COUNT; to++)
+    {
+      SrScan s = {0};
+      for (int i = 0; i < 500; i++)
+      {
+        sr_norm_scan(&s, 0.3f, -0.2f, from, TICK_S);
+      }
+
+      // The correction itself, tick by tick, and the value at the wrap with it.
+      // The gain is what would step if a completed pass were swapped in rather
+      // than slewed - the wrap value would not, since it lands on the shared
+      // constant whatever the gain is.
+      float prev      = stepped_random_with(0.0f, 0.3f, -0.2f, from, SR_HOLD_SMOOTH, &s.norm);
+      float prev_gain = s.norm.gain;
+      for (int i = 0; i < 500; i++)
+      {
+        sr_norm_scan(&s, 0.3f, -0.2f, to, TICK_S);
+        float v = stepped_random_with(0.0f, 0.3f, -0.2f, to, SR_HOLD_SMOOTH, &s.norm);
+        CHECK(fabsf(v - prev) < 0.05f);
+        CHECK(fabsf(s.norm.gain - prev_gain) < 0.1f);
+        prev      = v;
+        prev_gain = s.norm.gain;
+      }
+
+      // and it ends up where a full measurement of the new length would put it
+      SrNorm want = sr_norm_exact(0.3f, -0.2f, to);
+      CHECK_NEAR(s.norm.gain, want.gain, 1e-3);
+    }
+  }
+}
+
 static int direction_changes(int length_idx)
 {
   int turns        = 0;
@@ -376,11 +515,11 @@ static int distinct_steps(float mod, int length_idx)
 {
   int length  = sr_length_for_index(length_idx);
   int changes = 0;
-  float prev  = stepped_random(0.4f / (float) length, SR_SHAPE_NEUTRAL, mod, length_idx, SR_HOLD_HARD);
+  float prev  = sr_eval(0.4f / (float) length, SR_SHAPE_NEUTRAL, mod, length_idx, SR_HOLD_HARD);
 
   for (int i = 1; i < length; i++)
   {
-    float v = stepped_random(((float) i + 0.4f) / (float) length, SR_SHAPE_NEUTRAL, mod, length_idx, SR_HOLD_HARD);
+    float v = sr_eval(((float) i + 0.4f) / (float) length, SR_SHAPE_NEUTRAL, mod, length_idx, SR_HOLD_HARD);
     if (fabsf(v - prev) > 0.1f)
       changes++;
     prev = v;
@@ -394,7 +533,7 @@ static void pattern_steps(float shape, float mod, int length_idx, float* out)
   int length = sr_length_for_index(length_idx);
   for (int i = 0; i < length; i++)
   {
-    out[i] = stepped_random(((float) i + 0.4f) / (float) length, shape, mod, length_idx, SR_HOLD_HARD);
+    out[i] = sr_eval(((float) i + 0.4f) / (float) length, shape, mod, length_idx, SR_HOLD_HARD);
   }
 }
 
@@ -447,10 +586,10 @@ TEST_CASE(mod_thins_the_pattern_out_as_it_turns_up)
   // together often enough, and counting those as ties is what a threshold on
   // the interval would do.
   int length = sr_length_for_index(li);
-  float prev = stepped_random(0.4f / (float) length, SR_SHAPE_NEUTRAL, -1.0f, li, SR_HOLD_HARD);
+  float prev = sr_eval(0.4f / (float) length, SR_SHAPE_NEUTRAL, -1.0f, li, SR_HOLD_HARD);
   for (int i = 1; i < length; i++)
   {
-    float v = stepped_random(((float) i + 0.4f) / (float) length, SR_SHAPE_NEUTRAL, -1.0f, li, SR_HOLD_HARD);
+    float v = sr_eval(((float) i + 0.4f) / (float) length, SR_SHAPE_NEUTRAL, -1.0f, li, SR_HOLD_HARD);
     CHECK(fabsf(v - prev) > 1e-3f);
     prev = v;
   }
@@ -467,13 +606,13 @@ TEST_CASE(every_density_still_closes_the_loop_and_stays_in_range)
       for (int h = 0; h < HOLD_COUNT; h++)
       {
         // Same value either side of the loop point, so the cycle still closes.
-        float at_end   = stepped_random(0.99999f, 0.3f, mod, li, HOLDS[h]);
-        float at_start = stepped_random(0.0f, 0.3f, mod, li, HOLDS[h]);
+        float at_end   = sr_eval(0.99999f, 0.3f, mod, li, HOLDS[h]);
+        float at_start = sr_eval(0.0f, 0.3f, mod, li, HOLDS[h]);
         CHECK(fabsf(at_end - at_start) < 0.02f);
 
         for (float p = 0.0f; p < 1.0f; p += 0.02f)
         {
-          float v = stepped_random(p, 0.3f, mod, li, HOLDS[h]);
+          float v = sr_eval(p, 0.3f, mod, li, HOLDS[h]);
           CHECK(v >= -1.0001f && v <= 1.0001f);
         }
       }
@@ -496,7 +635,7 @@ TEST_CASE(no_density_setting_collapses_to_a_flat_output)
         float lo = 1e9f, hi = -1e9f;
         for (int i = 0; i < 512; i++)
         {
-          float v = stepped_random((float) i / 512.0f, shape, mod, li, SR_HOLD_SEMI);
+          float v = sr_eval((float) i / 512.0f, shape, mod, li, SR_HOLD_SEMI);
           if (v < lo)
             lo = v;
           if (v > hi)
@@ -524,7 +663,7 @@ TEST_CASE(mod_moves_the_pattern_everywhere_on_its_travel)
       for (int i = 0; i < 256; i++)
       {
         float p = (float) i / 256.0f;
-        float d = stepped_random(p, 0.3f, mod, li, SR_HOLD_SMOOTH) - stepped_random(p, 0.3f, mod + 0.01f, li, SR_HOLD_SMOOTH);
+        float d = sr_eval(p, 0.3f, mod, li, SR_HOLD_SMOOTH) - sr_eval(p, 0.3f, mod + 0.01f, li, SR_HOLD_SMOOTH);
         sum += d * d;
       }
       float rms = sqrtf(sum / 256.0f);
@@ -650,6 +789,7 @@ int main(void)
 {
   RUN_TEST(output_stays_in_bipolar_range);
   RUN_TEST(is_deterministic_for_same_inputs);
+  RUN_TEST(measuring_the_correction_here_or_passing_it_in_are_the_same_shape);
   RUN_TEST(phase_wraps_seamlessly_across_the_loop_point);
   RUN_TEST(changing_length_at_the_cycle_boundary_is_seamless);
   RUN_TEST(curve_is_continuous_at_every_step_boundary);
@@ -658,6 +798,8 @@ int main(void)
   RUN_TEST(no_setting_collapses_to_a_flat_output);
   RUN_TEST(neither_knob_walks_the_pattern_off_centre);
   RUN_TEST(neither_knob_changes_how_loud_the_pattern_is);
+  RUN_TEST(the_rolling_measurement_lands_where_a_full_one_does);
+  RUN_TEST(a_length_change_moves_the_correction_without_stepping_the_output);
   RUN_TEST(longer_patterns_contain_more_events);
   RUN_TEST(hold_setting_controls_how_step_like_the_curve_is);
   RUN_TEST(length_index_maps_to_the_curated_step_counts);

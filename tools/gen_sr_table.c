@@ -28,11 +28,11 @@
 // adds its own reasons to collapse, which is why the gain ceiling below is
 // higher than the 10 that served the plain orbits.
 //
-// So each (length, MOD, morph) gets a precomputed affine correction, applied as
-// out = value * gain + offset. What it aims for and why lives in
-// stepped_random_norm.h, which is where it is computed; this file only decides
-// where to sample it and how to survive the runtime interpolating between those
-// points.
+// The correction that stops that is worked out in stepped_random_norm.h, and
+// mostly at runtime: a channel measures its own pattern a slot at a time. What
+// it cannot measure is the centring constant, which is an average across every
+// pattern length - so that is what this bakes, and the only thing it bakes.
+// 8 KB, against the 180 KB the length-indexed gain and offset tables cost.
 //
 // Span does not depend on the hold/smoothness setting: the eased curve passes
 // exactly through each slot value, so one table serves all the stepped modes.
@@ -50,9 +50,6 @@
 // ---------------------------------------------------------------------------
 
 #define SR_NORM_BINS 128
-
-// Sub-samples either side of a MOD bin, so its gain serves the whole bin.
-#define SR_GAIN_SUBS 3
 
 // The MOD axis: bins spanning the whole knob, endpoints included.
 #define SR_MOD_BINS 16
@@ -90,12 +87,9 @@ static const SrNormCtx g_ctx = {&g_slots, sr_lengths, SR_LENGTH_COUNT, SR_JUMP_G
 
 static void gen_normalisation(void)
 {
-  printf("// Affine correction keeping patterns from collapsing to flat.\n");
-  printf("// Indexed [length][MOD bin][morph bin]; apply as\n");
-  printf("// out = value * gain + offset, interpolating both bin axes.\n");
-  printf("//\n");
-  printf("// The MOD axis spans the whole knob with both endpoints on a bin, so\n");
-  printf("// the runtime cannot ask for a setting the table was not generated for.\n");
+  printf("// The correction's own axes. The MOD one spans the whole knob with\n");
+  printf("// both endpoints on a bin, so the runtime cannot ask for a setting\n");
+  printf("// the table was not generated for.\n");
   printf("#define SR_NORM_BINS %d\n", SR_NORM_BINS);
   printf("#define SR_MOD_BINS %d\n", SR_MOD_BINS);
   printf("#define SR_HOLD_MAX %.4ff\n", SR_HOLD_MAX);
@@ -106,70 +100,14 @@ static void gen_normalisation(void)
     printf("%s%d", i ? ", " : "", sr_lengths[i]);
   printf("};\n\n");
 
-  static float gain[SR_LENGTH_COUNT][SR_MOD_BINS][SR_NORM_BINS], offset[SR_LENGTH_COUNT][SR_MOD_BINS][SR_NORM_BINS];
   static float centre[SR_MOD_BINS][SR_NORM_BINS];
 
-  // First pass: the constant that centres the pattern at each (MOD, morph). It
-  // is shared by every length, so it has to be worked out before any of them.
   for (int mi = 0; mi < SR_MOD_BINS; mi++)
   {
     float mod = -1.0f + 2.0f * (float) mi / (float) (SR_MOD_BINS - 1);
     for (int b = 0; b < SR_NORM_BINS; b++)
     {
       centre[mi][b] = sr_norm_centre(&g_ctx, mod, (float) b / (float) SR_NORM_BINS);
-    }
-  }
-
-  for (int li = 0; li < SR_LENGTH_COUNT; li++)
-  {
-    int length = sr_lengths[li];
-
-    for (int mi = 0; mi < SR_MOD_BINS; mi++)
-    {
-      float mod = -1.0f + 2.0f * (float) mi / (float) (SR_MOD_BINS - 1);
-
-      for (int b = 0; b < SR_NORM_BINS; b++)
-      {
-        float morph = (float) b / (float) SR_NORM_BINS;
-        float c     = centre[mi][b];
-        SrExtent e  = sr_extent_of(&g_ctx, length, mod, morph);
-        float g     = sr_gain_for(&e, c);
-
-        // The gain has to serve the whole neighbourhood of its bin, not just
-        // the point it was sampled at: the runtime interpolates between MOD
-        // bins and the span dips *between* them as the ties rearrange, so a
-        // gain fitted to the bin centres leaves those dips uncorrected -
-        // measured at 1.3% of the parameter space under the flat floor.
-        //
-        // Only the floor is carried across the neighbourhood. Carrying the full
-        // target there gave every bin the largest gain any of its neighbours
-        // wanted, which is a bias upward everywhere and undoes the point of
-        // normalising the level at all.
-        //
-        // The neighbour is measured with the bin's own anchor, not its own:
-        // the anchor is what the offset below is built from, and a gain worked
-        // out against a different one would not stay inside the rails when the
-        // two are used together.
-        float half_bin = 1.0f / (float) (SR_MOD_BINS - 1);
-        for (int sub = -SR_GAIN_SUBS; sub <= SR_GAIN_SUBS; sub++)
-        {
-          if (sub == 0)
-            continue;
-          float near_mod = fclamp(mod + half_bin * (float) sub / (float) SR_GAIN_SUBS, -1.0f, 1.0f);
-          SrExtent ne    = sr_extent_of(&g_ctx, length, near_mod, morph);
-          ne.anchor      = e.anchor;
-          float ng       = sr_gain_floor(&ne, c);
-          if (ng > g)
-            g = ng;
-        }
-
-        // Both c and the anchor are the same at every length, so the value at
-        // the cycle boundary is too - which is what lets the engine switch
-        // pattern length on the wrap without a step in the signal.
-        SrNorm n          = sr_norm_affine(c, e.anchor, g);
-        gain[li][mi][b]   = n.gain;
-        offset[li][mi][b] = n.offset;
-      }
     }
   }
 
@@ -189,27 +127,6 @@ static void gen_normalisation(void)
     printf("},\n");
   }
   printf("};\n\n");
-
-  const char* names[2]                               = {"sr_norm_gain", "sr_norm_offset"};
-  const float(*tables[2])[SR_MOD_BINS][SR_NORM_BINS] = {gain, offset};
-
-  for (int t = 0; t < 2; t++)
-  {
-    printf("static const float %s[SR_LENGTH_COUNT][SR_MOD_BINS][SR_NORM_BINS] = {\n", names[t]);
-    for (int li = 0; li < SR_LENGTH_COUNT; li++)
-    {
-      printf("    {\n");
-      for (int mi = 0; mi < SR_MOD_BINS; mi++)
-      {
-        printf("        {");
-        for (int b = 0; b < SR_NORM_BINS; b++)
-          printf("%s%.6ff", b ? "," : "", tables[t][li][mi][b]);
-        printf("},\n");
-      }
-      printf("    },\n");
-    }
-    printf("};\n\n");
-  }
 }
 
 int main(void)
