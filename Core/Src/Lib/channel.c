@@ -1,7 +1,6 @@
 #include "channel.h"
 #include "clock_sync.h"
 #include "config.h"
-#include "drift.h"
 #include "engine_state.h"
 #include "helpers.h"
 #include "hw_setup.h"
@@ -392,12 +391,6 @@ void channel_compute(uint8_t ch, EngineState* es, const EngineConfig* cfg, const
     raw = stepped_random_with(phase, d.shape, d.mod, *latched_idx, d.hold, &es->channels_sr_scan[ch].norm, d.bias);
     break;
   }
-  case SHAPE_DRIFT:
-    // No pattern, so nothing to measure: the level this one comes out at is
-    // known in advance. See drift.h.
-    raw = drift_value(phase, shape, mod);
-    break;
-
   case SHAPE_PWM:
     raw = pwm_shape(phase, shape, mod);
     break;

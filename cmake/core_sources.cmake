@@ -13,7 +13,6 @@ set(BMCV_CORE_SOURCES
     config_migrate.c
     config_validate.c
     ctrl_button.c
-    drift.c
     engine.c
     error.c
     hw_setup.c

@@ -1,7 +1,7 @@
 # Splitting stepped random into modes with distinct characters
 
-Status: **phases 0 and 1 done and confirmed on hardware; all three modes of
-phase 2 are in and want an ear.**
+Status: **phases 0 and 1 done and confirmed on hardware; phase 2 under way -
+the modulation mode is in and wants an ear.**
 All on `spike/stepped-modes`.
 
 ## Where this comes from
@@ -189,39 +189,40 @@ Something to modulate with: sits low, rises occasionally, or gates.
   offset, so the centring is re-aimed per mode and the level test asserts the
   floor is steady rather than the mean.
 
-### 3. Drift - built, `SHAPE_DRIFT`
+### 3. Drift - built, judged a failure, removed
 
-The invisible hand: slow, smooth, no audible steps. Random8's fBm and Perlin.
+Four octaves of a smoothed triangle summed in the phase domain, at rates 1, 2, 4
+and 8. It measured beautifully - DC exactly zero at every setting, no correction
+of any kind, 20ns a call against the stepped modes' 87, and the gentlest small
+turn of the three - and it sounded like a sine with some harmonics on top,
+because that is what it was.
 
-Four octaves of a smoothed triangle summed in the **phase** domain. Every rate
-is a whole number of cycles, so it closes on itself by construction; every
-octave is odd over a whole number of periods, so **its DC is exactly zero at
-every setting**; and the peak-to-peak is known in advance. All the level work
-the stepped modes need a table and a per-channel measurement for is two
-constants here.
+**The failure is structural, and it closes this direction.** A waveform that
+closes on itself over one cycle *is* a Fourier series; smooth means few
+harmonics; octave rates are harmonics 1, 2, 4 and 8 with fixed phases. Nothing
+in the tuning could have made that read as random. Non-integer rates would, and
+would break the loop. More octaves add detail while the low partials still carry
+the sound.
 
-- **SHP** - detail: two turns of direction per cycle at the left, sixteen at the
-  right, with the wander morphing underneath. A ramp, so unlike SHP in the
-  stepped modes it does not wrap - its ends are opposite ends, the way their
-  MOD's density is.
-- **MOD** - the same `sr_bias_map()` the control mode puts on SHP, free here
-  because there is no correction for it to interfere with.
+Inside one phase-locked cycle the only routes to something that reads as random
+are discontinuity or high harmonic order, which is what the stepped modes
+already are. Kept in the branch history at 2934954; do not rebuild it.
 
-| | melodic | control | drift |
-|---|---|---|---|
-| ns/call, dev machine | 87 | 87 | **20** |
-| per-channel measurement | yes | yes | **none** |
-| flash | shared 8 KB table | shared | **none** |
-| DC across the sweep | 0.38 | 0.54 (by design) | **0.000** |
-| peak-to-peak | 1.10..1.58 | 1.04..1.71 | 1.32..1.83 |
-| small turn, of a 0.35 budget | 0.30 | 0.34 | **0.26** |
+### Instead: patterns that evolve across cycles
 
-The small-turn figure is the interesting one: at one excursion of the wander per
-sweep it measured 0.09, so the knob was given three and still moves more gently
-than either stepped mode. That is the resolution argument in one number - a
-shape whose character comes from continuous reshaping rather than from redrawing
-a pattern has budget to spare, and spending it is what makes a detent do
-something.
+The axis this module is actually missing is not another shape, it is **time**.
+Every pattern here repeats identically every cycle, so a patch never moves on
+its own.
+
+Advance the orbit by `1/N` per cycle, continuously with phase rather than
+stepping at the wrap. Everything downstream is periodic in the orbit with period
+1, so after N cycles the pattern is exactly home; the loop point still closes
+because the advance is continuous; and the correction tracks it as one more
+slowly-moving knob, which the rota already bounds. Two-bar and four-bar phrases,
+in about ten lines, on whichever modes survive rather than as a mode of its own.
+
+Open: where N comes from - a per-channel setting like the pattern length, or a
+scene parameter so the crossfader can move it.
 
 ## What we do not take from Random8
 

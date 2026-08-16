@@ -1252,13 +1252,13 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   // both are about discrete events, and that correspondence is the whole reason
   // the colours are worth anything.
   //
-  // A shape may also be a lighter or darker member of one of those hues, which
-  // is how the three random modes read as one family rather than as three
-  // unrelated things. What is not allowed is a hue of its own: that would be a
-  // fifth meaning on a page with four.
-  const { STATE_FAMILY_OF } = await import('./const.js');
-  check(SHAPE_MODE_COLORS.every(c => INPUT_MODE_COLORS.includes(c) || INPUT_MODE_COLORS.includes(STATE_FAMILY_OF[c])),
-    'and the shapes reuse the hues the inputs use, at their own brightness');
+  // A shape may also be a dimmed member of one of those hues, which is how the
+  // two stepped modes read as one family rather than as two unrelated things.
+  // What is not allowed is a hue of its own: that would be a fifth meaning on a
+  // page with four.
+  const { STATE_DIM_OF } = await import('./const.js');
+  check(SHAPE_MODE_COLORS.every(c => INPUT_MODE_COLORS.includes(c) || INPUT_MODE_COLORS.includes(STATE_DIM_OF[c])),
+    'and the shapes reuse the hues the inputs use, dimmed at most');
 }
 
 /* ---- every hoverable part of the panel says what it does ------------------ */

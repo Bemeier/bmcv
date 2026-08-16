@@ -28,16 +28,15 @@ static const uint8_t input_amp_mode_color[INPUT_AMP_MODE_COUNT] = {HUE_STATE_DEF
 // The wavetable is the default; stepped random is a continuously varying level,
 // and PWM is a gate.
 //
-// Two axes, like clamp_mode_color below. The three random modes are one family
-// and share its hue - they are all a continuously varying level - and which
-// member is which is carried by brightness. Three hues instead would have meant
-// either new colours on a page with four meanings or borrowing ones that
-// already mean something else, and would have said nothing about the three
-// belonging together.
+// Two axes, like clamp_mode_color below: the stepped modes are one family and
+// share its hue, and which member is which is carried by brightness. Giving the
+// second one a hue of its own would have meant either a fifth colour on a page
+// with four meanings, or borrowing one that already means something else.
 static const UiColor shape_mode_color[SHAPE_MODE_COUNT] = {
-    [SHAPE_LFO] = {HUE_STATE_DEFAULT, SAT_HIG, VAL_BASE}, [SHAPE_STEPPED] = {HUE_STATE_LEVEL, SAT_HIG, VAL_BASE},
-    [SHAPE_PWM] = {HUE_STATE_EVENT, SAT_HIG, VAL_BASE},   [SHAPE_STEPPED_CTRL] = {HUE_STATE_LEVEL, SAT_HIG, VAL_LOW},
-    [SHAPE_DRIFT] = {HUE_STATE_LEVEL, SAT_HIG, VAL_HIG},
+    [SHAPE_LFO]          = {HUE_STATE_DEFAULT, SAT_HIG, VAL_BASE},
+    [SHAPE_STEPPED]      = {HUE_STATE_LEVEL, SAT_HIG, VAL_BASE},
+    [SHAPE_PWM]          = {HUE_STATE_EVENT, SAT_HIG, VAL_BASE},
+    [SHAPE_STEPPED_CTRL] = {HUE_STATE_LEVEL, SAT_HIG, VAL_LOW},
 };
 static const uint8_t input_mode_color[INPUT_MODE_COUNT] = {HUE_STATE_DEFAULT, HUE_STATE_EVENT, HUE_STATE_RESET, HUE_STATE_LEVEL};
 
