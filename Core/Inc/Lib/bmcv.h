@@ -90,6 +90,11 @@ void bmcv_handle_gpio_exti(uint16_t GPIO_Pin);
 // does not reach for it.
 void bmcv_handle_txrx_complete(SPI_HandleTypeDef* hspi, uint32_t now_us);
 
+// Called from the DAC's RX DMA channel interrupt, which is its own vector and
+// not HAL's. Takes no timestamp: it records nothing, only that a transfer
+// finished, and the timer that arms the next one has its own clock.
+void bmcv_handle_dac_complete(void);
+
 // One DAC chunk, called from a timer interrupt on a fixed cadence. See
 // bmcv_dac_service_hz() for what that cadence should be, and the comment on
 // dac_service() for why the DAC has a clock of its own at all.

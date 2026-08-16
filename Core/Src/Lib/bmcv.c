@@ -49,29 +49,38 @@ static uint8_t task = 0;
 // It also spreads the chunks evenly instead of letting them bunch into the gap
 // between ticks, which keeps the ADC's sampling cadence even as a side effect.
 //
-// 1, and not the 4 this asked for until the timer made the number real. At 4
-// the cadence is 15.0us and one dac_service() measures **8.18us** of it -
-// bmcv_profile.dac, off the module - so 55% of the CPU goes into this interrupt
-// before the DMA completion handler it feeds is counted at all. With both at
-// priority 0 that leaves thread mode nothing: the module came up with
-// dac_fps 54335, engine_fps 0 and `just profile` reporting *0 ticks since
-// boot*. The engine had never run. `just where` found the core in
-// SPI_DMATransmitReceiveCplt, which is where it now spends its life.
+// 1, and not the 4 this asked for until the timer made the number real. Every
+// figure below is bmcv_profile off the module, with eight channels patched.
 //
-// The cost is not the interpolation - eight lerps is maybe 2us of it. It is
-// HAL_SPI_TransmitReceive_DMA, which is a lot of state machine to walk every
-// 15us. So the rate has to suit the arming cost, and 1 substep puts the cadence
-// at 62us and this interrupt at 13% of the CPU.
+// At 4 the cadence is 15.0us. Through HAL one dac_service() measured 8.18us of
+// that - 55% of the CPU in this interrupt before the completion handler it
+// feeds was counted - and the module came up with dac_fps 54335, engine_fps 0
+// and `just profile` reporting *0 ticks since boot*. The engine had never run
+// once; `just where` found the core in SPI_DMATransmitReceiveCplt.
 //
-// What 1 buys is still worth having: DAC_CHANNELS transactions per tick means
-// one full frame per tick, so every output carries every value the engine
-// computes. It was getting one frame every four ticks. What it gives up is
-// oversampling - at 1 the interpolation has nothing to interpolate between, and
-// it only starts earning its keep again at 2.
+// Taking HAL out of the arming and completion path (see dac_adc.c) brought the
+// service to 5.1us and the whole transaction from ~17.4us to ~9us. That is what
+// made the rate a choice rather than a cliff, and it is where the substeps
+// question was re-asked with real numbers:
 //
-// Raising it is gated on the engine, not on this: the tick already costs 297us
-// of a 250us period, so there is no budget to buy substeps with until that
-// baseline moves. See the plan's last two items.
+//   substeps  frames/s  engine_fps  load
+//          1      4032        2921  1.39
+//          2      8063        2260  1.65
+//
+// So 1. Doubling the frame rate costs the engine 22%, and output latency is one
+// engine tick - the interpolation puts the levels computed on tick N onto the
+// pins across tick N+1 - so a slower engine hands back in staleness most of
+// what the extra frames buy. Measured end to end against a sine, both read the
+// same R^2.
+//
+// What 1 buys is still the point of the change: DAC_CHANNELS transactions per
+// tick is one full frame per tick, so every output carries every value the
+// engine computes, where it was getting one frame every four ticks. What it
+// gives up is oversampling - at 1 the interpolation has nothing to interpolate
+// between, and it only starts earning its keep again at 2.
+//
+// Raising it is gated on the engine, not on this: the tick costs 297us of a
+// 250us period before the DAC is counted at all. See the plan's last two items.
 #define DAC_SUBSTEPS 1
 
 // The cadence the service runs at: DAC_SUBSTEPS frames per tick, a frame being
@@ -227,29 +236,37 @@ void bmcv_handle_gpio_exti(uint16_t GPIO_Pin)
   }
 }
 
-// A DAC transaction has landed. This only says so; the timer arms the next one.
-//
-// Re-arming it here was tried, and on the module it produced a stable
-// transaction rate and a dead output: transfers running, nothing latching. HAL
-// returns both the SPI and the DMA channel to READY before this callback, so
-// the re-arm is legal on paper - what it actually disturbs was never proven.
-// The likeliest candidate is the DAC's own SYNC line: dacadc_dma_complete()
-// raises it and dacadc_dma_next() lowers it again, and re-armed from here that
-// gap is a microsecond or two rather than the tens the loop was giving it.
-//
-// Which is the second reason the timer owns the service now, after the fixed
-// cadence. Armed on a clock, the gap between raising SYNC and lowering it is
-// the chunk period less the transfer - about 13us of the 15.6 - and it is that
-// on every chunk rather than whenever the loop got round to it. The same goes
-// for the ADC's conversion window, which is the interval between one
-// transaction's CNVST pulse and the next transaction reading the result: also a
-// whole chunk period, and now the same one every time.
+// The expander's SPI transfer has landed. The DAC's no longer comes through
+// here - see bmcv_handle_dac_complete - so this is the MCP's alone.
 void bmcv_handle_txrx_complete(SPI_HandleTypeDef* hspi, uint32_t now_us)
 {
   (void) now_us;
   mcp_handle_txrx_complete(hspi);
+}
 
-  if (dacadc_dma_complete(hspi))
+// A DAC transaction has landed. This only says so; the timer arms the next one.
+//
+// Called from the RX DMA channel's own vector, not from HAL's SPI completion
+// callback, because that callback is where a third of the module's CPU was
+// going - see dac_adc.c. What arrives here is already decoded.
+//
+// Re-arming from the completion was tried once, and on the module it produced a
+// stable transaction rate and a dead output: transfers running, nothing
+// latching. What it disturbs was never proven, and the likeliest candidate is
+// the DAC's own SYNC line - raised as the transfer completes and lowered again
+// by the next arm, which back to back is a microsecond or two rather than the
+// tens the loop was giving it.
+//
+// Which is the second reason the timer owns the service, after the fixed
+// cadence. Armed on a clock, the gap between raising SYNC and lowering it is
+// the chunk period less the transfer, and it is that on every chunk rather than
+// whenever the loop got round to it. The same goes for the ADC's conversion
+// window, which is the interval between one transaction's CNVST pulse and the
+// next transaction reading the result: also a whole chunk period, and now the
+// same one every time.
+void bmcv_handle_dac_complete(void)
+{
+  if (dacadc_dma_isr())
   {
     isr_flag_set(&dac_poll);
   }

@@ -4,6 +4,9 @@
 
 static DAC_ADC dacadc;
 
+// Defined with the reasoning for it, below; needed by dacadc_init above it.
+static void dacadc_rx_flush(void);
+
 const DAC_ADC* dacadc_instance(void) { return &dacadc; }
 
 void dacadc_init(SPI_HandleTypeDef* spi)
@@ -27,6 +30,40 @@ void dacadc_init(SPI_HandleTypeDef* spi)
 
   dac_init();
   // Optional: do a dummy read to check communication
+
+  // Everything above this line still goes through HAL, and should: it runs once
+  // at startup, where a state machine costs nothing and being obviously correct
+  // is worth more than being quick. Past here the transfer is armed by hand.
+  dacadc.dma  = dacadc.spiHandle->hdmarx->DmaBaseAddress;
+  dacadc.rxch = dacadc.spiHandle->hdmarx->Instance;
+  dacadc.txch = dacadc.spiHandle->hdmatx->Instance;
+
+  // ChannelIndex is the shift HAL already worked out for this channel's group
+  // of four flags; the low one of the four is the global flag.
+  dacadc.rx_flags = DMA_IFCR_CGIF1 << dacadc.spiHandle->hdmarx->ChannelIndex;
+  dacadc.tx_flags = DMA_IFCR_CGIF1 << dacadc.spiHandle->hdmatx->ChannelIndex;
+
+  // Set once, so arming a transfer never has to. The peripheral end of both
+  // channels is the same data register and never moves, and the widths and
+  // increments HAL_DMA_Init put in CCR are already what this wants.
+  dacadc.rxch->CPAR = (uint32_t) &dacadc.spiHandle->Instance->DR;
+  dacadc.txch->CPAR = (uint32_t) &dacadc.spiHandle->Instance->DR;
+
+  // The completion this driver acts on is RX, and the error is worth hearing
+  // about; TX finishing early tells us nothing, so its interrupt stays off and
+  // DMA1_Channel5 never fires.
+  dacadc.rxch->CCR |= DMA_CCR_TCIE | DMA_CCR_TEIE;
+
+  // Left on for the life of the module rather than raised per transfer. With
+  // both DMA channels disabled the SPI has nothing feeding it and does not
+  // clock, so an idle peripheral is just idle - and this is three register
+  // read-modify-writes that would otherwise be on the 16kHz path.
+  //
+  // CR2 is OR'd, never written: HAL_SPI_Init put the FIFO reception threshold
+  // in there for 8-bit frames, and clobbering it would make RXNE wait for two
+  // bytes and every transaction hang on its last one.
+  dacadc.spiHandle->Instance->CR2 |= SPI_CR2_RXDMAEN | SPI_CR2_TXDMAEN;
+  dacadc.spiHandle->Instance->CR1 |= SPI_CR1_SPE;
 }
 
 void dacadc_write(uint8_t idx, int16_t data)
@@ -77,6 +114,46 @@ void dacadc_transaction()
 }
 */
 
+// Drain whatever is sitting in the SPI's receive FIFO, and clear the overrun
+// that leaving it there will have set.
+//
+// A receive DMA armed by hand has to start against an empty FIFO or it is not
+// reading the frame it thinks it is, and **a desync repairs nothing by itself -
+// it perpetuates**. Two stale bytes mean the channel takes those two plus four
+// off the wire, reaches its count early, and leaves the frame's last two bytes
+// behind for the next transfer to mistake for a header. Every frame after it is
+// shifted by the same two bytes, for ever.
+//
+// dac_init() is what seeds it: it talks to the DACs with HAL_SPI_Transmit,
+// which clocks bytes out of a two-line master and so clocks bytes *in* at the
+// same time, and never reads the data register because a caller asking only to
+// transmit has nowhere to put them. HAL's own transfer path resynchronised
+// around that on every call, which is why this only appeared once HAL was taken
+// out of the path.
+//
+// So it is called before arming, not once at startup. Flushing at startup fixes
+// the seed and not the loop, which is exactly what was tried first and changed
+// nothing. Measured on the module: SPI2->SR read 0x403 in steady state - RXNE
+// set with FRLVL at two bytes - while dac_fps sat at a perfect 16129 and the
+// output read flat, because adc_i was being decoded out of the DAC's echo
+// bytes.
+static void dacadc_rx_flush(void)
+{
+  SPI_TypeDef* spi = dacadc.spiHandle->Instance;
+
+  // Byte-wide reads: a 32-bit access to DR would pull two frames at a time and
+  // could take one that has not arrived.
+  while (spi->SR & SPI_SR_FRLVL)
+  {
+    (void) *(__IO uint8_t*) &spi->DR;
+  }
+
+  // OVR clears on a read of DR followed by a read of SR, and the loop above has
+  // done the first half of that even when it ran zero times.
+  (void) spi->DR;
+  (void) spi->SR;
+}
+
 int8_t dacadc_error()
 {
   if (dacadc.CH_IDX > DAC_CHANNELS)
@@ -98,28 +175,68 @@ uint8_t dacadc_dma_next()
   HAL_GPIO_WritePin(dacadc.csadcPortHandle, dacadc.csadcPin, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(dacadc.csdacPortHandle, dacadc.csdacPin, GPIO_PIN_RESET);
 
-  int8_t res = HAL_SPI_TransmitReceive_DMA(dacadc.spiHandle, &(dacadc.DAC_BUF[dacadc.CH_IDX * DAC_CHANNEL_DATA_WIDTH]), dacadc.rx_buf,
-                                           DAC_CHANNEL_DATA_WIDTH);
-  if (res == HAL_OK)
-  {
-    return 1;
-  }
+  // Both down before either count is written: CNDTR is writable only while its
+  // channel is disabled, and the hardware ignores the write otherwise rather
+  // than complaining about it.
+  dacadc.rxch->CCR &= ~DMA_CCR_EN;
+  dacadc.txch->CCR &= ~DMA_CCR_EN;
 
-  HAL_GPIO_WritePin(dacadc.csdacPortHandle, dacadc.csdacPin, GPIO_PIN_SET);
-  HAL_GPIO_WritePin(dacadc.csadcPortHandle, dacadc.csadcPin, GPIO_PIN_SET);
-  dacadc.CH_IDX = DAC_CHANNELS + 1;
-  return 0;
+  // With both channels down, so nothing races the drain. This is what keeps
+  // rx_buf[0] the first byte off the wire rather than the tail of the last
+  // frame - see dacadc_rx_flush for why it belongs here and not in init.
+  dacadc_rx_flush();
+
+  dacadc.dma->IFCR = dacadc.rx_flags | dacadc.tx_flags;
+
+  dacadc.rxch->CNDTR = DAC_CHANNEL_DATA_WIDTH;
+  dacadc.rxch->CMAR  = (uint32_t) dacadc.rx_buf;
+  dacadc.txch->CNDTR = DAC_CHANNEL_DATA_WIDTH;
+  dacadc.txch->CMAR  = (uint32_t) &dacadc.DAC_BUF[dacadc.CH_IDX * DAC_CHANNEL_DATA_WIDTH];
+
+  // Receive armed before transmit, always. The other order leaves a window
+  // where the first byte has been clocked in with nowhere to put it, which is
+  // an overrun that costs the whole frame's alignment - every ADC reading after
+  // it belongs to the wrong channel.
+  dacadc.rxch->CCR |= DMA_CCR_EN;
+  dacadc.txch->CCR |= DMA_CCR_EN;
+
+  return 1;
 }
 
-uint8_t dacadc_dma_complete(SPI_HandleTypeDef* hspi)
+uint8_t dacadc_dma_isr(void)
 {
-  if (hspi->Instance != dacadc.spiHandle->Instance)
+  const uint32_t flags = dacadc.dma->ISR;
+
+  // Neither ours nor anything we asked for. The vector is shared, so this has
+  // to be answerable without guessing.
+  if (!(flags & dacadc.rx_flags))
   {
     return 0;
   }
 
+  dacadc.dma->IFCR = dacadc.rx_flags | dacadc.tx_flags;
+
+  dacadc.rxch->CCR &= ~DMA_CCR_EN;
+  dacadc.txch->CCR &= ~DMA_CCR_EN;
+
+  // Raising SYNC is what latches the DAC, so it happens here and not a
+  // microsecond later. Safe at this point because RX completing means the last
+  // byte was clocked in, and the same edge clocked the last byte out - there is
+  // nothing still on the wire to truncate.
   HAL_GPIO_WritePin(dacadc.csdacPortHandle, dacadc.csdacPin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(dacadc.csadcPortHandle, dacadc.csadcPin, GPIO_PIN_SET);
+
+  // A transfer error means rx_buf holds some mixture of this frame and the
+  // last, and - worse - that the FIFO is left holding however many bytes the
+  // channel did not take, which would shift every frame after it. Flush before
+  // reporting the completion; the timer arms a fresh one on its next tick, so
+  // the recovery costs one frame and nothing downstream is told a wrong
+  // voltage.
+  if (flags & (DMA_ISR_TEIF1 << dacadc.spiHandle->hdmarx->ChannelIndex))
+  {
+    dacadc_rx_flush();
+    return 1;
+  }
 
   uint16_t adc_raw[2] = {0};
   adc_raw[0]          = ((dacadc.rx_buf[0] << 6) | (dacadc.rx_buf[1] >> 2)) & 0x3FFF;

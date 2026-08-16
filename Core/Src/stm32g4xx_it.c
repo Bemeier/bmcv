@@ -20,6 +20,9 @@
 /* Includes ------------------------------------------------------------------*/
 #include "stm32g4xx_it.h"
 #include "main.h"
+/* USER CODE BEGIN Includes */
+#include "bmcv.h" // the DAC's DMA completion is serviced here, not by HAL
+/* USER CODE END Includes */
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 /* USER CODE END Includes */
@@ -284,9 +287,14 @@ void DMA1_Channel3_IRQHandler(void)
 void DMA1_Channel4_IRQHandler(void)
 {
   /* USER CODE BEGIN DMA1_Channel4_IRQn 0 */
-
+  // The DAC's receive channel, handled directly instead of by
+  // HAL_DMA_IRQHandler and the SPI completion callback it dispatches to. That
+  // path measured ~10us per transaction against 2.67us of wire time, most of it
+  // a FIFO drain a finished receive does not need - see dac_adc.c. HAL still
+  // configured this channel, it just no longer services it, which is why the
+  // generated call below is gone rather than guarded.
+  bmcv_handle_dac_complete();
   /* USER CODE END DMA1_Channel4_IRQn 0 */
-  HAL_DMA_IRQHandler(&hdma_spi2_rx);
   /* USER CODE BEGIN DMA1_Channel4_IRQn 1 */
 
   /* USER CODE END DMA1_Channel4_IRQn 1 */
