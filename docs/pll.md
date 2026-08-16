@@ -291,6 +291,42 @@ What moved, and why:
   Which side it picked depended on the tick period. Settling, ringing and the
   tail still cover the exactly-half case.
 
+### Timestamping clock edges in the DAC interrupt: measured, not worth it
+
+A tick consumes a clock edge that was *detected* up to a tick earlier - the
+latch in the DAC's DMA interrupt records that an edge happened, not when - so
+`Clock_Trigger` is given the tick's timestamp. Stamping the edge where it is
+detected would put it on the DAC's 62.5 us chunk instead of the engine's 500 us
+tick. That is a change across the seam, so it was measured first.
+
+Driving `ClockState` with a perfectly regular clock, so every bit of the error
+is quantisation, and taking the *variation* in `beat_phase` rather than its
+offset (which is arbitrary - it depends where the first pulse landed):
+
+| edge stamped at | rms, beats | peak |
+|---|---|---|
+| the tick, 500 us - today | 0.000551 | 0.001233 |
+| the DAC chunk, 63 us - the proposal | 0.000070 | 0.000154 |
+| exactly - the ceiling | 0.000001 | 0.000003 |
+| a 250 us tick - the old engine rate | 0.000274 | 0.000621 |
+
+So the proposal is real: **8x less phase jitter into the loop**, and it would
+more than pay back what the 2 kHz tick cost on the input side.
+
+**And it does not matter, because of what is downstream.** The loop's time
+constant is 1 s against a pulse rate of 4-24 Hz, so it attenuates this by about
+28x: `rms_tail` in the table above is **0.00002 beats with today's stamping**,
+which is 10 us at 120 BPM. One DAC frame at 4032 frames/s is **248 us**. The
+residual is twenty-five times smaller than the interval between two output
+samples - it cannot be observed at the output even in principle.
+
+Worth revisiting only if `PLL_TAU_S` is ever taken far below 1 s. A loop that
+tracked the clock aggressively would pass this jitter through instead of
+filtering it, and then where the edge is stamped starts to show.
+
+Nothing is missed, either way: gates are latched in that interrupt at ~8 kHz and
+consumed once per tick, so a gate far shorter than a tick is still seen.
+
 ### Still to check on hardware
 
 `PLL_MAX_PULL` is the knob: lower is smoother and slower to acquire, higher is
