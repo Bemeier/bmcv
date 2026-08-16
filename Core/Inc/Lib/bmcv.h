@@ -57,6 +57,16 @@ typedef struct
   // and any number here that keeps climbing means the tick period is too short
   // for the work in it.
   uint32_t resyncs;
+
+  // One call of the DAC service, measured inside the timer interrupt that now
+  // owns it. Last of the struct deliberately: scripts/profile.sh reads every
+  // offset out of the ELF, but the two spans above it were there first and
+  // appending keeps a stale copy of the script reading the right numbers.
+  //
+  // This is the reading that decides whether the substep count is affordable.
+  // avg_us against the service period is the share of the CPU the interrupt has
+  // taken, and it is taken from the engine, which had none to spare.
+  BmcvSpan dac;
 } BmcvProfile;
 
 extern BmcvProfile bmcv_profile;
@@ -79,5 +89,15 @@ void bmcv_handle_gpio_exti(uint16_t GPIO_Pin);
 // the same reason bmcv_main()'s does: the timebase is the host's, and this file
 // does not reach for it.
 void bmcv_handle_txrx_complete(SPI_HandleTypeDef* hspi, uint32_t now_us);
+
+// One DAC chunk, called from a timer interrupt on a fixed cadence. See
+// bmcv_dac_service_hz() for what that cadence should be, and the comment on
+// dac_service() for why the DAC has a clock of its own at all.
+void bmcv_dac_tick(uint32_t now_us);
+
+// How often bmcv_dac_tick() wants to be called, in Hz. A function rather than a
+// macro so DAC_SUBSTEPS and the arithmetic over it stay in bmcv.c and the timer
+// setup has one number to read rather than a formula to reproduce.
+uint32_t bmcv_dac_service_hz(void);
 
 #endif /* INC_LIB_BMCV_H_ */

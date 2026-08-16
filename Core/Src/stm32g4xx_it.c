@@ -67,7 +67,7 @@ extern DMA_HandleTypeDef hdma_tim3_ch4;
 extern TIM_HandleTypeDef htim3;
 extern TIM_HandleTypeDef htim4;
 /* USER CODE BEGIN EV */
-
+extern TIM_HandleTypeDef htim6;
 /* USER CODE END EV */
 
 /******************************************************************************/
@@ -420,5 +420,13 @@ void DMAMUX_OVR_IRQHandler(void)
 }
 
 /* USER CODE BEGIN 1 */
+
+/**
+ * @brief This function handles the DAC's clock - see MX_TIM6_Init.
+ *
+ * The vector is shared with the on-chip DAC peripheral, which this board does
+ * not use: the outputs are external DACs on SPI2.
+ */
+void TIM6_DAC_IRQHandler(void) { HAL_TIM_IRQHandler(&htim6); }
 
 /* USER CODE END 1 */

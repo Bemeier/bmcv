@@ -64,6 +64,21 @@ TIM_HandleTypeDef htim4;
 DMA_HandleTypeDef hdma_tim3_ch4;
 
 /* USER CODE BEGIN PV */
+
+// The DAC's clock. Hand-written rather than added through CubeMX, which is what
+// every timer in this file except TIM1 and TIM3 already is: the .ioc still
+// describes CubeMX's TIM2 - prescaler 14400, period 32, TIM2_IRQn - and that is
+// the timer this file calls htim4, while its htim2 (the free-running
+// microsecond counter everything is timestamped against) has no .ioc
+// counterpart at all. Regenerating from the .ioc would not round-trip, so the
+// generated files are maintained here and the USER CODE blocks are what keeps
+// that honest.
+//
+// TIM6 because it is a basic timer: no channels, no pins, nothing to take away
+// from anything, and an interrupt vector of its own. It exists on this part and
+// nothing else in the build has claimed it.
+TIM_HandleTypeDef htim6;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -79,6 +94,7 @@ static void MX_TIM3_Init(void);
 static void MX_TIM4_Init(void);
 static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
+static void MX_TIM6_Init(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -160,6 +176,11 @@ int main(void)
 
   bmcv_init(INT_MCP_ENC_Pin, ADC1);
 
+  // After bmcv_init, which is where the rate it asks for is decided. Started
+  // below rather than here, so nothing fires before the first transfer is
+  // primed.
+  MX_TIM6_Init();
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -170,7 +191,11 @@ int main(void)
 
   HAL_Delay(10);
 
+  // Primes the chain: the first transfer is armed here, and every one after it
+  // is armed by TIM6 when the completion for the last has landed.
   dacadc_dma_next();
+
+  HAL_TIM_Base_Start_IT(&htim6);
 
   while (1)
   {
@@ -751,6 +776,44 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
   {
     bmcv_poll_tasks();
   }
+  else if (htim->Instance == TIM6)
+  {
+    bmcv_dac_tick(__HAL_TIM_GET_COUNTER(&htim2));
+  }
+}
+
+// The DAC's clock, at whatever rate bmcv_dac_service_hz() asks for - 64kHz at
+// the current substep count, which is 15.625us.
+//
+// Prescaler 0 and the whole divide in the reload, so the period is exact. At
+// 144MHz and a 250us engine tick the reload comes out at 2250 counts, dividing
+// the tick into sixteen with nothing left over; a prescaler of 143 would give a
+// 1us tick and quantise a 15.625us period to 15 or 16, which is 2-6% of jitter
+// on the cadence this whole change exists to make even.
+//
+// APB1's timer clock is undivided here, so TIM6 counts at SystemCoreClock. The
+// division is done against that rather than a literal 144 for the same reason
+// bmcv_init's us_per_cycle is.
+static void MX_TIM6_Init(void)
+{
+  __HAL_RCC_TIM6_CLK_ENABLE();
+
+  htim6.Instance           = TIM6;
+  htim6.Init.Prescaler     = 0;
+  htim6.Init.CounterMode   = TIM_COUNTERMODE_UP;
+  htim6.Init.Period        = (SystemCoreClock / bmcv_dac_service_hz()) - 1;
+  htim6.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim6) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  // Priority 0, which is the SPI DMA completion's. Same priority means neither
+  // can preempt the other, so the service can never be re-entered against the
+  // completion that feeds it and the two need no lock between them. TIM4's LED
+  // and MCP poll sits at 1 and is preempted by both, which is what it is for.
+  HAL_NVIC_SetPriority(TIM6_DAC_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(TIM6_DAC_IRQn);
 }
 
 /* USER CODE END 4 */

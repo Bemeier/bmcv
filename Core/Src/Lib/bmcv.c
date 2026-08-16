@@ -50,23 +50,26 @@ static uint8_t task = 0;
 // between ticks, which keeps the ADC's sampling cadence even as a side effect.
 #define DAC_SUBSTEPS 4
 
-// The cadence the service aims for: DAC_SUBSTEPS frames per tick, a frame being
+// The cadence the service runs at: DAC_SUBSTEPS frames per tick, a frame being
 // DAC_CHANNELS transactions of two outputs each. 15.6us at a 4kHz tick.
 //
-// It is a target, not a floor. Measured on the module, the service was turning
-// around every 55us - a third of the intended rate - because a completion sat
-// waiting for the main loop to notice it, and the loop was inside an engine
-// tick. Six bytes at 18MHz is 2.67us of bus time, so the wire was busy 5% of
-// the time and everything else was latency. bmcv_handle_txrx_complete() now
-// serves a due completion where it lands instead, which is what makes this
-// number mean something.
+// It is now a cadence rather than a target. Serviced from the main loop it was
+// a target and never met: measured on the module, transactions turned around
+// every 55us with nothing patched and slowed to the engine's own rate with
+// eight stepped channels, because a completion sat waiting for the loop to
+// notice it and the loop was inside a tick that costs 307us of a 250us period.
+// Six bytes at 18MHz is 2.67us of bus time, so the wire was idle 95% of the
+// time and all of the rest was latency. A timer owns the service now - see
+// bmcv_dac_tick() - so the output rate is a number this file chooses instead of
+// a side effect of how busy the engine is.
 #define DAC_CHUNK_US (ENGINE_TICK_US / (DAC_SUBSTEPS * DAC_CHANNELS))
+
+uint32_t bmcv_dac_service_hz(void) { return 1000000u / DAC_CHUNK_US; }
 
 static IsrFlag dac_poll = 1;
 static uint32_t last_dac_poll;
 
-// Defined with the interpolation it drives; called from both the loop and the
-// SPI completion interrupt.
+// Defined with the interpolation it drives; called from the timer interrupt.
 static void dac_service(uint32_t now_us);
 static IsrFlag mcp_poll = 0;
 static IsrFlag led_poll = 0;
@@ -200,21 +203,23 @@ void bmcv_handle_gpio_exti(uint16_t GPIO_Pin)
   }
 }
 
-// A DAC transaction has landed; the loop arms the next one.
+// A DAC transaction has landed. This only says so; the timer arms the next one.
 //
-// Re-arming it here instead was tried, to keep the output rate independent of
-// how busy the engine is - serviced from the loop, a completion arriving during
-// an eight-channel tick waits out the rest of it, and the frame rate falls from
-// 4.5kHz to under 1kHz exactly when the most is being asked of it. On the
-// module it produced a stable transaction rate and a dead output: transfers
-// running, nothing latching. HAL returns both the SPI and the DMA channel to
-// READY before this callback, so the re-arm is legal on paper; what it actually
-// disturbs is unproven, and an unproven guess does not belong in the signal
-// path. See docs/architecture.md.
+// Re-arming it here was tried, and on the module it produced a stable
+// transaction rate and a dead output: transfers running, nothing latching. HAL
+// returns both the SPI and the DMA channel to READY before this callback, so
+// the re-arm is legal on paper - what it actually disturbs was never proven.
+// The likeliest candidate is the DAC's own SYNC line: dacadc_dma_complete()
+// raises it and dacadc_dma_next() lowers it again, and re-armed from here that
+// gap is a microsecond or two rather than the tens the loop was giving it.
 //
-// The fix that does not re-enter HAL's own DMA callback is a periodic timer
-// interrupt calling dac_service() directly, which is also the fixed cadence
-// this wants in the first place.
+// Which is the second reason the timer owns the service now, after the fixed
+// cadence. Armed on a clock, the gap between raising SYNC and lowering it is
+// the chunk period less the transfer - about 13us of the 15.6 - and it is that
+// on every chunk rather than whenever the loop got round to it. The same goes
+// for the ADC's conversion window, which is the interval between one
+// transaction's CNVST pulse and the next transaction reading the result: also a
+// whole chunk period, and now the same one every time.
 void bmcv_handle_txrx_complete(SPI_HandleTypeDef* hspi, uint32_t now_us)
 {
   (void) now_us;
@@ -339,10 +344,9 @@ static void dac_write_interpolated(uint32_t now_us)
 // carries them.
 //
 // Ordered so the bookkeeping is done before anything can complete: a DMA
-// completion can only arrive after dacadc_dma_next(), so by the time the
-// interrupt can run this again, last_dac_poll and the rate already describe the
-// transfer that is in flight. That is what lets the loop and the interrupt both
-// call it without a lock between them.
+// completion can only arrive after dacadc_dma_next(), so by the time anything
+// can run this again, last_dac_poll and the rate already describe the transfer
+// that is in flight.
 static void dac_service(uint32_t now_us)
 {
   // Consumed before the work, not after it: a completion landing while the
@@ -360,15 +364,51 @@ static void dac_service(uint32_t now_us)
   dacadc_dma_next();
 }
 
+// The DAC's own clock. A timer interrupt, on the fixed cadence DAC_CHUNK_US
+// asks for and nothing else gets a say in.
+//
+// The output rate used to be a property of how busy the engine was, because the
+// service ran from the main loop and the loop spends the whole of a heavy tick
+// inside engine_tick(). Eight stepped channels took the frame rate from 4.5kHz
+// to under 1kHz - the interpolation stopped oversampling anything and started
+// smoothing over an output that could not keep up - and it did so exactly when
+// the most was being asked of the module.
+//
+// Interrupt priority is what makes this safe rather than clever. This runs at
+// the same NVIC priority as the SPI DMA completion, so the two cannot preempt
+// each other: dac_service() can never be re-entered against
+// dacadc_dma_complete(), and no lock is needed between them. Nothing in the
+// main loop touches the service any more, so there is no third caller to race.
+void bmcv_dac_tick(uint32_t now_us)
+{
+  // Never arm a transfer over one still running. dac_poll is set by the
+  // completion, so this is "the last transfer has landed"; dacadc_error() is
+  // the recovery path for a transfer that was refused and left the chain with
+  // nothing in flight to wait for.
+  //
+  // A skipped chunk is a chunk, not a stall: the next timer tick tries again
+  // and dac_write_interpolated() reads the clock rather than counting substeps,
+  // so the output lands where the elapsed time says it should either way.
+  if (!isr_flag_peek(&dac_poll) && !dacadc_error())
+  {
+    return;
+  }
+
+  [[maybe_unused]] const uint32_t t_start = PROFILE_NOW();
+
+  dac_service(now_us);
+
+#if BMCV_PROFILE
+  span_record(&bmcv_profile.dac, PROFILE_NOW() - t_start);
+#endif
+}
+
 void bmcv_main(uint32_t now_us)
 {
   /* ---- hardware in ------------------------------------------------ */
-  // Every pass: both are event-driven, and a DMA completion should be picked up
-  // when it lands rather than at the next engine tick.
-  if ((isr_flag_peek(&dac_poll) || dacadc_error()) && (uint32_t) (now_us - last_dac_poll) >= DAC_CHUNK_US)
-  {
-    dac_service(now_us);
-  }
+  // The DAC is not here any more. It runs off its own timer interrupt - see
+  // bmcv_dac_tick() - because serving it from this loop made the output rate a
+  // property of how long the last engine tick took.
 
   // Taken before mcp_read() rather than cleared after it. An expander interrupt
   // arriving during the read is a *new* set of edges, and the old clear-after
