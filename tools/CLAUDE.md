@@ -16,6 +16,7 @@ properties these guarantee are asserted, not assumed.
 | `just panel` | `gen_panel_spec.py` (+ `dump_hw_setup.c`) | `panel/`, `web/panel.json`, `vcv/res/` |
 | `just layout-check` | `dump_layout.py` + `gen_layout_asserts.py` | `sim/include/layout_target.h` |
 | `just vcv-compdb` | `gen_compdb.py` | `vcv/compile_commands.json` |
+| `just shape-figures` | `dump_shapes.c` + `gen_shape_figures.py` | `docs/images/shape-*.svg` |
 | `just docs-shots` | headless Chrome | `docs/images/web-overview.png` |
 
 Notes that matter:
@@ -31,6 +32,10 @@ Notes that matter:
   same value path the firmware runs, so the normalisation cannot be aimed at a
   pattern the module no longer plays. It used to carry its own copy; do not
   reintroduce one.
+- **`gen_shape_figures.py` draws from the module's own shape functions**, via
+  `dump_shapes.c`, for the same reason: a picture of a shape the firmware does
+  not have is worse than no picture. One SVG per mode, SHP down the rows and MOD
+  across the columns.
 - **`gen_panel_spec.py` merges KiCad output with the firmware's own `HwSetup`
   tables**, so positions and roles derive from board and firmware together.
   `tests/test_panel_spec.c` asserts they agree. What genuinely cannot be

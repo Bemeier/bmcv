@@ -427,6 +427,15 @@ stepped-table: (_ensure "build-native" "configure-native")
 	cc -O2 -I Core/Inc/Lib -o build-native/gen_stepped_table tools/gen_stepped_table.c -lm
 	./build-native/gen_stepped_table > Core/Inc/Lib/stepped_table.h
 
+# Regenerate the shape-mode figures in docs/images/: one SVG per mode, SHP down
+# the rows and MOD across the columns. Drawn from the module's own shape
+# functions, so a picture cannot show a shape the firmware does not have.
+# Output is checked in - review the diff.
+shape-figures: (_ensure "build-native" "configure-native")
+	cc -O2 -I Core/Inc/Lib -o build-native/dump_shapes tools/dump_shapes.c \
+	    Core/Src/Lib/stepped.c Core/Src/Lib/pwm.c Core/Src/Lib/wavetable.c Core/Src/Lib/wavetables.c -lm
+	./build-native/dump_shapes | python3 tools/gen_shape_figures.py
+
 # Regenerate the panel layout from the PCB project's KiCad output plus the
 # firmware's own HwSetup tables. Outputs are checked in, so this only needs
 # running after editing hw_setup.c or when the board changes - review the diff.

@@ -22,6 +22,7 @@ set(BMCV_CORE_SOURCES
     mcp_decode.c
     midi_out.c
     midi_realtime.c
+    pwm.c
     quantizer.c
     scene.c
     stepped.c

@@ -1,0 +1,165 @@
+# The stepped shape
+
+A pattern of values, one per step of the cycle, eased between and locked to the
+beat. `Core/Src/Lib/stepped.c` is the runtime; `stepped_pattern.h` is what each
+step shows, shared with the table generator; `stepped_norm.h` is the correction
+that holds the level steady.
+
+**It is not random.** Every value is a deterministic function of the two knobs,
+the pattern length and the phase - the caller re-derives phase from the PLL on
+every tick and gets the same value back, which is what lets scenes crossfade
+without the pattern drifting. What the knobs move through is a space of
+patterns. That is also the constraint that shapes everything below: a phase-
+driven module cannot draw fresh numbers, so what it has instead of stochastic
+draws is the rule that **neighbouring knob positions stay related**.
+
+For what the knobs do musically, see [shapes.md](shapes.md).
+
+## How a value is built
+
+1. **Slots.** Each step has a slot, and each slot rides its own slow orbit at
+   its own whole-numbered rate. SHP advances all of them at once, which is why
+   the knob wraps.
+2. **Character levers**, all functions of the orbit: how the values are spread
+   (`ST_BEND`), how melodic the contour is (`ST_CONTOUR`), whether the cycle
+   repeats a quarter-length phrase (`ST_MOTIF`), which steps tie (`ST_SPIN`),
+   where the beat sits (`ST_SWING`). Each has a depth and a *rate* - how many
+   excursions it makes across its knob - so a given contour depth comes back
+   paired with a different shaper each time.
+3. **Ties.** A step either takes its own value or crossfades toward the previous
+   one. MOD moves the density and rotates which steps tie, so the tied set keeps
+   re-arranging instead of only growing.
+4. **The correction**, `out = value * gain + offset`, which holds the level
+   steady. See below.
+5. **Two reshapings** of the finished value, both driven by SHP: the bias, which
+   leans the distribution, and the terracing, which gathers values onto a few
+   levels. Both monotone.
+
+## The correction, and where it lives
+
+Short patterns collapse. With a handful of steps the orbits can all cross at
+once and the pattern flattens for a stretch of the knob - measured at length 2,
+18% of the sweep, in runs 15% wide. The correction is an affine per setting that
+lifts those without flattening the natural variation elsewhere.
+
+It has two halves, and they have opposite shapes, which is what decides where
+each one lives:
+
+| | shape | so it is |
+|---|---|---|
+| the centring constant | length-*in*dependent, expensive: an average across every pattern length of what would centre each | baked, 8 KB, `st_centre_table` |
+| the gain | length-dependent, cheap: one pattern's own extremes | measured at runtime |
+
+A channel knows only its own length, so it cannot work the constant out; it
+scans its own pattern for the gain, one slot per engine tick. That split is what
+replaced a 180 KB table of gains and offsets - and it made two things exact that
+the table could only approximate:
+
+- **The cycle boundary.** Every length lands on the shared constant at phase 0,
+  so pattern length can be switched on the wrap without a step in the signal.
+  Interpolating a table put 0.044 of a jump there; computing the anchor at the
+  real point puts none.
+- **The floor.** `ST_NORM_FLOOR` is now applied at the point being played rather
+  than arriving through a neighbourhood rule written for interpolation. Worst
+  span anywhere went 0.584 to 0.900 of the 2.0 range.
+
+### The scan
+
+`st_norm_scan()` measures one slot per tick and slews the result into place over
+20 ms. Three things about it are load-bearing:
+
+- **The engine hands out one measurement per tick**, in turn, across all
+  channels. A slot evaluation is nearly as expensive as the shape itself - a
+  step value walks a run of ties, each slot a four-tap contour and a motif fold
+  - so eight channels each measuring every tick cost 88 µs of a 310 µs tick on
+  the module, and the engine answered by dropping every third one.
+- **A standing channel stops measuring.** Re-measuring an unchanged pattern can
+  only give the answer it already has, so what the scan costs is a knob moving.
+- **A length change restarts the pass** rather than paying for a full
+  measurement in one tick, which would be three ticks' worth of budget and
+  happens once per encoder detent.
+
+The slew, not a latch to the cycle wrap: a slow LFO would otherwise play a whole
+cycle uncorrected after a knob move, and the table it replaced never waited for
+a wrap either.
+
+## What a small turn may do
+
+The rule is that a small turn **deforms** the pattern rather than replacing it.
+That is measured as **Spearman's rank correlation** between the patterns at *x*
+and *x* + 1% of travel: the steps keep their order.
+
+The measure matters as much as the bound. It used to be "no sample moves more
+than 0.35", which is the same thing while character comes from redrawing the
+pattern - and a different thing for a monotone reshaping, which cannot move a
+step out of order however far it moves the values. That is true by construction,
+so the old rule was charging full price for the one mechanism that is musically
+free, and it was the ceiling on how much a detent could do.
+
+| steps | worst rho, SHP | worst rho, MOD |
+|---|---|---|
+| 3-5 | -0.50 .. 0.70 | -0.50 .. 0.60 |
+| 8-16 | 0.71 .. 0.84 | 0.79 .. 0.90 |
+| 24-64 | 0.93 .. 0.96 | 0.94 .. 0.98 |
+
+Held at 0.55 from eight steps up. Short patterns are exempt: three values cannot
+change gently, and at three steps one swap inverts the order outright.
+
+A second, looser bound stays on how far a sample may move (0.60), because
+keeping the order is not sufficient on its own - a reshaping steep enough to
+throw a step across the range would pass the rank test and still be heard as a
+jump.
+
+## Things that were tried and are not here
+
+Written down because each cost a day and the numbers looked good on the way in.
+
+- **A smooth wander** (`drift`, octaves of a smoothed triangle in the phase
+  domain). Measured beautifully - DC exactly zero, no correction needed, 20 ns a
+  call - and sounded like a sine with harmonics, because that is what it is. A
+  waveform that closes on itself over one cycle *is* a Fourier series; smooth
+  means few harmonics; octave rates are harmonics 1, 2, 4 and 8. Inside one
+  phase-locked cycle the only routes to something that reads as random are
+  discontinuity or high harmonic order.
+- **A separate melodic mode.** Two routings of the same engine, one for notes
+  and one for modulation. The notes one was where this arrived from rather than
+  a second thing worth keeping - MOD left is gently eased and SHP centre is an
+  even distribution, which is where it lived.
+- **`ST_SPAN`**, a lever that ducked the peak-to-peak across SHP. Being a pure
+  gain it moved no character measurement at all; it only made the shape flatten
+  as the knob turned.
+- **Cutting `ST_MAX_ORBIT_RATE` to buy small-turn budget.** The worst turn goes
+  0.44 at rate 4, 0.51 at 3, 0.39 at 2, 0.37 at 1 - non-monotone, and barely
+  moving even where the slot values are nearly frozen. The worst case is not the
+  orbit.
+- **Snapping values to levels.** A staircase applied to a moving value is a
+  discontinuity - 0.23 of a jump at every crossing. The terracing compresses
+  each cell toward its centre instead.
+- **Caching orbit values across a run.** Slower: the compare and branch to read
+  the cache cost more than the triangle they save.
+
+## Measuring a change
+
+`tools/stepped_explore/` is the only thing that can judge one, because the
+obvious metrics mislead: the original sweep contained 400 distinct patterns at
+32 steps and still read as nothing happening. `from_c.py` reads the shipping C
+through `dump_pattern.c` and splits character into **steer** (what the knob
+commands) and **jitter** (what merely fluctuates), alongside the level figures.
+
+Read `char-st` rather than `steer` when only the correction changed: three of
+its features are level, and flattening those on purpose lowers `steer` while
+moving no character. Two features - `skew` and `clump` - exist because the rest
+are ordering-based and were blind to the reshapings entirely.
+
+## Known, and open
+
+- **Terracing costs level consistency.** It shrinks a pattern's peak-to-peak by
+  an amount depending on where its extremes fall against the cell boundaries -
+  variance rather than bias, so the mean span moves only 4% and no global
+  compensation reaches it. The span ratio along a SHP sweep is 2.3-2.4 against
+  1.7-2.0 without it. The fix, if wanted: let the scan measure the pattern
+  *through* the reshapings and set the gain from the output span.
+- **Swing on odd lengths** makes step 0 and step L-1 both wide at lengths 3 and
+  5 - a lopsided shuffle.
+- **The module ticks at ~3.3 kHz, not the nominal 4**, before any of this, and
+  drops about one tick in six. Unexplained, and worth its own look.

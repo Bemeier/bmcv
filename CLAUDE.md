@@ -133,7 +133,9 @@ Keep these current when the behaviour they describe changes.
 | [setup.md](docs/setup.md) | what to install per build target; both flash routes |
 | [live-module.md](docs/live-module.md) | WebUSB + ST-Link probe, snapshots, `RemoteInput`, the update page |
 | [pll.md](docs/pll.md) | the sync loop, and the measurement baseline to diff against |
+| [shapes.md](docs/shapes.md) | the three shape modes, and what SHP and MOD do in each |
 | [wavetable.md](docs/wavetable.md) | the SHP axis and its generated guarantees |
+| [stepped.md](docs/stepped.md) | the pattern space, its correction, and what a small turn may do |
 | [led-language.md](docs/led-language.md) | one fact per LED; the colour vocabulary |
 | [midi.md](docs/midi.md) | CC map, clock in/out, what is deliberately not sent |
 

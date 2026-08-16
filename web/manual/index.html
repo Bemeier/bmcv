@@ -128,7 +128,7 @@
 
         <dt><b class="ref">MOD</b> — the second axis</dt>
         <dd>Whatever the shape mode's second dimension is: wavetable skew,
-        stepped density, or the PWM envelope. Negative leans early,
+        stepped motion, or the PWM envelope. Negative leans early,
         positive leans late — except in stepped, where negative is busy
         and positive sparse. See <a href="#mod">MOD, mode by mode</a>.</dd>
 
@@ -277,57 +277,62 @@
         is a width, and it stops just off both end stops, at 2% and 98%, so the
         pulse never disappears entirely.</dd>
 
-        <dt>Stepped — <b class="ref">SHP</b> morphs the pattern</dt>
-        <dd>Cyclic, like the wavetable: &minus;1 and +1 are the same pattern.
-        It is not a bank of unrelated patterns to scroll past — a small turn
-        <b>deforms</b> what is playing rather than redrawing it. Four things
-        move together, each at its own rate across the knob, so they keep
-        recombining rather than repeating; they are listed opposite. Pattern
-        length is separate, and per channel rather than per scene — under
+        <dt>Stepped — <b class="ref">SHP</b> is the distribution</dt>
+        <dd>Cyclic, like the wavetable: &minus;1 and +1 are the same place. It is
+        not a bank of unrelated patterns to scroll past — a small turn
+        <b>deforms</b> what is playing rather than redrawing it. Nor is it
+        random: every value follows from the knobs, the length and the beat, so
+        the same setting is the same pattern every time. Pattern length is
+        separate, and per channel rather than per scene — under
         <b class="ref">STA</b>.</dd>
       </dl>
 
       <p class="note">Every wavetable setting reaches the full swing and has no
       DC offset, between slices as well as on them. <b>Phase 0 is the rising
-      edge</b> in every shape: it is where PWM opens its gate and where stepped
-      random starts step 0, so a square channel at a whole division is a clock
+      edge</b> in every shape: it is where PWM opens its gate and where the
+      stepped mode starts step 0, so a square channel at a whole division is a clock
       divider whose gate opens on the beat.</p>
     </div>
     <div>
-      <p>The three things <b class="ref">SHP</b> moves in stepped:</p>
+      <p>What <b class="ref">SHP</b> moves in stepped:</p>
 
       <dl>
-        <dt>Which values the steps hold</dt>
-        <dd>Every step rides its own slow orbit at its own rate, and
-        <b class="ref">SHP</b> advances all of them at once. This is the part
-        that was always there; the two below are what give the sweep a
-        direction rather than a series of fresh draws.</dd>
+        <dt>The distribution the values are drawn into</dt>
+        <dd>One traversal, ends first. Hard left the pattern sits <b>low with
+        the peaks still reaching</b> — modulation that stays down and
+        occasionally spikes. Centre is even. Hard right the values are pushed
+        away from the middle and bunch against both rails, which reads as
+        <b>gates</b> rather than as levels.</dd>
 
-        <dt>How those values are spread</dt>
-        <dd>Once across the sweep. Around a quarter turn left of centre the
-        middle of the range is compressed: small intervals, a calm line. A
-        quarter turn right it is expanded instead, values pushed out to the
-        extremes and the pattern reading as gates rather than as notes.</dd>
+        <dt>How the values are gathered</dt>
+        <dd>Five times across the sweep, values are pulled onto a few levels and
+        released again, so the pattern reads as <b>plateaus</b> at one point and
+        as a continuous spread a little further on. It is a squeeze, not a
+        quantiser: the ramps between the levels survive.</dd>
 
-        <dt>How melodic the contour is</dt>
-        <dd>Three times across the sweep. At its peaks each step is blended
-        toward a running average of the four before it, which reads as a walk;
-        between them the steps leap independently.</dd>
-
+        <dt>Which values the steps hold, and how they move</dt>
+        <dd>Underneath both, every step rides its own slow orbit and
+        <b class="ref">SHP</b> advances all of them at once, along with how the
+        values are spread and how melodic the contour is — each at its own rate,
+        so they keep recombining rather than repeating.</dd>
       </dl>
 
-      <p class="note">What <b class="ref">SHP</b> does <em>not</em> move is
-      level. Every setting of both knobs comes out at much the same swing and
-      centred on the same place, so a turn changes what the pattern does and not
-      how loud or how high it sits — that is what <b class="ref">AMP</b> and
-      <b class="ref">OFF</b> are for.</p>
+      <p class="note">A small turn <b>deforms</b> what is playing rather than
+      redrawing it, and that is a guarantee rather than a feeling: the steps keep
+      their order. The two reshapings above cannot break it however hard they are
+      driven, which is why they can be driven hard.</p>
 
-      <p class="note">Those landmarks are quarter turns rather than exact
-      positions, because <b class="ref">MOD</b> carries the pattern part of the
-      way round the same loop — see <b>a share of the orbit</b> below. Where a
-      given character sits on <b class="ref">SHP</b> therefore depends on where
-      <b class="ref">MOD</b> is, and that is the point: the two knobs cover a
-      surface, not two independent lines.</p>
+      <p class="note">What <b class="ref">SHP</b> does <em>not</em> move is how
+      loud it is. Every setting comes out at much the same swing, so a turn
+      changes what the pattern does and not how much of it there is — that is
+      what <b class="ref">AMP</b> is for. Where it <em>sits</em> is SHP's
+      business, which is the distribution above.</p>
+
+      <p class="note">Where a given character sits on <b class="ref">SHP</b>
+      depends on where <b class="ref">MOD</b> is, because MOD carries the pattern
+      part of the way round the same loop — see <b>a share of the orbit</b>
+      opposite. That is the point: the two knobs cover a surface, not two
+      independent lines.</p>
     </div>
   </div>
 </div>
@@ -352,31 +357,41 @@
         steep with a tail — which is what makes the negative side read as an
         envelope and not a triangle.</dd>
 
-        <dt>Stepped — <b>density</b>, and five things travelling with it</dt>
-        <dd>Density is the headline: how often a step ties to the previous value
-        instead of taking a new one. Fully left every step is new and the cycle
-        is at its busiest; 0 is the neutral ~30% the pattern was designed around;
-        fully right leaves a handful of long notes. This axis is
-        <b>monotone</b> — unlike <b class="ref">SHP</b> it does not wrap, and
-        &minus;1 and +1 are opposite ends rather than the same place. The tie is
-        a <b>crossfade</b>, not a switch, so a half-tied step is a smaller
+        <dt>Stepped — <b>motion</b>: density and the ease together</dt>
+        <dd>One axis from flowing to hard. Fully left every step takes a new
+        value and the curve is <b>fully slewed</b> between them — a continuous
+        wander with no edges in it. Fully right most steps tie to the one before
+        and the curve <b>sits still</b> on each, which is a handful of long held
+        notes. Density, the ease, which steps tie, how far the beat swings and
+        whether the cycle repeats a quarter-length phrase all move together
+        along it. This axis is <b>monotone</b> — unlike <b class="ref">SHP</b>
+        it does not wrap, and &minus;1 and +1 are opposite ends. The tie is a
+        <b>crossfade</b>, not a switch, so a half-tied step is a smaller
         interval and the knob moves the pattern everywhere on its travel rather
         than sitting still and then lurching.</dd>
       </dl>
 
       <p class="note">Where <b class="ref">MOD</b> leans something the sign
       means the same thing everywhere: <b>negative leans early, positive leans
-      late</b>. Stepped is the exception, because density has no early or
-      late — there negative is busy and positive sparse.</p>
+      late</b>. Stepped is the exception, because motion has no early or
+      late — there negative is busy and flowing, positive sparse and held.</p>
 
       <p class="note">A narrow pulse with <b class="ref">MOD</b> hard left is a
       percussive envelope locked to the beat.</p>
     </div>
     <div>
-      <p>The five that travel with density, and what each one changes about the
+      <p>The six that travel together, and what each one changes about the
       pattern:</p>
 
       <dl>
+        <dt>The ease</dt>
+        <dd>How much of a step is spent sitting at its value before moving to
+        the next. Fully left there is no sitting at all and the curve is always
+        travelling; fully right it holds for most of the step and moves in a
+        short slide. This is what turns a pattern into an <b>envelope</b> at one
+        end and a <b>held sequence</b> at the other, and it is why the same knob
+        carries the density: both are asking how much the curve stands still.</dd>
+
         <dt>Which steps tie</dt>
         <dd>Each step's threshold rotates as <b class="ref">MOD</b> moves, so the
         tied set keeps <b>re-arranging</b> rather than simply growing. Without
