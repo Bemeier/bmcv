@@ -75,6 +75,9 @@ void bmcv_poll_tasks();
 
 void bmcv_handle_gpio_exti(uint16_t GPIO_Pin);
 
-void bmcv_handle_txrx_complete(SPI_HandleTypeDef* hspi);
+// Called from the SPI completion interrupt. `now_us` comes from the caller for
+// the same reason bmcv_main()'s does: the timebase is the host's, and this file
+// does not reach for it.
+void bmcv_handle_txrx_complete(SPI_HandleTypeDef* hspi, uint32_t now_us);
 
 #endif /* INC_LIB_BMCV_H_ */

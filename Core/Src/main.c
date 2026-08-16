@@ -86,7 +86,7 @@ static void MX_TIM2_Init(void);
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) { bmcv_handle_gpio_exti(GPIO_Pin); }
 
-void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef* hspi) { bmcv_handle_txrx_complete(hspi); }
+void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef* hspi) { bmcv_handle_txrx_complete(hspi, __HAL_TIM_GET_COUNTER(&htim2)); }
 
 void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef* htim) { ws2811_dma_complete_callback(htim); }
 
