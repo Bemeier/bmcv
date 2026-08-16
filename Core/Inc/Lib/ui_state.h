@@ -26,7 +26,7 @@
 
 // A ring that shows a division pulses at the rate that division produces, so
 // the row says which channels are fast as well as which division each one is
-// on. Two pages do it: FRQ while it is being shown, and the stepped-random
+// on. Two pages do it: FRQ while it is being shown, and the stepped
 // pattern length, where the rate is the channel's own multiplied by the number
 // of steps.
 //

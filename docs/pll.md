@@ -101,7 +101,7 @@ full gain. The excursions above are that mechanism, triggered by the flipping.
 
 1. **The alignment period is latched.** `EngineState.channels_gcd[]`, taken once
    and re-taken only when the super-period wraps — the "do not change the grid
-   under the playhead" rule `sr_length_idx` already follows.
+   under the playhead" rule `st_length_idx` already follows.
 2. **The origin is latched with it** (`channels_beat_origin[]`), and the target
    is measured from it: `((beat_counter - origin) % gcd + beat_phase) * ratio`.
    This is what makes a change of period seamless. At the wrap the channel is at

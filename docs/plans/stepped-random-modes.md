@@ -1,4 +1,4 @@
-# Splitting stepped random into modes with distinct characters
+# Splitting stepped into modes with distinct characters
 
 Status: **phases 0 and 1 done and confirmed on hardware; phase 2 under way -
 the modulation mode is in and wants an ear.**
@@ -45,13 +45,13 @@ costs the user something to learn and to reach.
 
 Keep all of it. The engine is the pattern, and it is good: slot orbits, ties as
 a crossfade, gate rotation, swing, motif fold, easing, and the affine correction
-that holds level steady (peak-to-peak near 1.5, centred, `SR_NORM_EXP` 0.7 so
+that holds level steady (peak-to-peak near 1.5, centred, `ST_NORM_EXP` 0.7 so
 the natural loud/quiet ordering survives). Also keep the rule that gives a
 phase-driven module what stochastic draws give Random8: **neighbouring knob
 positions stay related** (0.35 per 1% of travel from eight steps up).
 
 What the engine does **not** have, and what the Random8 list is really about, is
-an **asymmetric value distribution**. `sr_shape_blend` is odd: it compresses or
+an **asymmetric value distribution**. `st_shape_blend` is odd: it compresses or
 expands the middle symmetrically. Low-bias-with-occasional-highs (Weibull,
 exponential, gamma) is exactly what it cannot make, and that is the family the
 feedback calls "modulation".
@@ -72,7 +72,7 @@ shapes:
   is shared and why the cycle boundary is seamless. A channel knows only its own
   length, so it cannot compute this.
 - **`g`, the gain, is length-dependent but cheap**: the pattern's own span,
-  which is `length` evaluations of `sr_step_value`.
+  which is `length` evaluations of `st_step_value`.
 
 So split them. **Tabulate `c` - `[16 MOD][128 orbit]` = 8 KB per mode, 24 KB for
 three - and compute `g` at runtime.** Per sample the scan is unaffordable;
@@ -88,7 +88,7 @@ What that buys, beyond 180 KB becoming 24 KB:
   while slot 0's value is computed at the real orbit, so the two no longer
   cancel. Compute the anchor and the gain at the real point and
   `out(0) = c` exactly, at every length, for free;
-- **`SR_GAIN_SUBS` goes.** Fitting each bin's gain to the worst point in its
+- **`ST_GAIN_SUBS` goes.** Fitting each bin's gain to the worst point in its
   neighbourhood exists only to survive interpolation, and it biases every
   setting upward. Level consistency improves as a side effect;
 - **the 88 KB of MOD resolution goes with it**, and the question of whether 8
@@ -104,7 +104,7 @@ What it costs, and how each is handled:
 - **Per-channel state**, ~6 floats: the committed gain, the accumulating
   min/max, and the scan index. The DC is not needed - it only ever fed `c`,
   which stays in the table. `EngineState` already owns per-channel latches like
-  `channels_length_idx`; this sits with them. `stepped_random()` stays pure: the
+  `channels_length_idx`; this sits with them. `stepped_shape()` stays pure: the
   correction becomes an argument, not a hidden cache.
 - **The correction changes while the pattern plays.** It must be constant across
   a cycle or the loop stops closing, so commit a completed scan on the wrap and
@@ -112,7 +112,7 @@ What it costs, and how each is handled:
 
 **The seam rule still holds, and the spike is where it is at risk.** The
 prototype must not be a simulator-only behaviour: it is one function,
-`sr_norm_compute(mode, length, mod, orbit)`, called directly by the sim and the
+`st_norm_compute(mode, length, mod, orbit)`, called directly by the sim and the
 native tests, and *memoised* by the firmware for as long as it still has a
 table. Same output, different cost. What must never happen is a mode that sounds
 right in the browser because the browser can afford something the module cannot;
@@ -135,7 +135,7 @@ re-drawing the values (jitter) rather than on the levers steering the character
 
 Three levers, to be set together against `from_c.py`:
 
-- **Slow the orbit.** `SR_MAX_ORBIT_RATE` is 4, so a slot's value can cross its
+- **Slow the orbit.** `ST_MAX_ORBIT_RATE` is 4, so a slot's value can cross its
   whole triangle four times in one sweep. Round one already measured the
   converse: widening it to 10 raised jitter 59% and lowered steer. Narrowing it
   frees budget and costs little.
@@ -181,7 +181,7 @@ Something to modulate with: sits low, rises occasionally, or gates.
   -> bimodal high/low (3, gate-like). One traversal so the ends are the extremes,
   with a faster second lever layered on it.
 - **MOD** - **motion**: `hold` from fully slewed to hard-stepped, crossed with
-  density. `hold` is hard-wired to `SR_HOLD_SMOOTH` in `channel.c` today and is
+  density. `hold` is hard-wired to `ST_HOLD_SMOOTH` in `channel.c` today and is
   the axis that turns a pattern into an envelope. Free of the correction either
   way - the span is measured on the step values and the eased curve passes
   exactly through them.
@@ -229,7 +229,7 @@ scene parameter so the crossfader can move it.
 The question was whether a small turn can be made to do more. It could not,
 because the rule holding it back was measuring the wrong thing.
 
-**`SR_SMALL_TURN_LIMIT` bounded how far any sample moved per 1% of travel.** That
+**`ST_SMALL_TURN_LIMIT` bounded how far any sample moved per 1% of travel.** That
 was the same thing as "the pattern was replaced" back when character came only
 from redrawing it. It is not the same thing for a monotone reshaping of the
 finished values, which cannot move a step out of order however far it moves the
@@ -267,7 +267,7 @@ still be heard as a jump.
 levels so the pattern reads as plateaus, driven at rate 5 across SHP. Not a
 quantiser - snapping is a staircase and a staircase applied to a moving value is
 a 0.23 click - so each cell is compressed toward its centre with a quartic. The
-first attempt used `sr_shape_blend` and moved values by 0.04, reaching no
+first attempt used `st_shape_blend` and moved values by 0.04, reaching no
 plateau at all.
 
 | SHP sweep | before | after |
@@ -301,7 +301,7 @@ reaches past it.
 - **PROB** - a channel advancing only sometimes is stochastic; we are phase
   driven and re-derive the value from the PLL every tick. The tie crossfade is
   the deterministic equivalent and we prefer it.
-- **DIVIDR + STEPS** - already covered. STEPS is `sr_length_idx`, including
+- **DIVIDR + STEPS** - already covered. STEPS is `st_length_idx`, including
   their "shrink and regrow without losing the loop" (slot values do not depend on
   the length). DIVIDR is the FRQ ratio.
 
@@ -315,7 +315,7 @@ happens, with what it will take to restore it:
 
 - flash: the correction may be computed the slow way everywhere, no table;
 - CPU: no budget on the stepped path;
-- `tests/test_stepped_random.c` may run against one mode while the others are
+- `tests/test_stepped.c` may run against one mode while the others are
   in flux, and the small-turn and level bounds may be loosened to explore;
 - `just check-all` may fail on the firmware target;
 - the manual and the LED language may lag.
@@ -339,8 +339,8 @@ half of this work.
 ## Staging
 
 **Phase 0 - make the correction callable. DONE.** The body of
-`gen_sr_table.c` now lives in `Core/Inc/Lib/stepped_random_norm.h`, split into
-`sr_norm_centre()` and `sr_gain_for()`; the generator calls it and reproduces
+`gen_stepped_table.c` now lives in `Core/Inc/Lib/stepped_norm.h`, split into
+`st_norm_centre()` and `st_gain_for()`; the generator calls it and reproduces
 the checked-in table byte for byte, so the refactor is provably nothing but a
 refactor.
 
@@ -369,7 +369,7 @@ Both invariants improve rather than survive. The seam is exact because nothing
 is interpolated any more. The span floor holds everywhere because it is now
 applied at the point itself: in the table it only ever arrived through the
 neighbourhood loop, which was written to survive interpolation and turned out to
-be carrying `SR_NORM_FLOOR` as a side effect - computing without it dropped the
+be carrying `ST_NORM_FLOOR` as a side effect - computing without it dropped the
 worst span through the 0.5 the suite holds, which is how this was found.
 
 The whole existing suite passes against the computed path.
@@ -446,12 +446,12 @@ alone. If a mode turns out to need no correction at all, say so and skip it.
 *Modulation is in* as `SHAPE_STEPPED_CTRL`, and it needed no new value path at
 all - a style is a routing of the knobs plus a reshaping of the finished value:
 
-- `sr_bias_map()` - two stages either way, no `powf`. Negative leans the values
+- `st_bias_map()` - two stages either way, no `powf`. Negative leans the values
   low while leaving the peaks reaching; positive bunches them against both
   rails. Applied *after* the correction, so the correction cannot centre the
   lean straight back out, and a monotone map of a levelled input is still
   levelled.
-- `sr_style_drive()` - SHP to the bias, MOD to the ease as well as the density.
+- `st_style_drive()` - SHP to the bias, MOD to the ease as well as the density.
   `hold` was already a parameter of the shape and free of the correction, so the
   smooth-to-gated axis cost nothing to add.
 
@@ -464,7 +464,7 @@ in the melodic one.
 Depth is set by the small-turn budget, and the finding there was that the *ease*
 spends it, not the bias: at full hold the curve sits on its step values instead
 of smoothing between them, so the worst turn is 0.34 of the 0.35 limit before
-the bias does anything. `SR_CTRL_BIAS` 0.6 fits under it.
+the bias does anything. `ST_CTRL_BIAS` 0.6 fits under it.
 
 Owed before this mode is finished: the manual, `docs/led-language.md`, and a
 listening pass.
@@ -503,6 +503,6 @@ the manual, and the test suite run per mode.
 3. **Does the drift mode belong in the stepped family at all?** It shares the
    knobs' meaning and the phase lock but not the value path, and on the panel it
    is closer to the wavetable mode. It is grouped here because it is random.
-4. Carried over, still live: is `SR_NORM_EXP` 0.7 the right amount of level
+4. Carried over, still live: is `ST_NORM_EXP` 0.7 the right amount of level
    normalisation; is 0.35 the right small-turn budget; and swing on odd lengths
    still makes step 0 and step L-1 both wide at lengths 3 and 5.

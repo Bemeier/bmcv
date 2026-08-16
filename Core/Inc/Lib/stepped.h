@@ -1,20 +1,20 @@
 #ifndef STEPPED_RANDOM_H
 #define STEPPED_RANDOM_H
 
-#include "stepped_random_norm.h"
+#include "stepped_norm.h"
 #include <stdint.h>
 
 // Fraction of each step spent sitting at its value before easing to the next.
 //
-// A property of the curve, not a menu: only SR_HOLD_SMOOTH is wired to a shape
+// A property of the curve, not a menu: only ST_HOLD_SMOOTH is wired to a shape
 // mode today, since three modes running the same algorithm at three hold values
 // made a long list out of one idea. The other two stay because they are what
 // the parameter's range means, and the tests exercise it - if hold comes back
 // it should come back as a per-channel setting like the pattern length, not as
 // more shape modes.
-#define SR_HOLD_SMOOTH 0.0f
-#define SR_HOLD_SEMI 0.5f
-#define SR_HOLD_HARD 0.85f
+#define ST_HOLD_SMOOTH 0.0f
+#define ST_HOLD_SEMI 0.5f
+#define ST_HOLD_HARD 0.85f
 
 // Where SHP and MOD go, which is most of what this shape is.
 //
@@ -29,9 +29,9 @@ typedef struct
   float hold;    // how much of a step is spent sitting at its value
   float bias;    // the distribution the finished value is reshaped into
   float terrace; // how far the values are gathered onto a few levels
-} SrDrive;
+} StDrive;
 
-SrDrive sr_drive(float shape, float mod);
+StDrive st_drive(float shape, float mod);
 
 // Two reshapings of the finished value, and between them most of what a turn of
 // SHP sounds like. Both are monotone, so neither moves a step out of order
@@ -44,12 +44,12 @@ SrDrive sr_drive(float shape, float mod);
 // Levels per unit, so 1.5 puts them at 0 and +/-2/3 - three plateaus across a
 // pattern that spans about 1.5. More would make each cell too narrow for a
 // value to be pulled anywhere audible, which is what 3 did.
-#define SR_TERRACE_LEVELS 1.5f
+#define ST_TERRACE_LEVELS 1.5f
 
 // Never the whole way. At full depth the map is flat across most of a cell,
 // which is a quantiser: neighbouring settings would collapse onto identical
 // patterns, the opposite of what this is for.
-#define SR_TERRACE_LIMIT 0.9f
+#define ST_TERRACE_LIMIT 0.9f
 
 // Gathers the values onto those levels, so the pattern reads as a few plateaus
 // rather than as a continuous spread.
@@ -61,24 +61,24 @@ SrDrive sr_drive(float shape, float mod);
 // the ramps between them survive, and because a cell still spans exactly its
 // own width the curve joins at every boundary.
 //
-// The compressor is a quartic rather than sr_shape_blend, which was the first
+// The compressor is a quartic rather than st_shape_blend, which was the first
 // try: halving a cell moves a value by a fraction of that cell's width and
 // nothing reaches a plateau - measured, the pattern's values shifted by 0.04 at
 // full depth. The quartic pulls eight times harder in the middle of a cell,
 // still reaches exactly its edge, and costs two multiplies.
-static inline float sr_terrace_map(float v, float depth)
+static inline float st_terrace_map(float v, float depth)
 {
   if (depth <= 0.0f)
   {
     return v;
   }
 
-  float u    = v * SR_TERRACE_LEVELS;
+  float u    = v * ST_TERRACE_LEVELS;
   float cell = (float) (int) (u + (u < 0.0f ? -0.5f : 0.5f)); // the nearest level
   float x    = 2.0f * (u - cell);                             // -1..1 across the cell
   float x2   = x * x;
 
-  return (cell + 0.5f * lerp(x, copysignf(x2 * x2, x), fclamp(depth, 0.0f, SR_TERRACE_LIMIT))) / SR_TERRACE_LEVELS;
+  return (cell + 0.5f * lerp(x, copysignf(x2 * x2, x), fclamp(depth, 0.0f, ST_TERRACE_LIMIT))) / ST_TERRACE_LEVELS;
 }
 
 // Leans the values, without moving the ends of the range.
@@ -87,7 +87,7 @@ static inline float sr_terrace_map(float v, float depth)
 //             sits down and occasionally spikes
 //   bias > 0  pushed away from the middle: gate-like, mostly high or mostly low
 //
-// This is the one thing the value path cannot do. sr_shape_blend() is odd - it
+// This is the one thing the value path cannot do. st_shape_blend() is odd - it
 // works on the middle symmetrically - so a distribution that leans, which is
 // what most of the useful modulation shapes are, was out of reach however the
 // levers were set. Applied after the correction for the same reason as the
@@ -95,7 +95,7 @@ static inline float sr_terrace_map(float v, float depth)
 // and centre it straight back out.
 //
 // Two stages each way, because one reaches u^2, which is a lean and not a bias.
-static inline float sr_bias_map(float v, float bias)
+static inline float st_bias_map(float v, float bias)
 {
   float u = 0.5f * (fclamp(v, -1.0f, 1.0f) + 1.0f);
 
@@ -116,11 +116,11 @@ static inline float sr_bias_map(float v, float bias)
 }
 
 // Number of steps for a given index, for callers that want to display it.
-// The index itself is a per-channel setting (ChannelConfig.sr_length_idx), and
+// The index itself is a per-channel setting (ChannelConfig.st_length_idx), and
 // the caller decides *when* a change to it takes effect - switching length
 // mid-cycle moves the step grid under the playhead and jumps the output by up
 // to a near-full-scale 1.8 of 2.0.
-int sr_length_for_index(int length_idx);
+int st_length_for_index(int length_idx);
 
 // Rhythmic random shape: a pattern of random values, locked to the beat.
 //
@@ -139,10 +139,10 @@ int sr_length_for_index(int length_idx);
 //                      swings, whether the cycle repeats a quarter-length
 //                      phrase, and the ease all move together along it. Not
 //                      periodic - its ends are opposite ends.
-//   length_idx         pattern length; see sr_length_for_index()
+//   length_idx         pattern length; see st_length_for_index()
 //   hold        [0,1)  how much of a step is spent sitting at its value. A
 //                      parameter here because the shape is general, but a
-//                      channel does not set it: sr_drive() takes it from MOD.
+//                      channel does not set it: st_drive() takes it from MOD.
 //
 // Returns [-1,1]. Stateless and deterministic: the same arguments always give
 // the same value, which is what lets the caller re-derive phase from the PLL
@@ -157,23 +157,23 @@ int sr_length_for_index(int length_idx);
 // length - so slot 0 reads the same at every length, and the correction's
 // constant is shared by every length too. That is what makes changing length at
 // a cycle boundary seamless.
-float stepped_random(float phase, float shape, float mod, int length_idx, float hold);
+float stepped_shape(float phase, float shape, float mod, int length_idx, float hold);
 
 // The same shape, told how it is driven and what its correction is instead of
 // working either out.
 //
 // Working it out means measuring the whole pattern - `length` slot evaluations
 // - which is affordable once but not four thousand times a second per channel.
-// So the engine keeps an SrScan per channel, spreads that measurement over the
+// So the engine keeps an StScan per channel, spreads that measurement over the
 // cycle, and passes the result in here. Everything else is identical; at a
 // standing setting the two agree exactly.
-float stepped_random_with(float phase, float shape, float mod, int length_idx, const SrDrive* drive, const SrNorm* norm);
+float stepped_shape_with(float phase, float shape, float mod, int length_idx, const StDrive* drive, const StNorm* norm);
 
 // The correction for one setting, measured in full. O(length): for tests,
 // tools, and the moments where a channel cannot wait for a scan - the first
 // tick in a stepped mode, and a change of pattern length, which swaps the whole
 // pattern at once.
-SrNorm sr_norm_exact(float shape, float mod, int length_idx);
+StNorm st_norm_exact(float shape, float mod, int length_idx);
 
 // A channel's rolling measurement of its own pattern.
 //
@@ -181,8 +181,8 @@ SrNorm sr_norm_exact(float shape, float mod, int length_idx);
 // what makes the first tick take the exact route.
 typedef struct
 {
-  SrNorm norm;                // what the shape is being corrected by now
-  SrNorm target;              // what the last completed pass asked for
+  StNorm norm;                // what the shape is being corrected by now
+  StNorm target;              // what the last completed pass asked for
   float lo, hi;               // the pass in progress
   float anchor;               // slot 0, captured when the pass starts on it
   float shape_seen, mod_seen; // where the knobs were on the last tick
@@ -190,10 +190,10 @@ typedef struct
   int8_t length_idx;
   uint8_t measured;
   uint8_t moved; // the knobs moved during the pass in progress
-} SrScan;
+} StScan;
 
 // One slot of the measurement, to be called once per engine tick per stepped
-// channel before stepped_random_with().
+// channel before stepped_shape_with().
 //
 // Costs nothing once a pattern is standing still and its measurement has
 // settled: re-measuring an unchanged pattern can only produce the answer it
@@ -212,6 +212,6 @@ typedef struct
 // changed under it - a length switch, a fast turn of SHP - moves the level
 // smoothly instead of stepping it. `dt_s` is the tick's own length, because the
 // engine has to be right at whatever rate its host ticks it.
-void sr_norm_scan(SrScan* s, float shape, float mod, int length_idx, float dt_s, int may_measure);
+void st_norm_scan(StScan* s, float shape, float mod, int length_idx, float dt_s, int may_measure);
 
 #endif

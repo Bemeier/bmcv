@@ -18,7 +18,7 @@
 // ---------------------------------------------------------------------------
 
 // v2, up to and including "Review pass: enforce the layering". ChannelConfig
-// had not yet gained sr_length_idx or clamp_mode, and CH_PARAM_AMP was half the
+// had not yet gained st_length_idx or clamp_mode, and CH_PARAM_AMP was half the
 // swing it now is - channel.c multiplied it by 0.5.
 typedef struct __attribute__((packed))
 {
@@ -138,7 +138,7 @@ static void migrate_v2_to_v3(const EngineConfigV2* old, EngineConfigV4* cfg)
     // The two fields v3 appended. Zero is the default for both - the shortest
     // pattern length and the widest output clamp - which is what a channel did
     // before either setting existed.
-    ch->sr_length_idx = 0;
+    ch->st_length_idx = 0;
     ch->clamp_mode    = CLAMP_BI_10;
 
     for (uint8_t s = 0; s < N_SCENES; s++)

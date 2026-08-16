@@ -80,6 +80,6 @@ runs at 4kHz across eight channels.
   comparing a press against an event timestamp depends on that.
 - Pattern length and the PLL alignment period are both latched and re-taken
   only on a cycle wrap. Changing either mid-cycle jumps the output.
-- `stepped_random` is stateless and deterministic by contract — same arguments,
+- `stepped` is stateless and deterministic by contract — same arguments,
   same value — which is what lets the caller re-derive phase from the PLL every
   tick and blend scenes without drift.

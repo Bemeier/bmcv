@@ -1,7 +1,7 @@
 #include "config_validate.h"
 #include "helpers.h"
 #include "hw_setup.h"
-#include "stepped_random_table.h" // SR_LENGTH_COUNT
+#include "stepped_table.h" // ST_LENGTH_COUNT
 #include <string.h>
 
 // -1 is the established "unassigned" sentinel for routing fields, and the
@@ -75,7 +75,7 @@ void config_validate(EngineConfig* cfg)
     ch->quantize_mode  = (int8_t) iclamp(ch->quantize_mode, 0, QUANTIZE_MODE_COUNT - 1);
     ch->input_amp_mode = (int8_t) iclamp(ch->input_amp_mode, 0, INPUT_AMP_MODE_COUNT - 1);
 
-    ch->sr_length_idx = (int8_t) iclamp(ch->sr_length_idx, 0, SR_LENGTH_COUNT - 1);
+    ch->st_length_idx = (int8_t) iclamp(ch->st_length_idx, 0, ST_LENGTH_COUNT - 1);
     ch->clamp_mode    = (int8_t) iclamp(ch->clamp_mode, 0, CLAMP_MODE_COUNT - 1);
 
     ch->src_input = valid_source_or_unassigned(ch->src_input, N_INPUTS);

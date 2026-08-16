@@ -11,7 +11,7 @@ with a different shaper and a different span each time. Cyclicity survives
 because the rates are integers - every lever is home again at the end of the
 knob.
 
-The drives are all computed once per sample, in sr_morph(); the expensive work
+The drives are all computed once per sample, in st_morph(); the expensive work
 is per-slot. So layering costs essentially nothing, and the real budget being
 spent is how far a small turn of the knob is allowed to move the pattern.
 
@@ -21,8 +21,8 @@ setting sounds equally emphatic. Letting it breathe folds into the normalisation
 table at generation time, so it costs nothing at runtime and keeps slot 0 exact.
 """
 import numpy as np
-import srmodel as M
-from srmodel import tri, SLOT_BASE, SLOT_RATE, SLOT_GATE, SR_MAX_LENGTH, hash01, _seed
+import stmodel as M
+from stmodel import tri, SLOT_BASE, SLOT_RATE, SLOT_GATE, ST_MAX_LENGTH, hash01, _seed
 from final import (SLOT_GATE2, scurve, shape_blend, dof_fade, tie_fade,
                    TAPS, TIE_WIDTH, MOTIF_MIN_LENGTH)
 
@@ -101,7 +101,7 @@ class Layered(M.Engine):
     def gates(self, shape, mod, length):
         d = 0.5 * (mod + 1.0)
         g = 0.5 * (1.0 + tri(SLOT_GATE[:length] + d * self.p["spin"] * (1.0 + SLOT_GATE2[:length])))
-        g[::M.SR_JUMP_GRID] = 1.0
+        g[::M.ST_JUMP_GRID] = 1.0
         return g
 
     def tie_weights(self, shape, mod, length):
@@ -109,7 +109,7 @@ class Layered(M.Engine):
         p = self.hold_probability(mod, length)
         w = M.smoothstep(np.clip((g - p) / TIE_WIDTH + 0.5, 0.0, 1.0))
         w = 1.0 - (1.0 - w) * tie_fade(length)
-        w[::M.SR_JUMP_GRID] = 1.0
+        w[::M.ST_JUMP_GRID] = 1.0
         return w
 
     def step_widths(self, shape, mod, length):
@@ -136,12 +136,12 @@ class Layered(M.Engine):
 
     # --- normalisation, with span folded in -------------------------------
     def norm_for(self, shape, mod, length_idx):
-        self._length = M.SR_LENGTHS[length_idx]
-        saved, M.SR_NORM_MAX_GAIN = M.SR_NORM_MAX_GAIN, self.p["norm_max_gain"]
+        self._length = M.ST_LENGTHS[length_idx]
+        saved, M.ST_NORM_MAX_GAIN = M.ST_NORM_MAX_GAIN, self.p["norm_max_gain"]
         try:
             g, off = super().norm_for(shape, mod, length_idx)
         finally:
-            M.SR_NORM_MAX_GAIN = saved
+            M.ST_NORM_MAX_GAIN = saved
         # Span scales about the anchor, which is slot 0, so slot 0 is untouched
         # and length switching stays seamless. Folded into the same affine the
         # table already carries: free at runtime.
@@ -154,12 +154,12 @@ class Layered(M.Engine):
         # worst corner of the parameter space could survive. Where there is
         # headroom the lever gets its full depth; where there is not, it gets
         # what there is.
-        vals, _, _ = self.steps(shape, mod, M.SR_LENGTHS[length_idx])
+        vals, _, _ = self.steps(shape, mod, M.ST_LENGTHS[length_idx])
         raw = float(np.ptp(vals))
         if raw * g > 1e-6:
             s = max(s, min(1.0, self.p["span_floor"] / (raw * g)))
         return g * s, anchor * (1.0 - g * s)
 
     def pattern_anchor(self, shape, mod, length_idx):
-        vals, _, _ = self.steps(shape, mod, M.SR_LENGTHS[length_idx])
+        vals, _, _ = self.steps(shape, mod, M.ST_LENGTHS[length_idx])
         return vals[0]

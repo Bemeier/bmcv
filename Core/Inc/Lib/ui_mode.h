@@ -38,13 +38,13 @@ typedef enum
 typedef enum
 {
   ENC_NONE = 0,
-  ENC_PARAM,     // the selected scene parameter
-  ENC_SHAPE,     // waveshape mode
-  ENC_QUANT,     // quantize mode
-  ENC_AMPMODE,   // input cross-modulation mode
-  ENC_MUTE,      // right unmutes, left mutes
-  ENC_SR_LENGTH, // stepped-random pattern length
-  ENC_CLAMP,     // output range limit
+  ENC_PARAM,          // the selected scene parameter
+  ENC_SHAPE,          // waveshape mode
+  ENC_QUANT,          // quantize mode
+  ENC_AMPMODE,        // input cross-modulation mode
+  ENC_MUTE,           // right unmutes, left mutes
+  ENC_STEPPED_LENGTH, // stepped pattern length
+  ENC_CLAMP,          // output range limit
 } EncoderTarget;
 
 // What a channel's LED shows before the context and confirmation layers go over
@@ -62,7 +62,7 @@ typedef enum
   CHBASE_QUANTIZE,
   CHBASE_AMPMODE,
   CHBASE_MUTE,
-  CHBASE_SR_LENGTH,
+  CHBASE_STEPPED_LENGTH,
   CHBASE_CLAMP,
   CHBASE_TINT, // the mode's own colour; see tint_hue
 } ChannelBaseLayer;

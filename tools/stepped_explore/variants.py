@@ -4,17 +4,17 @@ Every one keeps: cyclic in the parameter, slot 0 length-independent, the cycle
 closing on itself, O(1) work per sample.
 """
 import numpy as np
-import srmodel as M
-from srmodel import Engine, tri, SLOT_BASE, SLOT_RATE, SLOT_GATE, SR_MAX_LENGTH, hash01, _seed
+import stmodel as M
+from stmodel import Engine, tri, SLOT_BASE, SLOT_RATE, SLOT_GATE, ST_MAX_LENGTH, hash01, _seed
 
 M32 = 0xFFFFFFFF
 
 # Extra per-slot tables the variants need. Same generator style as the shipping
-# table, so they cost a build-time addition to stepped_random_table.h.
-SLOT_STAGGER = np.array([hash01(_seed(i) ^ 0x27D4EB2F) for i in range(SR_MAX_LENGTH)])
-SLOT_GATE2 = np.array([hash01(_seed(i) ^ 0x165667B1) for i in range(SR_MAX_LENGTH)])
-SLOT_BASE2 = np.array([hash01(_seed(i) ^ 0x9E3779B1) for i in range(SR_MAX_LENGTH)])
-SLOT_RATE2 = np.array([1 + int(hash01(_seed(i) ^ 0x2545F491) * 4) for i in range(SR_MAX_LENGTH)],
+# table, so they cost a build-time addition to stepped_table.h.
+SLOT_STAGGER = np.array([hash01(_seed(i) ^ 0x27D4EB2F) for i in range(ST_MAX_LENGTH)])
+SLOT_GATE2 = np.array([hash01(_seed(i) ^ 0x165667B1) for i in range(ST_MAX_LENGTH)])
+SLOT_BASE2 = np.array([hash01(_seed(i) ^ 0x9E3779B1) for i in range(ST_MAX_LENGTH)])
+SLOT_RATE2 = np.array([1 + int(hash01(_seed(i) ^ 0x2545F491) * 4) for i in range(ST_MAX_LENGTH)],
                       dtype=float)
 
 
@@ -26,7 +26,7 @@ class A1(Engine):
         super().__init__()
         self.name = f"A1 rate spread (max {max_rate})"
         self.rate = np.array([min(max_rate, 1 + int(hash01(_seed(i) ^ 0x85EBCA6B) * max_rate))
-                              for i in range(SR_MAX_LENGTH)], dtype=float)
+                              for i in range(ST_MAX_LENGTH)], dtype=float)
 
     def slot_values(self, slots, shape, mod):
         return tri(SLOT_BASE[slots] + self.morph(shape) * self.rate[slots])
@@ -129,7 +129,7 @@ class A4(Engine):
 
 # --------------------------------------------------------------------------
 # A6 - staggered morph. Each slot steps through its orbit on its own schedule
-# instead of every slot sliding at once: the module's own stepped-random idea,
+# instead of every slot sliding at once: the module's own stepped idea,
 # applied in the morph domain.
 #
 #   u = m*K + stagger_i, q = (floor(u) + eased frac) / K, v = tri(base + q*rate)
@@ -198,7 +198,7 @@ class B1(Engine):
     def gates(self, shape, mod, length):
         d = 0.5 * (mod + 1.0)
         g = 0.5 * (1.0 + tri(SLOT_GATE[:length] + d * self.spin * (1.0 + SLOT_GATE2[:length])))
-        g[::M.SR_JUMP_GRID] = 1.0
+        g[::M.ST_JUMP_GRID] = 1.0
         return g
 
 
@@ -208,8 +208,8 @@ class B2(Engine):
 
     def hold_probability(self, mod, length):
         d = 0.5 * (1.0 - np.cos(np.pi * (mod + 1.0)))  # 0 at -1 and +1, 1 in the middle
-        p = M.SR_HOLD_MAX * d
-        return float(p * np.clip((length - 2) / M.SR_HOLD_FADE_IN_STEPS, 0.0, 1.0))
+        p = M.ST_HOLD_MAX * d
+        return float(p * np.clip((length - 2) / M.ST_HOLD_FADE_IN_STEPS, 0.0, 1.0))
 
 
 # B3 - swing: MOD skews step widths. Widths still sum to 1, so the loop closes.
@@ -238,7 +238,7 @@ class B4(Engine):
     def hold_probability(self, mod, length):
         if self.keep_density:
             return super().hold_probability(mod, length)
-        return 0.30 * float(np.clip((length - 2) / M.SR_HOLD_FADE_IN_STEPS, 0.0, 1.0))
+        return 0.30 * float(np.clip((length - 2) / M.ST_HOLD_FADE_IN_STEPS, 0.0, 1.0))
 
     def slot_values(self, slots, shape, mod):
         m = self.morph(shape)
@@ -257,7 +257,7 @@ class B5(Engine):
     def gates(self, shape, mod, length):
         d = 0.5 * (mod + 1.0)
         g = 0.5 * (1.0 + tri(SLOT_GATE[:length] + d * self.spin * (1.0 + SLOT_GATE2[:length])))
-        g[::M.SR_JUMP_GRID] = 1.0
+        g[::M.ST_JUMP_GRID] = 1.0
         return g
 
 
@@ -276,7 +276,7 @@ class B6(Engine):
     def gates(self, shape, mod, length):
         d = 0.5 * (mod + 1.0)
         g = 0.5 * (1.0 + tri(SLOT_GATE[:length] + d * self.spin * (1.0 + SLOT_GATE2[:length])))
-        g[::M.SR_JUMP_GRID] = 1.0
+        g[::M.ST_JUMP_GRID] = 1.0
         return g
 
     def step_widths(self, shape, mod, length):
@@ -324,7 +324,7 @@ class C(Engine):
     def gates(self, shape, mod, length):
         d = 0.5 * (mod + 1.0)
         g = 0.5 * (1.0 + tri(SLOT_GATE[:length] + d * self.spin * (1.0 + SLOT_GATE2[:length])))
-        g[::M.SR_JUMP_GRID] = 1.0
+        g[::M.ST_JUMP_GRID] = 1.0
         return g
 
     def step_widths(self, shape, mod, length):
@@ -354,8 +354,8 @@ class C(Engine):
 # moves the pattern continuously everywhere on its travel, and a half-tied step
 # is musically a smaller interval rather than a glitch.
 #
-# The look-back stays O(1): every SR_JUMP_GRID-th slot is still pinned fully
-# open, so a chain of partial ties is at most SR_JUMP_GRID long.
+# The look-back stays O(1): every ST_JUMP_GRID-th slot is still pinned fully
+# open, so a chain of partial ties is at most ST_JUMP_GRID long.
 # --------------------------------------------------------------------------
 TIE_WIDTH = 0.35
 
@@ -370,9 +370,9 @@ class SoftTieMixin:
         # Short patterns fade the tie out, for the same reason the probability
         # is faded: with three steps in a cycle even a partial tie flattens too
         # much of it to be worth having.
-        fade = float(np.clip((length - 2) / M.SR_HOLD_FADE_IN_STEPS, 0.0, 1.0))
+        fade = float(np.clip((length - 2) / M.ST_HOLD_FADE_IN_STEPS, 0.0, 1.0))
         w = 1.0 - (1.0 - w) * fade
-        w[::M.SR_JUMP_GRID] = 1.0   # pinned slots always take their own value
+        w[::M.ST_JUMP_GRID] = 1.0   # pinned slots always take their own value
         return w
 
     def steps(self, shape, mod, length):
@@ -412,7 +412,7 @@ class B8(SoftTieMixin, Engine):
     def gates(self, shape, mod, length):
         d = 0.5 * (mod + 1.0)
         g = 0.5 * (1.0 + tri(SLOT_GATE[:length] + d * self.spin * (1.0 + SLOT_GATE2[:length])))
-        g[::M.SR_JUMP_GRID] = 1.0
+        g[::M.ST_JUMP_GRID] = 1.0
         return g
 
     def step_widths(self, shape, mod, length):
@@ -458,7 +458,7 @@ class C2(SoftTieMixin, Engine):
     def gates(self, shape, mod, length):
         d = 0.5 * (mod + 1.0)
         g = 0.5 * (1.0 + tri(SLOT_GATE[:length] + d * self.spin * (1.0 + SLOT_GATE2[:length])))
-        g[::M.SR_JUMP_GRID] = 1.0
+        g[::M.ST_JUMP_GRID] = 1.0
         return g
 
     def step_widths(self, shape, mod, length):
@@ -514,7 +514,7 @@ class C3(SoftTieMixin, Engine):
     def gates(self, shape, mod, length):
         d = 0.5 * (mod + 1.0)
         g = 0.5 * (1.0 + tri(SLOT_GATE[:length] + d * self.spin * (1.0 + SLOT_GATE2[:length])))
-        g[::M.SR_JUMP_GRID] = 1.0
+        g[::M.ST_JUMP_GRID] = 1.0
         return g
 
     def step_widths(self, shape, mod, length):
@@ -582,7 +582,7 @@ class C4(SoftTieMixin, Engine):
     def gates(self, shape, mod, length):
         d = 0.5 * (mod + 1.0)
         g = 0.5 * (1.0 + tri(SLOT_GATE[:length] + d * self.spin * (1.0 + SLOT_GATE2[:length])))
-        g[::M.SR_JUMP_GRID] = 1.0
+        g[::M.ST_JUMP_GRID] = 1.0
         return g
 
     def step_widths(self, shape, mod, length):
@@ -656,7 +656,7 @@ class C5(SoftTieMixin, Engine):
     def gates(self, shape, mod, length):
         d = 0.5 * (mod + 1.0)
         g = 0.5 * (1.0 + tri(SLOT_GATE[:length] + d * self.spin * (1.0 + SLOT_GATE2[:length])))
-        g[::M.SR_JUMP_GRID] = 1.0
+        g[::M.ST_JUMP_GRID] = 1.0
         return g
 
     def step_widths(self, shape, mod, length):

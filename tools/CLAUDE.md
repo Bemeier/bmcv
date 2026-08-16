@@ -12,7 +12,7 @@ properties these guarantee are asserted, not assumed.
 | Recipe | Generator | Writes |
 |---|---|---|
 | `just wavetable` | `gen_wavetable.py` | `Core/{Inc,Src}/Lib/wavetables.{h,c}` + `docs/images/wavetable-*.svg` |
-| `just sr-table` | `gen_sr_table.c` | `Core/Inc/Lib/stepped_random_table.h` |
+| `just stepped-table` | `gen_stepped_table.c` | `Core/Inc/Lib/stepped_table.h` |
 | `just panel` | `gen_panel_spec.py` (+ `dump_hw_setup.c`) | `panel/`, `web/panel.json`, `vcv/res/` |
 | `just layout-check` | `dump_layout.py` + `gen_layout_asserts.py` | `sim/include/layout_target.h` |
 | `just vcv-compdb` | `gen_compdb.py` | `vcv/compile_commands.json` |
@@ -27,7 +27,7 @@ Notes that matter:
   whole family by construction and were not true of a table edited slice by
   slice. `just wavetable --report` prints the axis as sparklines, writing
   nothing.
-- **`gen_sr_table.c` includes `Core/Inc/Lib/stepped_random_pattern.h`**, the
+- **`gen_stepped_table.c` includes `Core/Inc/Lib/stepped_pattern.h`**, the
   same value path the firmware runs, so the normalisation cannot be aimed at a
   pattern the module no longer plays. It used to carry its own copy; do not
   reintroduce one.
@@ -42,13 +42,13 @@ Notes that matter:
 
 ## Offline harnesses
 
-**`sr_explore/`** — the measurement harness `stepped_random()`'s two knobs were
+**`stepped_explore/`** — the measurement harness `stepped_shape()`'s two knobs were
 tuned with. Keep it: it is the only thing that can judge a change to that
 algorithm, and the obvious metrics actively mislead (the old sweep contained
 400 distinct patterns at 32 steps and still read as nothing happening).
-`srmodel.py` replicates the shipping C to 1.8e-6; `verify_c.py` checks they
-still agree; `invariants.py` mirrors `tests/test_stepped_random.c`. Read
-`sr_explore/README.md` before touching it — `character.scale()` must run before
+`stmodel.py` replicates the shipping C to 1.8e-6; `verify_c.py` checks they
+still agree; `invariants.py` mirrors `tests/test_stepped.c`. Read
+`stepped_explore/README.md` before touching it — `character.scale()` must run before
 the first variant or the numbers are not comparable.
 
 **`render_channel.c`** (`just render`) — renders a channel to a WAV. Built by

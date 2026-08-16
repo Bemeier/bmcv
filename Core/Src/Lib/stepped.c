@@ -1,8 +1,8 @@
-#include "stepped_random.h"
+#include "stepped.h"
 #include "helpers.h"
-#include "stepped_random_norm.h"
-#include "stepped_random_pattern.h"
-#include "stepped_random_table.h"
+#include "stepped_norm.h"
+#include "stepped_pattern.h"
+#include "stepped_table.h"
 
 // Rhythmic random LFO.
 //
@@ -20,57 +20,57 @@
 // point. The result is a slewed sample-and-hold: audibly rhythmic, but a
 // smooth curve with no clicks however hard the steps are set.
 //
-// What each step *shows* lives in stepped_random_pattern.h, shared with the
+// What each step *shows* lives in stepped_pattern.h, shared with the
 // table generator. This file is the part that only the runtime needs: finding
 // the step a phase lands in, easing between two of them, and applying the
 // correction the generator worked out.
 
-// sr_lengths[] (steps per cycle) lives in the generated table so the
+// st_lengths[] (steps per cycle) lives in the generated table so the
 // normalisation data cannot drift out of step with it. It is curated rather
 // than every integer, so each knob position is musically distinct; the odd
 // lengths (3, 5, 7) drift against a 4/4 clock and give polyrhythms rather than
 // a locked loop.
 
-static const SrSlots sr_slots = {sr_slot_base, sr_slot_rate, sr_slot_gate, sr_slot_gate2};
+static const StSlots st_slots = {st_slot_base, st_slot_rate, st_slot_gate, st_slot_gate2};
 
-// sr_step_value() keeps one tie weight per slot of a run on the stack.
-_Static_assert(SR_JUMP_GRID <= SR_MAX_JUMP_GRID, "a run of ties must fit the weight buffer");
+// st_step_value() keeps one tie weight per slot of a run on the stack.
+_Static_assert(ST_JUMP_GRID <= ST_MAX_JUMP_GRID, "a run of ties must fit the weight buffer");
 
-int sr_length_for_index(int length_idx) { return sr_lengths[iclamp(length_idx, 0, SR_LENGTH_COUNT - 1)]; }
+int st_length_for_index(int length_idx) { return st_lengths[iclamp(length_idx, 0, ST_LENGTH_COUNT - 1)]; }
 
 // Where the centring constant is read from: the one part of the correction a
 // channel cannot work out for itself, because it is an average across every
 // pattern length and a channel knows only its own. Interpolated on both bin
 // axes; both endpoints of MOD sit exactly on a bin, so the top one is only ever
 // reached exactly.
-static float sr_centre_at(float mod, float morph)
+static float st_centre_at(float mod, float morph)
 {
-  float bin_pos  = morph * (float) SR_NORM_BINS;
+  float bin_pos  = morph * (float) ST_NORM_BINS;
   int bin        = (int) bin_pos;
   float bin_frac = bin_pos - (float) bin;
-  bin            = bin % SR_NORM_BINS;
-  int bin_next   = (bin + 1) % SR_NORM_BINS;
+  bin            = bin % ST_NORM_BINS;
+  int bin_next   = (bin + 1) % ST_NORM_BINS;
 
-  float mod_pos  = (fclamp(mod, -1.0f, 1.0f) + 1.0f) * 0.5f * (float) (SR_MOD_BINS - 1);
+  float mod_pos  = (fclamp(mod, -1.0f, 1.0f) + 1.0f) * 0.5f * (float) (ST_MOD_BINS - 1);
   int mod_bin    = (int) mod_pos;
   float mod_frac = mod_pos - (float) mod_bin;
-  if (mod_bin >= SR_MOD_BINS - 1)
+  if (mod_bin >= ST_MOD_BINS - 1)
   {
-    mod_bin  = SR_MOD_BINS - 2;
+    mod_bin  = ST_MOD_BINS - 2;
     mod_frac = 1.0f;
   }
 
-  return lerp(lerp(sr_centre_table[mod_bin][bin], sr_centre_table[mod_bin][bin_next], bin_frac),
-              lerp(sr_centre_table[mod_bin + 1][bin], sr_centre_table[mod_bin + 1][bin_next], bin_frac), mod_frac);
+  return lerp(lerp(st_centre_table[mod_bin][bin], st_centre_table[mod_bin][bin_next], bin_frac),
+              lerp(st_centre_table[mod_bin + 1][bin], st_centre_table[mod_bin + 1][bin_next], bin_frac), mod_frac);
 }
 
-static const SrNormCtx sr_ctx = {&sr_slots, sr_lengths, SR_LENGTH_COUNT, SR_JUMP_GRID, SR_HOLD_MAX};
+static const StNormCtx st_ctx = {&st_slots, st_lengths, ST_LENGTH_COUNT, ST_JUMP_GRID, ST_HOLD_MAX};
 
-SrNorm sr_norm_exact(float shape, float mod, int length_idx)
+StNorm st_norm_exact(float shape, float mod, int length_idx)
 {
-  length_idx = iclamp(length_idx, 0, SR_LENGTH_COUNT - 1);
-  SrMorph m  = sr_morph(shape, mod, sr_lengths[length_idx], SR_HOLD_MAX);
-  return sr_norm_at(&sr_ctx, sr_lengths[length_idx], mod, m.orbit, sr_centre_at(mod, m.morph));
+  length_idx = iclamp(length_idx, 0, ST_LENGTH_COUNT - 1);
+  StMorph m  = st_morph(shape, mod, st_lengths[length_idx], ST_HOLD_MAX);
+  return st_norm_at(&st_ctx, st_lengths[length_idx], mod, m.orbit, st_centre_at(mod, m.morph));
 }
 
 // How long the correction takes to follow a pattern that changed under it.
@@ -79,16 +79,16 @@ SrNorm sr_norm_exact(float shape, float mod, int length_idx)
 // pattern and the engine's usual rate - so a comparable smoothing reads as the
 // level settling rather than as two settings being crossfaded, and a pass that
 // straddled a length switch cannot step the output.
-#define SR_NORM_SMOOTH_S 0.02f
+#define ST_NORM_SMOOTH_S 0.02f
 
 // Near enough that slewing further cannot be heard, and the point at which a
 // standing channel is allowed to stop working.
-#define SR_NORM_SETTLED 1e-6f
+#define ST_NORM_SETTLED 1e-6f
 
-void sr_norm_scan(SrScan* s, float shape, float mod, int length_idx, float dt_s, int may_measure)
+void st_norm_scan(StScan* s, float shape, float mod, int length_idx, float dt_s, int may_measure)
 {
-  length_idx = (int8_t) iclamp(length_idx, 0, SR_LENGTH_COUNT - 1);
-  int length = sr_lengths[length_idx];
+  length_idx = (int8_t) iclamp(length_idx, 0, ST_LENGTH_COUNT - 1);
+  int length = st_lengths[length_idx];
 
   if (shape != s->shape_seen || mod != s->mod_seen)
   {
@@ -103,7 +103,7 @@ void sr_norm_scan(SrScan* s, float shape, float mod, int length_idx, float dt_s,
   // moving has already been measured exactly; measuring it again is arithmetic
   // with a known answer. This is what keeps eight idle stepped channels free.
   if (!s->moved && s->slot == 0 && s->measured && s->length_idx == (int8_t) length_idx &&
-      fabsf(s->norm.gain - s->target.gain) < SR_NORM_SETTLED && fabsf(s->norm.offset - s->target.offset) < SR_NORM_SETTLED)
+      fabsf(s->norm.gain - s->target.gain) < ST_NORM_SETTLED && fabsf(s->norm.offset - s->target.offset) < ST_NORM_SETTLED)
   {
     s->norm = s->target; // land on it exactly, so this holds next tick too
     return;
@@ -114,7 +114,7 @@ void sr_norm_scan(SrScan* s, float shape, float mod, int length_idx, float dt_s,
     // A channel's first tick in this mode has nothing to correct with and
     // nothing to slew from, so it pays for one full measurement - the only
     // place that cost is taken, since a mode change is not a per-tick event.
-    s->target     = sr_norm_exact(shape, mod, length_idx);
+    s->target     = st_norm_exact(shape, mod, length_idx);
     s->norm       = s->target;
     s->length_idx = (int8_t) length_idx;
     s->slot       = 0;
@@ -138,8 +138,8 @@ void sr_norm_scan(SrScan* s, float shape, float mod, int length_idx, float dt_s,
   // measured keeps arriving smoothly.
   if (may_measure)
   {
-    SrMorph m = sr_morph(shape, mod, length, SR_HOLD_MAX);
-    float v   = sr_step_value(s->slot, &m, &sr_slots, SR_JUMP_GRID);
+    StMorph m = st_morph(shape, mod, length, ST_HOLD_MAX);
+    float v   = st_step_value(s->slot, &m, &st_slots, ST_JUMP_GRID);
 
     if (s->slot == 0)
     {
@@ -159,22 +159,22 @@ void sr_norm_scan(SrScan* s, float shape, float mod, int length_idx, float dt_s,
     {
       s->slot = 0;
 
-      SrExtent e   = {s->lo, s->hi, 0.0f, s->anchor}; // the DC is the table's job, not this one
-      float centre = sr_centre_at(mod, m.morph);
-      float g      = sr_gain_for(&e, centre);
-      float gf     = sr_gain_floor(&e, centre);
-      s->target    = sr_norm_affine(centre, s->anchor, (gf > g) ? gf : g);
+      StExtent e   = {s->lo, s->hi, 0.0f, s->anchor}; // the DC is the table's job, not this one
+      float centre = st_centre_at(mod, m.morph);
+      float g      = st_gain_for(&e, centre);
+      float gf     = st_gain_floor(&e, centre);
+      s->target    = st_norm_affine(centre, s->anchor, (gf > g) ? gf : g);
     }
   }
 
-  float k = fclamp(dt_s / SR_NORM_SMOOTH_S, 0.0f, 1.0f);
+  float k = fclamp(dt_s / ST_NORM_SMOOTH_S, 0.0f, 1.0f);
   s->norm.gain += (s->target.gain - s->norm.gain) * k;
   s->norm.offset += (s->target.offset - s->norm.offset) * k;
 }
 
-// How far MOD winds the ease up: fully slewed at one end, SR_HOLD_HARD at the
+// How far MOD winds the ease up: fully slewed at one end, ST_HOLD_HARD at the
 // other, so one knob carries a smooth wander through to a held gate.
-#define SR_DRIVE_HOLD SR_HOLD_HARD
+#define ST_DRIVE_HOLD ST_HOLD_HARD
 
 // How far the ends of SHP drive the distribution.
 //
@@ -188,7 +188,7 @@ void sr_norm_scan(SrScan* s, float shape, float mod, int length_idx, float dt_s,
 // At this depth the low end sits at a mean of -0.51 with the peaks still
 // reaching, and the gate end empties the middle of the range from 54% of the
 // time to 34%.
-#define SR_BIAS_DEPTH 0.6f
+#define ST_BIAS_DEPTH 0.6f
 
 // How deep the terracing goes, and how many times it comes and goes across SHP.
 //
@@ -197,42 +197,42 @@ void sr_norm_scan(SrScan* s, float shape, float mod, int length_idx, float dt_s,
 // What it costs is nothing the small-turn rule charges for - rho is identical to
 // six decimal places with it at zero and at full depth - and 0.10 of the leap
 // guard, which is what that guard is for.
-#define SR_TERRACE 0.7f
-#define SR_TERRACE_RATE 5
+#define ST_TERRACE 0.7f
+#define ST_TERRACE_RATE 5
 
-SrDrive sr_drive(float shape, float mod)
+StDrive st_drive(float shape, float mod)
 {
-  SrDrive d;
-  d.terrace = SR_TERRACE * sr_bump(0.5f * (fclamp(shape, -1.0f, 1.0f) + 1.0f), SR_TERRACE_RATE);
+  StDrive d;
+  d.terrace = ST_TERRACE * st_bump(0.5f * (fclamp(shape, -1.0f, 1.0f) + 1.0f), ST_TERRACE_RATE);
 
   // SHP is the distribution, one traversal of it, with the pattern still
   // advancing underneath - a knob that only reshaped would be a knob that never
   // reaches a different pattern.
-  d.bias = SR_BIAS_DEPTH * fclamp(shape, -1.0f, 1.0f);
+  d.bias = ST_BIAS_DEPTH * fclamp(shape, -1.0f, 1.0f);
 
   // MOD is motion: a new value every step and fully slewed at one end, mostly
   // tied and hard-stepped at the other. Density already moves with it, so this
   // is the same axis carrying the ease as well.
-  d.hold = SR_DRIVE_HOLD * 0.5f * (fclamp(mod, -1.0f, 1.0f) + 1.0f);
+  d.hold = ST_DRIVE_HOLD * 0.5f * (fclamp(mod, -1.0f, 1.0f) + 1.0f);
   return d;
 }
 
-float stepped_random_with(float phase, float shape, float mod, int length_idx, const SrDrive* drive, const SrNorm* norm)
+float stepped_shape_with(float phase, float shape, float mod, int length_idx, const StDrive* drive, const StNorm* norm)
 {
-  length_idx = iclamp(length_idx, 0, SR_LENGTH_COUNT - 1);
-  int length = sr_lengths[length_idx];
+  length_idx = iclamp(length_idx, 0, ST_LENGTH_COUNT - 1);
+  int length = st_lengths[length_idx];
 
-  SrMorph m = sr_morph(shape, mod, length, SR_HOLD_MAX);
+  StMorph m = st_morph(shape, mod, length, ST_HOLD_MAX);
 
   // Which step the playhead is in. The steps are not all the same width - MOD
   // skews alternate ones long and short - so this is a small search rather than
   // a multiply, but still O(1).
   float within;
-  int step = sr_step_at(phase, length, sr_swing_amount(mod), &within);
+  int step = st_step_at(phase, length, st_swing_amount(mod), &within);
   int next = (step + 1 == length) ? 0 : step + 1;
 
   float from, to;
-  sr_step_pair(step, next, &m, &sr_slots, SR_JUMP_GRID, &from, &to);
+  st_step_pair(step, next, &m, &st_slots, ST_JUMP_GRID, &from, &to);
 
   // Hold, then ease.
   float span = 1.0f - drive->hold;
@@ -241,7 +241,7 @@ float stepped_random_with(float phase, float shape, float mod, int length_idx, c
   float value = lerp(from, to, smoothstep(ease));
 
   // The correction is one affine for the whole cycle, so the loop still closes
-  // and the curve stays smooth. See stepped_random_norm.h for what it aims at.
+  // and the curve stays smooth. See stepped_norm.h for what it aims at.
   // The bias reshapes what comes out of it and is monotone, so it cannot break
   // either property: a continuous curve stays continuous and the loop point
   // still meets itself.
@@ -250,12 +250,12 @@ float stepped_random_with(float phase, float shape, float mod, int length_idx, c
   // - and it cannot reorder a step, which is what keeps a fast knob from
   // reading as a fresh draw.
   float corrected = fclamp(value * norm->gain + norm->offset, -1.0f, 1.0f);
-  return sr_terrace_map(sr_bias_map(corrected, drive->bias), drive->terrace);
+  return st_terrace_map(st_bias_map(corrected, drive->bias), drive->terrace);
 }
 
-float stepped_random(float phase, float shape, float mod, int length_idx, float hold)
+float stepped_shape(float phase, float shape, float mod, int length_idx, float hold)
 {
-  SrNorm n  = sr_norm_exact(shape, mod, length_idx);
-  SrDrive d = {hold, 0.0f, 0.0f};
-  return stepped_random_with(phase, shape, mod, length_idx, &d, &n);
+  StNorm n  = st_norm_exact(shape, mod, length_idx);
+  StDrive d = {hold, 0.0f, 0.0f};
+  return stepped_shape_with(phase, shape, mod, length_idx, &d, &n);
 }

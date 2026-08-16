@@ -123,13 +123,13 @@
         <dd>In the default wavetable mode, one continuous axis that wraps:
         square fully left, <b>sine at centre</b>, triangle, a pointy extreme,
         and round to the square again. In the other two shape modes it is the
-        pulse width, or the stepped-random pattern morph — see <a
+        pulse width, or the stepped pattern morph — see <a
         href="#shapes">shape modes</a>.</dd>
 
         <dt><b class="ref">MOD</b> — the second axis</dt>
         <dd>Whatever the shape mode's second dimension is: wavetable skew,
-        stepped-random density, or the PWM envelope. Negative leans early,
-        positive leans late — except in stepped random, where negative is busy
+        stepped density, or the PWM envelope. Negative leans early,
+        positive leans late — except in stepped, where negative is busy
         and positive sparse. See <a href="#mod">MOD, mode by mode</a>.</dd>
 
         <dt><b class="ref">PHS</b> — phase offset</dt>
@@ -196,14 +196,14 @@
       <dl>
         <dt><b class="ref">STA</b> / <b class="ref">STB</b> — assign scenes</dt>
         <dd>Scenes: pick which scene the crossfader blends from, and towards.
-        Encoders on <b class="ref">STA</b>: stepped-random pattern length, per
+        Encoders on <b class="ref">STA</b>: stepped pattern length, per
         channel rather than per scene — there is nothing between 8 steps and 12,
         so a crossfaded value would mean nothing. Dark on channels that are not
         in a stepped mode.</dd>
 
         <dt><b class="ref">SYS</b> — system and channel modes</dt>
         <dd>Scenes: the first four set what input jacks 0&ndash;3 are for.
-        Encoders: the channel's shape mode — wavetable, stepped random, or
+        Encoders: the channel's shape mode — wavetable, stepped, or
         PWM.</dd>
 
         <dt><b class="ref">QNT</b> — quantizer</dt>
@@ -277,7 +277,7 @@
         is a width, and it stops just off both end stops, at 2% and 98%, so the
         pulse never disappears entirely.</dd>
 
-        <dt>Stepped random — <b class="ref">SHP</b> morphs the pattern</dt>
+        <dt>Stepped — <b class="ref">SHP</b> morphs the pattern</dt>
         <dd>Cyclic, like the wavetable: &minus;1 and +1 are the same pattern.
         It is not a bank of unrelated patterns to scroll past — a small turn
         <b>deforms</b> what is playing rather than redrawing it. Four things
@@ -294,7 +294,7 @@
       divider whose gate opens on the beat.</p>
     </div>
     <div>
-      <p>The three things <b class="ref">SHP</b> moves in stepped random:</p>
+      <p>The three things <b class="ref">SHP</b> moves in stepped:</p>
 
       <dl>
         <dt>Which values the steps hold</dt>
@@ -352,7 +352,7 @@
         steep with a tail — which is what makes the negative side read as an
         envelope and not a triangle.</dd>
 
-        <dt>Stepped random — <b>density</b>, and five things travelling with it</dt>
+        <dt>Stepped — <b>density</b>, and five things travelling with it</dt>
         <dd>Density is the headline: how often a step ties to the previous value
         instead of taking a new one. Fully left every step is new and the cycle
         is at its busiest; 0 is the neutral ~30% the pattern was designed around;
@@ -366,7 +366,7 @@
 
       <p class="note">Where <b class="ref">MOD</b> leans something the sign
       means the same thing everywhere: <b>negative leans early, positive leans
-      late</b>. Stepped random is the exception, because density has no early or
+      late</b>. Stepped is the exception, because density has no early or
       late — there negative is busy and positive sparse.</p>
 
       <p class="note">A narrow pulse with <b class="ref">MOD</b> hard left is a

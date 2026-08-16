@@ -114,11 +114,11 @@ const boxRefs = text => text.replace(REFERENCE_RE, '<b class="ref">$1</b>');
 // source ui_mode.c's own table was written against.
 const CTRL_HELP = {
   STA: 'Scene A. Tap to choose which scene the crossfader blends from; hold to open its '
-    + 'page, where the encoders set each channel\'s stepped-random pattern length.',
+    + 'page, where the encoders set each channel\'s stepped pattern length.',
   STB: 'Scene B. Tap to choose which scene the crossfader blends towards; hold to open '
     + 'its page.',
   SYS: 'System. Hold to open: the first four scene buttons set what each input jack is '
-    + 'for, and the encoders choose a channel\'s waveshape - wavetable, stepped random '
+    + 'for, and the encoders choose a channel\'s waveshape - wavetable, stepped '
     + 'or PWM.',
   QNT: 'Quantizer. Hold to open: the scene buttons switch semitones in and out of the '
     + 'scale, the encoders set each channel\'s quantize mode, and pressing one assigns '
@@ -143,7 +143,7 @@ const PARAM_HELP = {
     + 'tempo wherever it is set',
   SHP: 'the waveshape, as one continuous axis that wraps: square, sine at centre, '
     + 'triangle, and round again',
-  MOD: 'what a shape does with its second dimension - wavetable skew, stepped-random '
+  MOD: 'what a shape does with its second dimension - wavetable skew, stepped '
     + 'density, or the PWM envelope',
   PHS: 'where in its cycle the channel starts, with phase 0 the rising edge in every '
     + 'shape',

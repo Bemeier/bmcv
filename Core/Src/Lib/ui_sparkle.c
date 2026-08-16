@@ -7,7 +7,7 @@ static_assert(LED_COUNT == 21, "the field samples panel_led_pos, which is per-LE
 
 // One lattice point's value, 0..1.
 //
-// A hash rather than a table. The stepped random generator's tables were the
+// A hash rather than a table. The stepped generator's tables were the
 // obvious thing to reuse and do not fit: that generator is one-dimensional and
 // locked to a channel's own phase, where a field needs a value for an (x, y, t)
 // triple and no period at all. Integer mixing gives that in six lines and costs

@@ -15,7 +15,7 @@ hundred megabytes fetched straight from GitHub and ST's own HAL repos.
 - **CMake 3.22+** and **Ninja**. `apt install cmake ninja-build`,
   `brew install cmake ninja`.
 - **git**, **curl** - for the fetch recipes below.
-- **Python 3** - the `just wavetable`/`just sr-table`/`just panel`
+- **Python 3** - the `just wavetable`/`just stepped-table`/`just panel`
   generators, and `just web`'s dev server. Not needed for a build.
 
 ## Firmware (ARM)

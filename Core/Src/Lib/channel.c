@@ -6,8 +6,8 @@
 #include "hw_setup.h"
 #include "hw_state.h"
 #include "math.h"
-#include "stepped_random.h"
-#include "stepped_random_table.h"
+#include "stepped.h"
+#include "stepped_table.h"
 #include "wavetable.h"
 #include <stdint.h>
 
@@ -370,21 +370,21 @@ void channel_compute(uint8_t ch, EngineState* es, const EngineConfig* cfg, const
 
   if (*latched_idx < 0 || wrapped || editing)
   {
-    *latched_idx = (int8_t) iclamp(chcfg->sr_length_idx, 0, SR_LENGTH_COUNT - 1);
+    *latched_idx = (int8_t) iclamp(chcfg->st_length_idx, 0, ST_LENGTH_COUNT - 1);
   }
 
   switch (chcfg->shape_mode)
   {
   case SHAPE_STEPPED:
   {
-    SrDrive d = sr_drive(shape, mod);
+    StDrive d = st_drive(shape, mod);
 
     // The correction is measured a slot at a time rather than worked out here,
     // because working it out means walking the whole pattern. Scanned first, so
     // a channel that has just arrived in this mode is corrected on its first
     // tick rather than after a cycle of it.
-    sr_norm_scan(&es->channels_sr_scan[ch], shape, mod, *latched_idx, dt_s, ch == es->sr_scan_turn);
-    raw = stepped_random_with(phase, shape, mod, *latched_idx, &d, &es->channels_sr_scan[ch].norm);
+    st_norm_scan(&es->channels_stepped_scan[ch], shape, mod, *latched_idx, dt_s, ch == es->st_scan_turn);
+    raw = stepped_shape_with(phase, shape, mod, *latched_idx, &d, &es->channels_stepped_scan[ch].norm);
     break;
   }
   case SHAPE_PWM:

@@ -6,11 +6,11 @@ through a polynomial S-curve instead. The shapes are close enough that none of
 the measurements move, and the file is now a spec: the C must reproduce it.
 """
 import numpy as np
-import srmodel as M
-from srmodel import tri, SLOT_BASE, SLOT_RATE, SLOT_GATE, SR_MAX_LENGTH, hash01, _seed
+import stmodel as M
+from stmodel import tri, SLOT_BASE, SLOT_RATE, SLOT_GATE, ST_MAX_LENGTH, hash01, _seed
 
 # Second gate table, for the rotation MOD applies to which steps tie.
-SLOT_GATE2 = np.array([hash01(_seed(i) ^ 0x165667B1) for i in range(SR_MAX_LENGTH)])
+SLOT_GATE2 = np.array([hash01(_seed(i) ^ 0x165667B1) for i in range(ST_MAX_LENGTH)])
 
 CONTOUR = 1.0     # depth of the melodic-contour blend
 CONTOUR_RATE = 3
@@ -79,7 +79,7 @@ def dof_fade(length):
 
 
 def tie_fade(length):
-    return float(np.clip((length - 2) / M.SR_HOLD_FADE_IN_STEPS, 0.0, 1.0))
+    return float(np.clip((length - 2) / M.ST_HOLD_FADE_IN_STEPS, 0.0, 1.0))
 
 
 class Final(M.Engine):
@@ -107,7 +107,7 @@ class Final(M.Engine):
     def gates(self, shape, mod, length):
         d = 0.5 * (mod + 1.0)
         g = 0.5 * (1.0 + tri(SLOT_GATE[:length] + d * SPIN * (1.0 + SLOT_GATE2[:length])))
-        g[::M.SR_JUMP_GRID] = 1.0
+        g[::M.ST_JUMP_GRID] = 1.0
         return g
 
     def tie_weights(self, shape, mod, length):
@@ -115,7 +115,7 @@ class Final(M.Engine):
         p = self.hold_probability(mod, length)
         w = M.smoothstep(np.clip((g - p) / TIE_WIDTH + 0.5, 0.0, 1.0))
         w = 1.0 - (1.0 - w) * tie_fade(length)
-        w[::M.SR_JUMP_GRID] = 1.0
+        w[::M.ST_JUMP_GRID] = 1.0
         return w
 
     # --- where the steps sit in the cycle ---------------------------------
@@ -148,12 +148,12 @@ class Final(M.Engine):
         return v, np.arange(length), w > 0.5
 
     def norm_for(self, shape, mod, length_idx):
-        self._length = M.SR_LENGTHS[length_idx]
-        saved, M.SR_NORM_MAX_GAIN = M.SR_NORM_MAX_GAIN, NORM_MAX_GAIN
+        self._length = M.ST_LENGTHS[length_idx]
+        saved, M.ST_NORM_MAX_GAIN = M.ST_NORM_MAX_GAIN, NORM_MAX_GAIN
         try:
             return super().norm_for(shape, mod, length_idx)
         finally:
-            M.SR_NORM_MAX_GAIN = saved
+            M.ST_NORM_MAX_GAIN = saved
 
     def __init__(self):
         super().__init__()

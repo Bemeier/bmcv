@@ -12,7 +12,7 @@ distance. A sweep's worth is then two numbers - how many mutually distinct
 sequences it contains, and how many notes change per 1% turn of the knob.
 """
 import numpy as np
-import srmodel as M
+import stmodel as M
 
 LEVELS = 12          # quantiser steps over the [-1,1] output: "different note"
 SWEEP = 400
@@ -25,7 +25,7 @@ def quantise(p):
 
 def seq_sweep(eng, axis, fixed, length_idx, n=SWEEP):
     pos = np.linspace(-1.0, 1.0, n, endpoint=False)
-    L = M.SR_LENGTHS[length_idx]
+    L = M.ST_LENGTHS[length_idx]
     Q = np.empty((n, L), dtype=int)
     for i, p in enumerate(pos):
         s, m = (p, fixed) if axis == "shape" else (fixed, p)
@@ -68,7 +68,7 @@ def axis_report(eng, axis, fixed, length_idx):
 
 def plane_report(eng, length_idx, n=64):
     grid = np.linspace(-1.0, 1.0, n, endpoint=False)
-    L = M.SR_LENGTHS[length_idx]
+    L = M.ST_LENGTHS[length_idx]
     Q = np.empty((n * n, L), dtype=int)
     k = 0
     for s in grid:
@@ -92,7 +92,7 @@ def report(eng, lengths=(6, 8), mods=(0.0, -0.5), shapes=(0.0, 0.4), plane=True)
     print(f"=== {eng.name} (musical) ===")
     print(HDR)
     for li in lengths:
-        L = M.SR_LENGTHS[li]
+        L = M.ST_LENGTHS[li]
         for m in mods:
             line(f"SHP L={L} m={m:+.1f}", axis_report(eng, "shape", m, li))
         for s in shapes:

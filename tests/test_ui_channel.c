@@ -82,22 +82,22 @@ TEST_CASE(a_large_encoder_delta_still_steps_one_setting)
   CHECK(f.engine_config.channel_state[1].shape_mode == start + 1);
 }
 
-// ENC_SR_LENGTH is dark on channels whose shape has no pattern length, and the
+// ENC_STEPPED_LENGTH is dark on channels whose shape has no pattern length, and the
 // encoder does nothing there too rather than silently moving a hidden setting.
 TEST_CASE(pattern_length_only_moves_on_a_stepped_shape)
 {
   Fixture f;
   fixture_init(&f);
-  f.ui_state.shift_state = SHIFT_STATE_STA; // ENC_SR_LENGTH
+  f.ui_state.shift_state = SHIFT_STATE_STA; // ENC_STEPPED_LENGTH
 
   f.engine_config.channel_state[4].shape_mode    = SHAPE_LFO;
-  f.engine_config.channel_state[4].sr_length_idx = 0;
+  f.engine_config.channel_state[4].st_length_idx = 0;
   fixture_encoder(&f, ch_enc(&f, 4), +1);
-  CHECK(f.engine_config.channel_state[4].sr_length_idx == 0);
+  CHECK(f.engine_config.channel_state[4].st_length_idx == 0);
 
   f.engine_config.channel_state[4].shape_mode = SHAPE_STEPPED;
   fixture_encoder(&f, ch_enc(&f, 4), +1);
-  CHECK(f.engine_config.channel_state[4].sr_length_idx == 1);
+  CHECK(f.engine_config.channel_state[4].st_length_idx == 1);
 }
 
 // Turning the pattern length records an edit, which is what tells the engine to

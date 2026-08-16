@@ -6,8 +6,8 @@
 #include "hw_setup.h"
 #include "led_curve.h"
 #include "led_fb.h"
-#include "stepped_random.h"       // sr_length_for_index
-#include "stepped_random_table.h" // SR_LENGTH_COUNT
+#include "stepped.h"       // st_length_for_index
+#include "stepped_table.h" // ST_LENGTH_COUNT
 #include "ui_channel.h"
 #include "ui_feedback.h"
 #include "ui_input.h"
@@ -25,7 +25,7 @@
 // looks the same on the SYS page as it does on QNT.
 static const uint8_t quantize_mode_color[QUANTIZE_MODE_COUNT]   = {HUE_STATE_DEFAULT, HUE_STATE_LEVEL, HUE_STATE_EVENT};
 static const uint8_t input_amp_mode_color[INPUT_AMP_MODE_COUNT] = {HUE_STATE_DEFAULT, HUE_STATE_MIX, HUE_STATE_MULT};
-// The wavetable is the default; stepped random is a continuously varying level,
+// The wavetable is the default; stepped is a continuously varying level,
 // and PWM is a gate.
 static const uint8_t shape_mode_color[SHAPE_MODE_COUNT] = {HUE_STATE_DEFAULT, HUE_STATE_LEVEL, HUE_STATE_EVENT};
 static const uint8_t input_mode_color[INPUT_MODE_COUNT] = {HUE_STATE_DEFAULT, HUE_STATE_EVENT, HUE_STATE_RESET, HUE_STATE_LEVEL};
@@ -141,7 +141,7 @@ void ui_render_feedback(UxState* state, int16_t led, TargetKind kind, int8_t id)
 // channel as one of the slowest. Those free-run at the ceiling instead, all
 // together, which reads as "off the top of the scale" rather than as a lie.
 //
-// The phase is wrapped here rather than trusted, because the stepped-random
+// The phase is wrapped here rather than trusted, because the stepped
 // page hands in a phase multiplied by its step count.
 static float pulse_phase(const UxState* s, float rate_hz, float phase)
 {
@@ -300,7 +300,7 @@ static void render_channel_base(UxState* s, const ChannelSetup* ch, const UiMode
     set(s, ch->led, s->ui->muted[ch->id] ? UI_COL_MUTED : UI_COL_UNMUTED);
     break;
 
-  case CHBASE_SR_LENGTH:
+  case CHBASE_STEPPED_LENGTH:
   {
     // Dark where it would do nothing: pattern length is a stepped-mode setting,
     // and the encoder is inert on the other channels for the same reason.
@@ -325,7 +325,7 @@ static void render_channel_base(UxState* s, const ChannelSetup* ch, const UiMode
     // SAT_HIG leaves a tenth of the value on the primaries the hue does not
     // use, which on a warm hue is a blue floor - enough to pull orange and
     // yellow together until they were hard to tell apart.
-    int length  = sr_length_for_index(cfg->sr_length_idx);
+    int length  = st_length_for_index(cfg->st_length_idx);
     UiColor col = {ui_division_hue((uint32_t) length), SAT_MAX, VAL_BASE};
 
     // The steps run at the channel's own rate times the number of them, which

@@ -1,7 +1,7 @@
 #include "clock_sync.h"
 #include "fixture.h"
 #include "helpers.h"
-#include "stepped_random_table.h"
+#include "stepped_table.h"
 #include "testkit.h"
 
 TEST_CASE(zero_amplitude_channel_outputs_the_offset)
@@ -128,7 +128,7 @@ TEST_CASE(phase_advances_by_frequency_times_dt_without_pll_lock)
 static void set_stepped_channel(Fixture* f, int8_t length_idx)
 {
   f->engine_config.channel_state[0].shape_mode    = SHAPE_STEPPED;
-  f->engine_config.channel_state[0].sr_length_idx = length_idx;
+  f->engine_config.channel_state[0].st_length_idx = length_idx;
   fixture_set_param(f, 0, 0, CH_PARAM_FRQ, 0); // 1x the beat
   fixture_set_param(f, 0, 0, CH_PARAM_AMP, 20000);
 }
@@ -147,7 +147,7 @@ TEST_CASE(pattern_length_is_latched_until_the_cycle_wraps)
   for (int i = 0; i < 40; i++)
     fixture_tick(&f, 20000); // 0.8s, but phase only reaches ~0.8 at 1Hz
 
-  f.engine_config.channel_state[0].sr_length_idx = SR_LENGTH_COUNT - 1;
+  f.engine_config.channel_state[0].st_length_idx = ST_LENGTH_COUNT - 1;
   fixture_tick(&f, 1000);
 
   // still mid-cycle, so the length must not have moved yet
@@ -165,12 +165,12 @@ TEST_CASE(pattern_length_updates_once_the_cycle_wraps)
   for (int i = 0; i < 40; i++)
     fixture_tick(&f, 20000);
 
-  f.engine_config.channel_state[0].sr_length_idx = SR_LENGTH_COUNT - 1;
+  f.engine_config.channel_state[0].st_length_idx = ST_LENGTH_COUNT - 1;
   // run past the wrap
   for (int i = 0; i < 80; i++)
     fixture_tick(&f, 20000);
 
-  CHECK(f.engine_state.channels_length_idx[0] == SR_LENGTH_COUNT - 1);
+  CHECK(f.engine_state.channels_length_idx[0] == ST_LENGTH_COUNT - 1);
 }
 
 TEST_CASE(pattern_length_applies_immediately_while_the_encoder_is_turning)
@@ -186,10 +186,10 @@ TEST_CASE(pattern_length_applies_immediately_while_the_encoder_is_turning)
 
   // mark the channel as just-edited, the way the STA-page encoder does
   f.engine_state.channels_last_delta[0]          = f.hw_state.time;
-  f.engine_config.channel_state[0].sr_length_idx = SR_LENGTH_COUNT - 1;
+  f.engine_config.channel_state[0].st_length_idx = ST_LENGTH_COUNT - 1;
   fixture_tick(&f, 1000);
 
-  CHECK(f.engine_state.channels_length_idx[0] == SR_LENGTH_COUNT - 1);
+  CHECK(f.engine_state.channels_length_idx[0] == ST_LENGTH_COUNT - 1);
   CHECK(f.engine_state.channels_shared_phase[0] < 1.0f); // proved it did not wait for a wrap
 }
 

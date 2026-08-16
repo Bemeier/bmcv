@@ -105,7 +105,7 @@
 #define HUE_STATE_RESET HUE_RED // resets something
 
 // Divisions. Anything that divides the beat - the FRQ ratio, and the number of
-// steps a stepped-random pattern loops over - is coded by its prime limit:
+// steps a stepped pattern loops over - is coded by its prime limit:
 // whether it is a straight division, a triplet or a quintuplet. Octaves are
 // free, so 1/8 and 16 are the same green, 1/3, 3/2 and 24 are the same yellow,
 // and a 12-step pattern is the same yellow as a 3-step one.

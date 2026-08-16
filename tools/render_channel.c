@@ -4,10 +4,10 @@
 //
 // Because it drives the actual signal path, what you see here includes scene
 // blending, the PLL, quantization and amp/offset - not just a bare shape
-// lookup. Change channel.c / wavetable.c / stepped_random.c, rebuild, re-run.
+// lookup. Change channel.c / wavetable.c / stepped.c, rebuild, re-run.
 //
 // Usage:
-//   render_channel [--shape-mode=lfo|stepped_random] [--shape=F] [--mod=F]
+//   render_channel [--shape-mode=lfo|stepped] [--shape=F] [--mod=F]
 //                  [--shape-sweep=A:B] [--mod-sweep=A:B]
 //                  [--freq=MULT] [--bpm=F] [--amp=N] [--offset=N]
 //                  [--quantize] [--duration=SEC] [--rate=HZ]

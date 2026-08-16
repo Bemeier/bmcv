@@ -4,7 +4,7 @@
 #include "clock_sync.h"
 #include "hw_setup.h"
 #include "led_curve.h" // IWYU pragma: keep - LED_UNIT is the unit of the fields below
-#include "stepped_random.h"
+#include "stepped.h"
 #include <stdint.h>
 
 // The engine's running state: phases, output levels, trigger edges, the scene
@@ -80,7 +80,7 @@ typedef struct
   float channels_ratio_seen[N_CHANNELS];
   uint32_t channels_ratio_still_since[N_CHANNELS];
 
-  // Stepped-random pattern length actually in use, held steady for the rest
+  // Stepped pattern length actually in use, held steady for the rest
   // of the cycle. Changing it mid-cycle shifts the step grid under the
   // playhead and jumps the output; -1 means "not yet latched".
   int8_t channels_length_idx[N_CHANNELS];
@@ -123,13 +123,13 @@ typedef struct
   // thousand times a second. Zeroed means nothing measured yet, which is what
   // makes a channel's first tick take the exact route instead of a half-filled
   // one.
-  SrScan channels_sr_scan[N_CHANNELS];
+  StScan channels_stepped_scan[N_CHANNELS];
 
   // Whose turn it is to measure. One slot of one channel's pattern per tick:
   // measuring is nearly as expensive as playing the shape, so eight channels
   // each measuring every tick cost the engine a third of its ticks on the
   // module. Turning it into a rota bounds that at one, whatever is patched.
-  uint8_t sr_scan_turn;
+  uint8_t st_scan_turn;
 
   // Which scene currently dominates the crossfade. Derived from the slider
   // (and the momentary scene the UI passes in), so it is an engine output the

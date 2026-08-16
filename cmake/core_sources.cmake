@@ -24,7 +24,7 @@ set(BMCV_CORE_SOURCES
     midi_realtime.c
     quantizer.c
     scene.c
-    stepped_random.c
+    stepped.c
     ui_channel.c
     ui_feedback.c
     ui_input.c

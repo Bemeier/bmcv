@@ -1,12 +1,12 @@
 """The properties a variant is not allowed to break.
 
-These mirror tests/test_stepped_random.c, plus the two the C tests take for
+These mirror tests/test_stepped.c, plus the two the C tests take for
 granted because the shipping algorithm cannot violate them.
 """
 import numpy as np
-import srmodel as M
+import stmodel as M
 
-LI_ALL = range(len(M.SR_LENGTHS))
+LI_ALL = range(len(M.ST_LENGTHS))
 
 
 def check(eng, verbose=True):
@@ -62,7 +62,7 @@ def check(eng, verbose=True):
                 c = eng.render(s, m, li, n=512)
                 sp = c.max() - c.min()
                 if sp < worst:
-                    worst, where = sp, (s, m, M.SR_LENGTHS[li])
+                    worst, where = sp, (s, m, M.ST_LENGTHS[li])
     rec("no flat settings", worst > 0.5, f"min span {worst:.3f} at {where}")
 
     # 6. output in range
@@ -74,7 +74,7 @@ def check(eng, verbose=True):
     rec("stays in [-1,1]", worst <= 1.0001, f"max |v| {worst:.4f}")
 
     # 7. a small turn deforms the pattern, never re-randomises it
-    #    (test_stepped_random.c: worst per-sample diff < 0.25 for ds = 0.01)
+    #    (test_stepped.c: worst per-sample diff < 0.25 for ds = 0.01)
     worst = 0.0
     for s in np.linspace(-1, 0.99, 60):
         a = eng.render(s, 0.0, 6, n=128)
@@ -100,7 +100,7 @@ def check(eng, verbose=True):
 
     # 9. MOD still thins the pattern out as it turns up
     def distinct(m, li):
-        L = M.SR_LENGTHS[li]
+        L = M.ST_LENGTHS[li]
         _, _, jumps = eng.steps(0.3, m, L)
         return int(jumps.sum())
 

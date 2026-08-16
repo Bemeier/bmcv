@@ -7,8 +7,8 @@
 #include "led_curve.h"
 #include "led_fb.h"
 #include "panel_layout.h"
-#include "stepped_random.h"
-#include "stepped_random_table.h" // SR_LENGTH_COUNT
+#include "stepped.h"
+#include "stepped_table.h" // ST_LENGTH_COUNT
 #include "testkit.h"
 #include "ui_channel.h"
 #include "ui_feedback.h"
@@ -310,10 +310,10 @@ TEST_CASE(pattern_length_only_lights_the_channels_it_applies_to)
 
   // The hue is the length's prime limit, not its position on the knob: a 3-step
   // pattern and a 4-step one subdivide differently and are different colours...
-  f.engine_config.channel_state[0].sr_length_idx = 0; // 3 steps, a triplet
+  f.engine_config.channel_state[0].st_length_idx = 0; // 3 steps, a triplet
   ui_render(&f.ux);
   LedRgb three                                   = led_of_channel(&f, 0);
-  f.engine_config.channel_state[0].sr_length_idx = 1; // 4 steps, straight
+  f.engine_config.channel_state[0].st_length_idx = 1; // 4 steps, straight
   ui_render(&f.ux);
   LedRgb four = led_of_channel(&f, 0);
   CHECK(!same_hue_order(three, four));
@@ -325,10 +325,10 @@ TEST_CASE(pattern_length_only_lights_the_channels_it_applies_to)
   f.engine_state.channels_effective[0].freq_hz = 1.0f;
   f.engine_state.channels_effective[0].phase   = 0.1f;
 
-  f.engine_config.channel_state[0].sr_length_idx = 0; // 3 steps -> step phase 0.3
+  f.engine_config.channel_state[0].st_length_idx = 0; // 3 steps -> step phase 0.3
   ui_render(&f.ux);
   LedRgb slow                                    = led_of_channel(&f, 0);
-  f.engine_config.channel_state[0].sr_length_idx = 5; // 12 steps -> step phase 0.2
+  f.engine_config.channel_state[0].st_length_idx = 5; // 12 steps -> step phase 0.2
   ui_render(&f.ux);
   LedRgb fast = led_of_channel(&f, 0);
 
@@ -369,9 +369,9 @@ TEST_CASE(the_division_hue_codes_the_prime_limit_and_is_shared_by_both_pages)
 // division, which is the one way this can go quietly wrong.
 TEST_CASE(every_pattern_length_lands_on_a_division_class)
 {
-  for (int i = 0; i < SR_LENGTH_COUNT; i++)
+  for (int i = 0; i < ST_LENGTH_COUNT; i++)
   {
-    int len   = sr_length_for_index(i);
+    int len   = st_length_for_index(i);
     uint8_t h = ui_division_hue((uint32_t) len);
     CHECK(h == HUE_FREQ_STRAIGHT || h == HUE_FREQ_TRIPLET || h == HUE_FREQ_QUINTUPLET);
 
@@ -396,7 +396,7 @@ TEST_CASE(a_pattern_stepping_past_the_ceiling_does_not_follow_its_own_phase)
   for (uint8_t c = 0; c < 2; c++)
   {
     f.engine_config.channel_state[c].shape_mode    = SHAPE_STEPPED;
-    f.engine_config.channel_state[c].sr_length_idx = SR_LENGTH_COUNT - 1; // 64 steps
+    f.engine_config.channel_state[c].st_length_idx = ST_LENGTH_COUNT - 1; // 64 steps
     f.engine_state.channels_effective[c].freq_hz   = 4.0f;                // 256 steps a second
   }
   // A half cycle apart in their own waveforms, and it must not show.

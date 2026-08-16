@@ -4,7 +4,7 @@
 #include "config.h"
 #include "helpers.h"
 #include "hw_setup.h"
-#include "stepped_random_table.h"
+#include "stepped_table.h"
 #include "ui_feedback.h"
 #include "ui_input.h"
 #include "ui_mode.h"
@@ -309,13 +309,13 @@ void ui_channel_update(const ChannelSetup* ch, UxState* state)
     state->ui->muted[ch->id] = delta < 0;
     break;
 
-  case ENC_SR_LENGTH:
+  case ENC_STEPPED_LENGTH:
     // Only the stepped modes have a pattern length, and the LED is dark on the
     // channels where it would do nothing - so the encoder does nothing there
     // too, rather than silently moving a setting with no visible effect.
     if (!shape_mode_is_stepped(chcfg->shape_mode))
       break;
-    chcfg->sr_length_idx = (int8_t) step_setting(chcfg->sr_length_idx, delta, SR_LENGTH_COUNT);
+    chcfg->st_length_idx = (int8_t) step_setting(chcfg->st_length_idx, delta, ST_LENGTH_COUNT);
     // The engine latches pattern length at the cycle wrap unless the user is
     // actively turning this channel - which is what this records.
     ux_note_channel_edit(state, ch->id);

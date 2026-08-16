@@ -59,7 +59,7 @@ typedef enum
   SHAPE_MODE_COUNT,
 } ChannelShapeMode;
 
-// The stepped mode reads its pattern length from ChannelConfig.sr_length_idx
+// The stepped mode reads its pattern length from ChannelConfig.st_length_idx
 // rather than from a scene parameter, so this is what says whether that setting
 // means anything for a given channel.
 static inline int shape_mode_is_stepped(int8_t mode) { return mode == SHAPE_STEPPED; }
@@ -131,7 +131,7 @@ typedef struct __attribute__((packed))
   //
   // The clamp is what the module is patched into, not part of the patch: an
   // output feeding a 0..5V input should stay in that range as the scenes move.
-  int8_t sr_length_idx;
+  int8_t st_length_idx;
   int8_t clamp_mode; // ChannelClampMode
 } ChannelConfig;
 

@@ -1,21 +1,21 @@
-"""Python replica of Core/Src/Lib/stepped_random.c + tools/gen_sr_table.c.
+"""Python replica of Core/Src/Lib/stepped.c + tools/gen_stepped_table.c.
 
 Exact bit-for-bit replica of the hashes so the baseline metrics describe the
 firmware that ships, not an approximation of it.
 """
 import numpy as np
 
-SR_MAX_LENGTH = 64
-SR_JUMP_GRID = 4
-SR_MAX_ORBIT_RATE = 4
-SR_NORM_BINS = 128
-SR_NORM_TARGET = 1.3
-SR_NORM_MAX_GAIN = 10.0
-SR_PROB_BINS = 8
-SR_HOLD_MAX = 0.85
-SR_HOLD_NEUTRAL = 0.30
-SR_HOLD_FADE_IN_STEPS = 6.0
-SR_LENGTHS = [3, 4, 5, 6, 8, 12, 16, 24, 32, 48, 64]
+ST_MAX_LENGTH = 64
+ST_JUMP_GRID = 4
+ST_MAX_ORBIT_RATE = 4
+ST_NORM_BINS = 128
+ST_NORM_TARGET = 1.3
+ST_NORM_MAX_GAIN = 10.0
+ST_PROB_BINS = 8
+ST_HOLD_MAX = 0.85
+ST_HOLD_NEUTRAL = 0.30
+ST_HOLD_FADE_IN_STEPS = 6.0
+ST_LENGTHS = [3, 4, 5, 6, 8, 12, 16, 24, 32, 48, 64]
 
 M32 = 0xFFFFFFFF
 
@@ -38,13 +38,13 @@ def _seed(i):
     return hash_u32((i * 0x9E3779B9 + 0x6D2B79F5) & M32)
 
 
-SLOT_BASE = np.array([hash01(_seed(i)) for i in range(SR_MAX_LENGTH)], dtype=np.float64)
+SLOT_BASE = np.array([hash01(_seed(i)) for i in range(ST_MAX_LENGTH)], dtype=np.float64)
 SLOT_RATE = np.array(
-    [min(SR_MAX_ORBIT_RATE, 1 + int(hash01(_seed(i) ^ 0x85EBCA6B) * SR_MAX_ORBIT_RATE))
-     for i in range(SR_MAX_LENGTH)], dtype=np.float64)
+    [min(ST_MAX_ORBIT_RATE, 1 + int(hash01(_seed(i) ^ 0x85EBCA6B) * ST_MAX_ORBIT_RATE))
+     for i in range(ST_MAX_LENGTH)], dtype=np.float64)
 SLOT_GATE = np.array(
-    [1.0 if i % SR_JUMP_GRID == 0 else hash01(_seed(i) ^ 0xC2B2AE35)
-     for i in range(SR_MAX_LENGTH)], dtype=np.float64)
+    [1.0 if i % ST_JUMP_GRID == 0 else hash01(_seed(i) ^ 0xC2B2AE35)
+     for i in range(ST_MAX_LENGTH)], dtype=np.float64)
 
 
 def tri(x):
@@ -61,7 +61,7 @@ def smoothstep(x):
 # --------------------------------------------------------------------------
 
 class Engine:
-    """Baseline stepped_random. Subclasses override slot_value/source_slot/etc."""
+    """Baseline stepped. Subclasses override slot_value/source_slot/etc."""
 
     name = "baseline"
 
@@ -79,10 +79,10 @@ class Engine:
     def hold_probability(self, mod, length):
         mod = float(np.clip(mod, -1.0, 1.0))
         if mod <= 0.0:
-            p = SR_HOLD_NEUTRAL * (1.0 + mod)
+            p = ST_HOLD_NEUTRAL * (1.0 + mod)
         else:
-            p = SR_HOLD_NEUTRAL + mod * (SR_HOLD_MAX - SR_HOLD_NEUTRAL)
-        return p * float(np.clip((length - 2) / SR_HOLD_FADE_IN_STEPS, 0.0, 1.0))
+            p = ST_HOLD_NEUTRAL + mod * (ST_HOLD_MAX - ST_HOLD_NEUTRAL)
+        return p * float(np.clip((length - 2) / ST_HOLD_FADE_IN_STEPS, 0.0, 1.0))
 
     def gates(self, shape, mod, length):
         """Per-slot gate values; a slot jumps when gate >= hold_probability."""
@@ -111,14 +111,14 @@ class Engine:
         src, jumps = self.source_slots(shape, mod, length)
         return self.slot_values(src, shape, mod), src, jumps
 
-    # --- normalisation (recomputed, matching gen_sr_table.c) ---------------
+    # --- normalisation (recomputed, matching gen_stepped_table.c) ---------------
     def norm_for(self, shape, mod, length_idx):
-        length = SR_LENGTHS[length_idx]
+        length = ST_LENGTHS[length_idx]
         vals, _, _ = self.steps(shape, mod, length)
         lo, hi = vals.min(), vals.max()
         span = hi - lo
         anchor = vals[0]
-        g = SR_NORM_MAX_GAIN if span < 1e-6 else float(np.clip(SR_NORM_TARGET / span, 1.0, SR_NORM_MAX_GAIN))
+        g = ST_NORM_MAX_GAIN if span < 1e-6 else float(np.clip(ST_NORM_TARGET / span, 1.0, ST_NORM_MAX_GAIN))
         if hi > anchor:
             g = min(g, (1.0 - anchor) / (hi - anchor))
         if lo < anchor:
@@ -129,14 +129,14 @@ class Engine:
     def pattern(self, shape, mod, length_idx):
         """The note sequence: the value shown at each step, normalised. This is
         what the ear latches onto - the curve between the steps is joinery."""
-        length = SR_LENGTHS[length_idx]
+        length = ST_LENGTHS[length_idx]
         vals, _, _ = self.steps(shape, mod, length)
         g, off = self.norm_for(shape, mod, length_idx)
         return np.clip(vals * g + off, -1.0, 1.0)
 
     def render(self, shape, mod, length_idx, n=256, hold=0.0, normalise=True):
         """One cycle, n samples, as the module would output it."""
-        length = SR_LENGTHS[length_idx]
+        length = ST_LENGTHS[length_idx]
         vals, src, jumps = self.steps(shape, mod, length)
         widths = self.step_widths(shape, mod, length)
         edges = np.concatenate([[0.0], np.cumsum(widths)])

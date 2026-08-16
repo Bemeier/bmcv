@@ -67,7 +67,7 @@ void clear_channel(int8_t c, int8_t all_scenes, UxState* state)
   ch->input_amp_mode = INPUT_AMP_DISABLED;
   ch->quantize_mode  = QUANTIZE_DISABLED;
   ch->shape_mode     = SHAPE_LFO;
-  ch->sr_length_idx  = 0;
+  ch->st_length_idx  = 0;
 }
 
 void clear_scene(int8_t s, UxState* state)

@@ -6,7 +6,7 @@ related. Both halves matter: re-randomising every 1% of travel would score well
 on diversity and be useless to play.
 """
 import numpy as np
-import srmodel as M
+import stmodel as M
 
 N_SAMPLES = 512          # samples per rendered cycle
 SWEEP = 400              # knob positions per sweep
@@ -130,7 +130,7 @@ def report(eng, lengths=(6, 8), mods=(0.0,), shapes=(0.0,), plane=True):
     print(f"=== {eng.name} ===")
     print(HDR)
     for li in lengths:
-        L = M.SR_LENGTHS[li]
+        L = M.ST_LENGTHS[li]
         for m in mods:
             print_axis(f"SHP L={L} m={m:+.1f}", axis_report(eng, "shape", m, li))
         for s in shapes:

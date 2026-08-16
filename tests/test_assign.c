@@ -64,7 +64,7 @@ TEST_CASE(clearing_a_whole_channel_also_drops_its_routing_and_modes)
   ch->input_amp_mode = INPUT_AMP_MULT;
   ch->quantize_mode  = QUANTIZE_CONTINUOUS;
   ch->shape_mode     = SHAPE_STEPPED;
-  ch->sr_length_idx  = 5;
+  ch->st_length_idx  = 5;
   ch->clamp_mode     = CLAMP_UNI_5;
 
   clear_channel(2, 1, &f.ux);
@@ -73,7 +73,7 @@ TEST_CASE(clearing_a_whole_channel_also_drops_its_routing_and_modes)
   CHECK(ch->input_amp_mode == INPUT_AMP_DISABLED);
   CHECK(ch->quantize_mode == QUANTIZE_DISABLED);
   CHECK(ch->shape_mode == SHAPE_LFO);
-  CHECK(ch->sr_length_idx == 0);
+  CHECK(ch->st_length_idx == 0);
 
   // Except the output range, which describes the rig rather than the patch.
   CHECK(ch->clamp_mode == CLAMP_UNI_5);

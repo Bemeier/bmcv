@@ -1,6 +1,6 @@
 """character.py's numbers, computed on the C's own output, plus level.
 
-Fed by dump_pattern.c rather than by srmodel.py, because the question this was
+Fed by dump_pattern.c rather than by stmodel.py, because the question this was
 built for is a change to the *correction*, and the correction lives in the
 generated table - a Python re-derivation of it measures a module that does not
 exist.
@@ -18,9 +18,9 @@ by construction. char-st is what says whether the knob still goes anywhere, and
 it is invariant under the affine correction, so it should not move at all when
 only the table changes.
 
-    cc -O2 -I Core/Inc/Lib -o /tmp/dump_pat tools/sr_explore/dump_pattern.c -lm
+    cc -O2 -I Core/Inc/Lib -o /tmp/dump_pat tools/stepped_explore/dump_pattern.c -lm
     /tmp/dump_pat > /tmp/after.txt
-    python3 tools/sr_explore/from_c.py /tmp/before.txt /tmp/after.txt
+    python3 tools/stepped_explore/from_c.py /tmp/before.txt /tmp/after.txt
 
 The first file given sets the standardisation scale, so every column is
 comparable across the runs in one invocation.
@@ -31,7 +31,7 @@ import numpy as np
 FEATURES = ["span", "rough", "turns", "edginess", "tie_frac", "maxrun",
             "motif", "centroid", "lowfreq", "spread", "swing", "skew", "clump"]
 LEVEL = ("span", "spread", "centroid")
-SR_LENGTHS = [3, 4, 5, 6, 8, 12, 16, 24, 32, 48, 64]
+ST_LENGTHS = [3, 4, 5, 6, 8, 12, 16, 24, 32, 48, 64]
 SMALL_MOVE = 0.02
 
 
@@ -102,7 +102,7 @@ def scale(rows=None):
     feature shows a bigger number instead of being renormalised back to 1."""
     global _SCALE
     if _SCALE is None:
-        F = feats([r for r in rows if r[0] == SR_LENGTHS.index(32)])
+        F = feats([r for r in rows if r[0] == ST_LENGTHS.index(32)])
         _SCALE = np.maximum(F.std(0), 1e-3)
         _SCALE[FEATURES.index("swing")] = 0.10  # the swing-free baseline cannot set its own
     return _SCALE
@@ -154,7 +154,7 @@ def report(path, lengths=(8, 16, 32), axes=(("shape", -0.5), ("shape", 0.0), ("m
     print(HDR)
     agg = []
     for length in lengths:
-        li = SR_LENGTHS.index(length)
+        li = ST_LENGTHS.index(length)
         for axis, fixed in axes:
             g = [r for r in rows if r[0] == li and r[1] == axis and abs(r[2] - fixed) < 1e-6]
             if not g:

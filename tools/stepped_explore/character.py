@@ -12,7 +12,7 @@ different behaviours the knob reaches, under the same constraint as before that
 neighbouring positions stay related.
 """
 import numpy as np
-import srmodel as M
+import stmodel as M
 
 SWEEP = 400
 SMALL_MOVE = 0.02
@@ -60,7 +60,7 @@ def features(v, tied, widths=None):
 
 
 def feat_at(eng, s, m, li):
-    L = M.SR_LENGTHS[li]
+    L = M.ST_LENGTHS[li]
     vals, src, jumps = eng.steps(s, m, L)
     g, off = eng.norm_for(s, m, li)
     return features(np.clip(vals * g + off, -1.0, 1.0), ~jumps,
@@ -155,7 +155,7 @@ def report(eng, lengths=(6, 8), mods=(0.0, -0.5), shapes=(0.0, 0.4), plane=True,
     print(f"=== {eng.name} (character) ===")
     print(HDR)
     for li in lengths:
-        L = M.SR_LENGTHS[li]
+        L = M.ST_LENGTHS[li]
         for m in mods:
             line(f"SHP L={L} m={m:+.1f}", axis_report(eng, "shape", m, li))
         for s in shapes:
@@ -167,6 +167,6 @@ def report(eng, lengths=(6, 8), mods=(0.0, -0.5), shapes=(0.0, 0.4), plane=True,
         for li in lengths:
             for ax, fx in [("shape", 0.0), ("mod", 0.0)]:
                 r = axis_report(eng, ax, fx, li)
-                print(f"  steered character, {ax.upper()} L={M.SR_LENGTHS[li]} (sigma):")
+                print(f"  steered character, {ax.upper()} L={M.ST_LENGTHS[li]} (sigma):")
                 print("    " + "  ".join(f"{n}={d:.2f}" for n, d in zip(FEATURES, r["drift"])))
     print()

@@ -131,8 +131,8 @@ opening KiCad and a reviewer sees it change as a diff:
   firmware's own `HwSetup` tables. Positions, LED assignments and button roles are
   therefore derived from the board and the firmware together, and
   `tests/test_panel_spec.c` asserts the two agree. `just panel`.
-- `Core/Inc/Lib/stepped_random_table.h` comes from `tools/gen_sr_table.c`.
-  `just sr-table`.
+- `Core/Inc/Lib/stepped_table.h` comes from `tools/gen_stepped_table.c`.
+  `just stepped-table`.
 - `Core/Inc/Lib/wavetables.h`, `Core/Src/Lib/wavetables.c` and the plots in
   `docs/images/wavetable-*.svg` all come from one run of
   `tools/gen_wavetable.py`, so the documentation cannot show a shape the
@@ -174,7 +174,7 @@ loads), the LED curve check in `web/smoke.mjs` (the C header against the JS
 constants), and `sim/include/layout_target.h`, which is not a test at all but a
 wall of static assertions the wasm build compiles.
 
-`tools/sr_explore/` is the fourth kind: an offline measurement harness rather
-than a check. It is what a change to `stepped_random()` has to be judged with,
+`tools/stepped_explore/` is the fourth kind: an offline measurement harness rather
+than a check. It is what a change to `stepped_shape()` has to be judged with,
 because the obvious identity metrics say the old sweep contained 400 distinct
 patterns and are no help at all. See [`tools/CLAUDE.md`](../tools/CLAUDE.md).

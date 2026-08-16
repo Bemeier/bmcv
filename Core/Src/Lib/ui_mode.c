@@ -17,13 +17,13 @@ _Static_assert(CH_PARAM_COUNT <= N_CTRL_BUTTONS, "the first CH_PARAM_COUNT ctrl 
 // drives, what the LEDs show underneath, and how the mode is left - all in one
 // place, read by both the dispatcher and the renderer.
 static const UiModeDesc modes[SHIFT_STATE_COUNT] = {
-    // The encoders set the stepped-random pattern length here: it is a division
+    // The encoders set the stepped pattern length here: it is a division
     // of the beat, and this is the page the FRQ button opens.
     [SHIFT_STATE_STA] = {.name               = "STA",
                          .scene_btn_kind     = TGT_SCENE,
-                         .channel_enc_target = ENC_SR_LENGTH,
+                         .channel_enc_target = ENC_STEPPED_LENGTH,
                          .scene_btn_action   = SCN_SET_XFADE,
-                         .channel_base       = CHBASE_SR_LENGTH,
+                         .channel_base       = CHBASE_STEPPED_LENGTH,
                          .scene_btn_base     = SCB_CROSSFADE,
                          .xfade_end          = XFADE_A},
 

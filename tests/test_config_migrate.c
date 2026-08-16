@@ -6,7 +6,7 @@
 // the target that wrote it).
 
 #include "config_migrate.h"
-#include "stepped_random_table.h" // SR_LENGTH_COUNT
+#include "stepped_table.h" // ST_LENGTH_COUNT
 #include "testkit.h"
 #include <string.h>
 
@@ -20,7 +20,7 @@ enum
   V3_SHAPE_PWM,
 };
 
-// v2's ChannelConfig: no sr_length_idx, no clamp_mode.
+// v2's ChannelConfig: no st_length_idx, no clamp_mode.
 typedef struct __attribute__((packed))
 {
   int8_t src_input;
@@ -115,7 +115,7 @@ TEST_CASE(v3_keeps_everything_the_layout_already_carried)
   in.scene_a                                  = 1;
   in.scene_b                                  = 6;
   in.channel_state[2].params[4][CH_PARAM_FRQ] = -128;
-  in.channel_state[2].sr_length_idx           = 3;
+  in.channel_state[2].st_length_idx           = 3;
   in.channel_state[2].clamp_mode              = CLAMP_UNI_5;
   in.channel_state[2].src_input               = 1;
 
@@ -125,7 +125,7 @@ TEST_CASE(v3_keeps_everything_the_layout_already_carried)
   CHECK(out.scene_a == 1);
   CHECK(out.scene_b == 6);
   CHECK(out.channel_state[2].params[4][CH_PARAM_FRQ] == -128);
-  CHECK(out.channel_state[2].sr_length_idx == 3);
+  CHECK(out.channel_state[2].st_length_idx == 3);
   CHECK(out.channel_state[2].clamp_mode == CLAMP_UNI_5);
   CHECK(out.channel_state[2].src_input == 1);
 }
@@ -207,7 +207,7 @@ TEST_CASE(v2_gains_the_two_appended_fields_at_their_defaults)
   CHECK(out.scene_a == 3);
   for (uint8_t c = 0; c < N_CHANNELS; c++)
   {
-    CHECK(out.channel_state[c].sr_length_idx == 0);
+    CHECK(out.channel_state[c].st_length_idx == 0);
     CHECK(out.channel_state[c].clamp_mode == CLAMP_BI_10);
   }
 }
@@ -302,7 +302,7 @@ TEST_CASE(a_converted_record_is_validated)
   {
     CHECK(out.channel_state[c].shape_mode >= 0 && out.channel_state[c].shape_mode < SHAPE_MODE_COUNT);
     CHECK(out.channel_state[c].clamp_mode >= 0 && out.channel_state[c].clamp_mode < CLAMP_MODE_COUNT);
-    CHECK(out.channel_state[c].sr_length_idx >= 0 && out.channel_state[c].sr_length_idx < SR_LENGTH_COUNT);
+    CHECK(out.channel_state[c].st_length_idx >= 0 && out.channel_state[c].st_length_idx < ST_LENGTH_COUNT);
     CHECK(out.channel_state[c].src_input >= -1 && out.channel_state[c].src_input < N_INPUTS);
   }
 }
