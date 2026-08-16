@@ -1,5 +1,31 @@
 # Changelog
 
+## v0.15.0 (2026-08-16)
+
+### Feat
+
+- **sr**: measure what a small turn does to the pattern's order, not its values
+- **drift**: a third random mode, with no pattern in it
+- **sr**: a second stepped mode, driven for modulation
+- **sr**: measure each channel's own pattern, a slot at a time
+- **sr**: compute the correction from the pattern, behind a build knob
+
+### Fix
+
+- **dac**: serve a due transaction where it lands, not when the loop notices
+- **profile**: ask gdb for plain integers, and say what failed
+- **profile**: read the struct's layout from the ELF, not from counting by hand
+- **dac**: spread the ramp over the tick that is actually being served
+- **sr**: give out one pattern measurement per tick, not one per channel
+- **sr**: keep SHP and MOD off the level, and leave the pattern centred
+
+### Refactor
+
+- call it stepped, not stepped random
+- **sr**: keep the generator's arithmetic off the channel's path
+- **sr**: one stepped mode, and it is the one driven for modulation
+- **sr**: make the correction a function, not only a table
+
 ## v0.14.1 (2026-08-15)
 
 ### Fix
