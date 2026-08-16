@@ -69,20 +69,30 @@ static_assert(N_ENCODERS == N_CHANNELS, "one encoder per channel");
 // its DAC updates at, and the number the other three hosts already assume
 // (web/const.js TICK_US, BMCV_CONTROL_HZ in the Rack plugin). Here so that when
 // the board turns out to hold a different rate, one place changes.
-// 312us is 3.2kHz, and it was 250 (4kHz). What bought the change was headroom
-// rather than a deadline that could not be met: with the stepped path memoised
-// the engine fits 4kHz even at its worst, so what the longer period buys is
-// what is left over - for the USB snapshot link, and for whatever the module
-// grows next - rather than the tick itself.
+// 500us is 2kHz, down from 250 (4kHz) by way of 312 (3.2kHz), and the number
+// was decided by the worst case rather than the typical one.
 //
-// 312 and not 313 because it divides. DAC_CHUNK_US is ENGINE_TICK_US over
-// DAC_SUBSTEPS * DAC_CHANNELS, and 312 is exact at one substep (78us) and at
-// two (39us), where 313 is neither.
+// The typical case fits anything: with the stepped path memoised, eight busy
+// channels cost 202us. But **a moving crossfader empties both caches every
+// tick** - every scene blend is a new shape/mod, so the pattern genuinely has
+// to be recomputed - and that costs 359us however fast the tick is. Measured on
+// the module at 312us, a fader sweep took the engine to load 1.23 and
+// engine_fps to 2440, which is not a 3.2kHz engine.
 //
-// What it costs is timing resolution on gate and trigger edges, 312us against
-// 250. Some of that was already spent: the DAC interpolates across a whole
-// tick, so an edge was never instant.
-#define ENGINE_TICK_US 312 // 3.2 kHz
+// At 500us the same cold case is load 0.82 and engine_fps holds 2000.15, with
+// 18% left for the USB link. Warm it is 0.55. So this is the rate the module
+// actually delivers, rather than the rate it delivers when nobody touches it.
+//
+// It costs nothing on the output: DAC_CHUNK_US is ENGINE_TICK_US over
+// DAC_SUBSTEPS * DAC_CHANNELS, so two substeps at 500us is a 62.5us chunk and
+// 4032 frames/s - the same rate as the 4kHz engine managed, and now genuinely
+// oversampled twice per tick rather than exactly once.
+//
+// What it does cost is timing resolution on gate and trigger edges, 500us
+// against 250. Note that this is the *output* side: gates arriving on the CV
+// inputs are latched in the DAC's own interrupt at 8kHz and consumed once per
+// tick, so nothing is missed - see adc_read_trig_state().
+#define ENGINE_TICK_US 500 // 2 kHz
 
 typedef struct
 {

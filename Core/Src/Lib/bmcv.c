@@ -79,9 +79,11 @@ static uint8_t task = 0;
 // gives up is oversampling - at 1 the interpolation has nothing to interpolate
 // between, and it only starts earning its keep again at 2.
 //
-// Raising it is gated on the engine, not on this: the tick costs 297us of a
-// 250us period before the DAC is counted at all. See the plan's last two items.
-#define DAC_SUBSTEPS 1
+// 2 now, because the engine's period went to 500us and paid for it. A chunk is
+// 62.5us, the interrupt is 8% of the CPU, and the output is 4032 frames/s -
+// the same rate the 4kHz engine managed, with the interpolation finally
+// oversampling twice per tick instead of landing exactly on it.
+#define DAC_SUBSTEPS 2
 
 // The cadence the service runs at: DAC_SUBSTEPS frames per tick, a frame being
 // DAC_CHANNELS transactions of two outputs each. 15.6us at a 4kHz tick.

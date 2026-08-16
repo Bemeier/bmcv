@@ -6,7 +6,7 @@
 
 // The rate the frontend ticks the engine at. The engine is dt-driven so any
 // value is correct; 4kHz is roughly what the hardware achieves.
-export const TICK_US = 312;
+export const TICK_US = 500;
 
 // A backgrounded tab can come back with seconds of elapsed time. Catching up on
 // all of it in one frame would freeze the page, so drop the excess instead.
