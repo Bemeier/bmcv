@@ -200,32 +200,27 @@ void bmcv_handle_gpio_exti(uint16_t GPIO_Pin)
   }
 }
 
-// A DAC transaction has landed. Serve the next one here if it is due, rather
-// than handing the loop a flag and waiting for it to come round.
+// A DAC transaction has landed; the loop arms the next one.
 //
-// This is what makes the output rate a property of the hardware instead of a
-// property of how busy the engine is. Serviced from the loop, a completion that
-// arrives while eight stepped channels are being computed waits out the rest of
-// the tick, so the frame rate fell from 4.5kHz to under 1kHz exactly when the
-// most was being asked of it. The work here is one interpolation and one DMA
-// arm; the ADC decode above it was already running in this context.
+// Re-arming it here instead was tried, to keep the output rate independent of
+// how busy the engine is - serviced from the loop, a completion arriving during
+// an eight-channel tick waits out the rest of it, and the frame rate falls from
+// 4.5kHz to under 1kHz exactly when the most is being asked of it. On the
+// module it produced a stable transaction rate and a dead output: transfers
+// running, nothing latching. HAL returns both the SPI and the DMA channel to
+// READY before this callback, so the re-arm is legal on paper; what it actually
+// disturbs is unproven, and an unproven guess does not belong in the signal
+// path. See docs/architecture.md.
 //
-// Only when due: when nothing is competing for the loop, the cadence is set by
-// DAC_CHUNK_US either way, and there is no reason to spend it in an interrupt.
+// The fix that does not re-enter HAL's own DMA callback is a periodic timer
+// interrupt calling dac_service() directly, which is also the fixed cadence
+// this wants in the first place.
 void bmcv_handle_txrx_complete(SPI_HandleTypeDef* hspi, uint32_t now_us)
 {
+  (void) now_us;
   mcp_handle_txrx_complete(hspi);
 
-  if (!dacadc_dma_complete(hspi))
-  {
-    return;
-  }
-
-  if ((uint32_t) (now_us - last_dac_poll) >= DAC_CHUNK_US)
-  {
-    dac_service(now_us);
-  }
-  else
+  if (dacadc_dma_complete(hspi))
   {
     isr_flag_set(&dac_poll);
   }

@@ -75,6 +75,43 @@ interface, not to reimplement the behaviour on top of it.
 Three hosts need the same handful of fiddly things, and each is easy to get
 subtly wrong:
 
+## What reaches the pins, and how often
+
+The engine computes one value per channel per tick. What the DAC gets is
+interpolated between the last two of those, so a step becomes a ramp rather
+than an edge - `dac_write_interpolated()` in `bmcv.c`.
+
+**The rate is not what the constants say, and this is the open problem.**
+`DAC_SUBSTEPS 4` asks for four frames per tick. A frame is `DAC_CHANNELS`
+transactions of two outputs each, so the target cadence is 15.6us. Measured on
+the module: **55us**, and it collapses further as the engine gets busier -
+4.5kHz of frames with no stepped channels, under 1kHz with eight, which is a
+quarter of the engine's own rate. So the shape the interpolation is smoothing is
+being undersampled, not oversampled.
+
+Where the time goes, measured: six bytes at an 18MHz SPI clock (144MHz SYSCLK,
+prescaler 8) is **2.67us of bus time**, so the wire is busy 5% of it. The rest
+is HAL's DMA setup and, mostly, a completed transfer sitting in a flag while the
+main loop is inside an engine tick - one tick of eight stepped channels is 307us
+against a 250us period, so there is nothing left between ticks at all.
+
+Three ways out, in the order they were considered:
+
+1. **Re-arm from the SPI completion interrupt.** Tried. HAL returns both the SPI
+   and the DMA channel to READY before the callback, so it is legal on paper;
+   on the module it gave a stable transaction rate and a dead output - transfers
+   running, nothing latching. Reverted rather than left in on a guess.
+2. **A periodic timer interrupt calling the service directly.** The fixed
+   cadence this wants in the first place, and it does not re-enter HAL's own DMA
+   callback. Needs a spare timer: TIM2 is the microsecond counter and TIM4 is
+   the 303Hz task poll, so this means adding one.
+3. **Lower the engine rate** so the loop has more passes to spare. Helps least -
+   at 2.4kHz the slack per period goes from 90us to 110us - but costs nothing
+   and is independent of the other two.
+
+The measurement to reach for is `just profile`, which reads `bmcv_profile` off a
+running module: `load` near 1 means the loop has nothing left between ticks.
+
 - **Unit conversion.** Volts to ADC counts and DAC counts to volts, with the
   converters' real ranges and the 14-bit converter's off-by-one.
 - **Tick decimation.** The engine is dt-driven and correct at any rate, but a
