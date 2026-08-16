@@ -1,7 +1,7 @@
 # Splitting stepped random into modes with distinct characters
 
-Status: **phases 0 and 1 done and confirmed on hardware; phase 2 under way -
-the modulation mode is in and wants an ear.**
+Status: **phases 0 and 1 done and confirmed on hardware; all three modes of
+phase 2 are in and want an ear.**
 All on `spike/stepped-modes`.
 
 ## Where this comes from
@@ -189,18 +189,39 @@ Something to modulate with: sits low, rises occasionally, or gates.
   offset, so the centring is re-aimed per mode and the level test asserts the
   floor is steady rather than the mean.
 
-### 3. Drift
+### 3. Drift - built, `SHAPE_DRIFT`
 
 The invisible hand: slow, smooth, no audible steps. Random8's fBm and Perlin.
 
-- Not the slot engine: a sum of 2-4 octaves of triangles in the **phase** domain
-  at integer rates, so it closes on itself exactly and **needs no correction** -
-  its span is analytically bounded.
-- **SHP** - roughness: how much of the higher octaves, and which drift.
-- **MOD** - excursion, and how much of the step lattice shows through (0 =
-  smooth, 1 = stepped).
-- Cheapest and least risky of the three; third only because the feedback named
-  melody and modulation.
+Four octaves of a smoothed triangle summed in the **phase** domain. Every rate
+is a whole number of cycles, so it closes on itself by construction; every
+octave is odd over a whole number of periods, so **its DC is exactly zero at
+every setting**; and the peak-to-peak is known in advance. All the level work
+the stepped modes need a table and a per-channel measurement for is two
+constants here.
+
+- **SHP** - detail: two turns of direction per cycle at the left, sixteen at the
+  right, with the wander morphing underneath. A ramp, so unlike SHP in the
+  stepped modes it does not wrap - its ends are opposite ends, the way their
+  MOD's density is.
+- **MOD** - the same `sr_bias_map()` the control mode puts on SHP, free here
+  because there is no correction for it to interfere with.
+
+| | melodic | control | drift |
+|---|---|---|---|
+| ns/call, dev machine | 87 | 87 | **20** |
+| per-channel measurement | yes | yes | **none** |
+| flash | shared 8 KB table | shared | **none** |
+| DC across the sweep | 0.38 | 0.54 (by design) | **0.000** |
+| peak-to-peak | 1.10..1.58 | 1.04..1.71 | 1.32..1.83 |
+| small turn, of a 0.35 budget | 0.30 | 0.34 | **0.26** |
+
+The small-turn figure is the interesting one: at one excursion of the wander per
+sweep it measured 0.09, so the knob was given three and still moves more gently
+than either stepped mode. That is the resolution argument in one number - a
+shape whose character comes from continuous reshaping rather than from redrawing
+a pattern has budget to spare, and spending it is what makes a detent do
+something.
 
 ## What we do not take from Random8
 

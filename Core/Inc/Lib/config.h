@@ -57,6 +57,7 @@ typedef enum
   SHAPE_STEPPED,      // random values, eased between; MOD is the density
   SHAPE_PWM,          // square; SHP is the pulse width, MOD the envelope
   SHAPE_STEPPED_CTRL, // the same pattern engine, driven for modulation
+  SHAPE_DRIFT,        // a smooth random wander; no pattern at all
   SHAPE_MODE_COUNT,
 } ChannelShapeMode;
 
