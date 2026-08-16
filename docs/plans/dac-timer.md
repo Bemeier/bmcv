@@ -1,7 +1,35 @@
 # Giving the DAC a clock of its own
 
-Status: **not started.** Everything below is measured, on the `-rel` build,
-against a module with eight channels patched.
+Status: **written, not yet validated on hardware.** Branch `feat/dac-timer`.
+Everything below is measured, on the `-rel` build, against a module with eight
+channels patched.
+
+Re-confirmed live over SWD before touching anything: `dac_fps` and `engine_fps`
+read the *same* number, 2942, so the DAC was doing exactly one transaction per
+engine tick - 735 frames/s against the 16k the substep count asks for. `load`
+1.19, 100% of ticks overrunning, 198k resyncs.
+
+## What is done
+
+- **The hardware-in-the-loop rig** - `just hil` and `just dac-loopback`, below.
+  Built first, because the failure this change has already produced once was
+  invisible to every number the firmware reports about itself.
+- **The timer** - TIM6, hand-written in `main.c`'s USER CODE blocks, at
+  `bmcv_dac_service_hz()`. `bmcv_dac_tick()` in `bmcv.c` is what it calls; the
+  main loop no longer touches the DAC at all.
+- **`bmcv_profile.dac`** - the service measured from inside its own interrupt,
+  so `just profile` can say what the interrupt costs. Appended to the struct so
+  the existing offsets do not move.
+
+## What is left
+
+1. Patch CH1 out into IN3, run `just dac-loopback` against the **old** firmware
+   to prove the rig reads a working DAC as `ok`.
+2. Flash, run it again. `DEAD` is the regression the reverted attempt hit.
+3. `just profile` for `dac.avg_us` against the 15.6us period, and `engine_fps`
+   for what the interrupt took from the engine. If it is too expensive, fewer
+   substeps is the honest answer - and interpolating only the two outputs the
+   transaction carries, rather than all eight, is a 4x saving still on the table.
 
 ## The problem
 
@@ -63,6 +91,34 @@ Two candidates, neither tested:
   may be reading before the conversion is done - which would corrupt the ADC
   rather than the DAC, so this explains the symptom less well.
 
+## The rig
+
+Neither candidate above can be told apart from the other, or from success, by
+anything the module says about itself - `dac_fps` reported the dead output as
+the best rate it had ever managed. So the loop is closed outside the firmware:
+
+**`just hil EXPR...`** samples any scalar inside `bmcv` off a running module
+over SWD, as TSV. The whole 2.7 KB instance comes back in one burst and the ELF
+says where each field sits in it, so nothing in the script knows the struct. A
+full-instance read and a 16-byte read both measure 0.13 s - the cost is the
+STM32_Programmer_CLI connect, not the transfer - so reading everything is free,
+and every field in a sample was read microseconds from every other.
+
+**`just dac-loopback`** patches that into a verdict. CH1's output goes into IN3
+with a patch cable; the script correlates `channels_gated_level[0]` against
+`input.curr.input_state[2]` and reports `dead`, `loose` or `ok`.
+
+It **correlates rather than traces**. Eight samples a second cannot follow an
+LFO - but both fields come out of one instance read, so each (commanded,
+measured) pair is internally consistent however badly the sampling aliases.
+Scatter enough pairs across the waveform and they lie on a line whether or not
+they were taken in order, which means the channel can be left running whatever
+it was already running and no part of the rig has to control the module.
+
+Checked against an unpatched module first: `commanded span 22.8% of range,
+measured span 0.0%, verdict DEAD` - the same signature as the regression, which
+is the evidence that the detector detects.
+
 ## The plan
 
 **A periodic timer interrupt calling `dac_service()` directly.** It does not
@@ -71,19 +127,31 @@ attempt above, and a fixed cadence is the thing that was wanted in the first
 place rather than a side effect of loop scheduling.
 
 1. **Add a timer.** TIM2 is the microsecond counter and TIM4 is the 303 Hz task
-   poll, so there is nothing spare. A CubeMX change, and `Core/Src/main.c` is
-   generated territory - see how TIM4 is wired through
-   `HAL_TIM_PeriodElapsedCallback()` and do the same.
-2. **Rate: start at the current target**, 15.6 us (`DAC_CHUNK_US`), and treat it
-   as adjustable. `dac_service()` already takes `now_us` and does its
-   bookkeeping before arming the transfer, so it is safe to call from an
-   interrupt as it stands.
-3. **Skip when one is in flight.** The service must not arm a transfer while the
-   previous is running - `dac_poll` says whether a completion has been seen.
-4. **Measure what the interrupt costs.** At 64 kHz an interrupt doing an
-   interpolation and a DMA arm is not free. `just profile` plus `engine_fps` is
-   how to see whether it has taken the engine's budget; if it has, fewer
-   substeps is the honest answer rather than more cleverness.
+   poll - but **TIM6 is free**, a basic timer with no channels, no pins and a
+   vector of its own. Not a CubeMX change: the `.ioc` already does not
+   round-trip (it still describes CubeMX's TIM2 - prescaler 14400, period 32 -
+   which is the timer `main.c` calls TIM4, while `main.c`'s own TIM2 has no
+   `.ioc` counterpart), so TIM6 is hand-written in the USER CODE blocks
+   alongside everything else that is already maintained by hand there.
+2. **Rate: the current target**, 15.625 us (`DAC_CHUNK_US`), exposed as
+   `bmcv_dac_service_hz()` so the timer setup reads one number rather than
+   reproducing the formula. Prescaler 0 and the whole divide in the reload:
+   2250 counts at 144 MHz is exact, where a 1 us prescaler would quantise a
+   15.625 us period to 15 or 16 and put 2-6% of jitter on the cadence this
+   change exists to make even.
+3. **Skip when one is in flight.** `dac_poll` says whether a completion has been
+   seen. A skipped chunk is not a stall - `dac_write_interpolated()` reads the
+   clock rather than counting substeps, so the next one lands where the elapsed
+   time says it should.
+4. **Priority 0, the SPI DMA completion's.** Equal priority means neither can
+   preempt the other, so `dac_service()` cannot be re-entered against
+   `dacadc_dma_complete()` and the two need no lock. TIM4 sits at 1 and is
+   preempted by both.
+5. **Measure what the interrupt costs.** At 64 kHz an interrupt doing an
+   interpolation and a DMA arm is not free. `bmcv_profile.dac` measures the
+   service from inside itself, so `just profile` reports it directly; `load` and
+   `engine_fps` say what it took from the engine. If it has taken too much,
+   fewer substeps is the honest answer rather than more cleverness.
 
 Then, and only then, the two that are independent of it:
 
@@ -98,7 +166,12 @@ Then, and only then, the two that are independent of it:
 ## Unresolved questions
 
 1. **Is it the SYNC pulse?** A scope on the DAC's sync line during the failing
-   version would settle in a minute what the reasoning above cannot.
+   version would settle in a minute what the reasoning above cannot. Worth
+   noting that a fixed cadence answers it either way without proving it: armed
+   on a clock, the gap between `dacadc_dma_complete()` raising SYNC and
+   `dacadc_dma_next()` lowering it is the chunk period less the transfer, about
+   13 us of the 15.6, on every chunk. The same holds for the ADC's conversion
+   window, which is one whole chunk period and now the same one every time.
 2. **Does the DAC need the interpolation at all** once its frame rate is above
    the engine's? The ramp exists because a step is a broadband click; at 16 kHz
    frames against a 2.4 kHz engine it would be doing what it was written for
