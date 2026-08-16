@@ -23,6 +23,11 @@ C. `srmodel.py` is a replica of the shipping algorithm, verified against it to
 - `invariants.py` - the properties a variant may not break, mirroring
   `tests/test_stepped_random.c` plus the two the shipping algorithm cannot
   violate (parameter cyclicity, slot 0 length-independence).
+- `dump_pattern.c` + `from_c.py` - the same character numbers plus **level**
+  (how far the pattern's centre and its peak-to-peak move along a knob),
+  computed on the C's own output rather than on the replica. Use these for any
+  change to the *correction*: it lives in the generated table, which the replica
+  does not carry.
 
 The identity metrics come first historically and are the ones that mislead: the
 shipping sweep contains 400 distinct sequences at 32 steps and still feels like
@@ -43,3 +48,14 @@ generated header, so what it really tests is the value path.
 
 `C.scale()` must be called before the first variant so every run is standardised
 against the same baseline sigma.
+
+For a change to the normalisation table, dump the C before and after instead -
+the first file given sets the scale, so the columns are comparable:
+
+    cc -O2 -I Core/Inc/Lib -o /tmp/dump_pat tools/sr_explore/dump_pattern.c -lm
+    /tmp/dump_pat > /tmp/after.txt      # `just sr-table` in between
+    python3 tools/sr_explore/from_c.py /tmp/before.txt /tmp/after.txt
+
+Read `char-st` there, not `steer`: three of the eleven features are level, so a
+change that deliberately flattens level lowers `steer` while moving no
+character at all.
