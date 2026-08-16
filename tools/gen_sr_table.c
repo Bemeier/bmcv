@@ -26,10 +26,22 @@
 // higher than the 10 that served the plain orbits.
 //
 // So each (length, MOD, morph) gets a precomputed affine correction, applied as
-// out = value * gain + offset. It is deliberately gentle: patterns that already
-// span SR_NORM_TARGET are left completely alone (gain 1.0), so the natural
-// variation between calm and busy settings survives - only genuinely collapsed
-// patterns are lifted, and never by more than SR_NORM_MAX_GAIN.
+// out = value * gain + offset. It does two jobs: it holds the peak-to-peak near
+// SR_NORM_TARGET, and it puts the pattern's own centre near zero.
+//
+// Both used to be one-sided - lift a collapsed pattern, never shrink a wide
+// one, and leave the centre wherever the pattern happened to sit. Measured on
+// the shipping build, the result was a peak-to-peak that varied 2.3x between
+// settings of the same knob, and a centre that walked 0.76 of the 2.0 range
+// along one sweep of SHP. Both read as the shape flattening and shifting as the
+// knob turns, which is what AMP and OFFSET are for; SHP and MOD are supposed to
+// be steering character. Neither correction touches character: every character
+// measurement in tools/sr_explore/ is invariant under an affine, and all of
+// them come out unchanged to two decimals.
+//
+// Neither is absolute either. SR_NORM_EXP leaves the natural loud/quiet
+// ordering audible while compressing its range, and the centring is one
+// constant shared by all the lengths rather than a fit to each.
 //
 // Span does not depend on the hold/smoothness setting: the eased curve passes
 // exactly through each slot value, so one table serves all the stepped modes.
@@ -42,17 +54,27 @@
 //
 // That axis is a smoothing, not an exact fit: the true span steps discretely as
 // each slot's gate is crossed, so the bins are interpolated between - which is
-// fine, because the correction is gentle and changes smoothly with the knob
+// fine, because what the correction asks for changes smoothly with the knob
 // rather than jumping.
 // ---------------------------------------------------------------------------
 
 #define SR_NORM_BINS 128
-#define SR_NORM_TARGET 1.3f
+#define SR_NORM_TARGET 1.5f
 #define SR_NORM_MAX_GAIN 40.0f
+// A clamp rather than a setting: at SR_NORM_EXP 0.7 the smallest gain the
+// normalisation ever asks for is (1.5/2.0)^0.7 = 0.82, so this only catches a
+// re-tuning that went somewhere absurd.
+#define SR_NORM_MIN_GAIN 0.4f
 
-// How far the correction may pull its anchor toward centre, and how finely that
-// is searched. See gain_for().
-#define SR_PULL_MAX 1.0f
+// How completely the peak-to-peak is normalised. 1 pins every setting to
+// SR_NORM_TARGET; 0 leaves them all alone. At 0.7 a pattern whose natural span
+// is 0.7 comes out at 1.20 and one at 2.0 comes out at 1.64 - the ordering
+// survives, the 2.9x range does not.
+#define SR_NORM_EXP 0.7f
+
+// The span the correction guarantees even where it is otherwise shrinking, so
+// the two-sided normalisation cannot make a dead setting.
+#define SR_NORM_FLOOR 0.9f
 
 // Sub-samples either side of a MOD bin, so its gain serves the whole bin.
 #define SR_GAIN_SUBS 3
@@ -89,27 +111,19 @@ static void build_slots(void)
 
 static const SrSlots g_slots = {g_base, g_rate, g_gate, g_gate2};
 
-// The gain that lifts a pattern toward SR_NORM_TARGET without letting the
-// corrected result leave [-1,1].
+// The gain that carries a pattern's peak-to-peak toward `target`, and what the
+// rails leave of it once the correction's constant `c` is added.
 //
-// `pull` moves the anchor toward zero. Without it a pattern bunched hard
-// against a rail cannot be expanded at all: the anchor is the rail, so the
-// headroom above it is nil and the cap pins the gain at 1. That is a real dead
-// spot - measured at three and four steps, a cycle of four values sitting
-// within 0.07 of each other up at +0.96 - and it is why this exists. Pulling
-// the anchor down makes room to expand into.
-//
-// The pull cannot be chosen per length, because the anchor is what every length
-// has to agree on at the cycle boundary. So it is chosen once per (MOD, morph)
-// for whichever length needs it most, and every length uses it.
-static float gain_for(float span, float lo, float hi, float anchor, float pull)
+// The pattern is scaled about slot 0, so the caps are asymmetric: how far the
+// top of the pattern is above slot 0 decides how much expansion the top rail
+// allows, and the bottom likewise. Where slot 0 sits relative to the pattern is
+// therefore what the constant is really buying - it used to be pulled toward
+// zero purely to open that headroom up, and centring the pattern does the same
+// job as a side effect of doing something musically useful.
+static float gain_toward(float target, float expo, float span, float lo, float hi, float anchor, float c)
 {
-  float c = anchor * (1.0f - pull);
-  float g = (span < 1e-6f) ? SR_NORM_MAX_GAIN : fclamp(SR_NORM_TARGET / span, 1.0f, SR_NORM_MAX_GAIN);
+  float g = (span < 1e-6f) ? SR_NORM_MAX_GAIN : fclamp(powf(target / span, expo), SR_NORM_MIN_GAIN, SR_NORM_MAX_GAIN);
 
-  // Both limits are >= 1 whenever lo/hi are within [-1,1] and the pull has not
-  // moved the anchor past them, so this never shrinks the signal - it only
-  // declines to expand it as far as we wanted.
   if (hi > anchor)
   {
     float limit = (1.0f - c) / (hi - anchor);
@@ -122,7 +136,82 @@ static float gain_for(float span, float lo, float hi, float anchor, float pull)
     if (limit < g)
       g = limit;
   }
-  return (g < 1.0f) ? 1.0f : g;
+  return (g < 0.05f) ? 0.05f : g;
+}
+
+static float gain_for(float span, float lo, float hi, float anchor, float c)
+{
+  return gain_toward(SR_NORM_TARGET, SR_NORM_EXP, span, lo, hi, anchor, c);
+}
+
+// What a point needs to stay clear of the flat floor, whatever the
+// normalisation would otherwise ask for.
+static float gain_floor(float span, float lo, float hi, float anchor, float c)
+{
+  return gain_toward(SR_NORM_FLOOR, 1.0f, span, lo, hi, anchor, c);
+}
+
+typedef struct
+{
+  float lo, hi, centre, anchor;
+} Extent;
+
+// One pattern, measured: its extremes, its DC, and the value it starts on.
+//
+// The DC is weighted by how wide each step is, since MOD skews alternate steps
+// long and short and a plain mean of the step values would not be the level the
+// ear settles on.
+static Extent extent_of(float morph, float mod, int length)
+{
+  SrMorph m   = sr_morph_at(morph, mod, length, SR_HOLD_MAX);
+  Extent e    = {1e9f, -1e9f, 0.0f, 0.0f};
+  float swing = sr_swing_amount(mod);
+  float dc = 0.0f, wsum = 0.0f;
+
+  for (int i = 0; i < length; i++)
+  {
+    float v = sr_step_value(i, &m, &g_slots, SR_JUMP_GRID);
+    float w = (i & 1) ? 1.0f - swing : 1.0f + swing;
+    if (v < e.lo)
+      e.lo = v;
+    if (v > e.hi)
+      e.hi = v;
+    dc += v * w;
+    wsum += w;
+  }
+
+  e.centre = dc / wsum;
+  e.anchor = sr_step_value(0, &m, &g_slots, SR_JUMP_GRID);
+  return e;
+}
+
+// The constant that puts the pattern's centre as near zero as one number can.
+//
+// One number is all there is. The corrected value at the cycle boundary is
+// slot 0's, and that is what every length has to agree on for the engine to be
+// able to switch pattern length on the wrap - so a constant fitted per length
+// would put a step in the signal exactly where there must not be one. Hence an
+// average across the lengths rather than a fit to each: the minimax was tried
+// and measured worse (0.54 of residual DC swing against 0.41), because two
+// short patterns at the extremes drag it away from where the other nine sit.
+//
+// Iterated, because the gain the rails allow depends on the constant and the
+// constant depends on the gain.
+static float centre_for(float morph, float mod)
+{
+  float c = 0.0f;
+
+  for (int it = 0; it < 3; it++)
+  {
+    float sum = 0.0f;
+    for (int li = 0; li < SR_LENGTH_COUNT; li++)
+    {
+      Extent e = extent_of(morph, mod, sr_lengths[li]);
+      sum += (e.centre - e.anchor) * gain_for(e.hi - e.lo, e.lo, e.hi, e.anchor, c);
+    }
+    c = -sum / (float) SR_LENGTH_COUNT;
+  }
+  return fclamp(c, -1.0f, 1.0f);
 }
 
 static void gen_normalisation(void)
@@ -144,81 +233,16 @@ static void gen_normalisation(void)
   printf("};\n\n");
 
   static float gain[SR_LENGTH_COUNT][SR_MOD_BINS][SR_NORM_BINS], offset[SR_LENGTH_COUNT][SR_MOD_BINS][SR_NORM_BINS];
-  static float pull[SR_MOD_BINS][SR_NORM_BINS];
+  static float centre[SR_MOD_BINS][SR_NORM_BINS];
 
-  // First pass: how far the anchor has to be pulled toward centre at each
-  // (MOD, morph), judged by the length that comes off worst there. Anything
-  // more than the minimum is avoided - the pull moves the whole cycle's DC, so
-  // it is a correction, not a feature.
+  // First pass: the constant that centres the pattern at each (MOD, morph). It
+  // is shared by every length, so it has to be worked out before any of them.
   for (int mi = 0; mi < SR_MOD_BINS; mi++)
   {
     float mod = -1.0f + 2.0f * (float) mi / (float) (SR_MOD_BINS - 1);
-
     for (int b = 0; b < SR_NORM_BINS; b++)
     {
-      float morph  = (float) b / (float) SR_NORM_BINS;
-      float needed = 0.0f;
-      float half   = 1.0f / (float) (SR_MOD_BINS - 1);
-
-      for (int li = 0; li < SR_LENGTH_COUNT; li++)
-      {
-        int length = sr_lengths[li];
-        for (int sub = -SR_GAIN_SUBS; sub <= SR_GAIN_SUBS; sub++)
-        {
-          float near = fclamp(mod + half * (float) sub / (float) SR_GAIN_SUBS, -1.0f, 1.0f);
-          SrMorph m  = sr_morph_at(morph, near, length, SR_HOLD_MAX);
-          float lo = 1e9f, hi = -1e9f;
-          for (int i = 0; i < length; i++)
-          {
-            float v = sr_step_value(i, &m, &g_slots, SR_JUMP_GRID);
-            if (v < lo)
-              lo = v;
-            if (v > hi)
-              hi = v;
-          }
-          float anchor = sr_step_value(0, &m, &g_slots, SR_JUMP_GRID);
-          float span   = hi - lo;
-          if (span < 1e-6f || fabsf(anchor) < 1e-6f)
-          {
-            continue;
-          }
-
-          // The gain this length wants, and the window of anchors that lets it
-          // have it without the result leaving [-1,1]. Solved rather than
-          // searched: a discrete search makes the pull jump between bins, and the
-          // runtime interpolates between bins, so two neighbouring bins carrying
-          // corrections built on different anchors blend into one that is right
-          // for neither.
-          float want = fclamp(SR_NORM_TARGET / span, 1.0f, SR_NORM_MAX_GAIN);
-          float c    = anchor;
-          if (hi > anchor)
-          {
-            float upper = 1.0f - want * (hi - anchor);
-            if (c > upper)
-              c = upper;
-          }
-          if (lo < anchor)
-          {
-            float lower = -1.0f + want * (anchor - lo);
-            if (c < lower)
-              c = lower;
-          }
-
-          // Only ever toward zero, never past it or away from the anchor.
-          if (anchor > 0.0f)
-            c = fclamp(c, 0.0f, anchor);
-          else
-            c = fclamp(c, anchor, 0.0f);
-
-          float p = 1.0f - c / anchor;
-          if (p > needed)
-            needed = p;
-        }
-      }
-
-      // A max of continuous functions is continuous, so the field is smooth
-      // enough for the runtime to interpolate across.
-      pull[mi][b] = fclamp(needed, 0.0f, SR_PULL_MAX);
+      centre[mi][b] = centre_for((float) b / (float) SR_NORM_BINS, mod);
     }
   }
 
@@ -233,79 +257,43 @@ static void gen_normalisation(void)
       for (int b = 0; b < SR_NORM_BINS; b++)
       {
         float morph = (float) b / (float) SR_NORM_BINS;
-        SrMorph m   = sr_morph_at(morph, mod, length, SR_HOLD_MAX);
-        float lo = 1e9f, hi = -1e9f;
-        for (int i = 0; i < length; i++)
-        {
-          float v = sr_step_value(i, &m, &g_slots, SR_JUMP_GRID);
-          if (v < lo)
-            lo = v;
-          if (v > hi)
-            hi = v;
-        }
-        float span = hi - lo;
+        float c     = centre[mi][b];
+        Extent e    = extent_of(morph, mod, length);
 
-        // Anchor the correction on slot 0 rather than on the pattern's
-        // midpoint. Slot 0's raw value does not depend on the length, so
-        // anchoring there makes the corrected output at the cycle boundary
-        // identical at every length - which is what lets the engine switch
-        // pattern length on the wrap without a step in the signal. Anchoring
-        // on the midpoint instead left a 0.34 jump, because the midpoint moves
-        // with the length.
-        float anchor = sr_step_value(0, &m, &g_slots, SR_JUMP_GRID);
-
-        // The gain has to serve the whole neighbourhood of its bin, not just
-        // the point it was sampled at. The runtime interpolates between bins,
-        // and the pattern's span dips *between* MOD bins - the ties rearrange
-        // as MOD turns - so a gain fitted to the bin centres leaves the dips
-        // uncorrected. Measured: 1.3% of the parameter space under the flat
-        // floor, which no amount of extra bins removed cheaply.
+        // Scaled about slot 0, whose raw value does not depend on the length -
+        // so with the constant shared too, the corrected value at the cycle
+        // boundary is identical at every length, which is what lets the engine
+        // switch pattern length on the wrap without a step in the signal.
+        // Scaling about the pattern's own midpoint instead - which is what
+        // centring each length exactly would need - left a 0.34 jump there,
+        // because the midpoint moves with the length.
         //
-        // So sample across the bin and take the gain the worst point needs.
-        // Neighbouring bins over-correct slightly as a result, which the anchor
-        // caps keep in range and the ear reads as the correction being gentle.
-        float g        = gain_for(span, lo, hi, anchor, pull[mi][b]);
+        // The gain also has to serve the whole neighbourhood of its bin, not
+        // just the point it was sampled at: the runtime interpolates between
+        // MOD bins and the span dips *between* them as the ties rearrange, and
+        // a gain fitted to the bin centres leaves those dips uncorrected -
+        // measured at 1.3% of the parameter space under the flat floor. Only
+        // the floor is carried across the neighbourhood, though. Carrying the
+        // full target there gave every bin the largest gain any of its
+        // neighbours wanted, which is a bias upward everywhere and undoes the
+        // point of normalising the level at all.
+        float g        = gain_for(e.hi - e.lo, e.lo, e.hi, e.anchor, c);
         float half_bin = 1.0f / (float) (SR_MOD_BINS - 1);
         for (int sub = -SR_GAIN_SUBS; sub <= SR_GAIN_SUBS; sub++)
         {
           if (sub == 0)
             continue;
           float near_mod = fclamp(mod + half_bin * (float) sub / (float) SR_GAIN_SUBS, -1.0f, 1.0f);
-          SrMorph nm     = sr_morph_at(morph, near_mod, length, SR_HOLD_MAX);
-          float nlo = 1e9f, nhi = -1e9f;
-          for (int i = 0; i < length; i++)
-          {
-            float v = sr_step_value(i, &nm, &g_slots, SR_JUMP_GRID);
-            if (v < nlo)
-              nlo = v;
-            if (v > nhi)
-              nhi = v;
-          }
-          float ng = gain_for(nhi - nlo, nlo, nhi, anchor, pull[mi][b]);
+          Extent ne      = extent_of(morph, near_mod, length);
+          float ng       = gain_floor(ne.hi - ne.lo, ne.lo, ne.hi, e.anchor, c);
           if (ng > g)
             g = ng;
         }
 
-        // The span lever rides on the same affine: it only ever shrinks, so it
-        // cannot push the result out of range, and it is free at runtime
-        // because the table already carries a gain. Held off the floor by what
-        // the correction actually achieved here rather than by a globally
-        // conservative depth - where there is headroom the lever gets all of
-        // it, where there is not it gets what there is.
-        float s     = sr_span_drive(morph);
-        float reach = span * g;
-        if (reach > 1e-6f && reach * s < SR_SPAN_FLOOR)
-        {
-          s = fclamp(SR_SPAN_FLOOR / reach, 0.0f, 1.0f);
-        }
-        g *= s;
-
-        // out = c + (v - anchor) * g, where c is the anchor pulled toward
-        // centre. c depends only on MOD and morph, never on the length, so the
-        // value at the cycle boundary is still the same at every length.
-        float c           = anchor * (1.0f - pull[mi][b]);
+        // out = c + (v - anchor) * g. Both c and anchor are the same at every
+        // length, so the value at the cycle boundary is too.
         gain[li][mi][b]   = g;
-        offset[li][mi][b] = c - anchor * g;
+        offset[li][mi][b] = c - e.anchor * g;
       }
     }
   }

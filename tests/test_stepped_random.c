@@ -63,13 +63,16 @@ TEST_CASE(phase_wraps_seamlessly_across_the_loop_point)
 }
 
 // Every length starts and ends its cycle on slot 0, whose raw value does not
-// depend on the length, and the normalisation is anchored there too. So the
-// engine can switch pattern length on the cycle wrap and the signal barely
-// moves - which is what makes a scene crossfade of MOD glitch-free. Switching
-// mid-cycle instead jumps by up to 1.8 of a 2.0 range.
+// depend on the length; the correction is scaled about slot 0 and its constant
+// is shared by every length. So the engine can switch pattern length on the
+// cycle wrap and the signal barely moves - which is what makes a scene
+// crossfade of MOD glitch-free. Switching mid-cycle instead jumps by up to 1.8
+// of a 2.0 range.
 //
-// Not exactly equal: the normalisation gain is interpolated between morph bins,
-// leaving a measured worst case of ~0.026 out of 2.0.
+// Not exactly equal: the gain is interpolated between bins while slot 0's value
+// is computed exactly, so between two bins the two no longer cancel, by an
+// amount proportional to how much the lengths' gains differ. Measured worst
+// case 0.044 of 2.0 here, and 0.122 once MOD is off centre as well.
 TEST_CASE(changing_length_at_the_cycle_boundary_is_seamless)
 {
   for (int h = 0; h < HOLD_COUNT; h++)
@@ -220,6 +223,92 @@ TEST_CASE(no_setting_collapses_to_a_flat_output)
     // at the shortest pattern where only three values are in play; everything
     // else is >= 0.99. Calm settings are wanted, dead ones are not.
     CHECK(worst > 0.5f);
+  }
+}
+
+// Where one cycle sits, and how far it swings, at one setting of both knobs.
+static void cycle_level(float shape, float mod, int length_idx, float* dc, float* span)
+{
+  const int n = 64;
+  float lo = 1e9f, hi = -1e9f, sum = 0.0f;
+  for (int i = 0; i < n; i++)
+  {
+    float v = stepped_random((float) i / (float) n, shape, mod, length_idx, SR_HOLD_SMOOTH);
+    if (v < lo)
+      lo = v;
+    if (v > hi)
+      hi = v;
+    sum += v;
+  }
+  *dc   = sum / (float) n;
+  *span = hi - lo;
+}
+
+// SHP and MOD steer character - which values, how they are spread, where the
+// beat is - and leave level to AMP and OFFSET. So turning either must not walk
+// the pattern off centre.
+//
+// It used to: the correction was anchored on slot 0 and expanded about it, so
+// the whole cycle's DC followed slot 0's own value as the orbit turned, and one
+// sweep of SHP moved it by up to 1.5 of the 2.0 range. Centring the correction
+// instead brought the worst |DC| anywhere on this grid from 0.78 to 0.64 and
+// the RMS from 0.25 to 0.15.
+//
+// The worst case left is a twelve-step pattern at high MOD, where most steps
+// tie to one value and there is genuinely no centre to find. That is why this
+// bounds the RMS as well as the worst point: one lopsided corner is a property
+// of the pattern, a whole knob that leans is not.
+TEST_CASE(neither_knob_walks_the_pattern_off_centre)
+{
+  float worst = 0.0f, sq = 0.0f;
+  int n = 0;
+
+  for (int li = 0; li < SR_LENGTH_COUNT; li++)
+  {
+    for (int si = 0; si <= 20; si++)
+    {
+      for (int mi = 0; mi <= 12; mi++)
+      {
+        float dc, span;
+        cycle_level(-1.0f + 2.0f * (float) si / 20.0f, -1.0f + 2.0f * (float) mi / 12.0f, li, &dc, &span);
+        if (fabsf(dc) > worst)
+          worst = fabsf(dc);
+        sq += dc * dc;
+        n++;
+      }
+    }
+  }
+
+  CHECK(worst < 0.80f);
+  CHECK(sqrtf(sq / (float) n) < 0.20f);
+}
+
+// The same idea for the other half of level: no setting of either knob may be
+// much louder or much quieter than its neighbours. The normalisation used to
+// lift collapsed patterns and never shrink wide ones, and SHP carried a lever
+// that ducked the peak-to-peak outright, so the range across the grid was
+// 0.58..1.99 of 2.0 - the shape audibly flattening and swelling as the knob
+// turned. It is 0.78..1.73 now from five steps up.
+//
+// Deliberately not pinned: SR_NORM_EXP leaves the natural ordering between calm
+// and emphatic settings audible, and three or four values cannot be spread as
+// evenly as thirty-two.
+TEST_CASE(neither_knob_changes_how_loud_the_pattern_is)
+{
+  for (int li = 0; li < SR_LENGTH_COUNT; li++)
+  {
+    float floor_span = (sr_length_for_index(li) < 5) ? 0.5f : 0.7f;
+
+    for (int si = 0; si <= 20; si++)
+    {
+      for (int mi = 0; mi <= 12; mi++)
+      {
+        float dc, span;
+        cycle_level(-1.0f + 2.0f * (float) si / 20.0f, -1.0f + 2.0f * (float) mi / 12.0f, li, &dc, &span);
+        CHECK(span > floor_span);
+        CHECK(span < 1.85f);
+      }
+    }
   }
 }
 
@@ -567,6 +656,8 @@ int main(void)
   RUN_TEST(a_small_turn_deforms_the_pattern_rather_than_replacing_it);
   RUN_TEST(no_narrow_notch_collapses_the_output);
   RUN_TEST(no_setting_collapses_to_a_flat_output);
+  RUN_TEST(neither_knob_walks_the_pattern_off_centre);
+  RUN_TEST(neither_knob_changes_how_loud_the_pattern_is);
   RUN_TEST(longer_patterns_contain_more_events);
   RUN_TEST(hold_setting_controls_how_step_like_the_curve_is);
   RUN_TEST(length_index_maps_to_the_curated_step_counts);

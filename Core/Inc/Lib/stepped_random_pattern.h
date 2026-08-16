@@ -20,12 +20,19 @@
 // --------------------------------------------------------------------------
 // What SHP and MOD reach.
 //
-// SHP moves four things, so that a sweep is not a series of fresh random draws
+// SHP moves three things, so that a sweep is not a series of fresh random draws
 // from one fixed distribution - the reason it used to read as "nothing is
 // happening" however many distinct patterns it technically contained. Which
 // values the slots hold (as it always did), how those values are distributed
-// (SR_BEND), how melodic the contour is (SR_CONTOUR), and how emphatic the
-// pattern is (SR_SPAN).
+// (SR_BEND), and how melodic the contour is (SR_CONTOUR).
+//
+// None of them is level. Both knobs steer character - rhythm, bend, contour -
+// and leave how loud and how centred the result is to AMP and OFFSET, which is
+// what those are for. SHP used to carry a fourth lever, SR_SPAN, which ducked
+// the peak-to-peak by up to 0.7; it read as the shape flattening and shifting
+// as the knob turned rather than as character, and being a pure gain it moved
+// none of the character measurements. The normalisation in tools/gen_sr_table.c
+// is what holds level steady now.
 //
 // MOD moves six: density as before, which steps tie (SR_SPIN), where the beat
 // sits (SR_SWING), whether the cycle repeats a sub-phrase (SR_MOTIF), a layer
@@ -37,7 +44,7 @@
 // knob. One each spends the whole sweep on a single traversal of character
 // space. Several, at rates that do not divide one another, means a given
 // contour depth comes back a few times over the sweep but paired with a
-// different shaper and a different span each time - which is where the extra
+// different shaper and a different density each time - which is where the extra
 // range comes from without the knob getting twitchier. Cyclicity survives
 // because the rates are integers: every lever is home again at the end.
 //
@@ -60,13 +67,10 @@
 // The two bend layers together may not reach 1, where the shaper would stop
 // being monotone.
 #define SR_BEND_LIMIT 0.95f
-#define SR_SPAN 0.7f // how far the pattern's peak-to-peak may duck
-#define SR_SPAN_RATE 3
-#define SR_SPAN_FLOOR 0.75f // but never below this, whatever the drive asks for
-#define SR_MORPH_MOD 0.4f   // MOD's share of the orbit the slot values ride
-#define SR_TIE_WIDTH 0.25f  // gate units a tie crossfades over
-#define SR_SPIN 0.5f        // turns of gate rotation across the MOD sweep
-#define SR_SWING 0.4f       // step-width skew at half MOD
+#define SR_MORPH_MOD 0.4f  // MOD's share of the orbit the slot values ride
+#define SR_TIE_WIDTH 0.25f // gate units a tie crossfades over
+#define SR_SPIN 0.5f       // turns of gate rotation across the MOD sweep
+#define SR_SWING 0.4f      // step-width skew at half MOD
 #define SR_SWING_RATE 1
 #define SR_MOTIF 0.7f // depth of the sub-cycle fold at the MOD ends
 #define SR_MOTIF_RATE 1
@@ -120,14 +124,6 @@ static inline float sr_bump(float x, int rate)
 // The same train, signed: `rate` excursions out and back, zero at every
 // boundary. For levers that run both ways.
 static inline float sr_swingf(float x, int rate) { return sr_scurve(-sr_tri(x * (float) rate + 0.25f)); }
-
-// How far the pattern's peak-to-peak is allowed to duck here.
-//
-// Without it the normalisation pins every setting to much the same emphatic
-// span, which is one of the reasons every setting used to sound equally
-// insistent. This only ever shrinks, and the generator refuses to take it below
-// SR_SPAN_FLOOR, so it cannot make a dead setting.
-static inline float sr_span_drive(float morph) { return 1.0f - SR_SPAN * sr_bump(morph, SR_SPAN_RATE); }
 
 // Reshapes the spread of values without moving -1, 0 or +1.
 //

@@ -45,9 +45,15 @@ int sr_length_for_index(int length_idx);
 // the same value, which is what lets the caller re-derive phase from the PLL
 // every tick and blend scenes without the pattern drifting.
 //
+// Neither knob changes the level: the correction in the generated table holds
+// the peak-to-peak near constant and the pattern centred, so a turn changes
+// what the shape does and not how loud or how high it sits. That is what AMP
+// and OFFSET are for.
+//
 // Slot values depend only on the slot index and the morph - never on the
-// length - so slot 0 reads the same at every length. That is what makes
-// changing length at a cycle boundary seamless.
+// length - so slot 0 reads the same at every length, and the correction's
+// constant is shared by every length too. That is what makes changing length at
+// a cycle boundary seamless.
 float stepped_random(float phase, float shape, float mod, int length_idx, float hold);
 
 #endif
