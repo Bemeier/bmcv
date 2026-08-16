@@ -76,36 +76,54 @@ typedef struct
   float offset;
 } SrNorm;
 
-// One pattern, measured: its extremes, its DC, and the value it starts on.
+// One pattern, measured: its extremes, the value it starts on, and - only where
+// something asks for it - its DC.
 typedef struct
 {
   float lo, hi, centre, anchor;
 } SrExtent;
 
-// The DC is weighted by how wide each step is, since MOD skews alternate steps
-// long and short and a plain mean of the step values would not be the level the
-// ear settles on.
+// The extremes and the anchor, which is all the gain needs.
+//
+// Deliberately without the DC: that is the centring constant's business, it is
+// baked once by the generator, and summing it here put a multiply and an add
+// per slot on the path a channel walks.
 static inline SrExtent sr_extent_of(const SrNormCtx* c, int length, float mod, float orbit)
 {
+  SrMorph m  = sr_morph_at(orbit, mod, length, c->hold_max);
+  SrExtent e = {1e9f, -1e9f, 0.0f, 0.0f};
+
+  for (int i = 0; i < length; i++)
+  {
+    float v = sr_step_value(i, &m, c->slots, c->jump_grid);
+    if (v < e.lo)
+      e.lo = v;
+    if (v > e.hi)
+      e.hi = v;
+  }
+
+  e.anchor = sr_step_value(0, &m, c->slots, c->jump_grid);
+  return e;
+}
+
+// The same, plus the DC, weighted by how wide each step is - MOD skews alternate
+// steps long and short, and a plain mean of the step values would not be the
+// level the ear settles on. Only sr_norm_centre() needs this, and only offline.
+static inline SrExtent sr_extent_with_dc(const SrNormCtx* c, int length, float mod, float orbit)
+{
   SrMorph m   = sr_morph_at(orbit, mod, length, c->hold_max);
-  SrExtent e  = {1e9f, -1e9f, 0.0f, 0.0f};
+  SrExtent e  = sr_extent_of(c, length, mod, orbit);
   float swing = sr_swing_amount(mod);
   float dc = 0.0f, wsum = 0.0f;
 
   for (int i = 0; i < length; i++)
   {
-    float v = sr_step_value(i, &m, c->slots, c->jump_grid);
     float w = (i & 1) ? 1.0f - swing : 1.0f + swing;
-    if (v < e.lo)
-      e.lo = v;
-    if (v > e.hi)
-      e.hi = v;
-    dc += v * w;
+    dc += sr_step_value(i, &m, c->slots, c->jump_grid) * w;
     wsum += w;
   }
 
   e.centre = dc / wsum;
-  e.anchor = sr_step_value(0, &m, c->slots, c->jump_grid);
   return e;
 }
 
@@ -121,7 +139,12 @@ static inline SrExtent sr_extent_of(const SrNormCtx* c, int length, float mod, f
 static inline float sr_gain_toward(float target, float expo, const SrExtent* e, float centre)
 {
   float span = e->hi - e->lo;
-  float g    = (span < 1e-6f) ? SR_NORM_MAX_GAIN : fclamp(powf(target / span, expo), SR_NORM_MIN_GAIN, SR_NORM_MAX_GAIN);
+
+  // powf() only where the exponent needs it. The floor below asks for one, and
+  // pow(x, 1) on this target is a transcendental call standing in for a divide -
+  // once per completed measurement per channel, which is not nothing.
+  float want = (expo == 1.0f) ? target / span : powf(target / span, expo);
+  float g    = (span < 1e-6f) ? SR_NORM_MAX_GAIN : fclamp(want, SR_NORM_MIN_GAIN, SR_NORM_MAX_GAIN);
 
   if (e->hi > e->anchor)
   {
@@ -165,7 +188,7 @@ static inline float sr_norm_centre(const SrNormCtx* c, float mod, float orbit)
     float sum = 0.0f;
     for (int li = 0; li < c->length_count; li++)
     {
-      SrExtent e = sr_extent_of(c, c->lengths[li], mod, orbit);
+      SrExtent e = sr_extent_with_dc(c, c->lengths[li], mod, orbit);
       sum += (e.centre - e.anchor) * sr_gain_for(&e, centre);
     }
     centre = -sum / (float) c->length_count;
