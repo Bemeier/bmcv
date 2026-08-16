@@ -18,7 +18,7 @@
 // dt-driven so any value is *correct* - this one just makes the simulation
 // match the hardware's resolution. sim_tickdiv_config rounds it to a whole
 // number of host frames and reports the rate that really results.
-static const float BMCV_CONTROL_HZ = 4000.f;
+static const float BMCV_CONTROL_HZ = 3205.f;
 
 // How often the LED framebuffer is read. The UX pass inside the engine only
 // re-renders every 8ms, so anything above ~125Hz is looking at the same bytes

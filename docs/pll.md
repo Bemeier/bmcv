@@ -223,6 +223,63 @@ phase step @ 1000us tick              4.056   0.4995      0    0.150       5.9  
 | x0.75 long-run alignment, RMS | 0.00019 beats | **0.00001 beats** |
 | phase step, settling | 3.90s | 4.06s |
 
+### Re-taken at a 3.2kHz tick (2026-08-16)
+
+`ENGINE_TICK_US` went 250 to 312 for headroom, and the baseline moves with it.
+Taking it again turned up a defect that had nothing to do with the rate.
+
+**`Clock_Poll` wrapped `beat_phase` past a beat `beat_counter` had not reached.**
+The phase is interpolated between pulses and was wrapped with a
+`while (next_phase >= 1.0f) next_phase -= 1.0f`, while only a pulse advances the
+counter. `channel.c` reads the two together - the target is
+`(beats_in % gcd) + beat_phase` - so for the ticks between a beat falling due
+and its pulse arriving, every locked channel was pulled by a whole beat of
+target at once. It now holds at the end of the beat instead, which is the honest
+reading: the next pulse is the evidence that the beat turned over, so a late
+pulse stretches the beat.
+
+It read as a single-tick excursion of 0.25 cycles on every beat boundary at
+x0.75 - `max` 0.334 beats with `rms_tail` staying clean, because each one lasted
+one sample. **Sweeping the tick period, the whole band from 280 to 345 µs showed
+it and 250, 260, 360 and 400 µs did not**, which is why nothing had caught it in
+two years of running the suite at 250. The suite now passes at every period from
+250 µs to 500 µs.
+
+```
+scenario                             settle     peak  cross     fdev     fslew  rms_tail      jump
+                                          s    beats      n   x rate  x rate/s     beats    cycles
+lock, x1 @ 120bpm                     0.000   0.0026      0    0.002       0.1   0.00032   0.00000
+scene A->B, x1 -> x2 (snap)           3.176   0.2496      0    0.123      37.3   0.00033   0.00002
+scene sweep, during the 1s move       never   0.2371      2    0.116      32.8   0.18378   0.00001
+scene sweep, settling after           2.991   0.1907      0    0.095       0.2   0.00033   0.00001
+ratio sweep x1 -> x4 over 3s          never   0.2365      4    0.116      45.3   0.05841   0.00003
+fader worked back and forth           never   1.7826     12    0.154     100.4   0.37536   0.00005
+phase step, 0.45 of a cycle           3.927   0.4501      0    0.150      44.8   0.00033   0.00001
+tempo step, 120 -> 140bpm             2.893   0.0730      0    0.032       5.7   0.00039   0.00001
+x0.75, 240s alignment                 0.000   0.0006      0    0.000       0.1   0.00033   0.00000
+x1, 5% clock jitter                  29.988   0.0273     40    0.014       3.4   0.01045   0.00000
+clock lost 6s, then back              1.248   0.0336      0    0.017       3.1   0.00033   0.00000
+phase step @ 312us tick               4.044   0.4997      0    0.150      27.6   0.00033   0.00000
+phase step @ 1248us tick              4.014   0.4988      0    0.150       3.1   0.00111   0.00000
+```
+
+What moved, and why:
+
+- **`rms_tail` 0.00002 → 0.00033 beats everywhere.** The residual is set by how
+  finely the loop can place a correction, so a coarser tick leaves a larger one.
+  0.00033 beats is 0.17 ms at 120 BPM.
+- **`x0.75, 240s` peak 0.0000 → 0.0006.** Was 0.3339 before the clock fix.
+- **`clock lost 6s, then back` settles in 1.25 s where it used to read 0.000.**
+  The old zero was the wrap papering over the re-acquisition; holding the phase
+  at the end of the beat makes the recovery visible instead of instant-looking.
+- **The phase-step case steps 0.45 of a cycle, not 0.50.** Exactly half sits on
+  the wrap point of `phase_error`, where +0.5 and -0.5 are the same place and
+  which way the loop corrects is decided by the last bit of the arithmetic. The
+  pick registers as a zero crossing, and `overshoot_beats` - the largest error
+  *after* the first crossing - then reports the undisturbed error as overshoot.
+  Which side it picked depended on the tick period. Settling, ringing and the
+  tail still cover the exactly-half case.
+
 ### Still to check on hardware
 
 `PLL_MAX_PULL` is the knob: lower is smoother and slower to acquire, higher is

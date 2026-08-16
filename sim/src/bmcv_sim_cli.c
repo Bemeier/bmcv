@@ -277,7 +277,7 @@ int main(int argc, char** argv)
   const char* script   = NULL;
   const char* emit     = "outputs";
   uint32_t duration_us = 0;
-  uint32_t tick_us     = 250;
+  uint32_t tick_us     = ENGINE_TICK_US; // the firmware's own rate, so a flow replays what a module does
   uint32_t rate_us     = 5000;
   float bpm            = 0.0f;
 

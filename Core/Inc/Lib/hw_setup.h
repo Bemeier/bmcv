@@ -69,7 +69,20 @@ static_assert(N_ENCODERS == N_CHANNELS, "one encoder per channel");
 // its DAC updates at, and the number the other three hosts already assume
 // (web/const.js TICK_US, BMCV_CONTROL_HZ in the Rack plugin). Here so that when
 // the board turns out to hold a different rate, one place changes.
-#define ENGINE_TICK_US 250 // 4 kHz
+// 312us is 3.2kHz, and it was 250 (4kHz). What bought the change was headroom
+// rather than a deadline that could not be met: with the stepped path memoised
+// the engine fits 4kHz even at its worst, so what the longer period buys is
+// what is left over - for the USB snapshot link, and for whatever the module
+// grows next - rather than the tick itself.
+//
+// 312 and not 313 because it divides. DAC_CHUNK_US is ENGINE_TICK_US over
+// DAC_SUBSTEPS * DAC_CHANNELS, and 312 is exact at one substep (78us) and at
+// two (39us), where 313 is neither.
+//
+// What it costs is timing resolution on gate and trigger edges, 312us against
+// 250. Some of that was already spent: the DAC interpolates across a whole
+// tick, so an edge was never instant.
+#define ENGINE_TICK_US 312 // 3.2 kHz
 
 typedef struct
 {
