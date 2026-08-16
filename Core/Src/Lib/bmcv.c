@@ -222,7 +222,20 @@ static uint8_t engine_started;  // so the first tick is not counted as a resync
 // It also spreads the chunks evenly instead of letting them bunch into the gap
 // between ticks, which keeps the ADC's sampling cadence even as a side effect.
 #define DAC_SUBSTEPS 4
-#define DAC_CHUNK_US (ENGINE_TICK_US / (DAC_SUBSTEPS * DAC_CHANNELS))
+
+// What one chunk is rate-limited to.
+//
+// Derived from the tick period until it was measured: at DAC_SUBSTEPS frames
+// per tick that made the limit 7.8us, while the service actually turns around
+// in about 55us, so the limiter was never what set the rate and the derivation
+// only tied two unrelated numbers together. Lowering the engine rate to buy the
+// DAC more room would have slowed the chunk limit in proportion - the lever
+// fighting itself.
+//
+// So it is what the SPI turnaround can sustain, stated directly. The service is
+// still gated on a DMA completion, which is the real limit; this only stops a
+// spin of the loop re-arming faster than that.
+#define DAC_CHUNK_US 6
 
 // Ship whatever midi_out has queued: the eight channel outputs and four CV
 // inputs as control changes, plus the clock. What to say is decided in
@@ -275,15 +288,26 @@ static void midi_publish(void)
 static int16_t dac_level_prev[N_CHANNELS];
 static int16_t dac_level_curr[N_CHANNELS];
 
+// How long the last tick actually took, which is what the ramp is spread over.
+//
+// Not ENGINE_TICK_US, which is what this used to divide by. The two agree only
+// while the loop is keeping up: when a tick runs long - eight stepped channels
+// will do it - the ramp reaches its target in the nominal period and then sits
+// flat for whatever is left, so the interpolation quietly stops interpolating
+// exactly where it is needed. Dividing by the period that is actually being
+// served spreads the ramp across the whole of it however long it turns out to
+// be, and a fixed-rate loop gives the same answer either way.
+static uint32_t engine_period_us = ENGINE_TICK_US;
+
 static void dac_write_interpolated(uint32_t now_us)
 {
   uint32_t elapsed = now_us - last_engine_us;
-  if (elapsed > ENGINE_TICK_US)
+  if (elapsed > engine_period_us)
   {
-    elapsed = ENGINE_TICK_US; // a late tick holds at the target, never past it
+    elapsed = engine_period_us; // a late tick holds at the target, never past it
   }
 
-  const float frac = (float) elapsed * (1.0f / (float) ENGINE_TICK_US);
+  const float frac = (float) elapsed / (float) engine_period_us;
 
   for (uint8_t c = 0; c < N_CHANNELS; c++)
   {
@@ -360,6 +384,15 @@ void bmcv_main(uint32_t now_us)
         bmcv_profile.resyncs++;
       }
 #endif
+    }
+
+    if (engine_started)
+    {
+      // Measured rather than assumed, and clamped: a resync leaves a gap that
+      // is not a period, and stretching a ramp across it would hold the output
+      // still for as long as the gap lasted.
+      uint32_t seen    = now_us - last_engine_us;
+      engine_period_us = (seen < ENGINE_TICK_US) ? ENGINE_TICK_US : ((seen > ENGINE_TICK_US * 4) ? ENGINE_TICK_US * 4 : seen);
     }
 
     engine_started = 1;

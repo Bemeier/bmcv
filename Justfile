@@ -72,6 +72,15 @@ flash-usb BIN="build/BMCVFirmware.bin":
 where ELF="build-rel/BMCVFirmware.elf":
 	./scripts/where.sh {{ELF}}
 
+# Where the module's time goes, read off a running one over SWD: engine_tick()
+# on its own, the whole gated block around it, and how many ticks ran past their
+# period or were dropped. Needs the ST-Link and an ELF matching what is flashed.
+#
+# This is the measurement to reach for when dac_fps sags: a `load` near 1 means
+# the loop has nothing left between ticks for the DAC service.
+profile ELF="build-rel/BMCVFirmware.elf":
+	./scripts/profile.sh {{ELF}}
+
 build-flash: build flash
 
 build-flash-usb: build flash-usb
