@@ -82,13 +82,33 @@ Two things fall out of it:
   where the cache itself never hits.
 
 Only a jump pays the full route: a phase correction, a knob turn, or a rate high
-enough to skip a step outright (above roughly 45-60 Hz at length 64). **The
-worst case is unimproved and is still bounded** - `st_step_value()` is
-O(`ST_JUMP_GRID`) regardless of pattern length.
+enough to skip a step outright. **The skipping case is not improved at all**, and
+was already bounded - `st_step_value()` is O(`ST_JUMP_GRID`) regardless of
+pattern length.
 
-Measured on the module, seven stepped channels at 0.5 Hz over 64 steps:
-`engine` 296.5 → 197.3 µs, `load` 1.30 → 0.90, overruns 100% → 3.2%, resyncs
-9923 → 3. It is what first let the engine hold its nominal 4 kHz.
+Measured on the module, seven stepped channels at MOD full (densest ties, motif
+fold active), over 64 steps, `engine` avg:
+
+| rate | steps per tick | before | after | |
+|---|---|---|---|---|
+| 0.5 Hz | 1/91 | 296.5 µs | **197.3 µs** | load 1.30 → 0.90 |
+| 62.5 Hz | ~1 | 282.8 µs | **227.5 µs** | load 1.27 → 1.02 |
+| 129.5 Hz | ~2 | 277.9 µs | 275.4 µs | load 1.24 → 1.23 |
+
+The first row is what a module is actually patched to do, and it is what first
+let the engine hold its nominal 4 kHz - `engine_fps` 2915 → 3999, resyncs
+9923 → 3.
+
+The second is the sustained worst case the carry exists for. Backing out the
+~135 µs the engine costs before any stepped channel, that is 21.0 → 13.1 µs per
+channel: **1.6x, against the 2.9x predicted from counting slot evaluations.**
+The estimate was optimistic - at MOD full the ties are dense, so the one step in
+`ST_JUMP_GRID` that still walks is the expensive one.
+
+The third is the floor, and it is flat: once the playhead skips a step the carry
+never applies and the cache never hits, so both builds do identical work. Any
+further gain there has to come from making `st_slot_offer()` cheaper, not from
+remembering more.
 
 The cache changes when the work happens, never what comes out.
 `tests/test_stepped_cache.c` asserts the cached and uncached routes are
