@@ -45,8 +45,9 @@ layout=$("${ARM_GCC_DIR:-$HOME/arm-gcc-xpack}/bin/arm-none-eabi-gdb-py3" -batch 
   -ex 'print (int)&((BmcvProfile *)0)->tick' \
   -ex 'print (int)&((BmcvProfile *)0)->load' \
   -ex 'print (int)&((BmcvSpan *)0)->avg_us' \
+  -ex 'print (int)&((BmcvProfile *)0)->dac' \
   "$ELF" 2>/dev/null | grep -oP '^\$\d+ = \K-?\d+$' | tr '\n' ' ')
-read -r SIZE OFF_TICK OFF_LOAD OFF_AVG <<<"$layout"
+read -r SIZE OFF_TICK OFF_LOAD OFF_AVG OFF_DAC <<<"$layout"
 if [[ -z "${OFF_AVG:-}" || "${SIZE:-0}" -lt 16 ]]; then
   echo "could not read the layout of BmcvProfile from $ELF (got '$layout')" >&2
   exit 1
@@ -61,11 +62,11 @@ if [[ -z "${words:-}" ]]; then
   exit 1
 fi
 
-python3 - "$addr" "$OFF_TICK" "$OFF_LOAD" "$OFF_AVG" <<PY
+python3 - "$addr" "$OFF_TICK" "$OFF_LOAD" "$OFF_AVG" "$OFF_DAC" <<PY
 import struct, sys
 w = [int(x, 16) for x in """$words""".split()]
 raw = b"".join(struct.pack("<I", x) for x in w)
-off_tick, off_load, off_avg = (int(a) for a in sys.argv[2:5])
+off_tick, off_load, off_avg, off_dac = (int(a) for a in sys.argv[2:6])
 
 def span(off):
     max_at = struct.unpack_from("<I", raw, off + 12)[0]
@@ -74,15 +75,28 @@ def span(off):
 
 engine = span(0)
 tick   = span(off_tick)
+dac    = span(off_dac)
 load, ticks, overruns, resyncs = struct.unpack_from("<f3I", raw, off_load)
 
 print(f"bmcv_profile @ {sys.argv[1]}   {ticks} ticks since boot")
 print()
 print(f"{'':8s} {'avg':>9s} {'min':>9s} {'max':>9s}")
-for name, s in (("engine", engine), ("tick", tick)):
+for name, s in (("engine", engine), ("tick", tick), ("dac", dac)):
     print(f"{name:8s} {s['avg']:8.1f}us {s['min']:8.1f}us {s['max']:8.1f}us   (max at tick {s['max_at']})")
 print()
 print(f"load     {load:.2f} of the tick period")
 print(f"overruns {overruns}  ({100.0*overruns/max(ticks,1):.1f}% of ticks ran past their period)")
 print(f"resyncs  {resyncs}  (ticks dropped outright)")
+
+# The dac row is one call of the service, measured inside the timer interrupt
+# that owns it - so against its own period it is a share of the whole CPU, not
+# of the tick. This is the number that decides DAC_SUBSTEPS, and the one that
+# read 55% when the interrupt starved the engine outright.
+#
+# No backticks or dollar signs in this block: the heredoc is unquoted so it can
+# interpolate the words read above, which means the shell reads this too.
+if ticks == 0:
+    print()
+    print("The engine has not ticked. If dac is anywhere near its period, this")
+    print("interrupt is why - try 'just where'.")
 PY

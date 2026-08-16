@@ -1,13 +1,69 @@
 # Giving the DAC a clock of its own
 
-Status: **written, not yet validated on hardware.** Branch `feat/dac-timer`.
-Everything below is measured, on the `-rel` build, against a module with eight
-channels patched.
+Status: **works, and is not yet a net win.** Branch `feat/dac-timer`, validated
+on the module with CH1 patched into IN3. The timer does exactly what it was
+supposed to; what it uncovered is that the scheduling was never the expensive
+part.
 
-Re-confirmed live over SWD before touching anything: `dac_fps` and `engine_fps`
-read the *same* number, 2942, so the DAC was doing exactly one transaction per
-engine tick - 735 frames/s against the 16k the substep count asks for. `load`
-1.19, 100% of ticks overrunning, 198k resyncs.
+## What the module said
+
+All on the `-rel` build, eight channels patched, stepped random on seven.
+
+| | before | after (1 substep) |
+|---|---|---|
+| frames/s per output | 842 | **4032** |
+| `dac_fps` vs `engine_fps` | locked equal | **decoupled** |
+| `engine_fps` | 3366 | 2455 |
+| `load` | 1.19 | 1.65 |
+| resyncs | 16% of ticks | 30% |
+| loopback, slow sine | R^2 0.9996 | R^2 0.9996 |
+
+**The rate fix works.** `dac_fps` and `engine_fps` used to read the *same*
+number - one transaction per tick, so one frame per output every four ticks -
+and they no longer do. The output rate is now a number this firmware chooses.
+
+**4 substeps is unaffordable, and not by a little.** At a 15.0us cadence one
+`dac_service()` measures **8.18us** - `bmcv_profile.dac`, read off the module -
+so 55% of the CPU goes into that interrupt before the DMA completion it feeds
+is counted. With both at priority 0 thread mode gets nothing: the module came
+up with `dac_fps 54335`, `engine_fps 0`, and `just profile` reporting **0 ticks
+since boot**. The engine had never run once. `just where` found the core in
+`SPI_DMATransmitReceiveCplt`, which is where it stayed.
+
+**The cost is HAL, not the interpolation.** At 1 substep the tick inflated from
+297us to 423us. Backing that out: ~6.8 services per tick at 8.18us is 56us,
+leaving ~70us across ~6.8 completions - so **the completion handler costs ~10us,
+more than the arm does**. Together the HAL SPI path is ~18.5us per transaction
+against **2.67us of actual wire time**. Eight float lerps is at most 1-2us of
+it. The bus was never the constraint and neither was the scheduling; it is
+`HAL_SPI_TransmitReceive_DMA` and `SPI_DMATransmitReceiveCplt`.
+
+**Raising the SPI clock is not a lever.** SPI2 is already at prescaler 8 = 18MHz
+against a 20MHz ceiling, so `/4` is out of spec.
+
+**What the loopback can and cannot see.** With a slow sine on CH1 both builds
+read R^2 0.9996, gain 1.000 - which proves the output is alive, linear and full
+amplitude, and is exactly the check that would have caught the dead-output
+regression. It cannot resolve the rate difference, because a slow sine barely
+moves within a tick. With near-noise on CH1 it can, and it read old 0.851
+against new 0.804 - the new build slightly *worse* end to end, because output
+latency is one engine tick and the ticks got longer. That is the whole problem
+in one number.
+
+## Where that leaves it
+
+The change is structurally right and currently pays for itself with engine
+budget it does not have. Three ways on, in the order they are worth doing:
+
+1. **Cut HAL out of the interrupt path.** Arm the DMA and handle completion by
+   writing the registers in `dac_adc.c`. 18.5us against 2.67us of wire time is
+   most of a transaction spent walking a state machine. Plausibly 2-3us, which
+   would make 4 substeps affordable *and* hand the engine back what it lost.
+   Driver-level, ARM-only, behind the seam.
+2. **`ENGINE_TICK_US`**, below. The plan's own next item, and the cheap one.
+3. **Ship at 1 substep as it stands.** Argued against: a 28% slower engine buys
+   a faster DAC whose end-to-end latency is one engine tick, so it gives back
+   much of what it gained.
 
 ## What is done
 
@@ -18,18 +74,8 @@ engine tick - 735 frames/s against the 16k the substep count asks for. `load`
   `bmcv_dac_service_hz()`. `bmcv_dac_tick()` in `bmcv.c` is what it calls; the
   main loop no longer touches the DAC at all.
 - **`bmcv_profile.dac`** - the service measured from inside its own interrupt,
-  so `just profile` can say what the interrupt costs. Appended to the struct so
-  the existing offsets do not move.
-
-## What is left
-
-1. Patch CH1 out into IN3, run `just dac-loopback` against the **old** firmware
-   to prove the rig reads a working DAC as `ok`.
-2. Flash, run it again. `DEAD` is the regression the reverted attempt hit.
-3. `just profile` for `dac.avg_us` against the 15.6us period, and `engine_fps`
-   for what the interrupt took from the engine. If it is too expensive, fewer
-   substeps is the honest answer - and interpolating only the two outputs the
-   transaction carries, rather than all eight, is a 4x saving still on the table.
+  and printed by `just profile`. It is what turned "the engine is dead" into "the
+  interrupt costs 55% of the CPU" in one reading.
 
 ## The problem
 

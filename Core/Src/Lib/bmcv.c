@@ -48,7 +48,31 @@ static uint8_t task = 0;
 //
 // It also spreads the chunks evenly instead of letting them bunch into the gap
 // between ticks, which keeps the ADC's sampling cadence even as a side effect.
-#define DAC_SUBSTEPS 4
+//
+// 1, and not the 4 this asked for until the timer made the number real. At 4
+// the cadence is 15.0us and one dac_service() measures **8.18us** of it -
+// bmcv_profile.dac, off the module - so 55% of the CPU goes into this interrupt
+// before the DMA completion handler it feeds is counted at all. With both at
+// priority 0 that leaves thread mode nothing: the module came up with
+// dac_fps 54335, engine_fps 0 and `just profile` reporting *0 ticks since
+// boot*. The engine had never run. `just where` found the core in
+// SPI_DMATransmitReceiveCplt, which is where it now spends its life.
+//
+// The cost is not the interpolation - eight lerps is maybe 2us of it. It is
+// HAL_SPI_TransmitReceive_DMA, which is a lot of state machine to walk every
+// 15us. So the rate has to suit the arming cost, and 1 substep puts the cadence
+// at 62us and this interrupt at 13% of the CPU.
+//
+// What 1 buys is still worth having: DAC_CHANNELS transactions per tick means
+// one full frame per tick, so every output carries every value the engine
+// computes. It was getting one frame every four ticks. What it gives up is
+// oversampling - at 1 the interpolation has nothing to interpolate between, and
+// it only starts earning its keep again at 2.
+//
+// Raising it is gated on the engine, not on this: the tick already costs 297us
+// of a 250us period, so there is no budget to buy substeps with until that
+// baseline moves. See the plan's last two items.
+#define DAC_SUBSTEPS 1
 
 // The cadence the service runs at: DAC_SUBSTEPS frames per tick, a frame being
 // DAC_CHANNELS transactions of two outputs each. 15.6us at a 4kHz tick.

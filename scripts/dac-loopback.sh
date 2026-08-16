@@ -3,10 +3,12 @@
 # it back? Patch a channel's output into an input jack and this answers both.
 #
 #   CH1 out ---> IN3        just dac-loopback
-#   just dac-loopback --ch 0 --jack 2 -n 80
+#   just dac-loopback --ch 1 --jack 3 -n 80
 #
-# `--ch` is the engine channel (0-based, so CH1 on the panel is 0) and `--jack`
-# is the input jack (0-based, so IN3 is 2).
+# `--ch` and `--jack` are the numbers printed on the panel, which is labelled
+# from zero - CH0..CH7 and IN0..IN3 - and those are the array indices too.
+# `channels_gated_level[]` is in panel order, and `input_state[]` is put in
+# panel order by hw_setup's input_adc_idx, so neither needs mapping here.
 #
 # Why this exists: re-arming the DAC transfer from the SPI completion interrupt
 # gave a stable transaction rate and a dead output - transfers running, nothing
@@ -24,15 +26,25 @@
 #
 # What the verdict means:
 #   dead      the outputs are not moving, whatever the bus is doing
-#   loose     they move but do not track - a patch cable in the wrong jack,
-#             or an ADC reading a conversion that was not finished
-#   ok        gain and R^2 as expected
+#   smeared   full amplitude arrives but at the wrong instant. What a frame rate
+#             below the engine rate looks like: the pin holds a value up to a
+#             frame old while the commanded level has moved on, so the pairs
+#             scatter around the line instead of lying on it
+#   loose     the amplitude is wrong too - a cable in the wrong jack, or an ADC
+#             reading a conversion that was not finished
+#   ok        amplitude and timing both
+#
+# The span ratio is what separates smeared from loose, and it is why both are
+# reported. A regression slope alone cannot: decorrelation drags the slope
+# toward zero, so a perfectly scaled but badly timed output reports a gain of
+# 0.86 with spans that match to half a percent - which is exactly what the
+# firmware this was written against does.
 #
 # Needs the ST-Link attached and an ELF matching what is flashed.
 set -uo pipefail
 
-CH=0
-JACK=2
+CH=1
+JACK=3
 N=60
 ELF="build-rel/BMCVFirmware.elf"
 
@@ -48,7 +60,7 @@ done
 
 cd "$(dirname "$0")/.."
 
-echo "CH$((CH + 1)) out -> IN$((JACK + 1)), $N samples..." >&2
+echo "CH$CH out -> IN$JACK, $N samples..." >&2
 
 ./scripts/hil.sh -n "$N" -e "$ELF" \
   "bmcv.engine_state.channels_gated_level[$CH]" \
@@ -58,8 +70,8 @@ echo "CH$((CH + 1)) out -> IN$((JACK + 1)), $N samples..." >&2
 | python3 -c '
 import sys
 
-ch_label   = "CH%d" % (int(sys.argv[1]) + 1)
-jack_label = "IN%d" % (int(sys.argv[2]) + 1)
+ch_label   = "CH" + sys.argv[1]
+jack_label = "IN" + sys.argv[2]
 
 rows = [l.split("\t") for l in sys.stdin.read().splitlines()[1:] if l.strip()]
 if len(rows) < 8:
@@ -81,6 +93,7 @@ r2   = (sxy * sxy) / (sxx * syy) if sxx and syy else 0.0
 
 cmd_span = max(cmd) - min(cmd)
 adc_span = max(adc) - min(adc)
+span_ratio = adc_span / cmd_span if cmd_span else 0.0
 
 # Full scale is +/-32767 on both sides, so a span is quoted against 65534 to be
 # read as a fraction of the range rather than as counts.
@@ -88,8 +101,9 @@ print()
 print(f"commanded  {ch_label}   span {cmd_span:7.0f}  ({100 * cmd_span / 65534:.1f}% of range)")
 print(f"measured   {jack_label}   span {adc_span:7.0f}  ({100 * adc_span / 65534:.1f}% of range)")
 print()
-print(f"gain       {gain:+.3f}   (measured per commanded)")
-print(f"R^2        {r2:.4f}")
+print(f"span ratio {span_ratio:.3f}   (measured span per commanded span - amplitude)")
+print(f"gain       {gain:+.3f}   (regression slope - amplitude AND timing)")
+print(f"R^2        {r2:.4f}   (how much of the output the commanded level explains)")
 print()
 print(f"dac_fps    {dac_fps:7.0f} transactions/s -> {dac_fps / 4:.0f} frames/s")
 print(f"engine_fps {engine_fps:7.0f}")
@@ -100,13 +114,21 @@ print()
 if cmd_span < 0.05 * 65534:
     sys.exit(f"inconclusive: {ch_label} barely moved - give it an LFO with some depth")
 
-if adc_span < 0.05 * cmd_span:
+if span_ratio < 0.05:
     print("verdict    DEAD - the engine is moving and the output is not")
     sys.exit(1)
+
 if r2 < 0.9:
-    print(f"verdict    LOOSE - it moves but does not track (R^2 {r2:.3f})")
-    print("           check the patch cable is in that jack, then suspect the ADC window")
+    # The amplitude arriving intact while the correlation does not is timing,
+    # not wiring, and the two want opposite things looked at next.
+    if 0.85 < span_ratio < 1.15:
+        print(f"verdict    SMEARED - full amplitude ({span_ratio:.3f}) at the wrong instant (R^2 {r2:.3f})")
+        print(f"           dac_fps {dac_fps:.0f} against engine_fps {engine_fps:.0f}: each output is")
+        print(f"           refreshed {dac_fps / 4:.0f} times a second while the level moves {engine_fps:.0f} times")
+    else:
+        print(f"verdict    LOOSE - amplitude {span_ratio:.3f} and R^2 {r2:.3f} are both wrong")
+        print("           check the patch cable is in that jack, then suspect the ADC window")
     sys.exit(1)
 
-print(f"verdict    ok - tracking at gain {gain:+.3f}, R^2 {r2:.4f}")
+print(f"verdict    ok - amplitude {span_ratio:.3f}, R^2 {r2:.4f}")
 ' "$CH" "$JACK"
