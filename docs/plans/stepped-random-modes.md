@@ -303,7 +303,36 @@ its whole cycle - seconds - after a knob move, and the table it replaces never
 waited for a wrap either. What the slew is really protecting is a length change,
 which swaps the pattern wholesale.
 
-Left to do: hardware measurement.
+**On hardware, where the first arrangement failed.** Measured over an ST-Link
+probe - the USB page's own snapshot streaming runs in the main loop and costs
+0.6 kHz, so it cannot measure anything at this level.
+
+| | main | scan, per channel | scan, one per tick |
+|---|---|---|---|
+| standing | 3.3 kHz | 3.2 | to measure |
+| every parameter moving | 3.3 kHz | **2.5** | to measure |
+
+The module runs at **3.3 kHz, not the nominal 4**, before any of this - it is
+already dropping about one tick in six, which is pre-existing, unexplained, and
+worth its own look before the modes ask for anything more. LED refresh is steady
+at 300 fps throughout, so whatever that is, it is in or around the engine tick
+rather than a starved main loop.
+
+Against that, one measurement per channel per tick cost **88us of a 310us
+tick**. The estimate that said 3% was out by an order of magnitude: it assumed
+a slot evaluation was ~1us, when on the M4 it is ~11us - a step value walks a
+run of ties, each slot of it a four-tap contour and a motif fold, so about
+thirty triangles and a handful of square roots. The dev-machine ratio had it
+right all along (the scan is 1.7-1.9x the shape's own cost); only the conversion
+to the module was wrong.
+
+So the engine hands out **one measurement per tick, in turn**, which bounds the
+whole thing at one channel's worth however many are patched. What it costs is
+latency: a channel gets every eighth tick, so a pass over a 64-step pattern
+takes ~160ms rather than 20. The correction is a level, and it trails a moving
+knob by that much before settling - which is the thing to listen for.
+
+Left to do: re-measure with the rota.
 
 **Phase 2 - the modes**, now that a per-mode value path costs 8 KB rather than
 180. `from_c.py` gains a mode column; the web sim is where they get played. Land

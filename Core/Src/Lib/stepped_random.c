@@ -85,7 +85,7 @@ SrNorm sr_norm_exact(float shape, float mod, int length_idx)
 // standing channel is allowed to stop working.
 #define SR_NORM_SETTLED 1e-6f
 
-void sr_norm_scan(SrScan* s, float shape, float mod, int length_idx, float dt_s)
+void sr_norm_scan(SrScan* s, float shape, float mod, int length_idx, float dt_s, int may_measure)
 {
   length_idx = (int8_t) iclamp(length_idx, 0, SR_LENGTH_COUNT - 1);
   int length = sr_lengths[length_idx];
@@ -109,20 +109,34 @@ void sr_norm_scan(SrScan* s, float shape, float mod, int length_idx, float dt_s)
     return;
   }
 
-  // Nothing measured yet, or the pattern was swapped wholesale by a length
-  // change: measure it in full rather than mixing two patterns into one pass.
-  if (!s->measured || s->length_idx != (int8_t) length_idx)
+  if (!s->measured)
   {
+    // A channel's first tick in this mode has nothing to correct with and
+    // nothing to slew from, so it pays for one full measurement - the only
+    // place that cost is taken, since a mode change is not a per-tick event.
     s->target     = sr_norm_exact(shape, mod, length_idx);
+    s->norm       = s->target;
     s->length_idx = (int8_t) length_idx;
     s->slot       = 0;
-    if (!s->measured)
-    {
-      s->norm     = s->target; // a channel's first tick has nothing to slew from
-      s->measured = 1;
-    }
+    s->measured   = 1;
+    return;
   }
-  else
+
+  if (s->length_idx != (int8_t) length_idx)
+  {
+    // A length change swaps the whole pattern at once, so the pass in progress
+    // is measuring something that is no longer playing. Started again rather
+    // than measured in full: the full route is `length` slot evaluations in one
+    // tick, which is three ticks' worth of budget, and the encoder produces one
+    // of these per detent.
+    s->length_idx = (int8_t) length_idx;
+    s->slot       = 0;
+    s->moved      = 1;
+  }
+
+  // Not this channel's turn: the slew below still runs, so a correction already
+  // measured keeps arriving smoothly.
+  if (may_measure)
   {
     SrMorph m = sr_morph(shape, mod, length, SR_HOLD_MAX);
     float v   = sr_step_value(s->slot, &m, &sr_slots, SR_JUMP_GRID);

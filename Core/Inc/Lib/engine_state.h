@@ -125,6 +125,12 @@ typedef struct
   // one.
   SrScan channels_sr_scan[N_CHANNELS];
 
+  // Whose turn it is to measure. One slot of one channel's pattern per tick:
+  // measuring is nearly as expensive as playing the shape, so eight channels
+  // each measuring every tick cost the engine a third of its ticks on the
+  // module. Turning it into a rota bounds that at one, whatever is patched.
+  uint8_t sr_scan_turn;
+
   // Which scene currently dominates the crossfade. Derived from the slider
   // (and the momentary scene the UI passes in), so it is an engine output the
   // UI reads, not UI state.

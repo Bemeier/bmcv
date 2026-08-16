@@ -76,6 +76,12 @@ void engine_tick(UxState* state, uint32_t now_us, uint8_t input_dirty)
 
   scene_compute_contribution(state->engine_state, state->engine_config, state->hw_state->slider_state, state->ui->momentary_scene);
 
+  // One channel measures its pattern this tick; the rest wait their turn. See
+  // sr_norm_scan(): a measurement costs about what the shape it corrects costs,
+  // so this is the difference between the stepped modes costing one channel's
+  // worth of it and eight.
+  state->engine_state->sr_scan_turn = (uint8_t) ((state->engine_state->sr_scan_turn + 1) % N_CHANNELS);
+
   for (uint8_t c = 0; c < N_CHANNELS; c++)
   {
     channel_compute(c, state->engine_state, state->engine_config, state->hw_state);

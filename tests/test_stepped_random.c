@@ -367,6 +367,9 @@ TEST_CASE(neither_knob_changes_how_loud_the_pattern_is)
 // Ticks at 4 kHz, which is the engine's own rate; a pass is `length` of them.
 #define TICK_S (1.0f / 4000.0f)
 
+// What engine.c gives out: one measurement per tick, shared between channels.
+#define N_SCAN_TURNS 8
+
 TEST_CASE(the_rolling_measurement_lands_where_a_full_one_does)
 {
   for (int li = 0; li < SR_LENGTH_COUNT; li++)
@@ -380,7 +383,7 @@ TEST_CASE(the_rolling_measurement_lands_where_a_full_one_does)
 
         // A channel's first tick in a stepped mode has nothing measured yet, so
         // it takes the full route rather than playing a cycle uncorrected.
-        sr_norm_scan(&s, shape, mod, li, TICK_S);
+        sr_norm_scan(&s, shape, mod, li, TICK_S, 1);
         CHECK_NEAR(s.norm.gain, want.gain, 1e-4);
         CHECK_NEAR(s.norm.offset, want.offset, 1e-4);
 
@@ -388,7 +391,7 @@ TEST_CASE(the_rolling_measurement_lands_where_a_full_one_does)
         // pattern and asks for the same correction.
         for (int i = 0; i < 4000; i++)
         {
-          sr_norm_scan(&s, shape, mod, li, TICK_S);
+          sr_norm_scan(&s, shape, mod, li, TICK_S, 1);
         }
         CHECK_NEAR(s.norm.gain, want.gain, 1e-3);
         CHECK_NEAR(s.norm.offset, want.offset, 1e-3);
@@ -403,13 +406,53 @@ TEST_CASE(the_rolling_measurement_lands_where_a_full_one_does)
         SrNorm want_moved = sr_norm_exact(moved_shape, moved_mod, li);
         for (int i = 0; i < 4000; i++)
         {
-          sr_norm_scan(&s, moved_shape, moved_mod, li, TICK_S);
+          sr_norm_scan(&s, moved_shape, moved_mod, li, TICK_S, 1);
         }
         CHECK_NEAR(s.norm.gain, want_moved.gain, 1e-3);
         CHECK_NEAR(s.norm.offset, want_moved.offset, 1e-3);
       }
     }
   }
+}
+
+// The engine hands out one measurement per tick across all eight channels, so a
+// channel gets every eighth tick at worst. It still has to arrive - a rota that
+// converges only when a channel has the module to itself would leave a patch
+// with eight stepped channels permanently mis-corrected.
+TEST_CASE(a_channel_that_only_gets_every_eighth_tick_still_arrives)
+{
+  for (int li = 0; li < SR_LENGTH_COUNT; li++)
+  {
+    SrScan s    = {0};
+    SrNorm want = sr_norm_exact(-0.4f, 0.6f, li);
+
+    // past the first tick, which measures in full, and onto a different setting
+    // so that what follows has something to measure
+    sr_norm_scan(&s, 0.0f, 0.0f, li, TICK_S, 0);
+
+    for (int i = 0; i < 40000; i++)
+    {
+      sr_norm_scan(&s, -0.4f, 0.6f, li, TICK_S, (i % N_SCAN_TURNS) == 0);
+    }
+    CHECK_NEAR(s.norm.gain, want.gain, 1e-3);
+    CHECK_NEAR(s.norm.offset, want.offset, 1e-3);
+  }
+}
+
+// The budget is the caller's to give: a channel told it may not measure must
+// not, or the rota above is decoration.
+TEST_CASE(a_channel_that_never_gets_a_turn_never_measures)
+{
+  SrScan s = {0};
+  sr_norm_scan(&s, 0.2f, 0.1f, 8, TICK_S, 0); // the first tick, measured in full
+  SrNorm first = s.norm;
+
+  for (int i = 0; i < 1000; i++)
+  {
+    sr_norm_scan(&s, -0.7f, 0.9f, 8, TICK_S, 0);
+  }
+  CHECK(s.norm.gain == first.gain);
+  CHECK(s.norm.offset == first.offset);
 }
 
 // The measurement is slewed into place rather than swapped in, so that a pass
@@ -425,7 +468,7 @@ TEST_CASE(a_length_change_moves_the_correction_without_stepping_the_output)
       SrScan s = {0};
       for (int i = 0; i < 500; i++)
       {
-        sr_norm_scan(&s, 0.3f, -0.2f, from, TICK_S);
+        sr_norm_scan(&s, 0.3f, -0.2f, from, TICK_S, 1);
       }
 
       // The correction itself, tick by tick, and the value at the wrap with it.
@@ -434,9 +477,9 @@ TEST_CASE(a_length_change_moves_the_correction_without_stepping_the_output)
       // constant whatever the gain is.
       float prev      = stepped_random_with(0.0f, 0.3f, -0.2f, from, SR_HOLD_SMOOTH, &s.norm);
       float prev_gain = s.norm.gain;
-      for (int i = 0; i < 500; i++)
+      for (int i = 0; i < 2000; i++)
       {
-        sr_norm_scan(&s, 0.3f, -0.2f, to, TICK_S);
+        sr_norm_scan(&s, 0.3f, -0.2f, to, TICK_S, 1);
         float v = stepped_random_with(0.0f, 0.3f, -0.2f, to, SR_HOLD_SMOOTH, &s.norm);
         CHECK(fabsf(v - prev) < 0.05f);
         CHECK(fabsf(s.norm.gain - prev_gain) < 0.1f);
@@ -444,7 +487,10 @@ TEST_CASE(a_length_change_moves_the_correction_without_stepping_the_output)
         prev_gain = s.norm.gain;
       }
 
-      // and it ends up where a full measurement of the new length would put it
+      // and it ends up where a full measurement of the new length would put it.
+      // It glides there rather than arriving: the change restarts the pass
+      // instead of paying for a full measurement in one tick, so the level
+      // takes a pass plus the slew to settle - tens of milliseconds.
       SrNorm want = sr_norm_exact(0.3f, -0.2f, to);
       CHECK_NEAR(s.norm.gain, want.gain, 1e-3);
     }
@@ -799,6 +845,8 @@ int main(void)
   RUN_TEST(neither_knob_walks_the_pattern_off_centre);
   RUN_TEST(neither_knob_changes_how_loud_the_pattern_is);
   RUN_TEST(the_rolling_measurement_lands_where_a_full_one_does);
+  RUN_TEST(a_channel_that_only_gets_every_eighth_tick_still_arrives);
+  RUN_TEST(a_channel_that_never_gets_a_turn_never_measures);
   RUN_TEST(a_length_change_moves_the_correction_without_stepping_the_output);
   RUN_TEST(longer_patterns_contain_more_events);
   RUN_TEST(hold_setting_controls_how_step_like_the_curve_is);

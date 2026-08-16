@@ -99,10 +99,18 @@ typedef struct
 // already has. So what this really costs is a knob being turned, or a CV moving
 // one - which is when it is doing something.
 //
+// `may_measure` is the caller's budget, and it matters. Measuring one slot is
+// most of the cost of the shape itself - a step value walks a run of ties, each
+// slot of it a four-tap contour and a motif fold - so eight channels each
+// measuring every tick costs about what eight channels of the shape cost.
+// Measured on the module: 88us added to a 310us tick, which the engine answered
+// by dropping every third one. So the engine hands out one measurement per
+// tick, in turn.
+//
 // The result is slewed rather than swapped in, so that a pass whose pattern
 // changed under it - a length switch, a fast turn of SHP - moves the level
 // smoothly instead of stepping it. `dt_s` is the tick's own length, because the
 // engine has to be right at whatever rate its host ticks it.
-void sr_norm_scan(SrScan* s, float shape, float mod, int length_idx, float dt_s);
+void sr_norm_scan(SrScan* s, float shape, float mod, int length_idx, float dt_s, int may_measure);
 
 #endif
