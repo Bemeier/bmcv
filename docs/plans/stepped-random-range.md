@@ -1,9 +1,12 @@
 # Widening SHP and MOD in stepped random
 
-Status: **round two implemented and shipped to the sim, awaiting a musical
-verdict.** Decisions taken: MOD stays monotone density rather than becoming
-cyclic; the small-turn budget went 0.25 -> 0.35 in round two, on the evidence
-that shift-mode fine adjust was going unused.
+Status: **round three implemented, awaiting a musical verdict.** Rounds one and
+two widened what the two knobs reach; round three takes *level* back off them,
+which is what the verdict on round two asked for. Decisions taken: MOD stays
+monotone density rather than becoming cyclic; the small-turn budget went
+0.25 -> 0.35 in round two, on the evidence that shift-mode fine adjust was going
+unused; SHP's span lever is gone and the normalisation now holds both the
+peak-to-peak and the DC steady (round three).
 
 ## Problem
 
@@ -304,17 +307,120 @@ Flash 189 KB -> 280 KB of 512 KB. Cost 17.7 -> 88 ns/call on the dev machine
 (5.0x, against 4.2x for the previous version) - wants re-checking on hardware,
 though the module reported no change at 4.2x.
 
+## Round three: level
+
+Feedback after playing round two: the range is there, but the two knobs move the
+*level* as well as the character - a given shape flattens and shifts as MOD
+turns, and scrolling SHP is not "AC coupled". Amplitude and offset already have
+their own controls; SHP and MOD should be spending their travel on rhythm, bend
+and contour.
+
+Measured on the shipping build, over the whole (SHP, MOD) plane, the complaint
+is exactly right:
+
+| | before | after |
+|---|---|---|
+| peak-to-peak across the plane | 0.58 .. 1.99 | 0.78 .. 1.73 (L>=5) |
+| peak-to-peak along one sweep | 2.3x | 1.45x |
+| DC walk along one sweep | 0.76 (up to 1.5) | 0.39 (up to 1.03) |
+| worst DC anywhere | 0.78 | 0.64 |
+| DC RMS over the plane | 0.25 | 0.15 |
+| **character steer** | **2.72** | **2.72** |
+
+Character does not move at all, and that is not luck: every character feature in
+`character.py` is invariant under an affine, and both causes here were affine.
+
+### The two causes
+
+- **`SR_SPAN`**, round two's fourth SHP lever, ducked the peak-to-peak by up to
+  0.7 three times across the sweep. Being a pure gain it moved no character
+  measurement - it bought nothing but the inconsistency. Removed.
+- **The correction was anchored on slot 0 and expanded about it**, so the whole
+  cycle's DC followed slot 0's own value as the orbit turned. With a gain above
+  1 that is an amplifier for a value that sweeps the full range: hence a DC that
+  walked 1.5 of 2.0 along one sweep of SHP.
+
+### What replaces them
+
+`out = c + (v - anchor) * g`, as before, with both halves changed:
+
+- **`c` centres the pattern** instead of pulling the anchor toward zero. The
+  pull existed only to open up headroom for expansion; centring does that as a
+  side effect of doing something musically useful, so it is gone.
+- **`g` normalises two-sidedly**: `(target/span)^SR_NORM_EXP`, clamped, so a
+  naturally wide pattern is brought down as well as a collapsed one lifted. At
+  `SR_NORM_EXP` 0.7 a natural 2.9x range comes out as 1.37x - the ordering
+  between calm and emphatic settings survives, its size does not. Target 1.5,
+  min gain 0.4.
+- The neighbourhood rule that keeps the interpolation between MOD bins off the
+  flat floor now carries only the **floor** across the neighbourhood, not the
+  full target. Carrying the target gave every bin the largest gain any neighbour
+  wanted, which is a bias upward everywhere.
+
+**One constant, not one per length.** The corrected value at the cycle boundary
+is slot 0's, and every length has to agree on it or switching length on the wrap
+puts a step in the signal. So `c` is an average across the lengths of what would
+centre each - the minimax was tried and measured worse (0.54 of residual DC
+swing against 0.41), because the two shortest patterns drag it away from where
+the other nine sit. Exact per-length centring is unreachable for the same
+reason: `A_L (v0 - mid_L)` would have to be length-independent, which needs
+slot 0 to sit at the same relative place in every length's range.
+
+Pinning slot 0 to the centre to buy exactly that was tried at half and full
+depth. It measures **worse** (DC swing 0.39 -> 0.49) as well as costing
+character, because the anchor stops tracking the pattern it is anchoring.
+
+### Cost
+
+None at runtime: the table is the same size, the lookup is the same two values,
+the value path is untouched (`verify_c.py` still agrees with `final.py` to
+1.4e-5). Flash unchanged. The generator gained a third pass and takes ~2s
+longer.
+
+The small-turn budget moved: MOD went 0.11-0.13 to 0.18-0.22 of the 0.35 limit,
+because the centring constant varies along MOD. SHP is unchanged at 0.29-0.30.
+The worst span anywhere is 0.584 against the floor of 0.5.
+
+The length-switch seam is slightly worse: 0.044 of 2.0 at MOD 0 (was 0.046) but
+0.122 once MOD is off centre (was 0.095). The correction cancels slot 0 exactly
+only at a bin centre - between bins the gain is interpolated while slot 0's
+value is computed exactly, and the residual is proportional to how far the
+lengths' gains differ, which two-sided normalisation widens.
+
+### Verification
+
+- All 31 test binaries pass. `tests/test_stepped_random.c` gains
+  `neither_knob_walks_the_pattern_off_centre` and
+  `neither_knob_changes_how_loud_the_pattern_is`, which are the two properties
+  this round is about, and which the shipping build before it fails.
+- `tools/sr_explore/dump_pattern.c` + `from_c.py` are new: the character numbers
+  computed on the C's own output plus the level ones. A change to the correction
+  cannot be judged by `srmodel.py`, which does not carry the generated table.
+
 ## Unresolved questions
 
-1. **Is 0.35 the right small-turn budget now?** It was 0.25, and shift-mode
+1. **Is `SR_NORM_EXP` 0.7 the right amount of "not a 100% rule"?** 1.0 pins
+   every setting to the same peak-to-peak (span ratio 1.12 and it does sound
+   levelled); 0.0 is where round two was. If settings still feel too alike in
+   weight, wind it down toward 0.5; if the level still moves too much, up.
+2. **The remaining DC outlier is a twelve-step pattern at high MOD** (0.64 of
+   2.0, 0.9% of the plane above 0.4). Most steps tie to one value there, so
+   there is genuinely no centre to find - but if it is audible as a lopsided
+   patch of the knob, the fix is to bound the tie chain's contribution rather
+   than to correct harder.
+3. **Everything is a little quieter at its loudest** - peak-to-peak tops out at
+   1.73 against 1.99 - and a little louder at its quietest. Raising
+   `SR_NORM_TARGET` above 1.5 trades headroom for it.
+4. **Is 0.35 the right small-turn budget now?** It was 0.25, and shift-mode
    fine adjust going unused was the signal to spend it. SHP measures 0.29 from
    eight steps up. If it now feels twitchy, `SR_BEND` and `SR_CONTOUR_RATE` are
    the two to wind back.
-2. **The shortest patterns are twitchier than they were** - 1.02 against 0.90
+5. **The shortest patterns are twitchier than they were** - 1.02 against 0.90
    at three steps, a consequence of the higher gain ceiling that was needed to
    clear the flat spot. Three values cannot change gently, but it is worth an
    ear.
-3. **88 KB of flash for MOD resolution.** Halving it puts 0.014% of the space
-   back under the flat floor. Cheap to trade back if flash is ever wanted.
-4. **Swing on odd lengths** still makes step 0 and step L-1 both wide at
+6. **88 KB of flash for MOD resolution.** Halving it puts 0.014% of the space
+   back under the flat floor - re-checked under round three, where 8 bins still
+   fails the seam test outright. Cheap to trade back if flash is ever wanted.
+7. **Swing on odd lengths** still makes step 0 and step L-1 both wide at
    lengths 3 and 5 - a lopsided shuffle. Untouched this round.
