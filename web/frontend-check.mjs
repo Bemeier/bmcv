@@ -815,16 +815,24 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
 
 /* ---- the probe descriptor decodes ---------------------------------------- */
 
-// These 28 bytes are what `arm-none-eabi-objdump -s -j .probe_info` prints for
+// These 28 bytes are what `arm-none-eabi-objdump -s -j .probe_info` printed for
 // a real build - the firmware saying where its state lives, which is the first
 // thing the browser reads off a module. Frozen here rather than read from the
 // ELF so the check runs on a fresh checkout, where no firmware has been built.
 //
 // Worth testing because a wrong offset here does not fail: it yields a
-// plausible-looking address, reads 5904 bytes of whatever is there, and shows a
-// module made of noise.
+// plausible-looking address, reads a plausible number of bytes of whatever is
+// there, and shows a module made of noise.
+//
+// **It is a fixture, not a mirror of the current build**, and the numbers below
+// are deliberately not kept in step with one. What it pins is that decodeInfo
+// reads each field from the right offset, which is a property of these bytes
+// and stays true for ever. Whether a *mismatch* between module and page is
+// caught is a different question, tested against this build's own size further
+// down - that separation is the point, because conflating the two meant every
+// change to EngineState broke a check that was not about EngineState.
 {
-  const { decodeInfo } = await import('./probe/probe.js');
+  const { decodeInfo, assertSameBuild } = await import('./probe/probe.js');
 
   const bytes = new Uint8Array([
     0x42, 0x4d, 0x43, 0x56, // "BMCV"
@@ -839,9 +847,22 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   check(info.instanceSize === 5904, `reads the instance size (${info.instanceSize})`);
   check(info.version === '0.15.0', `reads the firmware version (${info.version})`);
 
-  // The size the descriptor reports is checked against this build's before a
-  // byte of state is believed, so it has to be the same number the wasm knows.
-  check(info.instanceSize === sim.instanceSize, 'and it matches what this build decodes');
+  // And the guard that uses it, tested against *this* build's size rather than
+  // the fixture's - so it goes on meaning something however far the struct
+  // moves. A module whose state is a different size than the page expects is
+  // one whose every reading would be plausible nonsense.
+  const declaring = size => ({ instanceSize: size, instanceAddr: 0x20000000, version: '9.9.9' });
+
+  let accepted = true;
+  try { assertSameBuild(declaring(sim.instanceSize)); } catch { accepted = false; }
+  check(accepted, `a module declaring this build's ${sim.instanceSize} bytes is believed`);
+
+  let refused = false;
+  let said = '';
+  try { assertSameBuild(declaring(sim.instanceSize + 16)); } catch (e) { refused = true; said = e.message; }
+  check(refused, 'one declaring a different size is refused, not decoded anyway');
+  check(said.includes(String(sim.instanceSize)) && said.includes(String(sim.instanceSize + 16)),
+    'and the refusal names both sizes, so the mismatch can be acted on');
 
   const refuses = (mutate, what) => {
     const bad = bytes.slice();
@@ -1082,16 +1103,24 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
 
 /* ---- the probe descriptor decodes ---------------------------------------- */
 
-// These 28 bytes are what `arm-none-eabi-objdump -s -j .probe_info` prints for
+// These 28 bytes are what `arm-none-eabi-objdump -s -j .probe_info` printed for
 // a real build - the firmware saying where its state lives, which is the first
 // thing the browser reads off a module. Frozen here rather than read from the
 // ELF so the check runs on a fresh checkout, where no firmware has been built.
 //
 // Worth testing because a wrong offset here does not fail: it yields a
-// plausible-looking address, reads 5904 bytes of whatever is there, and shows a
-// module made of noise.
+// plausible-looking address, reads a plausible number of bytes of whatever is
+// there, and shows a module made of noise.
+//
+// **It is a fixture, not a mirror of the current build**, and the numbers below
+// are deliberately not kept in step with one. What it pins is that decodeInfo
+// reads each field from the right offset, which is a property of these bytes
+// and stays true for ever. Whether a *mismatch* between module and page is
+// caught is a different question, tested against this build's own size further
+// down - that separation is the point, because conflating the two meant every
+// change to EngineState broke a check that was not about EngineState.
 {
-  const { decodeInfo } = await import('./probe/probe.js');
+  const { decodeInfo, assertSameBuild } = await import('./probe/probe.js');
 
   const bytes = new Uint8Array([
     0x42, 0x4d, 0x43, 0x56, // "BMCV"
@@ -1106,9 +1135,22 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   check(info.instanceSize === 5904, `reads the instance size (${info.instanceSize})`);
   check(info.version === '0.15.0', `reads the firmware version (${info.version})`);
 
-  // The size the descriptor reports is checked against this build's before a
-  // byte of state is believed, so it has to be the same number the wasm knows.
-  check(info.instanceSize === sim.instanceSize, 'and it matches what this build decodes');
+  // And the guard that uses it, tested against *this* build's size rather than
+  // the fixture's - so it goes on meaning something however far the struct
+  // moves. A module whose state is a different size than the page expects is
+  // one whose every reading would be plausible nonsense.
+  const declaring = size => ({ instanceSize: size, instanceAddr: 0x20000000, version: '9.9.9' });
+
+  let accepted = true;
+  try { assertSameBuild(declaring(sim.instanceSize)); } catch { accepted = false; }
+  check(accepted, `a module declaring this build's ${sim.instanceSize} bytes is believed`);
+
+  let refused = false;
+  let said = '';
+  try { assertSameBuild(declaring(sim.instanceSize + 16)); } catch (e) { refused = true; said = e.message; }
+  check(refused, 'one declaring a different size is refused, not decoded anyway');
+  check(said.includes(String(sim.instanceSize)) && said.includes(String(sim.instanceSize + 16)),
+    'and the refusal names both sizes, so the mismatch can be acted on');
 
   const refuses = (mutate, what) => {
     const bad = bytes.slice();

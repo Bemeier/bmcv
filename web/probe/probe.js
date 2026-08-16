@@ -90,6 +90,27 @@ export function decodeInfo(bytes) {
   return { instanceSize, instanceAddr, version };
 }
 
+// The one check that matters before believing a byte of a module's state. Both
+// sides were built from the same struct or they were not, and if they were not
+// then every reading downstream is plausible nonsense rather than an error.
+// sim/include/layout_target.h is what keeps them equal; this is what notices
+// when the module is running a different build than the page was compiled from.
+//
+// A named function rather than three lines inside connect(), so it can be
+// tested. It used to be inline, and the check standing in for it asserted that
+// a frozen descriptor captured from some past build still declared the same
+// size as today's - which fails on every change to EngineState, says nothing
+// about whether a mismatch is actually caught, and had to be hand-updated
+// twice in one afternoon.
+export function assertSameBuild(info, expectedSize = sim.instanceSize) {
+  if (info.instanceSize !== expectedSize) {
+    throw new Error(
+      `the module's state is ${info.instanceSize} bytes and this page expects ${expectedSize} - ` +
+      `it is running firmware ${info.version}, built from different sources than this page`,
+    );
+  }
+}
+
 class Probe {
   constructor() {
     this.session = new Session(PROBE, { sendCommand: () => this.#sendCommand() });
@@ -178,19 +199,7 @@ class Probe {
       }
 
       this.info = decodeInfo(await this.link.readMem(PROBE_INFO_ADDR, PROBE_INFO_BYTES));
-
-      // The one check that matters before believing a byte of it. Both sides
-      // were built from the same struct or they were not, and if they were not
-      // then every reading downstream is plausible nonsense rather than an
-      // error. sim/include/layout_target.h is what keeps them equal; this is
-      // what notices when the module is running a different build than the
-      // page was compiled from.
-      if (this.info.instanceSize !== sim.instanceSize) {
-        throw new Error(
-          `the module's state is ${this.info.instanceSize} bytes and this page expects ${sim.instanceSize} - ` +
-          `it is running firmware ${this.info.version}, built from different sources than this page`,
-        );
-      }
+      assertSameBuild(this.info);
 
       this.session.begin();
       await this.#poll(); // one now, so the panel is right before the first frame
