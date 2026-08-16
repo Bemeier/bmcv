@@ -37,23 +37,27 @@ fi
 # the same reason sim/include/layout_target.h is generated: a struct that gains
 # a field silently turns hand-counted offsets into plausible nonsense, which is
 # exactly what happened the first time this was written.
+# Cast to int so gdb prints a plain decimal: a pointer prints as
+# "(BmcvSpan *) 0x20", and picking the number back out of that is how the size
+# came through as 0 the first time.
 layout=$("${ARM_GCC_DIR:-$HOME/arm-gcc-xpack}/bin/arm-none-eabi-gdb-py3" -batch \
-  -ex 'print sizeof(BmcvProfile)' \
-  -ex 'print &((BmcvProfile *)0)->tick' \
-  -ex 'print &((BmcvProfile *)0)->load' \
-  -ex 'print &((BmcvSpan *)0)->avg_us' \
-  "$ELF" 2>/dev/null | grep -oP '\$\d+ = \(?[^)]*\)? ?\K[0-9]+' | tr '\n' ' ')
+  -ex 'print (int)sizeof(BmcvProfile)' \
+  -ex 'print (int)&((BmcvProfile *)0)->tick' \
+  -ex 'print (int)&((BmcvProfile *)0)->load' \
+  -ex 'print (int)&((BmcvSpan *)0)->avg_us' \
+  "$ELF" 2>/dev/null | grep -oP '^\$\d+ = \K-?\d+$' | tr '\n' ' ')
 read -r SIZE OFF_TICK OFF_LOAD OFF_AVG <<<"$layout"
-if [[ -z "${OFF_AVG:-}" ]]; then
-  echo "could not read the layout of BmcvProfile from $ELF" >&2
+if [[ -z "${OFF_AVG:-}" || "${SIZE:-0}" -lt 16 ]]; then
+  echo "could not read the layout of BmcvProfile from $ELF (got '$layout')" >&2
   exit 1
 fi
 
-words=$(cmd.exe /C "STM32_Programmer_CLI -c port=SWD mode=hotplug -r32 $addr $(printf '0x%x' $((SIZE)))" 2>&1 | tr -d '\r' |
-  grep -oP '^0x[0-9A-Fa-f]+\s*:\s*\K.*' | tr ' ' '\n' | grep -E '^[0-9A-Fa-f]{8}$')
+raw=$(cmd.exe /C "STM32_Programmer_CLI -c port=SWD mode=hotplug -r32 $addr $(printf '0x%x' $((SIZE)))" 2>&1 | tr -d '\r')
+words=$(echo "$raw" | grep -oP '^0x[0-9A-Fa-f]+\s*:\s*\K.*' | tr ' ' '\n' | grep -E '^[0-9A-Fa-f]{8}$')
 
 if [[ -z "${words:-}" ]]; then
-  echo "could not read $addr - is it powered, and the ST-Link attached?" >&2
+  echo "read $SIZE bytes at $addr and got nothing back" >&2
+  echo "$raw" | tail -8 >&2
   exit 1
 fi
 
