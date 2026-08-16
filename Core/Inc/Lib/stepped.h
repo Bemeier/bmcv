@@ -218,7 +218,8 @@ typedef struct
 // pair advances for one slot evaluation instead of a walk of up to
 // ST_JUMP_GRID. Only a jump - a phase correction, a knob turn, a rate high
 // enough to skip a step outright - pays the full route.
-float stepped_shape_cached(StStepCache* c, float phase, float shape, float mod, int length_idx, const StDrive* drive, const StNorm* norm);
+float stepped_shape_cached(StStepCache* c, StSlotMemo* memo, float phase, float shape, float mod, int length_idx, const StDrive* drive,
+                           const StNorm* norm);
 
 // A channel's rolling measurement of its own pattern.
 //
@@ -257,6 +258,6 @@ typedef struct
 // changed under it - a length switch, a fast turn of SHP - moves the level
 // smoothly instead of stepping it. `dt_s` is the tick's own length, because the
 // engine has to be right at whatever rate its host ticks it.
-void st_norm_scan(StScan* s, float shape, float mod, int length_idx, float dt_s, int may_measure);
+void st_norm_scan(StScan* s, StSlotMemo* memo, float shape, float mod, int length_idx, float dt_s, int may_measure);
 
 #endif

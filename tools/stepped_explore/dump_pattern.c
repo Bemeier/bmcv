@@ -36,11 +36,11 @@ static void emit(int li, const char* axis, float fixed, float pos, float shape, 
 
   printf("%d %s %.4f %.6f :", li, axis, fixed, pos);
   for (int i = 0; i < length; i++)
-    printf(" %.5f",
-           st_terrace_map(
-               st_terrace_map(st_bias_map(fclamp(st_step_value(i, &m, &slots, ST_JUMP_GRID) * n.gain + n.offset, -1.0f, 1.0f), d.bias),
-                              d.terrace),
-               d.terrace));
+    printf(" %.5f", st_terrace_map(
+                        st_terrace_map(
+                            st_bias_map(fclamp(st_step_value(i, &m, &slots, ST_JUMP_GRID, NULL) * n.gain + n.offset, -1.0f, 1.0f), d.bias),
+                            d.terrace),
+                        d.terrace));
   printf(" :");
   for (int i = 0; i < length; i++)
     printf(" %.5f", st_tie_weight(i, &m, &slots, ST_JUMP_GRID));

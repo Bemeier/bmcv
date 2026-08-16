@@ -27,6 +27,7 @@
 typedef struct
 {
   StStepCache cache;
+  StSlotMemo memo;
   StDrive drive;
   StNorm norm;
   float shape, mod;
@@ -36,6 +37,7 @@ typedef struct
 static void rig_init(Rig* r, float shape, float mod, int length_idx)
 {
   memset(&r->cache, 0, sizeof r->cache); // a fresh EngineState is zeroed
+  memset(&r->memo, 0, sizeof r->memo);
   r->shape      = shape;
   r->mod        = mod;
   r->length_idx = length_idx;
@@ -47,8 +49,12 @@ static void rig_init(Rig* r, float shape, float mod, int length_idx)
 // compare equal and two zeroes of different sign do not.
 static int agrees(Rig* r, float phase)
 {
+  // The reference route takes no memo at all, so this compares the memoised
+  // path against one that recomputes everything - which is the property the
+  // memo has to have, not merely that two memoised runs agree.
   float want = stepped_shape_with(phase, r->shape, r->mod, r->length_idx, &r->drive, &r->norm);
-  float got  = stepped_shape_cached(&r->cache, phase, r->shape, r->mod, r->length_idx, &r->drive, &r->norm);
+  st_slot_memo_begin(&r->memo, r->shape, r->mod, st_length_for_index(r->length_idx));
+  float got = stepped_shape_cached(&r->cache, &r->memo, phase, r->shape, r->mod, r->length_idx, &r->drive, &r->norm);
   return memcmp(&want, &got, sizeof want) == 0;
 }
 

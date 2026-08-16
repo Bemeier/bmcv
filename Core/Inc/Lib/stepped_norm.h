@@ -95,14 +95,14 @@ static inline StExtent st_extent_of(const StNormCtx* c, int length, float mod, f
 
   for (int i = 0; i < length; i++)
   {
-    float v = st_step_value(i, &m, c->slots, c->jump_grid);
+    float v = st_step_value(i, &m, c->slots, c->jump_grid, NULL);
     if (v < e.lo)
       e.lo = v;
     if (v > e.hi)
       e.hi = v;
   }
 
-  e.anchor = st_step_value(0, &m, c->slots, c->jump_grid);
+  e.anchor = st_step_value(0, &m, c->slots, c->jump_grid, NULL);
   return e;
 }
 
@@ -119,7 +119,7 @@ static inline StExtent st_extent_with_dc(const StNormCtx* c, int length, float m
   for (int i = 0; i < length; i++)
   {
     float w = (i & 1) ? 1.0f - swing : 1.0f + swing;
-    dc += st_step_value(i, &m, c->slots, c->jump_grid) * w;
+    dc += st_step_value(i, &m, c->slots, c->jump_grid, NULL) * w;
     wsum += w;
   }
 

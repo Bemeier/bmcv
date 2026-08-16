@@ -86,29 +86,40 @@ enough to skip a step outright. **The skipping case is not improved at all**, an
 was already bounded - `st_step_value()` is O(`ST_JUMP_GRID`) regardless of
 pattern length.
 
+### And the slots underneath it
+
+The step cache removed everything *above* the slot evaluations, which left those
+as the whole cost - and they are memoisable for the same reason: what a slot
+offers depends on the slot and the morph, and the morph on nothing but the two
+knobs and the length. `StSlotMemo` remembers `st_slot_offer()` per slot while
+the knobs are still.
+
+It is threaded as a parameter, and `NULL` means "compute it". That is what keeps
+it a memo rather than a second implementation: one value path, and a caller that
+supplies no memo takes the identical route through it. The scan shares the
+channel's memo, since it walks the same slots of the same pattern.
+
+### What the two are worth
+
 Measured on the module, seven stepped channels at MOD full (densest ties, motif
-fold active), over 64 steps, `engine` avg:
+fold active), over 64 steps. `engine` avg, and `load` against the 250 µs period:
 
-| rate | steps per tick | before | after | |
+| rate | steps/tick | neither | step cache | + slot memo |
 |---|---|---|---|---|
-| 0.5 Hz | 1/91 | 296.5 µs | **197.3 µs** | load 1.30 → 0.90 |
-| 62.5 Hz | ~1 | 282.8 µs | **227.5 µs** | load 1.27 → 1.02 |
-| 129.5 Hz | ~2 | 277.9 µs | 275.4 µs | load 1.24 → 1.23 |
+| 0.5 Hz | 1/91 | 296.5 µs (1.30) | 197.3 µs (0.90) | **184.2 µs (0.84)** |
+| 62.5 Hz | ~1 | 282.8 µs (1.27) | 227.5 µs (1.02) | **192.0 µs (0.88)** |
+| 129.5 Hz | ~2, skipping | 277.9 µs (1.24) | 275.4 µs (1.23) | **209.0 µs (0.95)** |
 
-The first row is what a module is actually patched to do, and it is what first
-let the engine hold its nominal 4 kHz - `engine_fps` 2915 → 3999, resyncs
-9923 → 3.
+**Every column of the last row is the point.** The step cache does nothing for a
+playhead that skips - the carry never applies and the cache never hits, so it
+was flat at 275 µs - while the slot memo takes 24% off it, because a skipping
+playhead still asks for slots it asked for a few ticks ago. Together they hold
+`engine_fps` at 4000 under every condition above, with overruns at 3% and
+resyncs in single figures. Before them the same patch ran at 2915 with every
+tick overrunning.
 
-The second is the sustained worst case the carry exists for. Backing out the
-~135 µs the engine costs before any stepped channel, that is 21.0 → 13.1 µs per
-channel: **1.6x, against the 2.9x predicted from counting slot evaluations.**
-The estimate was optimistic - at MOD full the ties are dense, so the one step in
-`ST_JUMP_GRID` that still walks is the expensive one.
-
-The third is the floor, and it is flat: once the playhead skips a step the carry
-never applies and the cache never hits, so both builds do identical work. Any
-further gain there has to come from making `st_slot_offer()` cheaper, not from
-remembering more.
+Backing out the ~135 µs the engine costs before any stepped channel exists, the
+per-channel stepped cost at the skipping rate goes 20.0 → 20.0 → **10.5 µs**.
 
 The cache changes when the work happens, never what comes out.
 `tests/test_stepped_cache.c` asserts the cached and uncached routes are

@@ -97,6 +97,62 @@ typedef struct
   const float* gate2;  // how fast MOD rotates that threshold
 } StSlots;
 
+// How many slots a memo has room for. Its own constant rather than the
+// generated table's ST_MAX_LENGTH, for the reason at the top of this header:
+// nothing here may depend on the generated one. stepped.c asserts the two
+// agree, exactly as it does for ST_JUMP_GRID against ST_MAX_JUMP_GRID.
+#define ST_MEMO_SLOTS 64
+
+// A memo of st_slot_offer(), and the setting its values belong to.
+//
+// What a slot offers depends on the slot and the morph, and the morph depends
+// on nothing but the two knobs and the length. So while the knobs are still -
+// which is most of the time, and all of the time that matters for cost - a slot
+// evaluated on one tick is the same value on the next. It is worth remembering
+// because it is the expensive primitive here: four triangles and a shaper for
+// the slot, and the same again for the motif fold.
+//
+// Passed as a parameter, and NULL is "no memo, compute it". That is what keeps
+// this a memo rather than a second implementation: there is one value path, and
+// a caller that supplies no memo takes the identical route through it. The
+// compiler folds the branch away for those callers.
+//
+// The key is the setting, not a generation counter handed out from outside.
+// A memo that carries what it is a memo *of* cannot be handed to the wrong
+// pattern by a caller that forgot to invalidate it.
+typedef struct
+{
+  float shape, mod;
+  int32_t length;
+  uint8_t valid;
+
+  uint8_t known[ST_MEMO_SLOTS];
+  float value[ST_MEMO_SLOTS];
+} StSlotMemo;
+
+// Point a memo at a setting, clearing it if that is not the setting it holds.
+// Call once per tick per channel, before anything that might read it.
+static inline void st_slot_memo_begin(StSlotMemo* memo, float shape, float mod, int length)
+{
+  if (memo == NULL)
+  {
+    return;
+  }
+  if (memo->valid && memo->shape == shape && memo->mod == mod && memo->length == (int32_t) length)
+  {
+    return;
+  }
+
+  memo->shape  = shape;
+  memo->mod    = mod;
+  memo->length = (int32_t) length;
+  memo->valid  = 1;
+  for (int i = 0; i < ST_MEMO_SLOTS; i++)
+  {
+    memo->known[i] = 0;
+  }
+}
+
 // fractf() for values already known to be non-negative - avoids floorf(), which
 // is a call on this target and would otherwise dominate the cost here.
 static inline float st_fract_pos(float x) { return x - (float) (int) x; }
@@ -271,12 +327,26 @@ static inline float st_slot_value(int slot, const StMorph* m, const StSlots* s)
 // Folded here, before the ties are applied, rather than after: it costs one
 // pass instead of three, and the repeat comes out varied rather than a literal
 // copy, because the tie pattern still runs the full length of the cycle.
-static inline float st_slot_offer(int slot, const StMorph* m, const StSlots* s)
+static inline float st_slot_offer(int slot, const StMorph* m, const StSlots* s, StSlotMemo* memo)
 {
+  // The memo covers the whole offer rather than st_slot_value() alone, so the
+  // motif fold - a second slot value and a blend - is remembered with it.
+  const int memoed = (memo != NULL && slot >= 0 && slot < ST_MEMO_SLOTS);
+  if (memoed && memo->known[slot])
+  {
+    return memo->value[slot];
+  }
+
   float v = st_slot_value(slot, m, s);
   if (m->motif > 0.0f && slot >= m->motif_period)
   {
     v = lerp(v, st_slot_value(slot % m->motif_period, m, s), m->motif);
+  }
+
+  if (memoed)
+  {
+    memo->value[slot] = v;
+    memo->known[slot] = 1;
   }
   return v;
 }
@@ -338,16 +408,16 @@ static inline int st_tie_run(int step, const StMorph* m, const StSlots* s, int j
 // The value shown at a step: walk forward from where its run of ties begins,
 // each slot crossfading from what the previous one showed toward its own value.
 // At most jump_grid slots, whatever the pattern length.
-static inline float st_step_value(int step, const StMorph* m, const StSlots* s, int jump_grid)
+static inline float st_step_value(int step, const StMorph* m, const StSlots* s, int jump_grid, StSlotMemo* memo)
 {
   int first = step - (step % jump_grid);
   float w[ST_MAX_JUMP_GRID];
   int start = st_tie_run(step, m, s, jump_grid, w);
 
-  float v = st_slot_offer(start, m, s);
+  float v = st_slot_offer(start, m, s, memo);
   for (int i = start + 1; i <= step; i++)
   {
-    v = lerp(v, st_slot_offer(i, m, s), w[i - first]);
+    v = lerp(v, st_slot_offer(i, m, s, memo), w[i - first]);
   }
   return v;
 }
@@ -368,7 +438,7 @@ static inline float st_step_value(int step, const StMorph* m, const StSlots* s, 
 // That identity is worth stating because a caller advancing through the pattern
 // one step at a time can carry this tick's `to` into next tick's `from` and
 // never call st_step_value at all. See stepped_shape_cached().
-static inline float st_step_next(int step, int next, const StMorph* m, const StSlots* s, int jump_grid, float from)
+static inline float st_step_next(int step, int next, const StMorph* m, const StSlots* s, int jump_grid, float from, StSlotMemo* memo)
 {
   if (next == step + 1 && (next % jump_grid) != 0)
   {
@@ -386,19 +456,20 @@ static inline float st_step_next(int step, int next, const StMorph* m, const StS
     // pinned slot reset it.
     if (w >= 1.0f)
     {
-      return st_slot_offer(next, m, s);
+      return st_slot_offer(next, m, s, memo);
     }
-    return lerp(from, st_slot_offer(next, m, s), w);
+    return lerp(from, st_slot_offer(next, m, s, memo), w);
   }
-  return st_step_value(next, m, s, jump_grid); // a pinned slot or a wrap: no look-back
+  return st_step_value(next, m, s, jump_grid, memo); // a pinned slot or a wrap: no look-back
 }
 
 // The two values one sample needs: what the current step shows and what the
 // next one does, in a single walk.
-static inline void st_step_pair(int step, int next, const StMorph* m, const StSlots* s, int jump_grid, float* from, float* to)
+static inline void st_step_pair(int step, int next, const StMorph* m, const StSlots* s, int jump_grid, float* from, float* to,
+                                StSlotMemo* memo)
 {
-  *from = st_step_value(step, m, s, jump_grid);
-  *to   = st_step_next(step, next, m, s, jump_grid, *from);
+  *from = st_step_value(step, m, s, jump_grid, memo);
+  *to   = st_step_next(step, next, m, s, jump_grid, *from, memo);
 }
 
 // How wide each step is, as a fraction of the cycle.

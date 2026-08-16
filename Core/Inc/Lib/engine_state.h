@@ -131,6 +131,13 @@ typedef struct
   // comes out, and test_stepped_cache.c holds it to that.
   StStepCache channels_stepped_cache[N_CHANNELS];
 
+  // What each slot of each channel's pattern offers, remembered while the knobs
+  // are still. The step cache above removed everything *above* the slot
+  // evaluations; this is the slot evaluations themselves, and between them they
+  // are the whole of what a stepped channel costs. Shared with the scan, which
+  // walks the same slots for the same setting.
+  StSlotMemo channels_stepped_slots[N_CHANNELS];
+
   // Whose turn it is to measure. One slot of one channel's pattern per tick:
   // measuring is nearly as expensive as playing the shape, so eight channels
   // each measuring every tick cost the engine a third of its ticks on the

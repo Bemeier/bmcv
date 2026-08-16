@@ -346,12 +346,20 @@ void channel_compute(uint8_t ch, EngineState* es, const EngineConfig* cfg, const
   {
     StDrive d = st_drive(shape, mod);
 
+    // Before either of the two that read it. Both walk the same slots of the
+    // same pattern - the scan to measure it, the shape to play it - so they
+    // share one memo, and this is the single point at which it is told which
+    // pattern that is.
+    StSlotMemo* slots = &es->channels_stepped_slots[ch];
+    st_slot_memo_begin(slots, shape, mod, st_length_for_index(*latched_idx));
+
     // The correction is measured a slot at a time rather than worked out here,
     // because working it out means walking the whole pattern. Scanned first, so
     // a channel that has just arrived in this mode is corrected on its first
     // tick rather than after a cycle of it.
-    st_norm_scan(&es->channels_stepped_scan[ch], shape, mod, *latched_idx, dt_s, ch == es->st_scan_turn);
-    raw = stepped_shape_cached(&es->channels_stepped_cache[ch], phase, shape, mod, *latched_idx, &d, &es->channels_stepped_scan[ch].norm);
+    st_norm_scan(&es->channels_stepped_scan[ch], slots, shape, mod, *latched_idx, dt_s, ch == es->st_scan_turn);
+    raw = stepped_shape_cached(&es->channels_stepped_cache[ch], slots, phase, shape, mod, *latched_idx, &d,
+                               &es->channels_stepped_scan[ch].norm);
     break;
   }
   case SHAPE_PWM:

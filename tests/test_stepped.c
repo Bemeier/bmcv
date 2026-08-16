@@ -486,7 +486,7 @@ TEST_CASE(the_rolling_measurement_lands_where_a_full_one_does)
 
         // A channel's first tick in a stepped mode has nothing measured yet, so
         // it takes the full route rather than playing a cycle uncorrected.
-        st_norm_scan(&s, shape, mod, li, TICK_S, 1);
+        st_norm_scan(&s, NULL, shape, mod, li, TICK_S, 1);
         CHECK_NEAR(s.norm.gain, want.gain, 1e-4);
         CHECK_NEAR(s.norm.offset, want.offset, 1e-4);
 
@@ -494,7 +494,7 @@ TEST_CASE(the_rolling_measurement_lands_where_a_full_one_does)
         // pattern and asks for the same correction.
         for (int i = 0; i < 4000; i++)
         {
-          st_norm_scan(&s, shape, mod, li, TICK_S, 1);
+          st_norm_scan(&s, NULL, shape, mod, li, TICK_S, 1);
         }
         CHECK_NEAR(s.norm.gain, want.gain, 1e-3);
         CHECK_NEAR(s.norm.offset, want.offset, 1e-3);
@@ -509,7 +509,7 @@ TEST_CASE(the_rolling_measurement_lands_where_a_full_one_does)
         StNorm want_moved = st_norm_exact(moved_shape, moved_mod, li);
         for (int i = 0; i < 4000; i++)
         {
-          st_norm_scan(&s, moved_shape, moved_mod, li, TICK_S, 1);
+          st_norm_scan(&s, NULL, moved_shape, moved_mod, li, TICK_S, 1);
         }
         CHECK_NEAR(s.norm.gain, want_moved.gain, 1e-3);
         CHECK_NEAR(s.norm.offset, want_moved.offset, 1e-3);
@@ -531,11 +531,11 @@ TEST_CASE(a_channel_that_only_gets_every_eighth_tick_still_arrives)
 
     // past the first tick, which measures in full, and onto a different setting
     // so that what follows has something to measure
-    st_norm_scan(&s, 0.0f, 0.0f, li, TICK_S, 0);
+    st_norm_scan(&s, NULL, 0.0f, 0.0f, li, TICK_S, 0);
 
     for (int i = 0; i < 40000; i++)
     {
-      st_norm_scan(&s, -0.4f, 0.6f, li, TICK_S, (i % N_SCAN_TURNS) == 0);
+      st_norm_scan(&s, NULL, -0.4f, 0.6f, li, TICK_S, (i % N_SCAN_TURNS) == 0);
     }
     CHECK_NEAR(s.norm.gain, want.gain, 1e-3);
     CHECK_NEAR(s.norm.offset, want.offset, 1e-3);
@@ -547,12 +547,12 @@ TEST_CASE(a_channel_that_only_gets_every_eighth_tick_still_arrives)
 TEST_CASE(a_channel_that_never_gets_a_turn_never_measures)
 {
   StScan s = {0};
-  st_norm_scan(&s, 0.2f, 0.1f, 8, TICK_S, 0); // the first tick, measured in full
+  st_norm_scan(&s, NULL, 0.2f, 0.1f, 8, TICK_S, 0); // the first tick, measured in full
   StNorm first = s.norm;
 
   for (int i = 0; i < 1000; i++)
   {
-    st_norm_scan(&s, -0.7f, 0.9f, 8, TICK_S, 0);
+    st_norm_scan(&s, NULL, -0.7f, 0.9f, 8, TICK_S, 0);
   }
   CHECK(s.norm.gain == first.gain);
   CHECK(s.norm.offset == first.offset);
@@ -571,7 +571,7 @@ TEST_CASE(a_length_change_moves_the_correction_without_stepping_the_output)
       StScan s = {0};
       for (int i = 0; i < 500; i++)
       {
-        st_norm_scan(&s, 0.3f, -0.2f, from, TICK_S, 1);
+        st_norm_scan(&s, NULL, 0.3f, -0.2f, from, TICK_S, 1);
       }
 
       // The correction itself, tick by tick, and the value at the wrap with it.
@@ -582,7 +582,7 @@ TEST_CASE(a_length_change_moves_the_correction_without_stepping_the_output)
       float prev_gain = s.norm.gain;
       for (int i = 0; i < 2000; i++)
       {
-        st_norm_scan(&s, 0.3f, -0.2f, to, TICK_S, 1);
+        st_norm_scan(&s, NULL, 0.3f, -0.2f, to, TICK_S, 1);
         float v = stepped_shape_with(0.0f, 0.3f, -0.2f, to, &(StDrive){ST_HOLD_SMOOTH, 0.0f, 0.0f}, &s.norm);
         CHECK(fabsf(v - prev) < 0.05f);
         CHECK(fabsf(s.norm.gain - prev_gain) < 0.1f);

@@ -36,6 +36,9 @@ static const StSlots st_slots = {st_slot_base, st_slot_rate, st_slot_gate, st_sl
 // st_step_value() keeps one tie weight per slot of a run on the stack.
 _Static_assert(ST_JUMP_GRID <= ST_MAX_JUMP_GRID, "a run of ties must fit the weight buffer");
 
+// A memo holds one entry per slot of the longest pattern.
+_Static_assert(ST_MAX_LENGTH <= ST_MEMO_SLOTS, "a slot memo must cover the longest pattern");
+
 int st_length_for_index(int length_idx) { return st_lengths[iclamp(length_idx, 0, ST_LENGTH_COUNT - 1)]; }
 
 // Where the centring constant is read from: the one part of the correction a
@@ -85,7 +88,7 @@ StNorm st_norm_exact(float shape, float mod, int length_idx)
 // standing channel is allowed to stop working.
 #define ST_NORM_SETTLED 1e-6f
 
-void st_norm_scan(StScan* s, float shape, float mod, int length_idx, float dt_s, int may_measure)
+void st_norm_scan(StScan* s, StSlotMemo* memo, float shape, float mod, int length_idx, float dt_s, int may_measure)
 {
   length_idx = (int8_t) iclamp(length_idx, 0, ST_LENGTH_COUNT - 1);
   int length = st_lengths[length_idx];
@@ -139,7 +142,7 @@ void st_norm_scan(StScan* s, float shape, float mod, int length_idx, float dt_s,
   if (may_measure)
   {
     StMorph m = st_morph(shape, mod, length, ST_HOLD_MAX);
-    float v   = st_step_value(s->slot, &m, &st_slots, ST_JUMP_GRID);
+    float v   = st_step_value(s->slot, &m, &st_slots, ST_JUMP_GRID, memo);
 
     if (s->slot == 0)
     {
@@ -258,12 +261,13 @@ float stepped_shape_with(float phase, float shape, float mod, int length_idx, co
   int next = (step + 1 == length) ? 0 : step + 1;
 
   float from, to;
-  st_step_pair(step, next, &m, &st_slots, ST_JUMP_GRID, &from, &to);
+  st_step_pair(step, next, &m, &st_slots, ST_JUMP_GRID, &from, &to, NULL);
 
   return st_blend_out(from, to, within, drive, norm);
 }
 
-float stepped_shape_cached(StStepCache* c, float phase, float shape, float mod, int length_idx, const StDrive* drive, const StNorm* norm)
+float stepped_shape_cached(StStepCache* c, StSlotMemo* memo, float phase, float shape, float mod, int length_idx, const StDrive* drive,
+                           const StNorm* norm)
 {
   length_idx = iclamp(length_idx, 0, ST_LENGTH_COUNT - 1);
   int length = st_lengths[length_idx];
@@ -294,11 +298,11 @@ float stepped_shape_cached(StStepCache* c, float phase, float shape, float mod, 
     if (c->step >= 0 && step == (int) ((c->step + 1) % (int16_t) length))
     {
       c->from = c->to;
-      c->to   = st_step_next(step, next, &c->morph, &st_slots, ST_JUMP_GRID, c->from);
+      c->to   = st_step_next(step, next, &c->morph, &st_slots, ST_JUMP_GRID, c->from, memo);
     }
     else
     {
-      st_step_pair(step, next, &c->morph, &st_slots, ST_JUMP_GRID, &c->from, &c->to);
+      st_step_pair(step, next, &c->morph, &st_slots, ST_JUMP_GRID, &c->from, &c->to, memo);
     }
     c->step = (int16_t) step;
   }
