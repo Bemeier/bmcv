@@ -1,22 +1,27 @@
 # Giving the DAC a clock of its own
 
-Status: **works, and is not yet a net win.** Branch `feat/dac-timer`, validated
-on the module with CH1 patched into IN3. The timer does exactly what it was
-supposed to; what it uncovered is that the scheduling was never the expensive
-part.
+Status: **done and validated on hardware.** Branch `feat/dac-timer`, measured
+with CH1 patched into IN3 and a sine on it. The timer did what it was supposed
+to; what it uncovered is that the scheduling was never the expensive part, and
+the change is only a net win once HAL is off the transaction path too.
 
 ## What the module said
 
 All on the `-rel` build, eight channels patched, stepped random on seven.
 
-| | before | after (1 substep) |
-|---|---|---|
-| frames/s per output | 842 | **4032** |
-| `dac_fps` vs `engine_fps` | locked equal | **decoupled** |
-| `engine_fps` | 3366 | 2455 |
-| `load` | 1.19 | 1.65 |
-| resyncs | 16% of ticks | 30% |
-| loopback, slow sine | R^2 0.9996 | R^2 0.9996 |
+| | before | timer, via HAL | timer, registers |
+|---|---|---|---|
+| frames/s per output | 842 | 4032 | **4032** |
+| `dac_fps` vs `engine_fps` | locked equal | decoupled | **decoupled** |
+| one `dac_service()` | - | 8.2us | **5.1us** |
+| whole transaction | - | ~17.4us | **~9us** |
+| `engine_fps` | 3366 | 2455 | **2915** |
+| `tick` | 297us | 412.7us | **326.8us** |
+| `load` | 1.19 | 1.65 | **1.30** |
+| loopback, sine | R^2 0.9996 | R^2 0.9996 | R^2 0.9995 |
+
+**4.8x the output rate for 13% of the engine.** Through HAL the same 4.8x cost
+28%, which was not worth having.
 
 **The rate fix works.** `dac_fps` and `engine_fps` used to read the *same*
 number - one transaction per tick, so one frame per output every four ticks -
@@ -50,20 +55,44 @@ against new 0.804 - the new build slightly *worse* end to end, because output
 latency is one engine tick and the ticks got longer. That is the whole problem
 in one number.
 
-## Where that leaves it
+## Cutting HAL out, and the bug it exposed
 
-The change is structurally right and currently pays for itself with engine
-budget it does not have. Three ways on, in the order they are worth doing:
+`dac_adc.c` now arms the DMA and services its completion by writing registers.
+HAL still *configures* both channels - directions, byte widths, the DMAMUX
+routing - and `dac_init()` still talks to the DACs through it, because that runs
+once at startup where being obviously correct is worth more than being quick.
 
-1. **Cut HAL out of the interrupt path.** Arm the DMA and handle completion by
-   writing the registers in `dac_adc.c`. 18.5us against 2.67us of wire time is
-   most of a transaction spent walking a state machine. Plausibly 2-3us, which
-   would make 4 substeps affordable *and* hand the engine back what it lost.
-   Driver-level, ARM-only, behind the seam.
-2. **`ENGINE_TICK_US`**, below. The plan's own next item, and the cheap one.
-3. **Ship at 1 substep as it stands.** Argued against: a 28% slower engine buys
-   a faster DAC whose end-to-end latency is one engine tick, so it gives back
-   much of what it gained.
+The one that cost real time: **a receive DMA armed by hand must start against an
+empty FIFO, and a desync perpetuates rather than repairs.** `dac_init()` uses
+`HAL_SPI_Transmit`, which on a two-line master clocks bytes *in* while it clocks
+bytes out and never reads them, leaving two in the FIFO. The first armed
+transfer took those two plus four off the wire, hit its count early, and left
+that frame's last two behind for the next one to read as a header - shifted by
+two bytes for ever after.
+
+It presented as `dac_fps` a perfect 16129 with the output flat, which is exactly
+the "transfers running, nothing latching" signature of the original reverted
+attempt - and it was **not** that. The DAC was fine; `DAC_BUF` held correct,
+varying data and TX was sending it. It was the *ADC* being decoded two bytes out
+of phase, so the loopback's measurement was garbage while the thing it measured
+was healthy.
+
+What settled it in one read was `SPI2->SR` = `0x403`: RXNE set, FRLVL at two
+bytes, in steady state. Flushing at startup fixes the seed and not the loop,
+which is what was tried first and changed nothing; the flush belongs before
+every arm.
+
+## Substeps, re-asked with real numbers
+
+| substeps | frames/s | `engine_fps` | `load` |
+|---|---|---|---|
+| 1 | 4032 | 2921 | 1.39 |
+| 2 | 8063 | 2260 | 1.65 |
+
+**1.** Doubling the frame rate costs the engine 22%, and output latency is one
+engine tick, so a slower engine hands back in staleness most of what the extra
+frames buy - both read the same R^2 against a sine. Raising it is gated on the
+engine baseline, not on the DAC.
 
 ## What is done
 
