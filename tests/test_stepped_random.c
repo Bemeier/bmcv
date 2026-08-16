@@ -24,7 +24,7 @@ static float sr_eval(float phase, float shape, float mod, int length_idx, float 
     prev_mod   = mod;
     prev_idx   = length_idx;
   }
-  return stepped_random_with(phase, shape, mod, length_idx, hold, &norm);
+  return stepped_random_with(phase, shape, mod, length_idx, hold, &norm, 0.0f);
 }
 
 // Every property below is about the pattern itself, which is what MOD 0 gives:
@@ -81,7 +81,8 @@ TEST_CASE(measuring_the_correction_here_or_passing_it_in_are_the_same_shape)
         SrNorm n = sr_norm_exact(shape, mod, li);
         for (float phase = 0.0f; phase < 1.0f; phase += 0.077f)
         {
-          CHECK(stepped_random(phase, shape, mod, li, SR_HOLD_SMOOTH) == stepped_random_with(phase, shape, mod, li, SR_HOLD_SMOOTH, &n));
+          CHECK(stepped_random(phase, shape, mod, li, SR_HOLD_SMOOTH) ==
+                stepped_random_with(phase, shape, mod, li, SR_HOLD_SMOOTH, &n, 0.0f));
         }
       }
     }
@@ -194,8 +195,8 @@ static float worst_small_turn(int length_idx, int on_mod)
 
     for (float phase = 0.0f; phase < 1.0f; phase += 0.01f)
     {
-      float a    = stepped_random_with(phase, a_shape, a_mod, length_idx, SR_HOLD_SMOOTH, &na);
-      float b    = stepped_random_with(phase, b_shape, b_mod, length_idx, SR_HOLD_SMOOTH, &nb);
+      float a    = stepped_random_with(phase, a_shape, a_mod, length_idx, SR_HOLD_SMOOTH, &na, 0.0f);
+      float b    = stepped_random_with(phase, b_shape, b_mod, length_idx, SR_HOLD_SMOOTH, &nb, 0.0f);
       float diff = fabsf(a - b);
       if (diff > worst)
         worst = diff;
@@ -475,12 +476,12 @@ TEST_CASE(a_length_change_moves_the_correction_without_stepping_the_output)
       // The gain is what would step if a completed pass were swapped in rather
       // than slewed - the wrap value would not, since it lands on the shared
       // constant whatever the gain is.
-      float prev      = stepped_random_with(0.0f, 0.3f, -0.2f, from, SR_HOLD_SMOOTH, &s.norm);
+      float prev      = stepped_random_with(0.0f, 0.3f, -0.2f, from, SR_HOLD_SMOOTH, &s.norm, 0.0f);
       float prev_gain = s.norm.gain;
       for (int i = 0; i < 2000; i++)
       {
         sr_norm_scan(&s, 0.3f, -0.2f, to, TICK_S, 1);
-        float v = stepped_random_with(0.0f, 0.3f, -0.2f, to, SR_HOLD_SMOOTH, &s.norm);
+        float v = stepped_random_with(0.0f, 0.3f, -0.2f, to, SR_HOLD_SMOOTH, &s.norm, 0.0f);
         CHECK(fabsf(v - prev) < 0.05f);
         CHECK(fabsf(s.norm.gain - prev_gain) < 0.1f);
         prev      = v;
@@ -493,6 +494,227 @@ TEST_CASE(a_length_change_moves_the_correction_without_stepping_the_output)
       // takes a pass plus the slew to settle - tens of milliseconds.
       SrNorm want = sr_norm_exact(0.3f, -0.2f, to);
       CHECK_NEAR(s.norm.gain, want.gain, 1e-3);
+    }
+  }
+}
+
+// ---- the control style ----------------------------------------------------
+//
+// Same pattern engine, driven for modulation: SHP reshapes the distribution and
+// MOD carries the ease as well as the density. The properties below are what
+// make it a second mode rather than a second set of numbers.
+
+// One cycle of a styled channel, the way channel.c plays it.
+static void ctrl_cycle(float shape, float mod, int length_idx, int n, float* out)
+{
+  SrDrive d   = sr_style_drive(SR_STYLE_CONTROL, shape, mod);
+  SrNorm norm = sr_norm_exact(d.shape, d.mod, length_idx);
+  for (int i = 0; i < n; i++)
+  {
+    out[i] = stepped_random_with((float) i / (float) n, d.shape, d.mod, length_idx, d.hold, &norm, d.bias);
+  }
+}
+
+// The melodic style has to come out of the styling untouched, or this is not a
+// mode added beside it but a change to it.
+TEST_CASE(the_melodic_style_is_what_the_shape_already_was)
+{
+  for (float shape = -1.0f; shape <= 1.0f; shape += 0.17f)
+  {
+    for (float mod = -1.0f; mod <= 1.0f; mod += 0.31f)
+    {
+      SrDrive d = sr_style_drive(SR_STYLE_MELODIC, shape, mod);
+      CHECK(d.shape == shape);
+      CHECK(d.mod == mod);
+      CHECK(d.hold == SR_HOLD_SMOOTH);
+      CHECK(d.bias == 0.0f);
+    }
+  }
+}
+
+// What the control style is for. Measured on one pattern at a time, with only
+// the bias changed: SHP moves the pattern as well, and pattern-to-pattern
+// variation in these numbers is larger than the reshaping, so comparing two
+// settings of SHP measures mostly which patterns they landed on.
+//
+// Read at a setting where MOD holds the steps rather than slewing between them,
+// since a curve on its way from one value to the next passes through the middle
+// whatever the values are.
+TEST_CASE(the_bias_leans_the_distribution_the_value_path_cannot)
+{
+  const int n = 2048;
+  static float plain[2048], low[2048], gate[2048];
+
+  for (int li = 4; li < SR_LENGTH_COUNT; li++) // from eight steps up
+  {
+    for (float shape = -0.6f; shape <= 0.61f; shape += 0.4f)
+    {
+      SrDrive d   = sr_style_drive(SR_STYLE_CONTROL, shape, 0.5f);
+      SrNorm norm = sr_norm_exact(d.shape, d.mod, li);
+      // the depth the style itself reaches, rather than a copy of it here
+      float depth = sr_style_drive(SR_STYLE_CONTROL, 1.0f, 0.0f).bias;
+
+      for (int i = 0; i < n; i++)
+      {
+        float p  = (float) i / (float) n;
+        plain[i] = stepped_random_with(p, d.shape, d.mod, li, d.hold, &norm, 0.0f);
+        low[i]   = stepped_random_with(p, d.shape, d.mod, li, d.hold, &norm, -depth);
+        gate[i]  = stepped_random_with(p, d.shape, d.mod, li, d.hold, &norm, depth);
+      }
+
+      float plain_mean = 0.0f, low_mean = 0.0f, low_peak = -9.0f;
+      int plain_middling = 0, gate_middling = 0;
+      for (int i = 0; i < n; i++)
+      {
+        plain_mean += plain[i];
+        low_mean += low[i];
+        if (low[i] > low_peak)
+          low_peak = low[i];
+        if (fabsf(plain[i]) < 0.3f)
+          plain_middling++;
+        if (fabsf(gate[i]) < 0.3f)
+          gate_middling++;
+      }
+
+      // sits low - and still reaches above where it sits, which is the
+      // difference between a bias and an offset. Measured worst case across
+      // this grid is 0.264 of the 2.0 range; the flat-floor test above is what
+      // keeps the whole swing honest.
+      CHECK(low_mean < plain_mean - 0.2f * (float) n);
+      CHECK(low_peak - low_mean / (float) n > 0.2f);
+
+      // and at the other end, less of the time spent anywhere near the middle
+      CHECK(gate_middling < plain_middling);
+    }
+  }
+}
+
+// SHP is what drives it, one traversal, ends first.
+TEST_CASE(shp_is_the_bias_axis_in_the_control_style)
+{
+  CHECK(sr_style_drive(SR_STYLE_CONTROL, -1.0f, 0.0f).bias < -0.5f);
+  CHECK(sr_style_drive(SR_STYLE_CONTROL, 0.0f, 0.0f).bias == 0.0f);
+  CHECK(sr_style_drive(SR_STYLE_CONTROL, 1.0f, 0.0f).bias > 0.5f);
+
+  float prev = -9.0f;
+  for (float shape = -1.0f; shape <= 1.0f; shape += 0.05f)
+  {
+    float bias = sr_style_drive(SR_STYLE_CONTROL, shape, 0.0f).bias;
+    CHECK(bias > prev); // monotone, so neighbouring positions stay neighbours
+    prev = bias;
+  }
+}
+
+// MOD carries the ease as well as the density here, so one knob goes from a
+// curve that never stops moving to one that sits still between steps.
+TEST_CASE(mod_carries_the_ease_in_the_control_style)
+{
+  const int n = 2000;
+  static float smooth[2000], hard[2000];
+  ctrl_cycle(-1.0f, -1.0f, 6, n, smooth);
+  ctrl_cycle(-1.0f, 1.0f, 6, n, hard);
+
+  int still_smooth = 0, still_hard = 0;
+  for (int i = 1; i < n; i++)
+  {
+    if (fabsf(smooth[i] - smooth[i - 1]) < 1e-5f)
+      still_smooth++;
+    if (fabsf(hard[i] - hard[i - 1]) < 1e-5f)
+      still_hard++;
+  }
+  CHECK(still_hard > still_smooth * 2);
+}
+
+// Every invariant the melodic style holds, the control style holds too: in
+// range, and never collapsing to a flat output. A monotone reshaping of the
+// finished value cannot break either, which is why the bias is applied where it
+// is - but "cannot" is worth a test.
+TEST_CASE(the_control_style_keeps_every_invariant_the_other_one_has)
+{
+  const int n = 256;
+  static float cycle[256];
+
+  for (int li = 0; li < SR_LENGTH_COUNT; li++)
+  {
+    for (float shape = -1.0f; shape <= 1.0f; shape += 0.13f)
+    {
+      for (float mod = -1.0f; mod <= 1.0f; mod += 0.29f)
+      {
+        ctrl_cycle(shape, mod, li, n, cycle);
+
+        float lo = 9.0f, hi = -9.0f;
+        for (int i = 0; i < n; i++)
+        {
+          if (cycle[i] < lo)
+            lo = cycle[i];
+          if (cycle[i] > hi)
+            hi = cycle[i];
+        }
+
+        CHECK(lo >= -1.0001f && hi <= 1.0001f);
+        CHECK(hi - lo > 0.5f);
+      }
+    }
+  }
+}
+
+// Continuity, including across the loop point, swept finely enough to see it.
+// A hold-heavy setting crosses most of a step in a fraction of it, so a coarse
+// sweep reads its own sampling as a jump - which is why the melodic case walks
+// 20000 points too.
+TEST_CASE(the_control_style_curve_is_continuous_everywhere)
+{
+  const int n = 20000;
+
+  for (int li = 0; li < SR_LENGTH_COUNT; li++)
+  {
+    for (float mod = -1.0f; mod <= 1.0f; mod += 0.5f)
+    {
+      SrDrive d   = sr_style_drive(SR_STYLE_CONTROL, 0.3f, mod);
+      SrNorm norm = sr_norm_exact(d.shape, d.mod, li);
+
+      float prev = stepped_random_with(0.0f, d.shape, d.mod, li, d.hold, &norm, d.bias);
+      for (int i = 1; i <= n; i++)
+      {
+        float v = stepped_random_with((float) i / (float) n, d.shape, d.mod, li, d.hold, &norm, d.bias);
+        CHECK(fabsf(v - prev) < 0.15f);
+        prev = v;
+      }
+    }
+  }
+}
+
+// The small-turn budget, which the bias could have spent all at once: its slope
+// at the top of the range grows with depth, so a peak moves further per detent
+// than anything else does. SR_CTRL_BIAS is set against this.
+TEST_CASE(a_small_turn_in_the_control_style_stays_within_budget)
+{
+  const int n = 128;
+  float a[128], b[128];
+
+  for (int li = 0; li < SR_LENGTH_COUNT; li++)
+  {
+    float limit = (sr_length_for_index(li) < 8) ? SR_SMALL_TURN_LIMIT_SHORT : SR_SMALL_TURN_LIMIT;
+
+    for (int i = 0; i <= 100; i++)
+    {
+      float x = -1.0f + 2.0f * (float) i / 100.0f;
+      if (x > 0.99f)
+        break;
+
+      ctrl_cycle(x, 0.3f, li, n, a);
+      ctrl_cycle(x + 0.01f, 0.3f, li, n, b);
+      for (int k = 0; k < n; k++)
+      {
+        CHECK(fabsf(a[k] - b[k]) < limit);
+      }
+
+      ctrl_cycle(0.3f, x, li, n, a);
+      ctrl_cycle(0.3f, x + 0.01f, li, n, b);
+      for (int k = 0; k < n; k++)
+      {
+        CHECK(fabsf(a[k] - b[k]) < limit);
+      }
     }
   }
 }
@@ -848,6 +1070,13 @@ int main(void)
   RUN_TEST(a_channel_that_only_gets_every_eighth_tick_still_arrives);
   RUN_TEST(a_channel_that_never_gets_a_turn_never_measures);
   RUN_TEST(a_length_change_moves_the_correction_without_stepping_the_output);
+  RUN_TEST(the_melodic_style_is_what_the_shape_already_was);
+  RUN_TEST(the_bias_leans_the_distribution_the_value_path_cannot);
+  RUN_TEST(shp_is_the_bias_axis_in_the_control_style);
+  RUN_TEST(mod_carries_the_ease_in_the_control_style);
+  RUN_TEST(the_control_style_keeps_every_invariant_the_other_one_has);
+  RUN_TEST(the_control_style_curve_is_continuous_everywhere);
+  RUN_TEST(a_small_turn_in_the_control_style_stays_within_budget);
   RUN_TEST(longer_patterns_contain_more_events);
   RUN_TEST(hold_setting_controls_how_step_like_the_curve_is);
   RUN_TEST(length_index_maps_to_the_curated_step_counts);

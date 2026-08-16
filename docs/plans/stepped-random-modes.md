@@ -1,6 +1,7 @@
 # Splitting stepped random into modes with distinct characters
 
-Status: **phases 0 and 1 done and confirmed on hardware; phase 2 next.**
+Status: **phases 0 and 1 done and confirmed on hardware; phase 2 under way -
+the modulation mode is in and wants an ear.**
 All on `spike/stepped-modes`.
 
 ## Where this comes from
@@ -347,6 +348,32 @@ normal case.
 180. `from_c.py` gains a mode column; the web sim is where they get played. Land
 the character here: it is the only part that cannot be decided by measurement
 alone. If a mode turns out to need no correction at all, say so and skip it.
+
+*Modulation is in* as `SHAPE_STEPPED_CTRL`, and it needed no new value path at
+all - a style is a routing of the knobs plus a reshaping of the finished value:
+
+- `sr_bias_map()` - two stages either way, no `powf`. Negative leans the values
+  low while leaving the peaks reaching; positive bunches them against both
+  rails. Applied *after* the correction, so the correction cannot centre the
+  lean straight back out, and a monotone map of a levelled input is still
+  levelled.
+- `sr_style_drive()` - SHP to the bias, MOD to the ease as well as the density.
+  `hold` was already a parameter of the shape and free of the correction, so the
+  smooth-to-gated axis cost nothing to add.
+
+Measured against the melodic style: SHP's steer 2.0 -> 2.5, distinct characters
+44 -> 47, character steer unchanged (a monotone map preserves what those
+features measure). The DC now moves with SHP by design - 0.38 to 0.54 of swing -
+which is the mode's whole point and the opposite of what round three was fixing
+in the melodic one.
+
+Depth is set by the small-turn budget, and the finding there was that the *ease*
+spends it, not the bias: at full hold the curve sits on its step values instead
+of smoothing between them, so the worst turn is 0.34 of the 0.35 limit before
+the bias does anything. `SR_CTRL_BIAS` 0.6 fits under it.
+
+Owed before this mode is finished: the manual, `docs/led-language.md`, and a
+listening pass.
 
 **Phase 3 - the rest.** Config (`ChannelConfig`, the mode enum,
 `CONFIG_STATE_VERSION`, a reset rather than a migration), the shape encoder and

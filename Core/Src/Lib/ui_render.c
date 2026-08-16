@@ -27,7 +27,17 @@ static const uint8_t quantize_mode_color[QUANTIZE_MODE_COUNT]   = {HUE_STATE_DEF
 static const uint8_t input_amp_mode_color[INPUT_AMP_MODE_COUNT] = {HUE_STATE_DEFAULT, HUE_STATE_MIX, HUE_STATE_MULT};
 // The wavetable is the default; stepped random is a continuously varying level,
 // and PWM is a gate.
-static const uint8_t shape_mode_color[SHAPE_MODE_COUNT] = {HUE_STATE_DEFAULT, HUE_STATE_LEVEL, HUE_STATE_EVENT};
+//
+// Two axes, like clamp_mode_color below: the stepped modes are one family and
+// share its hue, and which member is which is carried by brightness. Giving the
+// second one a hue of its own would have meant either a fifth colour on a page
+// with four meanings, or borrowing one that already means something else.
+static const UiColor shape_mode_color[SHAPE_MODE_COUNT] = {
+    [SHAPE_LFO]          = {HUE_STATE_DEFAULT, SAT_HIG, VAL_BASE},
+    [SHAPE_STEPPED]      = {HUE_STATE_LEVEL, SAT_HIG, VAL_BASE},
+    [SHAPE_PWM]          = {HUE_STATE_EVENT, SAT_HIG, VAL_BASE},
+    [SHAPE_STEPPED_CTRL] = {HUE_STATE_LEVEL, SAT_HIG, VAL_LOW},
+};
 static const uint8_t input_mode_color[INPUT_MODE_COUNT] = {HUE_STATE_DEFAULT, HUE_STATE_EVENT, HUE_STATE_RESET, HUE_STATE_LEVEL};
 
 // The output clamp is two facts - polarity and range - so it uses two axes:
@@ -283,7 +293,7 @@ static void render_channel_base(UxState* s, const ChannelSetup* ch, const UiMode
     break;
 
   case CHBASE_SHAPE:
-    set_state(s, ch->led, shape_mode_color[cfg->shape_mode]);
+    set(s, ch->led, shape_mode_color[iclamp(cfg->shape_mode, 0, SHAPE_MODE_COUNT - 1)]);
     break;
 
   case CHBASE_QUANTIZE:

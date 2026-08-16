@@ -1251,8 +1251,14 @@ check(spec.buttons.length === 24 && spec.encoders.length === 8, 'the panel spec 
   // input set to CLOCK and a channel set to PWM are the same colour because
   // both are about discrete events, and that correspondence is the whole reason
   // the colours are worth anything.
-  check(SHAPE_MODE_COLORS.every(c => INPUT_MODE_COLORS.includes(c)),
-    'and the shapes reuse the hues the inputs use');
+  //
+  // A shape may also be a dimmed member of one of those hues, which is how the
+  // two stepped modes read as one family rather than as two unrelated things.
+  // What is not allowed is a hue of its own: that would be a fifth meaning on a
+  // page with four.
+  const { STATE_DIM_OF } = await import('./const.js');
+  check(SHAPE_MODE_COLORS.every(c => INPUT_MODE_COLORS.includes(c) || INPUT_MODE_COLORS.includes(STATE_DIM_OF[c])),
+    'and the shapes reuse the hues the inputs use, dimmed at most');
 }
 
 /* ---- every hoverable part of the panel says what it does ------------------ */

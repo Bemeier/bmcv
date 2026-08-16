@@ -9,7 +9,11 @@
 //
 //   cc -O2 -I Core/Inc/Lib -o /tmp/dump_pat tools/sr_explore/dump_pattern.c \
 //       Core/Src/Lib/stepped_random.c -lm
-//   /tmp/dump_pat > /tmp/pat.txt
+//   /tmp/dump_pat > /tmp/pat.txt          # the melodic style
+//   /tmp/dump_pat control > /tmp/ctrl.txt # or whichever style
+//
+// The values are the ones the ear gets - the correction and the style's bias
+// both applied - so the character features describe what the mode plays.
 #include "helpers.h"
 #include "stepped_random.h"
 #include "stepped_random_pattern.h"
@@ -20,9 +24,14 @@
 
 static const SrSlots slots = {sr_slot_base, sr_slot_rate, sr_slot_gate, sr_slot_gate2};
 
+static int8_t g_style = SR_STYLE_MELODIC;
+
 static void emit(int li, const char* axis, float fixed, float pos, float shape, float mod)
 {
   int length = sr_lengths[li];
+  SrDrive d  = sr_style_drive(g_style, shape, mod);
+  shape      = d.shape;
+  mod        = d.mod;
   SrMorph m  = sr_morph(shape, mod, length, SR_HOLD_MAX);
   SrNorm n   = sr_norm_exact(shape, mod, li);
 
@@ -31,7 +40,7 @@ static void emit(int li, const char* axis, float fixed, float pos, float shape, 
 
   printf("%d %s %.4f %.6f :", li, axis, fixed, pos);
   for (int i = 0; i < length; i++)
-    printf(" %.5f", fclamp(sr_step_value(i, &m, &slots, SR_JUMP_GRID) * n.gain + n.offset, -1.0f, 1.0f));
+    printf(" %.5f", sr_bias_map(fclamp(sr_step_value(i, &m, &slots, SR_JUMP_GRID) * n.gain + n.offset, -1.0f, 1.0f), d.bias));
   printf(" :");
   for (int i = 0; i < length; i++)
     printf(" %.5f", sr_tie_weight(i, &m, &slots, SR_JUMP_GRID));
@@ -41,8 +50,11 @@ static void emit(int li, const char* axis, float fixed, float pos, float shape, 
   printf("\n");
 }
 
-int main(void)
+int main(int argc, char** argv)
 {
+  if (argc > 1 && argv[1][0] == 'c')
+    g_style = SR_STYLE_CONTROL;
+
   const float mods[]   = {-0.5f, 0.0f};
   const float shapes[] = {0.0f, 0.4f};
 

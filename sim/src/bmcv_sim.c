@@ -404,7 +404,7 @@ int32_t bmcv_sim_channel_param(const BmcvSim* s, int32_t channel, int32_t param)
 // naming it fails here rather than showing a blank cell in a host's table.
 // Unsized on purpose: with the length written out, a mode added without a name
 // here would leave a NULL in the table and the assert below would still pass.
-static const char* const shape_mode_names[] = {"LFO", "STEPPED", "PWM"};
+static const char* const shape_mode_names[] = {"LFO", "STEPPED", "PWM", "STEPPED CTRL"};
 _Static_assert(sizeof shape_mode_names / sizeof shape_mode_names[0] == SHAPE_MODE_COUNT, "one name per shape mode");
 
 int32_t bmcv_sim_encoder_pos(const BmcvSim* s, int32_t encoder)

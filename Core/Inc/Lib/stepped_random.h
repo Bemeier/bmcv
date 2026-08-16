@@ -16,6 +16,78 @@
 #define SR_HOLD_SEMI 0.5f
 #define SR_HOLD_HARD 0.85f
 
+// What a stepped channel is *for*, which is what SHP and MOD are spent on.
+//
+// One value path, two ways of driving it. Splitting the modes this way rather
+// than by algorithm is deliberate: the pattern engine is good and a second copy
+// of it would be a second thing to keep true, while what a bassline and a slow
+// modulation actually differ in is the distribution of the values and how the
+// curve moves between them - neither of which needs a new engine.
+//
+// Stored as an int8_t wherever it is persisted, like every other mode; see
+// config.h for why none of them are enum-typed there.
+typedef enum
+{
+  SR_STYLE_MELODIC, // notes: centred values, rhythm on MOD
+  SR_STYLE_CONTROL, // modulation: SHP is the bias, MOD is the motion
+  SR_STYLE_COUNT,
+} SrStyle;
+
+// The knobs, routed for a style. Everything downstream takes these rather than
+// SHP and MOD, so what a style *is* lives in one function instead of being
+// spread through the value path.
+typedef struct
+{
+  float shape; // where the pattern is read
+  float mod;   // density, and everything that moves with it
+  float hold;  // how much of a step is spent sitting at its value
+  float bias;  // the distribution the finished value is reshaped into
+} SrDrive;
+
+SrDrive sr_style_drive(int8_t style, float shape, float mod);
+
+// Reshapes the spread of the finished values, without moving the ends of the
+// range and without reordering anything.
+//
+//   bias < 0  most values pushed low, a few still reaching the top: modulation
+//             that sits down and occasionally spikes
+//   bias > 0  values pushed away from the middle: gate-like, mostly high or
+//             mostly low
+//
+// This is the one thing the value path cannot do. sr_shape_blend() is odd - it
+// compresses or expands the middle symmetrically - so a distribution that
+// leans, which is what most of the useful modulation shapes are, was out of
+// reach however the levers were set.
+//
+// Applied after the correction rather than inside the pattern, for two reasons.
+// The correction would otherwise measure the leaning distribution and centre it
+// straight back out, and a monotone map of a levelled input is still levelled -
+// so every setting stays as consistent with its neighbours as it was.
+//
+// Cheap on purpose: a multiply-add per stage, no powf. Two stages, because one
+// reaches u^2, which is a lean and not a bias.
+static inline float sr_bias_map(float v, float bias)
+{
+  float u = 0.5f * (fclamp(v, -1.0f, 1.0f) + 1.0f);
+
+  if (bias < 0.0f)
+  {
+    float d = -bias;
+    u       = u * (1.0f - d + d * u);
+    u       = u * (1.0f - d + d * u);
+  }
+  else if (bias > 0.0f)
+  {
+    // Two stages here as well, and for the same reason: one is a lean and not a
+    // bias. smoothstep has zero slope at both ends, so values bunch against the
+    // rails - which is the gate-like end of the axis.
+    u = lerp(u, smoothstep(u), bias);
+    u = lerp(u, smoothstep(u), bias);
+  }
+
+  return 2.0f * u - 1.0f;
+}
+
 // Number of steps for a given index, for callers that want to display it.
 // The index itself is a per-channel setting (ChannelConfig.sr_length_idx), and
 // the caller decides *when* a change to it takes effect - switching length
@@ -66,7 +138,7 @@ float stepped_random(float phase, float shape, float mod, int length_idx, float 
 // So the engine keeps an SrScan per channel, spreads that measurement over the
 // cycle, and passes the result in here. Everything else is identical; at a
 // standing setting the two agree exactly.
-float stepped_random_with(float phase, float shape, float mod, int length_idx, float hold, const SrNorm* norm);
+float stepped_random_with(float phase, float shape, float mod, int length_idx, float hold, const SrNorm* norm, float bias);
 
 // The correction for one setting, measured in full. O(length): for tests,
 // tools, and the moments where a channel cannot wait for a scan - the first

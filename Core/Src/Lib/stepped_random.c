@@ -172,7 +172,45 @@ void sr_norm_scan(SrScan* s, float shape, float mod, int length_idx, float dt_s,
   s->norm.offset += (s->target.offset - s->norm.offset) * k;
 }
 
-float stepped_random_with(float phase, float shape, float mod, int length_idx, float hold, const SrNorm* norm)
+// How far MOD winds the ease up in the control style: fully slewed at one end,
+// SR_HOLD_HARD at the other, so the same knob carries a smooth wander through
+// to a held gate.
+#define SR_CTRL_HOLD SR_HOLD_HARD
+
+// How far the ends of SHP drive the distribution.
+//
+// Set against the small-turn budget, which in this style is mostly spent before
+// the bias gets to it: at full hold the curve sits on its step values instead of
+// smoothing between them, so a change to one shows up almost undiminished, and
+// the worst turn measures 0.34 of the 0.35 limit with the bias at zero. What the
+// bias adds on top is small - 0.33 at depth 0.5, 0.35 at 0.7 - because what the
+// map expands at one end of the range it compresses at the other.
+//
+// At this depth the low end sits at a mean of -0.51 with the peaks still
+// reaching, and the gate end empties the middle of the range from 54% of the
+// time to 34%.
+#define SR_CTRL_BIAS 0.6f
+
+SrDrive sr_style_drive(int8_t style, float shape, float mod)
+{
+  SrDrive d = {shape, mod, SR_HOLD_SMOOTH, 0.0f};
+
+  if (style == SR_STYLE_CONTROL)
+  {
+    // SHP is the distribution, one traversal of it, with the pattern still
+    // advancing underneath - a knob that only reshaped would be a knob that
+    // never reaches a different pattern.
+    d.bias = SR_CTRL_BIAS * fclamp(shape, -1.0f, 1.0f);
+
+    // MOD is motion: new value every step and fully slewed at one end, mostly
+    // tied and hard-stepped at the other. Density already moves with it, so
+    // this is the same axis carrying the ease as well.
+    d.hold = SR_CTRL_HOLD * 0.5f * (fclamp(mod, -1.0f, 1.0f) + 1.0f);
+  }
+  return d;
+}
+
+float stepped_random_with(float phase, float shape, float mod, int length_idx, float hold, const SrNorm* norm, float bias)
 {
   length_idx = iclamp(length_idx, 0, SR_LENGTH_COUNT - 1);
   int length = sr_lengths[length_idx];
@@ -197,11 +235,14 @@ float stepped_random_with(float phase, float shape, float mod, int length_idx, f
 
   // The correction is one affine for the whole cycle, so the loop still closes
   // and the curve stays smooth. See stepped_random_norm.h for what it aims at.
-  return fclamp(value * norm->gain + norm->offset, -1.0f, 1.0f);
+  // The bias reshapes what comes out of it and is monotone, so it cannot break
+  // either property: a continuous curve stays continuous and the loop point
+  // still meets itself.
+  return sr_bias_map(fclamp(value * norm->gain + norm->offset, -1.0f, 1.0f), bias);
 }
 
 float stepped_random(float phase, float shape, float mod, int length_idx, float hold)
 {
   SrNorm n = sr_norm_exact(shape, mod, length_idx);
-  return stepped_random_with(phase, shape, mod, length_idx, hold, &n);
+  return stepped_random_with(phase, shape, mod, length_idx, hold, &n, 0.0f);
 }

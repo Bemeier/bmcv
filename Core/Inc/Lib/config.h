@@ -53,16 +53,21 @@ typedef enum
 // this file for why none of them are enum-typed where they are persisted.
 typedef enum
 {
-  SHAPE_LFO,     // wavetable
-  SHAPE_STEPPED, // random values, eased between; MOD is the density
-  SHAPE_PWM,     // square; SHP is the pulse width, MOD the envelope
+  SHAPE_LFO,          // wavetable
+  SHAPE_STEPPED,      // random values, eased between; MOD is the density
+  SHAPE_PWM,          // square; SHP is the pulse width, MOD the envelope
+  SHAPE_STEPPED_CTRL, // the same pattern engine, driven for modulation
   SHAPE_MODE_COUNT,
 } ChannelShapeMode;
 
-// The stepped mode reads its pattern length from ChannelConfig.sr_length_idx
+// The stepped modes read their pattern length from ChannelConfig.sr_length_idx
 // rather than from a scene parameter, so this is what says whether that setting
-// means anything for a given channel.
-static inline int shape_mode_is_stepped(int8_t mode) { return mode == SHAPE_STEPPED; }
+// means anything for a given channel. They are not contiguous: the enum is
+// append-only, so a mode added later lands after the ones that were there.
+static inline int shape_mode_is_stepped(int8_t mode) { return mode == SHAPE_STEPPED || mode == SHAPE_STEPPED_CTRL; }
+
+// Which way a stepped channel is driven; see SrStyle in stepped_random.h.
+static inline int8_t shape_mode_style(int8_t mode) { return (int8_t) (mode == SHAPE_STEPPED_CTRL ? 1 : 0); }
 
 // What the output stage clamps a channel to. A range, not a scaling: the
 // parameters still mean what they say and the ends of the swing are cut off.
