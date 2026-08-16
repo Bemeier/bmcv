@@ -37,7 +37,7 @@ typedef struct
   float max_us;
 } BmcvSpan;
 
-// Where the time inside one 4kHz tick goes. A global at a fixed address for the
+// Where the time inside one engine tick goes. A global at a fixed address for the
 // same reason `bmcv` is one: so a debugger can watch it while the module runs.
 typedef struct
 {
@@ -85,10 +85,9 @@ void bmcv_poll_tasks();
 
 void bmcv_handle_gpio_exti(uint16_t GPIO_Pin);
 
-// Called from the SPI completion interrupt. `now_us` comes from the caller for
-// the same reason bmcv_main()'s does: the timebase is the host's, and this file
-// does not reach for it.
-void bmcv_handle_txrx_complete(SPI_HandleTypeDef* hspi, uint32_t now_us);
+// Called from the SPI completion interrupt - the expander's, which is the only
+// one that still comes through here.
+void bmcv_handle_txrx_complete(SPI_HandleTypeDef* hspi);
 
 // Called from the DAC's RX DMA channel interrupt, which is its own vector and
 // not HAL's. Takes no timestamp: it records nothing, only that a transfer

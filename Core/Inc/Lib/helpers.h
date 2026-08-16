@@ -55,7 +55,7 @@ static inline uint8_t isr_flag_peek(const IsrFlag* f) { return __atomic_load_n(f
 // Smoothed over a fixed span of *time* rather than a fixed number of samples,
 // which is what makes the three comparable. A constant coefficient weights one
 // sample the same wherever it came from, so the same 0.05 that settled the
-// 4kHz engine reading in five milliseconds took a fifth of a second over the
+// engine reading in a few milliseconds took a fifth of a second over the
 // LED flush - three numbers on one row, each lagging by a different amount, and
 // no way to tell a slow loop from a slow readout.
 #define RATE_SMOOTH_TAU_US 250000.0f

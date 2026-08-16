@@ -39,7 +39,7 @@ uint8_t midi_idle();
 // Several clocks can land between two ticks - batched into one transfer by a
 // host that fell behind, or arriving in consecutive transfers - and each is a
 // beat. Draining them one per tick keeps the beat grid aligned; see midi.c for
-// why compressing them into 250us intervals is harmless to the tempo estimate.
+// why compressing them into one-per-tick intervals is harmless to the tempo estimate.
 uint8_t midi_read_clock_trig();
 uint8_t midi_read_reset_trig();
 

@@ -24,7 +24,7 @@
 #define MIDI_OUT_CC_INPUT_BASE (MIDI_OUT_CC_BASE + N_CHANNELS)
 #define MIDI_OUT_CC_COUNT (N_CHANNELS + N_INPUTS)
 
-// How often the control changes are reconsidered. The engine ticks at 4kHz,
+// How often the control changes are reconsidered. The engine ticks at 2kHz,
 // which is far more resolution than a CC has anywhere to put.
 //
 // It is a divider rather than a free run because the worst case is not close to
@@ -38,7 +38,7 @@
 #define MIDI_OUT_CLOCK_PPQN 24u
 
 // Slots of clock that may be emitted from one tick. The phase advances by one
-// slot per 20.8ms at 120BPM against a 250us tick, so anything beyond a couple
+// slot per 20.8ms at 120BPM against a 500us tick, so anything beyond a couple
 // is a phase jump rather than elapsed time, and re-sending it as clock would
 // hand the far end a tempo spike.
 #define MIDI_OUT_CLOCK_MAX_BURST 4

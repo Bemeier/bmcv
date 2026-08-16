@@ -34,7 +34,7 @@ Control changes are reconsidered 500 times a second and sent only when the
 7-bit value has moved. An idle patch therefore sends nothing at all, and the
 worst case is 12 messages per slot.
 
-The rate limit is not a nicety. The engine runs at 4kHz, and a full-scale sine
+The rate limit is not a nicety. The engine runs at 2kHz, and a full-scale sine
 at 5Hz crosses 128 quantization levels about 256 times a cycle — around 1280
 CC/s on one channel and 10k/s across eight, which fits through the endpoint with
 no margin and is more than a DAW wants to think about.

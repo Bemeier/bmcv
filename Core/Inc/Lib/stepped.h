@@ -180,7 +180,7 @@ StNorm st_norm_exact(float shape, float mod, int length_idx);
 //
 // The shape is sampled far faster than the pattern moves. What a step shows,
 // and what the next one shows, depend on which step the playhead is in and not
-// on where inside it - so at a 0.5Hz rate over 64 steps, ninety-one consecutive
+// on where inside it - so at a 0.5Hz rate over 64 steps, tens of consecutive
 // ticks were computing the same two numbers from scratch. All that actually
 // varies within a step is the ease between them.
 //

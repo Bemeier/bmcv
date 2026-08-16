@@ -9,17 +9,12 @@
 
 void dacadc_write(uint8_t idx, int16_t data);
 
-// void dacadc_transaction();
-
 void dac_init();
 
-int8_t dacadc_error();
-
-uint8_t dacadc_dma_next();
-
-int16_t sign_extend_14bit(uint16_t val);
-
-float adc_to_voltage(int16_t adc_value);
+// Arm the next transaction: the levels already in DAC_BUF go out, the previous
+// conversion comes back. Cannot fail - it is a handful of register writes - so
+// it says nothing, where the HAL version returned whether the transfer started.
+void dacadc_dma_next(void);
 
 int16_t get_adc(uint8_t channel);
 

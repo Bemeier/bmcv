@@ -81,36 +81,38 @@ The engine computes one value per channel per tick. What the DAC gets is
 interpolated between the last two of those, so a step becomes a ramp rather
 than an edge - `dac_write_interpolated()` in `bmcv.c`.
 
-**The rate is not what the constants say, and this is the open problem.**
-`DAC_SUBSTEPS 4` asks for four frames per tick. A frame is `DAC_CHANNELS`
-transactions of two outputs each, so the target cadence is 15.6us. Measured on
-the module: **55us**, and it collapses further as the engine gets busier -
-4.5kHz of frames with no stepped channels, under 1kHz with eight, which is a
-quarter of the engine's own rate. So the shape the interpolation is smoothing is
-being undersampled, not oversampled.
+**The DAC has a clock of its own.** TIM6 fires every `DAC_CHUNK_US` and calls
+`bmcv_dac_tick()`, which arms one transaction. Nothing in the main loop touches
+it, so the output rate is a number this firmware chooses rather than a side
+effect of how long the last engine tick took.
 
-Where the time goes, measured: six bytes at an 18MHz SPI clock (144MHz SYSCLK,
-prescaler 8) is **2.67us of bus time**, so the wire is busy 5% of it. The rest
-is HAL's DMA setup and, mostly, a completed transfer sitting in a flag while the
-main loop is inside an engine tick - one tick of eight stepped channels is 307us
-against a 250us period, so there is nothing left between ticks at all.
+It was the latter, and it collapsed exactly when the most was being asked of it:
+served from the loop, a completed transfer sat in a flag until the loop noticed,
+and the loop was inside an engine tick. `dac_fps` and `engine_fps` read the same
+number under load - one transaction per tick, so one frame per output every four
+ticks, against a shape being computed every tick.
 
-Three ways out, in the order they were considered:
+Two things had to be true before a fixed cadence was affordable:
 
-1. **Re-arm from the SPI completion interrupt.** Tried. HAL returns both the SPI
-   and the DMA channel to READY before the callback, so it is legal on paper;
-   on the module it gave a stable transaction rate and a dead output - transfers
-   running, nothing latching. Reverted rather than left in on a guess.
-2. **A periodic timer interrupt calling the service directly.** The fixed
-   cadence this wants in the first place, and it does not re-enter HAL's own DMA
-   callback. Needs a spare timer: TIM2 is the microsecond counter and TIM4 is
-   the 303Hz task poll, so this means adding one.
-3. **Lower the engine rate** so the loop has more passes to spare. Helps least -
-   at 2.4kHz the slack per period goes from 90us to 110us - but costs nothing
-   and is independent of the other two.
+1. **HAL is not on the path.** `HAL_SPI_TransmitReceive_DMA` plus
+   `SPI_DMATransmitReceiveCplt` measured ~17.4us per six-byte transaction
+   against **2.67us of actual wire time** - most of a transaction spent walking
+   a state machine. `dac_adc.c` arms the DMA and services its completion by
+   writing registers: ~9us, and four substeps went from impossible (the engine
+   never ticked at all) to merely expensive.
+2. **The interrupt runs at the SPI DMA completion's priority.** Equal priority
+   means neither can preempt the other, so the service cannot be re-entered
+   against the completion that feeds it and the two need no lock between them.
 
-The measurement to reach for is `just profile`, which reads `bmcv_profile` off a
-running module: `load` near 1 means the loop has nothing left between ticks.
+`DAC_SUBSTEPS` is how many full frames a tick is divided into - 2, so a chunk is
+62.5us and every output is refreshed twice per tick. That is what the
+interpolation was written for: below 1 it has nothing to interpolate between.
+
+The measurements to reach for are `just profile`, which reads `bmcv_profile` off
+a running module - `load` near 1 means the tick does not fit its period, and the
+`dac` row is what one service costs - and `just dac-loopback`, which patches an
+output into an input and is the only reading that tells "the bus is busy" apart
+from "the outputs are moving".
 
 - **Unit conversion.** Volts to ADC counts and DAC counts to volts, with the
   converters' real ranges and the 14-bit converter's off-by-one.
@@ -119,8 +121,8 @@ running module: `load` near 1 means the loop has nothing left between ticks.
   time in Q32 microseconds so that a 44.1kHz divider of 11 does not run the
   clock 0.17% slow.
 - **Gate latching.** Hardware catches edges in the ADC's DMA callback, faster
-  than the engine loop. A host that samples per frame and ticks at 4kHz has to
-  latch the same way or it drops short triggers.
+  than the engine loop. A host that samples per frame and ticks at the
+  engine's rate has to latch the same way or it drops short triggers.
 - **Filling an `InputSample`.** A host counts jacks the way the panel does;
   `InputSample` counts converter channels.
 - **The preset slots**, which on the module are FRAM and on a host are bytes to

@@ -68,7 +68,7 @@ the table could only approximate:
 What a step shows, and what the next one shows, depend on which step the
 playhead is in and **not on where inside it** - only the ease between them
 varies within a step. The shape is sampled far faster than the steps move: at
-0.5 Hz over 64 steps, ninety-one consecutive ticks were computing the same two
+0.5 Hz over 64 steps, tens of consecutive ticks were computing the same two
 numbers from scratch.
 
 So a channel keeps an `StStepCache` and pays per *step* rather than per tick.
@@ -102,7 +102,10 @@ channel's memo, since it walks the same slots of the same pattern.
 ### What the two are worth
 
 Measured on the module, seven stepped channels at MOD full (densest ties, motif
-fold active), over 64 steps. `engine` avg, and `load` against the 250 µs period:
+fold active), over 64 steps. `engine` avg, and `load` against the 250 µs period -
+**taken while the tick was still 250 µs**, so the loads are not today's. The
+engine cost per tick is what is being compared and that does not move with the
+period; see `hw_setup.h` for what the tick is now and why.
 
 | rate | steps/tick | neither | step cache | + slot memo |
 |---|---|---|---|---|
@@ -113,10 +116,10 @@ fold active), over 64 steps. `engine` avg, and `load` against the 250 µs period
 **Every column of the last row is the point.** The step cache does nothing for a
 playhead that skips - the carry never applies and the cache never hits, so it
 was flat at 275 µs - while the slot memo takes 24% off it, because a skipping
-playhead still asks for slots it asked for a few ticks ago. Together they hold
-`engine_fps` at 4000 under every condition above, with overruns at 3% and
-resyncs in single figures. Before them the same patch ran at 2915 with every
-tick overrunning.
+playhead still asks for slots it asked for a few ticks ago. Together they held
+`engine_fps` at its nominal 4000 under every condition above, with overruns at
+3% and resyncs in single figures. Before them the same patch ran at 2915 with
+every tick overrunning.
 
 Backing out the ~135 µs the engine costs before any stepped channel exists, the
 per-channel stepped cost at the skipping rate goes 20.0 → 20.0 → **10.5 µs**.

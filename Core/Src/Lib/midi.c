@@ -15,7 +15,7 @@ static uint8_t buffUsbReport[MIDI_EPIN_SIZE] = {0};
 // the loop has not collected yet, since several transfers can land between two
 // engine ticks as easily as several bytes can land in one transfer.
 //
-// Drained one per tick, which compresses a burst into 250us intervals. That is
+// Drained one per tick, which compresses a burst into tick-wide intervals. That is
 // the right answer rather than a compromise: the beat grid advances once per
 // clock either way, so it stays aligned, and Clock_Trigger's implausible-
 // interval guard rejects the compressed intervals as the tempo samples they are

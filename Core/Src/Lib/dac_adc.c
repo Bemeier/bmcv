@@ -4,10 +4,10 @@
 
 static DAC_ADC dacadc;
 
-// Defined with the reasoning for it, below; needed by dacadc_init above it.
+// Defined with the reasoning for them, below; both are used above their
+// definitions.
 static void dacadc_rx_flush(void);
-
-const DAC_ADC* dacadc_instance(void) { return &dacadc; }
+static int16_t sign_extend_14bit(uint16_t val);
 
 void dacadc_init(SPI_HandleTypeDef* spi)
 {
@@ -72,48 +72,6 @@ void dacadc_write(uint8_t idx, int16_t data)
   dacadc.DAC_BUF[idx * 3 + 2] = data & 0xFF;
 }
 
-/*
-void dacadc_transaction()
-{
-    uint8_t rx_buf[6]   = {0};
-    uint16_t adc_raw[2] = {0};
-
-    for (uint8_t CH_IDX = 0; CH_IDX < 4; CH_IDX++)
-    {
-        uint8_t offset = (HAL_GPIO_ReadPin(dacadc.addrPortHandle, dacadc.adrrPin) == GPIO_PIN_SET) ? 2 : 0;
-        HAL_GPIO_WritePin(dacadc.cnvstPortHandle, dacadc.cnvstPin, GPIO_PIN_RESET);
-        HAL_GPIO_TogglePin(dacadc.addrPortHandle, dacadc.adrrPin);
-        HAL_GPIO_WritePin(dacadc.cnvstPortHandle, dacadc.cnvstPin, GPIO_PIN_SET);
-
-        // TRANSMIT 1 channel to both DACs
-        HAL_GPIO_WritePin(dacadc.csadcPortHandle, dacadc.csadcPin, GPIO_PIN_RESET);
-        HAL_GPIO_WritePin(dacadc.csdacPortHandle, dacadc.csdacPin, GPIO_PIN_RESET);
-        HAL_SPI_TransmitReceive(dacadc.spiHandle, &(dacadc.DAC_BUF[CH_IDX * 6]), rx_buf, 6,
-                                HAL_MAX_DELAY); //
-        HAL_GPIO_WritePin(dacadc.csdacPortHandle, dacadc.csdacPin, GPIO_PIN_SET);
-        HAL_GPIO_WritePin(dacadc.csadcPortHandle, dacadc.csadcPin, GPIO_PIN_SET);
-        adc_raw[0] = ((rx_buf[0] << 6) | (rx_buf[1] >> 2)) & 0x3FFF;
-        adc_raw[1] = (((rx_buf[1] & 0x03) << 12) | (rx_buf[2] << 4) | (rx_buf[3] >> 4)) & 0x3FFF;
-
-        for (uint8_t ch = 0; ch < 2; ch++)
-        {
-            dacadc.adc_i[ch + offset] = sign_extend_14bit(adc_raw[ch]);
-            if (dacadc.trig_state[ch + offset] < 1 && dacadc.adc_i_prev[ch + offset] < TRIG_THRESH &&
-                dacadc.adc_i[ch + offset] >= TRIG_THRESH)
-            {
-                dacadc.trig_state[ch + offset] = 1;
-                dacadc.trig_flag[ch + offset]  = 1;
-            }
-            else if (dacadc.adc_i[ch + offset] < TRIG_THRESH_LOW)
-            {
-                dacadc.trig_state[ch + offset] = 0;
-            }
-            dacadc.adc_i_prev[ch + offset] = dacadc.adc_i[ch + offset];
-        }
-    }
-}
-*/
-
 // Drain whatever is sitting in the SPI's receive FIFO, and clear the overrun
 // that leaving it there will have set.
 //
@@ -141,11 +99,18 @@ static void dacadc_rx_flush(void)
 {
   SPI_TypeDef* spi = dacadc.spiHandle->Instance;
 
-  // Byte-wide reads: a 32-bit access to DR would pull two frames at a time and
-  // could take one that has not arrived.
+  // Byte-wide reads: with FRXTH set for 8-bit frames a 32-bit access to DR pops
+  // up to four bytes at once, and the count this is draining against is in
+  // bytes.
+  //
+  // Through uintptr_t rather than casting the address straight to uint8_t*,
+  // which is the same access and warns: -Wstrict-aliasing sees a uint32_t
+  // object read as a uint8_t. It is a register, not an object, and the width of
+  // the access is the whole point of it.
+  volatile uint8_t* dr = (volatile uint8_t*) (uintptr_t) &spi->DR;
   while (spi->SR & SPI_SR_FRLVL)
   {
-    (void) *(__IO uint8_t*) &spi->DR;
+    (void) *dr;
   }
 
   // OVR clears on a read of DR followed by a read of SR, and the loop above has
@@ -154,17 +119,7 @@ static void dacadc_rx_flush(void)
   (void) spi->SR;
 }
 
-int8_t dacadc_error()
-{
-  if (dacadc.CH_IDX > DAC_CHANNELS)
-  {
-    dacadc.CH_IDX = 0;
-    return 1;
-  }
-  return 0;
-}
-
-uint8_t dacadc_dma_next()
+void dacadc_dma_next(void)
 {
   dacadc.CH_IDX = (dacadc.CH_IDX + 1) % DAC_CHANNELS;
   dacadc.offset = (HAL_GPIO_ReadPin(dacadc.addrPortHandle, dacadc.adrrPin) == GPIO_PIN_SET) ? 2 : 0;
@@ -199,8 +154,6 @@ uint8_t dacadc_dma_next()
   // it belongs to the wrong channel.
   dacadc.rxch->CCR |= DMA_CCR_EN;
   dacadc.txch->CCR |= DMA_CCR_EN;
-
-  return 1;
 }
 
 uint8_t dacadc_dma_isr(void)
@@ -319,11 +272,6 @@ void dac_init()
   // HAL_GPIO_WritePin(dacadc.ldacPortHandle, dacadc.ldacPin, GPIO_PIN_RESET);
 }
 
-int16_t sign_extend_14bit(uint16_t val) { return (int16_t) ((int32_t) (val << 18) >> 18); }
-
-float adc_to_voltage(int16_t adc_value)
-{
-  return ((float) adc_value / 8192.0f) * 10.0f; // Assuming full scale ±10V
-}
+static int16_t sign_extend_14bit(uint16_t val) { return (int16_t) ((int32_t) (val << 18) >> 18); }
 
 int16_t get_adc(uint8_t channel) { return dacadc.adc_i[channel]; }

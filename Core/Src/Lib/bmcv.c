@@ -86,7 +86,7 @@ static uint8_t task = 0;
 #define DAC_SUBSTEPS 2
 
 // The cadence the service runs at: DAC_SUBSTEPS frames per tick, a frame being
-// DAC_CHANNELS transactions of two outputs each. 15.6us at a 4kHz tick.
+// DAC_CHANNELS transactions of two outputs each. 62.5us at a 2kHz tick.
 //
 // It is now a cadence rather than a target. Serviced from the main loop it was
 // a target and never met: measured on the module, transactions turned around
@@ -101,7 +101,12 @@ static uint8_t task = 0;
 
 uint32_t bmcv_dac_service_hz(void) { return 1000000u / DAC_CHUNK_US; }
 
-static IsrFlag dac_poll = 1;
+// Set by the DMA completion, taken by the timer: "the transfer that was in
+// flight has landed, so the wire is free". Starts clear because it starts true
+// - main() arms the first transfer before starting the timer, so there is
+// always exactly one thing that begins the chain, and this flag never has to
+// claim a completion that has not happened.
+static IsrFlag dac_poll = 0;
 static uint32_t last_dac_poll;
 
 // Defined with the interpolation it drives; called from the timer interrupt.
@@ -141,7 +146,7 @@ __attribute__((section(".probe_info"), used)) const BmcvProbeInfo bmcv_probe_inf
 // wrap needs no handling for a span this short.
 //
 // Left in the build: the probe is four register loads and a few float ops
-// against a 250us budget, under 0.2%. Set to 0 to compile it out.
+// against a 500us budget, under 0.1%. Set to 0 to compile it out.
 //
 // What it measures is wall time with interrupts enabled - the DMA completion,
 // TIM4, EXTI and USB all still preempt a tick. `avg_us` is therefore what the
@@ -239,12 +244,9 @@ void bmcv_handle_gpio_exti(uint16_t GPIO_Pin)
 }
 
 // The expander's SPI transfer has landed. The DAC's no longer comes through
-// here - see bmcv_handle_dac_complete - so this is the MCP's alone.
-void bmcv_handle_txrx_complete(SPI_HandleTypeDef* hspi, uint32_t now_us)
-{
-  (void) now_us;
-  mcp_handle_txrx_complete(hspi);
-}
+// here - see bmcv_handle_dac_complete - so this is the MCP's alone, and it no
+// longer needs a timestamp: the DAC was the only thing here that recorded one.
+void bmcv_handle_txrx_complete(SPI_HandleTypeDef* hspi) { mcp_handle_txrx_complete(hspi); }
 
 // A DAC transaction has landed. This only says so; the timer arms the next one.
 //
@@ -424,15 +426,14 @@ static void dac_service(uint32_t now_us)
 // main loop touches the service any more, so there is no third caller to race.
 void bmcv_dac_tick(uint32_t now_us)
 {
-  // Never arm a transfer over one still running. dac_poll is set by the
-  // completion, so this is "the last transfer has landed"; dacadc_error() is
-  // the recovery path for a transfer that was refused and left the chain with
-  // nothing in flight to wait for.
+  // Never arm a transfer over one still running.
   //
   // A skipped chunk is a chunk, not a stall: the next timer tick tries again
   // and dac_write_interpolated() reads the clock rather than counting substeps,
-  // so the output lands where the elapsed time says it should either way.
-  if (!isr_flag_peek(&dac_poll) && !dacadc_error())
+  // so the output lands where the elapsed time says it should either way. A
+  // transfer that errors still reports a completion - see dacadc_dma_isr - so
+  // the chain recovers by dropping one frame rather than by a separate path.
+  if (!isr_flag_peek(&dac_poll))
   {
     return;
   }

@@ -71,7 +71,7 @@ path and the input path came to disagree about what a long press was.
 at whatever their audio callback gives them.
 
 **No allocation, no `printf`, no `float` formatting in the hot path.** The tick
-runs at 4kHz across eight channels.
+runs at 2kHz across eight channels.
 
 ## Gotchas
 
