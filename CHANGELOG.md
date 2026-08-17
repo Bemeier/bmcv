@@ -1,5 +1,32 @@
 # Changelog
 
+## v0.16.0 (2026-08-17)
+
+### Feat
+
+- **engine**: run the tick at 2kHz, and the DAC at two substeps
+- **engine**: run the tick at 3.2kHz
+
+### Fix
+
+- **sim**: copy the snapshot's length on import, not the struct's
+- **stepped**: hold the level across the reshapings, not just up to them
+- **engine**: keep the derived stepped caches out of the snapshot
+- **pll**: stop the beat phase wrapping past a beat the counter has not reached
+- **stepped**: remember what a slot offers, not just what a step shows
+- **stepped**: pay for a step once, not once per tick
+- **dac**: arm the transfer by hand, not through HAL
+- **dac**: one substep, because four starved the engine outright
+- **dac**: give the outputs a clock instead of the loop's leftovers
+
+### Refactor
+
+- **dac**: drop what the register path made dead, and re-date the docs
+
+### Perf
+
+- **channel**: memoise the alignment-period search on the ratio
+
 ## v0.15.0 (2026-08-16)
 
 ### Feat
