@@ -80,7 +80,31 @@ void channel_reset(uint8_t ch, EngineState* es, EngineConfig* cfg, int8_t scene)
 // One tick of this channel: blend the scene parameters, advance the phase,
 // lock it to the beat, generate, cross-modulate, quantize. Lands in
 // es->channels_output_level[] and es->channels_effective[].
-void channel_compute(uint8_t ch, EngineState* es, const EngineConfig* cfg, const HwState* hw, SteppedScratch* scratch);
+// Per-channel derived state: memos of work whose answer depends only on inputs
+// that usually are not moving. Rebuilt from those inputs whenever they do, so
+// it holds nothing a host needs and lives at the end of the instance, where a
+// snapshot stops. See BMCV_SNAPSHOT_BYTES.
+typedef struct
+{
+  SteppedScratch stepped;
+
+  // find_denominator()'s answer, and the ratio it was computed for.
+  //
+  // It is a search with a modff() in it - a real call on this target - and it
+  // ran for every channel on every tick while its answer is a function of the
+  // ratio alone. A standing patch hands it the same float for minutes. Measured
+  // on the module: 17us of a 142.7us tick, spent re-deriving eight answers that
+  // were all last tick's.
+  //
+  // Keyed on the exact float, so what comes back is what the call would have
+  // returned, bit for bit. Zero is "nothing cached" and cannot collide with a
+  // real ratio: the multiplier is p+1 for p >= 0 and -1/(p-1) for p < 0, both
+  // strictly positive.
+  float gcd_ratio;
+  int16_t gcd_now;
+} ChannelScratch;
+
+void channel_compute(uint8_t ch, EngineState* es, const EngineConfig* cfg, const HwState* hw, ChannelScratch* scratch);
 
 // Update this channel's own output-trigger edge state, so other channels can
 // use it as a trigger source.

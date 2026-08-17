@@ -177,7 +177,7 @@ TEST_CASE(the_instance_size_is_the_snapshot_not_the_whole_struct)
 {
   CHECK(bmcv_sim_instance_size() == (int32_t) BMCV_SNAPSHOT_BYTES);
   CHECK((int32_t) BMCV_SNAPSHOT_BYTES < (int32_t) sizeof(BmcvInstance));
-  CHECK((size_t) BMCV_SNAPSHOT_BYTES == offsetof(BmcvInstance, stepped_scratch));
+  CHECK((size_t) BMCV_SNAPSHOT_BYTES == offsetof(BmcvInstance, channel_scratch));
 }
 
 int main(void)

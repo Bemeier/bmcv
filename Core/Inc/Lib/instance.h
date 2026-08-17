@@ -91,7 +91,7 @@ typedef struct
   //
   // It is 2.7KB of the 5.9KB this struct would otherwise be. Snapshotting it
   // doubled what the USB link ships per frame to say nothing a decoder can use.
-  SteppedScratch stepped_scratch[N_CHANNELS];
+  ChannelScratch channel_scratch[N_CHANNELS];
 
 } BmcvInstance;
 
@@ -101,7 +101,7 @@ typedef struct
 // the setting. It is what usblink ships, what the probe descriptor advertises,
 // and what bmcv_sim_import() accepts - the three have to agree, so they all
 // read this.
-#define BMCV_SNAPSHOT_BYTES (offsetof(BmcvInstance, stepped_scratch))
+#define BMCV_SNAPSHOT_BYTES (offsetof(BmcvInstance, channel_scratch))
 
 // Point every pointer in the instance at the right part of the instance, and at
 // this host's setup tables and preset store. Everything else here is plain data.

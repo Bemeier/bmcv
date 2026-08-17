@@ -18,7 +18,7 @@ typedef struct
 
   // Derived per-channel state for the stepped shape. Lives outside EngineState
   // in the real instance too - see BMCV_SNAPSHOT_BYTES.
-  SteppedScratch stepped_scratch[N_CHANNELS];
+  ChannelScratch channel_scratch[N_CHANNELS];
   UxState ux;
 
   // So fixture_tick can derive input_dirty the same way bmcv_state_update

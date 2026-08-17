@@ -31,6 +31,10 @@ typedef struct
 
   int store_calls;
   int8_t last_store_slot;
+
+  // Derived per-channel state. A UxState built by hand has to wire this like
+  // any other part of the instance; channel_compute writes through it.
+  ChannelScratch channel_scratch[N_CHANNELS];
 } Rig;
 
 static int8_t counting_store(void* user, const EngineConfig* cfg, int8_t slot)
@@ -51,12 +55,13 @@ static void rig_init(Rig* r)
   r->io.store = counting_store;
   r->io.user  = r;
 
-  r->ux.hw_setup      = r->hw;
-  r->ux.ux_setup      = r->ux_setup;
-  r->ux.engine_config = &r->cfg;
-  r->ux.engine_state  = &r->es;
-  r->ux.ui            = &r->ui;
-  r->ux.presets       = &r->io;
+  r->ux.hw_setup        = r->hw;
+  r->ux.ux_setup        = r->ux_setup;
+  r->ux.engine_config   = &r->cfg;
+  r->ux.engine_state    = &r->es;
+  r->ux.ui              = &r->ui;
+  r->ux.presets         = &r->io;
+  r->ux.channel_scratch = r->channel_scratch;
 
   r->ui.momentary_scene = -1;
   ui_sel_reset(&r->ui);

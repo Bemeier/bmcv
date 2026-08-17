@@ -18,7 +18,7 @@ void fixture_init(Fixture* f)
   f->ux.hw_state        = &f->hw_state;
   f->ux.engine_config   = &f->engine_config;
   f->ux.engine_state    = &f->engine_state;
-  f->ux.stepped_scratch = f->stepped_scratch;
+  f->ux.channel_scratch = f->channel_scratch;
   f->ux.ui              = &f->ui_state;
 
   f->engine_config.scene_a       = 0;

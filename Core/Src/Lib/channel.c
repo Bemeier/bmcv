@@ -114,7 +114,7 @@ void channel_reset(uint8_t ch, EngineState* es, EngineConfig* cfg, int8_t scene)
   }
 }
 
-void channel_compute(uint8_t ch, EngineState* es, const EngineConfig* cfg, const HwState* hw, SteppedScratch* scratch)
+void channel_compute(uint8_t ch, EngineState* es, const EngineConfig* cfg, const HwState* hw, ChannelScratch* scratch)
 {
   const ChannelConfig* chcfg = &cfg->channel_state[ch];
   float dt_s                 = hw->dt * US_TO_S;
@@ -164,7 +164,14 @@ void channel_compute(uint8_t ch, EngineState* es, const EngineConfig* cfg, const
   // The origin is re-taken with it, and that is what makes the change seamless:
   // at the wrap the channel is at phase 0 of its old period, and the new period
   // is defined to start there.
-  int16_t gcd_now = find_denominator(freq_multiplier, 8, 0.025f);
+  // Memoised on the ratio - see ChannelScratch. The answer is a function of it
+  // alone, and it is the same float on every tick of a patch nobody is touching.
+  if (scratch->gcd_ratio != freq_multiplier)
+  {
+    scratch->gcd_now   = find_denominator(freq_multiplier, 8, 0.025f);
+    scratch->gcd_ratio = freq_multiplier;
+  }
+  int16_t gcd_now = scratch->gcd_now;
 
   // ...and only taken while the ratio is holding still. A ratio on its way
   // through a crossfade is a rational multiple every few ticks and something
@@ -350,7 +357,7 @@ void channel_compute(uint8_t ch, EngineState* es, const EngineConfig* cfg, const
     // same pattern - the scan to measure it, the shape to play it - so they
     // share one memo, and this is the single point at which it is told which
     // pattern that is.
-    StSlotMemo* slots = &scratch->slots;
+    StSlotMemo* slots = &scratch->stepped.slots;
     st_slot_memo_begin(slots, shape, mod, st_length_for_index(*latched_idx));
 
     // The correction is measured a slot at a time rather than worked out here,
@@ -358,7 +365,7 @@ void channel_compute(uint8_t ch, EngineState* es, const EngineConfig* cfg, const
     // a channel that has just arrived in this mode is corrected on its first
     // tick rather than after a cycle of it.
     st_norm_scan(&es->channels_stepped_scan[ch], slots, shape, mod, *latched_idx, dt_s, ch == es->st_scan_turn);
-    raw = stepped_shape_cached(&scratch->step, slots, phase, shape, mod, *latched_idx, &d, &es->channels_stepped_scan[ch].norm);
+    raw = stepped_shape_cached(&scratch->stepped.step, slots, phase, shape, mod, *latched_idx, &d, &es->channels_stepped_scan[ch].norm);
     break;
   }
   case SHAPE_PWM:

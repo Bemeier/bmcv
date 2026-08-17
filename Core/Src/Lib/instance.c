@@ -17,7 +17,7 @@ void bmcv_instance_wire(BmcvInstance* m, const PresetIo* io)
   m->ux.ux_setup        = m->ux_setup;
   m->ux.engine_config   = &m->engine_config;
   m->ux.engine_state    = &m->engine_state;
-  m->ux.stepped_scratch = m->stepped_scratch;
+  m->ux.channel_scratch = m->channel_scratch;
   m->ux.ui              = &m->ui_state;
   m->ux.presets         = io;
 
