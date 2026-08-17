@@ -558,7 +558,11 @@ int32_t bmcv_sim_import(BmcvSim* s, const void* src, int32_t len)
   if (!s || !src || len != (int32_t) BMCV_SNAPSHOT_BYTES)
     return 0;
 
-  memcpy(&s->m, src, sizeof(s->m));
+  // BMCV_SNAPSHOT_BYTES, not sizeof - the two stopped being equal when the
+  // derived per-channel state moved to the end of the instance, and `src` only
+  // ever holds the snapshot. Reading sizeof from it runs off the end of the
+  // caller's buffer, which is what the sanitiser build caught.
+  memcpy(&s->m, src, BMCV_SNAPSHOT_BYTES);
 
   // The blob's pointers are wherever the module that produced it kept its
   // instance. Every one of them is re-pointed here; nothing else in it moves.

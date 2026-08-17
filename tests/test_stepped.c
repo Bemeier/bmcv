@@ -293,7 +293,7 @@ static float worst_small_turn(int length_idx, int on_mod)
     float a_shape = on_mod ? 0.3f : x, a_mod = on_mod ? x : 0.0f;
     float b_shape = on_mod ? 0.3f : x + d, b_mod = on_mod ? x + d : 0.0f;
     StDrive da = st_drive(a_shape, a_mod), db = st_drive(b_shape, b_mod);
-    StNorm na = st_norm_exact(a_shape, a_mod, length_idx, &d), nb = st_norm_exact(b_shape, b_mod, length_idx, &d);
+    StNorm na = st_norm_exact(a_shape, a_mod, length_idx, &da), nb = st_norm_exact(b_shape, b_mod, length_idx, &db);
 
     for (float phase = 0.0f; phase < 1.0f; phase += 0.01f)
     {
