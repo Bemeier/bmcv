@@ -72,8 +72,28 @@ typedef struct
 
 typedef struct
 {
+  // Before the reshapings: centre the pattern and scale it toward
+  // ST_NORM_TARGET. out = centre + (v - anchor) * gain.
   float gain;
   float offset;
+
+  // After them: hold the level the two above just set, which the reshapings
+  // would otherwise give back. out = post_ref + (v - post_ref) * post_gain.
+  //
+  // A second affine rather than a correction folded into the first, and that is
+  // the whole point. Changing the gain *before* the maps moves values against
+  // the terracing's cell boundaries, so it changes which plateau each one lands
+  // on - the character, not the level. Measured, that made the spread worse
+  // rather than better (see docs/stepped.md). Applied after, it scales the
+  // finished waveform uniformly: the plateaus stay plateaus, the loop still
+  // closes, and only how loud it is moves.
+  //
+  // Anchored at post_ref, which is the reshaped value at phase 0. Every length
+  // shares it - it comes from the length-independent centring constant - so
+  // phase 0 lands in the same place whatever the gain, and switching pattern
+  // length on the wrap stays seamless.
+  float post_gain;
+  float post_ref;
 } StNorm;
 
 // One pattern, measured: its extremes, the value it starts on, and - only where
@@ -201,9 +221,11 @@ static inline float st_norm_centre(const StNormCtx* c, float mod, float orbit)
 // Both `centre` and `anchor` are the same at every length - the first by
 // construction, the second because a slot's value never depends on how many
 // slots the pattern has - so the value at the cycle boundary is too.
+// The pre-stage. The post-stage is filled in by whoever knows the drive - see
+// st_norm_levelled() in stepped.c - and is the identity until then.
 static inline StNorm st_norm_affine(float centre, float anchor, float gain)
 {
-  StNorm n = {gain, centre - anchor * gain};
+  StNorm n = {gain, centre - anchor * gain, 1.0f, 0.0f};
   return n;
 }
 
@@ -220,9 +242,17 @@ static inline StNorm st_norm_affine(float centre, float anchor, float gain)
 // interpolated, so out(0) lands on `centre` at every length instead of nearly
 // so, and the gain needs no neighbourhood padding to survive being blended with
 // its neighbours - which was a bias upward on every setting.
-static inline StNorm st_norm_at(const StNormCtx* c, int length, float mod, float orbit, float centre)
+// `out_e`, when given, hands back the extent this was derived from. A caller
+// that needs to know what the correction produces *after* the reshapings has to
+// put those two endpoints through them itself, and the reshapings live a header
+// above this one. NULL when it does not care.
+static inline StNorm st_norm_at(const StNormCtx* c, int length, float mod, float orbit, float centre, StExtent* out_e)
 {
   StExtent e = st_extent_of(c, length, mod, orbit);
+  if (out_e != NULL)
+  {
+    *out_e = e;
+  }
 
   // The floor is applied here, at the point itself. In the table it only ever
   // arrived through the neighbourhood loop - which was written to survive

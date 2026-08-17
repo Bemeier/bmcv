@@ -19,10 +19,11 @@ static float st_eval(float phase, float shape, float mod, int length_idx, float 
 
   if (shape != prev_shape || mod != prev_mod || length_idx != prev_idx)
   {
-    norm       = st_norm_exact(shape, mod, length_idx);
-    prev_shape = shape;
-    prev_mod   = mod;
-    prev_idx   = length_idx;
+    StDrive bare_for_norm = {hold, 0.0f, 0.0f};
+    norm                  = st_norm_exact(shape, mod, length_idx, &bare_for_norm);
+    prev_shape            = shape;
+    prev_mod              = mod;
+    prev_idx              = length_idx;
   }
   StDrive bare = {hold, 0.0f, 0.0f};
   return stepped_shape_with(phase, shape, mod, length_idx, &bare, &norm);
@@ -79,11 +80,11 @@ TEST_CASE(measuring_the_correction_here_or_passing_it_in_are_the_same_shape)
     {
       for (int li = 0; li < ST_LENGTH_COUNT; li++)
       {
-        StNorm n = st_norm_exact(shape, mod, li);
+        StDrive bare = {ST_HOLD_SMOOTH, 0.0f, 0.0f};
+        StNorm n     = st_norm_exact(shape, mod, li, &bare);
         for (float phase = 0.0f; phase < 1.0f; phase += 0.077f)
         {
-          CHECK(stepped_shape(phase, shape, mod, li, ST_HOLD_SMOOTH) ==
-                stepped_shape_with(phase, shape, mod, li, &(StDrive){ST_HOLD_SMOOTH, 0.0f, 0.0f}, &n));
+          CHECK(stepped_shape(phase, shape, mod, li, ST_HOLD_SMOOTH) == stepped_shape_with(phase, shape, mod, li, &bare, &n));
         }
       }
     }
@@ -232,7 +233,7 @@ static void driven_pattern(float shape, float mod, int length_idx, float* out)
 {
   int n       = st_length_for_index(length_idx);
   StDrive d   = st_drive(shape, mod);
-  StNorm norm = st_norm_exact(shape, mod, length_idx);
+  StNorm norm = st_norm_exact(shape, mod, length_idx, &d);
   for (int k = 0; k < n; k++)
   {
     out[k] = stepped_shape_with(((float) k + 0.5f) / (float) n, shape, mod, length_idx, &d, &norm);
@@ -292,7 +293,7 @@ static float worst_small_turn(int length_idx, int on_mod)
     float a_shape = on_mod ? 0.3f : x, a_mod = on_mod ? x : 0.0f;
     float b_shape = on_mod ? 0.3f : x + d, b_mod = on_mod ? x + d : 0.0f;
     StDrive da = st_drive(a_shape, a_mod), db = st_drive(b_shape, b_mod);
-    StNorm na = st_norm_exact(a_shape, a_mod, length_idx), nb = st_norm_exact(b_shape, b_mod, length_idx);
+    StNorm na = st_norm_exact(a_shape, a_mod, length_idx, &d), nb = st_norm_exact(b_shape, b_mod, length_idx, &d);
 
     for (float phase = 0.0f; phase < 1.0f; phase += 0.01f)
     {
@@ -481,12 +482,13 @@ TEST_CASE(the_rolling_measurement_lands_where_a_full_one_does)
     {
       for (float mod = -1.0f; mod <= 1.0f; mod += 0.47f)
       {
-        StScan s    = {0};
-        StNorm want = st_norm_exact(shape, mod, li);
+        StScan s      = {0};
+        StDrive drive = st_drive(shape, mod);
+        StNorm want   = st_norm_exact(shape, mod, li, &drive);
 
         // A channel's first tick in a stepped mode has nothing measured yet, so
         // it takes the full route rather than playing a cycle uncorrected.
-        st_norm_scan(&s, NULL, shape, mod, li, TICK_S, 1);
+        st_norm_scan(&s, NULL, &drive, shape, mod, li, TICK_S, 1);
         CHECK_NEAR(s.norm.gain, want.gain, 1e-4);
         CHECK_NEAR(s.norm.offset, want.offset, 1e-4);
 
@@ -494,7 +496,7 @@ TEST_CASE(the_rolling_measurement_lands_where_a_full_one_does)
         // pattern and asks for the same correction.
         for (int i = 0; i < 4000; i++)
         {
-          st_norm_scan(&s, NULL, shape, mod, li, TICK_S, 1);
+          st_norm_scan(&s, NULL, &drive, shape, mod, li, TICK_S, 1);
         }
         CHECK_NEAR(s.norm.gain, want.gain, 1e-3);
         CHECK_NEAR(s.norm.offset, want.offset, 1e-3);
@@ -506,10 +508,11 @@ TEST_CASE(the_rolling_measurement_lands_where_a_full_one_does)
         // it would be silent until someone turned a knob and heard the level
         // sit wrong.
         float moved_shape = shape + 0.37f, moved_mod = mod - 0.21f;
-        StNorm want_moved = st_norm_exact(moved_shape, moved_mod, li);
+        StDrive moved     = st_drive(moved_shape, moved_mod);
+        StNorm want_moved = st_norm_exact(moved_shape, moved_mod, li, &moved);
         for (int i = 0; i < 4000; i++)
         {
-          st_norm_scan(&s, NULL, moved_shape, moved_mod, li, TICK_S, 1);
+          st_norm_scan(&s, NULL, &moved, moved_shape, moved_mod, li, TICK_S, 1);
         }
         CHECK_NEAR(s.norm.gain, want_moved.gain, 1e-3);
         CHECK_NEAR(s.norm.offset, want_moved.offset, 1e-3);
@@ -526,16 +529,18 @@ TEST_CASE(a_channel_that_only_gets_every_eighth_tick_still_arrives)
 {
   for (int li = 0; li < ST_LENGTH_COUNT; li++)
   {
-    StScan s    = {0};
-    StNorm want = st_norm_exact(-0.4f, 0.6f, li);
+    StScan s        = {0};
+    StDrive d_zero  = st_drive(0.0f, 0.0f);
+    StDrive d_moved = st_drive(-0.4f, 0.6f);
+    StNorm want     = st_norm_exact(-0.4f, 0.6f, li, &d_moved);
 
     // past the first tick, which measures in full, and onto a different setting
     // so that what follows has something to measure
-    st_norm_scan(&s, NULL, 0.0f, 0.0f, li, TICK_S, 0);
+    st_norm_scan(&s, NULL, &d_zero, 0.0f, 0.0f, li, TICK_S, 0);
 
     for (int i = 0; i < 40000; i++)
     {
-      st_norm_scan(&s, NULL, -0.4f, 0.6f, li, TICK_S, (i % N_SCAN_TURNS) == 0);
+      st_norm_scan(&s, NULL, &d_moved, -0.4f, 0.6f, li, TICK_S, (i % N_SCAN_TURNS) == 0);
     }
     CHECK_NEAR(s.norm.gain, want.gain, 1e-3);
     CHECK_NEAR(s.norm.offset, want.offset, 1e-3);
@@ -546,13 +551,15 @@ TEST_CASE(a_channel_that_only_gets_every_eighth_tick_still_arrives)
 // not, or the rota above is decoration.
 TEST_CASE(a_channel_that_never_gets_a_turn_never_measures)
 {
-  StScan s = {0};
-  st_norm_scan(&s, NULL, 0.2f, 0.1f, 8, TICK_S, 0); // the first tick, measured in full
+  StScan s      = {0};
+  StDrive d_one = st_drive(0.2f, 0.1f);
+  st_norm_scan(&s, NULL, &d_one, 0.2f, 0.1f, 8, TICK_S, 0); // the first tick, measured in full
   StNorm first = s.norm;
 
   for (int i = 0; i < 1000; i++)
   {
-    st_norm_scan(&s, NULL, -0.7f, 0.9f, 8, TICK_S, 0);
+    StDrive d_other = st_drive(-0.7f, 0.9f);
+    st_norm_scan(&s, NULL, &d_other, -0.7f, 0.9f, 8, TICK_S, 0);
   }
   CHECK(s.norm.gain == first.gain);
   CHECK(s.norm.offset == first.offset);
@@ -568,10 +575,11 @@ TEST_CASE(a_length_change_moves_the_correction_without_stepping_the_output)
   {
     for (int to = 0; to < ST_LENGTH_COUNT; to++)
     {
-      StScan s = {0};
+      StScan s      = {0};
+      StDrive d_len = st_drive(0.3f, -0.2f);
       for (int i = 0; i < 500; i++)
       {
-        st_norm_scan(&s, NULL, 0.3f, -0.2f, from, TICK_S, 1);
+        st_norm_scan(&s, NULL, &d_len, 0.3f, -0.2f, from, TICK_S, 1);
       }
 
       // The correction itself, tick by tick, and the value at the wrap with it.
@@ -582,7 +590,7 @@ TEST_CASE(a_length_change_moves_the_correction_without_stepping_the_output)
       float prev_gain = s.norm.gain;
       for (int i = 0; i < 2000; i++)
       {
-        st_norm_scan(&s, NULL, 0.3f, -0.2f, to, TICK_S, 1);
+        st_norm_scan(&s, NULL, &d_len, 0.3f, -0.2f, to, TICK_S, 1);
         float v = stepped_shape_with(0.0f, 0.3f, -0.2f, to, &(StDrive){ST_HOLD_SMOOTH, 0.0f, 0.0f}, &s.norm);
         CHECK(fabsf(v - prev) < 0.05f);
         CHECK(fabsf(s.norm.gain - prev_gain) < 0.1f);
@@ -594,7 +602,7 @@ TEST_CASE(a_length_change_moves_the_correction_without_stepping_the_output)
       // It glides there rather than arriving: the change restarts the pass
       // instead of paying for a full measurement in one tick, so the level
       // takes a pass plus the slew to settle - tens of milliseconds.
-      StNorm want = st_norm_exact(0.3f, -0.2f, to);
+      StNorm want = st_norm_exact(0.3f, -0.2f, to, &d_len);
       CHECK_NEAR(s.norm.gain, want.gain, 1e-3);
     }
   }
@@ -610,7 +618,7 @@ TEST_CASE(a_length_change_moves_the_correction_without_stepping_the_output)
 static void driven_cycle(float shape, float mod, int length_idx, int n, float* out)
 {
   StDrive d   = st_drive(shape, mod);
-  StNorm norm = st_norm_exact(shape, mod, length_idx);
+  StNorm norm = st_norm_exact(shape, mod, length_idx, &d);
   for (int i = 0; i < n; i++)
   {
     out[i] = stepped_shape_with((float) i / (float) n, shape, mod, length_idx, &d, &norm);
@@ -635,7 +643,7 @@ TEST_CASE(the_bias_leans_the_distribution_the_value_path_cannot)
     for (float shape = -0.6f; shape <= 0.61f; shape += 0.4f)
     {
       StDrive d   = st_drive(shape, 0.5f);
-      StNorm norm = st_norm_exact(shape, 0.5f, li);
+      StNorm norm = st_norm_exact(shape, 0.5f, li, &d);
       // the depth the mode itself reaches, rather than a copy of it here
       float depth = st_drive(1.0f, 0.0f).bias;
 
@@ -756,7 +764,7 @@ TEST_CASE(the_driven_curve_is_continuous_everywhere)
     for (float mod = -1.0f; mod <= 1.0f; mod += 0.5f)
     {
       StDrive d   = st_drive(0.3f, mod);
-      StNorm norm = st_norm_exact(0.3f, mod, li);
+      StNorm norm = st_norm_exact(0.3f, mod, li, &d);
 
       float prev = stepped_shape_with(0.0f, 0.3f, mod, li, &d, &norm);
       for (int i = 1; i <= n; i++)

@@ -42,7 +42,7 @@ static void rig_init(Rig* r, float shape, float mod, int length_idx)
   r->mod        = mod;
   r->length_idx = length_idx;
   r->drive      = st_drive(shape, mod);
-  r->norm       = st_norm_exact(shape, mod, length_idx);
+  r->norm       = st_norm_exact(shape, mod, length_idx, &r->drive);
 }
 
 // Both routes, one sample. memcmp rather than ==, so that two NaNs still
@@ -180,7 +180,7 @@ TEST_CASE(shp_and_mod_moving_under_a_still_playhead_invalidate_the_pair)
     r.shape = sinf((float) i * 0.041f);
     r.mod   = cosf((float) i * 0.017f);
     r.drive = st_drive(r.shape, r.mod);
-    r.norm  = st_norm_exact(r.shape, r.mod, r.length_idx);
+    r.norm  = st_norm_exact(r.shape, r.mod, r.length_idx, &r.drive);
 
     if (!agrees(&r, phase))
     {
@@ -202,7 +202,7 @@ TEST_CASE(a_pattern_length_change_invalidates_the_pair)
   for (int i = 0; i < 200; i++)
   {
     r.length_idx = i % ST_LENGTH_COUNT;
-    r.norm       = st_norm_exact(r.shape, r.mod, r.length_idx);
+    r.norm       = st_norm_exact(r.shape, r.mod, r.length_idx, &r.drive);
 
     if (!agrees(&r, 0.61f + 0.001f * (float) i))
     {

@@ -233,35 +233,52 @@ are ordering-based and were blind to the reshapings entirely.
 
 ## Known, and open
 
-- **Terracing costs level consistency.** It shrinks a pattern's peak-to-peak by
-  an amount depending on where its extremes fall against the cell boundaries -
-  variance rather than bias, so the mean span moves only 4% and no global
-  compensation reaches it.
+- **Terracing moved the level, and the correction now spans it.** It shrinks a
+  pattern's peak-to-peak by an amount depending on where its extremes fall
+  against the cell boundaries - variance rather than bias, so the mean span
+  moves only 4% and no global compensation reaches it. `st_bias_map` driven
+  positive does the opposite and *widens* a span.
 
-  **The obvious fix was tried and measured worse.** Letting the scan set the
-  gain from the *output* span - solving for the gain whose span after the bias
-  and the terracing is the one the correction asked for - took the span ratio
-  across the whole (SHP, MOD, length) grid from **1.844 to 2.665**: minimum
-  0.879 to 0.683, maximum 1.622 to 1.819. Both ends got worse.
+  So the correction is two affines with the reshapings between them. The
+  pre-stage centres the pattern and scales it toward `ST_NORM_TARGET`, as it
+  always did. The post-stage - `st_norm_levelled()` - measures what the
+  reshapings actually left and scales it back to what the pre-stage asked for.
+  Measured across the whole (SHP, MOD, length) grid, on the path a channel
+  actually plays:
 
-  Two reasons, and they are worth knowing before anyone tries it again:
+  | | min span | max span | ratio |
+  |---|---|---|---|
+  | before | 0.5640 | 1.8750 | 3.325 |
+  | after | 0.5640 | **1.6217** | **2.876** |
 
-  - **The rails bind at many settings.** `st_gain_toward` already clamps the
-    gain so the corrected pattern stays inside +/-1. Where that clamp is what
-    sets the gain, no amount of compensation can widen the output, so the
-    correction lands on some settings and not others - which is spread, not
-    consistency.
-  - **The reshapings do not only shrink.** `st_bias_map` driven positive pushes
-    values toward the rails and *widens* a span. Compensating removes that
-    widening, and at two settings it took the span under `ST_NORM_FLOOR` - a
-    guarantee the widening had been carrying by luck.
+  **Only the loud end moves, and that is the rails.** Where `st_gain_toward`'s
+  clamp is already what sets the gain - the pattern is as wide as +/-1 allows -
+  there is no room to lift the quiet settings, so the minimum does not budge.
+  What the post-stage reaches is the settings that were coming out *too wide*.
 
-  What would actually address it is a reorder rather than a compensation:
-  normalise the span *after* the reshapings instead of before. The centring must
-  stay where it is - the correction would otherwise measure the bias's lean and
-  take it straight back out, and that lean is the point of the bias - so it
-  means splitting the two halves of the correction across the reshapings. That
-  is a real restructure of `stepped_norm.h` and nobody has costed it.
+  Two things it must not disturb, and does not. It is anchored at the reshaped
+  value at phase 0, which every length shares because the centring constant is
+  length-independent - so the loop still closes and pattern length still
+  switches seamlessly on the wrap. And being applied *after* the maps, it scales
+  the finished waveform uniformly: the plateaus stay plateaus.
+
+  **Applying it before the maps instead does not work, and was measured.** A
+  gain change ahead of the terracing moves values against its cell boundaries,
+  so it changes which plateau each one lands on - the character, not the level.
+  The first attempt did that, iterating on the pre-stage gain, and it also broke
+  `ST_NORM_FLOOR` at two settings by removing a widening the floor had been
+  carrying by luck.
+
+  A caution for anyone measuring this: `cycle_level()` in the test suite
+  evaluates through a *bare* drive - bias 0, terrace 0 - so the reshapings are
+  the identity there and it cannot see any of this. An early comparison using it
+  produced a confident and completely wrong conclusion. Measure through
+  `st_drive(shape, mod)`, which is what a channel plays.
+
+  It costs 3.6% of the engine at the worst case measured on the module - three
+  map evaluations and a divide per completed scan pass, and one multiply-add per
+  sample - taking `load` from 0.44 to 0.45.
+
 - **Swing on odd lengths** makes step 0 and step L-1 both wide at lengths 3 and
   5 - a lopsided shuffle.
 - **Every hardware measurement here was taken on the `-O0` debug build**, which

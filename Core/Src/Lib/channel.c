@@ -364,7 +364,7 @@ void channel_compute(uint8_t ch, EngineState* es, const EngineConfig* cfg, const
     // because working it out means walking the whole pattern. Scanned first, so
     // a channel that has just arrived in this mode is corrected on its first
     // tick rather than after a cycle of it.
-    st_norm_scan(&es->channels_stepped_scan[ch], slots, shape, mod, *latched_idx, dt_s, ch == es->st_scan_turn);
+    st_norm_scan(&es->channels_stepped_scan[ch], slots, &d, shape, mod, *latched_idx, dt_s, ch == es->st_scan_turn);
     raw = stepped_shape_cached(&scratch->stepped.step, slots, phase, shape, mod, *latched_idx, &d, &es->channels_stepped_scan[ch].norm);
     break;
   }

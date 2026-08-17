@@ -173,7 +173,10 @@ float stepped_shape_with(float phase, float shape, float mod, int length_idx, co
 // tools, and the moments where a channel cannot wait for a scan - the first
 // tick in a stepped mode, and a change of pattern length, which swaps the whole
 // pattern at once.
-StNorm st_norm_exact(float shape, float mod, int length_idx);
+// `drive` because the correction now spans the reshapings: it has to know what
+// they will do to the level it is setting. Pair it with the drive the caller
+// will actually pass to stepped_shape_with().
+StNorm st_norm_exact(float shape, float mod, int length_idx, const StDrive* drive);
 
 // What a channel remembers between ticks so it does not redo work that cannot
 // have changed.
@@ -271,6 +274,6 @@ typedef struct
 // changed under it - a length switch, a fast turn of SHP - moves the level
 // smoothly instead of stepping it. `dt_s` is the tick's own length, because the
 // engine has to be right at whatever rate its host ticks it.
-void st_norm_scan(StScan* s, StSlotMemo* memo, float shape, float mod, int length_idx, float dt_s, int may_measure);
+void st_norm_scan(StScan* s, StSlotMemo* memo, const StDrive* drive, float shape, float mod, int length_idx, float dt_s, int may_measure);
 
 #endif

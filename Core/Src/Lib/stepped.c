@@ -69,11 +69,70 @@ static float st_centre_at(float mod, float morph)
 
 static const StNormCtx st_ctx = {&st_slots, st_lengths, ST_LENGTH_COUNT, ST_JUMP_GRID, ST_HOLD_MAX};
 
-StNorm st_norm_exact(float shape, float mod, int length_idx)
+// Fill in the post-stage: the gain that puts the *output* span where the
+// pre-stage asked for it, applied after the reshapings so it cannot disturb
+// them.
+//
+// The correction picks a gain that puts the raw pattern's peak-to-peak where
+// ST_NORM_TARGET and ST_NORM_EXP want it. Then st_bias_map and st_terrace_map
+// reshape the result and the level moves again - the terracing pulls values
+// toward its cell centres and narrows the span, the bias driven positive pushes
+// them at the rails and widens it, and how much of either depends on where this
+// particular pattern's extremes fall. That is variance, not bias: the mean
+// moves about 4%, so no constant reaches it.
+//
+// Both maps are monotone, so the raw extremes are still the output's extremes
+// and two evaluations measure the whole span. One divide, no iteration: the
+// post gain is linear and applied last, so the span it produces is exactly
+// proportional to it.
+//
+// Bounded by the rails, the same way the pre-stage is. A post gain that pushed
+// the output past +/-1 would meet the clamp and flatten the peaks, which is
+// louder on average and worse to listen to. That bound is why the quietest
+// settings do not move: where the rails already set the gain there is no room.
+static StNorm st_norm_levelled(StNorm n, const StExtent* e, float centre, const StDrive* d)
 {
-  length_idx = iclamp(length_idx, 0, ST_LENGTH_COUNT - 1);
-  StMorph m  = st_morph(shape, mod, st_lengths[length_idx], ST_HOLD_MAX);
-  return st_norm_at(&st_ctx, st_lengths[length_idx], mod, m.orbit, st_centre_at(mod, m.morph));
+  const float ref = st_terrace_map(st_bias_map(fclamp(centre, -1.0f, 1.0f), d->bias), d->terrace);
+
+  n.post_ref  = ref;
+  n.post_gain = 1.0f;
+
+  // What the pre-stage asked for, and what the reshapings actually left.
+  const float want = (e->hi - e->lo) * n.gain;
+  const float hi   = st_terrace_map(st_bias_map(fclamp(centre + (e->hi - e->anchor) * n.gain, -1.0f, 1.0f), d->bias), d->terrace);
+  const float lo   = st_terrace_map(st_bias_map(fclamp(centre + (e->lo - e->anchor) * n.gain, -1.0f, 1.0f), d->bias), d->terrace);
+  const float got  = hi - lo;
+
+  if (!(want > 0.0f) || !(got > 1e-6f))
+  {
+    return n;
+  }
+
+  float limit = ST_NORM_MAX_GAIN;
+  if (hi > ref)
+  {
+    const float l = (1.0f - ref) / (hi - ref);
+    limit         = (l < limit) ? l : limit;
+  }
+  if (lo < ref)
+  {
+    const float l = (1.0f + ref) / (ref - lo);
+    limit         = (l < limit) ? l : limit;
+  }
+
+  n.post_gain = fclamp(want / got, ST_NORM_MIN_GAIN, limit);
+  return n;
+}
+
+StNorm st_norm_exact(float shape, float mod, int length_idx, const StDrive* drive)
+{
+  length_idx         = iclamp(length_idx, 0, ST_LENGTH_COUNT - 1);
+  StMorph m          = st_morph(shape, mod, st_lengths[length_idx], ST_HOLD_MAX);
+  const float centre = st_centre_at(mod, m.morph);
+
+  StExtent e;
+  StNorm n = st_norm_at(&st_ctx, st_lengths[length_idx], mod, m.orbit, centre, &e);
+  return st_norm_levelled(n, &e, centre, drive);
 }
 
 // How long the correction takes to follow a pattern that changed under it.
@@ -88,7 +147,7 @@ StNorm st_norm_exact(float shape, float mod, int length_idx)
 // standing channel is allowed to stop working.
 #define ST_NORM_SETTLED 1e-6f
 
-void st_norm_scan(StScan* s, StSlotMemo* memo, float shape, float mod, int length_idx, float dt_s, int may_measure)
+void st_norm_scan(StScan* s, StSlotMemo* memo, const StDrive* drive, float shape, float mod, int length_idx, float dt_s, int may_measure)
 {
   length_idx = (int8_t) iclamp(length_idx, 0, ST_LENGTH_COUNT - 1);
   int length = st_lengths[length_idx];
@@ -117,7 +176,7 @@ void st_norm_scan(StScan* s, StSlotMemo* memo, float shape, float mod, int lengt
     // A channel's first tick in this mode has nothing to correct with and
     // nothing to slew from, so it pays for one full measurement - the only
     // place that cost is taken, since a mode change is not a per-tick event.
-    s->target     = st_norm_exact(shape, mod, length_idx);
+    s->target     = st_norm_exact(shape, mod, length_idx, drive);
     s->norm       = s->target;
     s->length_idx = (int8_t) length_idx;
     s->slot       = 0;
@@ -166,13 +225,18 @@ void st_norm_scan(StScan* s, StSlotMemo* memo, float shape, float mod, int lengt
       float centre = st_centre_at(mod, m.morph);
       float g      = st_gain_for(&e, centre);
       float gf     = st_gain_floor(&e, centre);
-      s->target    = st_norm_affine(centre, s->anchor, (gf > g) ? gf : g);
+
+      // ...and the post-stage, which is where the level the two lines above
+      // just set was being handed straight back to the reshapings.
+      s->target = st_norm_levelled(st_norm_affine(centre, s->anchor, (gf > g) ? gf : g), &e, centre, drive);
     }
   }
 
   float k = fclamp(dt_s / ST_NORM_SMOOTH_S, 0.0f, 1.0f);
   s->norm.gain += (s->target.gain - s->norm.gain) * k;
   s->norm.offset += (s->target.offset - s->norm.offset) * k;
+  s->norm.post_gain += (s->target.post_gain - s->norm.post_gain) * k;
+  s->norm.post_ref += (s->target.post_ref - s->norm.post_ref) * k;
 }
 
 // How far MOD winds the ease up: fully slewed at one end, ST_HOLD_HARD at the
@@ -243,7 +307,11 @@ static float st_blend_out(float from, float to, float within, const StDrive* dri
   // - and it cannot reorder a step, which is what keeps a fast knob from
   // reading as a fresh draw.
   float corrected = fclamp(value * norm->gain + norm->offset, -1.0f, 1.0f);
-  return st_terrace_map(st_bias_map(corrected, drive->bias), drive->terrace);
+  float shaped    = st_terrace_map(st_bias_map(corrected, drive->bias), drive->terrace);
+
+  // The level, last. See StNorm: a uniform scale about the phase-0 value, so
+  // the reshapings above keep their character and only how loud they are moves.
+  return fclamp(norm->post_ref + (shaped - norm->post_ref) * norm->post_gain, -1.0f, 1.0f);
 }
 
 float stepped_shape_with(float phase, float shape, float mod, int length_idx, const StDrive* drive, const StNorm* norm)
@@ -312,7 +380,7 @@ float stepped_shape_cached(StStepCache* c, StSlotMemo* memo, float phase, float 
 
 float stepped_shape(float phase, float shape, float mod, int length_idx, float hold)
 {
-  StNorm n  = st_norm_exact(shape, mod, length_idx);
   StDrive d = {hold, 0.0f, 0.0f};
+  StNorm n  = st_norm_exact(shape, mod, length_idx, &d);
   return stepped_shape_with(phase, shape, mod, length_idx, &d, &n);
 }
