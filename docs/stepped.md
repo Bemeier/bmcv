@@ -236,9 +236,32 @@ are ordering-based and were blind to the reshapings entirely.
 - **Terracing costs level consistency.** It shrinks a pattern's peak-to-peak by
   an amount depending on where its extremes fall against the cell boundaries -
   variance rather than bias, so the mean span moves only 4% and no global
-  compensation reaches it. The span ratio along a SHP sweep is 2.3-2.4 against
-  1.7-2.0 without it. The fix, if wanted: let the scan measure the pattern
-  *through* the reshapings and set the gain from the output span.
+  compensation reaches it.
+
+  **The obvious fix was tried and measured worse.** Letting the scan set the
+  gain from the *output* span - solving for the gain whose span after the bias
+  and the terracing is the one the correction asked for - took the span ratio
+  across the whole (SHP, MOD, length) grid from **1.844 to 2.665**: minimum
+  0.879 to 0.683, maximum 1.622 to 1.819. Both ends got worse.
+
+  Two reasons, and they are worth knowing before anyone tries it again:
+
+  - **The rails bind at many settings.** `st_gain_toward` already clamps the
+    gain so the corrected pattern stays inside +/-1. Where that clamp is what
+    sets the gain, no amount of compensation can widen the output, so the
+    correction lands on some settings and not others - which is spread, not
+    consistency.
+  - **The reshapings do not only shrink.** `st_bias_map` driven positive pushes
+    values toward the rails and *widens* a span. Compensating removes that
+    widening, and at two settings it took the span under `ST_NORM_FLOOR` - a
+    guarantee the widening had been carrying by luck.
+
+  What would actually address it is a reorder rather than a compensation:
+  normalise the span *after* the reshapings instead of before. The centring must
+  stay where it is - the correction would otherwise measure the bias's lean and
+  take it straight back out, and that lean is the point of the bias - so it
+  means splitting the two halves of the correction across the reshapings. That
+  is a real restructure of `stepped_norm.h` and nobody has costed it.
 - **Swing on odd lengths** makes step 0 and step L-1 both wide at lengths 3 and
   5 - a lopsided shuffle.
 - **Every hardware measurement here was taken on the `-O0` debug build**, which
