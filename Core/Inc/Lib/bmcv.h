@@ -80,6 +80,23 @@ typedef struct
   // Appended, for the reason the comment above gives: a stale profile.sh keeps
   // reading the right offsets for everything before it.
   BmcvSpan dac_cplt;
+
+  // The LED pass: the render into the framebuffer plus the DMA kick that sends
+  // it. Runs in the main loop *outside* the gated block, so it never shows up
+  // in `tick` and cannot raise `overruns` - it delays the next tick instead,
+  // which until `late` existed was not counted anywhere at all.
+  BmcvSpan led;
+
+  // How late each tick began against its deadline. `overruns` measures a tick
+  // that ran long; this measures one that started late, which is the other way
+  // the output loses its even spacing and the one that work outside the tick
+  // causes. In cycles, like every other span here.
+  BmcvSpan late;
+
+  // Ticks late by more than ENGINE_TICK_SLACK_US, so the schedule was rebased
+  // rather than kept. Every one of these is an interval the output stage had to
+  // reconstruct against a period it did not expect.
+  uint32_t rebases;
 } BmcvProfile;
 
 extern BmcvProfile bmcv_profile;

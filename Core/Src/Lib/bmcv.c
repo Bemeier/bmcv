@@ -588,9 +588,13 @@ void bmcv_main(uint32_t now_us)
     if (late_us > (int32_t) ENGINE_TICK_SLACK_US)
     {
 #if BMCV_PROFILE
-      if (engine_started && late_us >= (int32_t) ENGINE_TICK_US)
+      if (engine_started)
       {
-        bmcv_profile.resyncs++; // a whole period lost, not merely a late tick
+        bmcv_profile.rebases++;
+        if (late_us >= (int32_t) ENGINE_TICK_US)
+        {
+          bmcv_profile.resyncs++; // a whole period lost, not merely a late tick
+        }
       }
 #endif
       next_engine_us = now_us + ENGINE_TICK_US;
@@ -599,6 +603,13 @@ void bmcv_main(uint32_t now_us)
     {
       next_engine_us += ENGINE_TICK_US;
     }
+
+#if BMCV_PROFILE
+    if (engine_started)
+    {
+      span_record(&bmcv_profile.late, (uint32_t) late_us * (SystemCoreClock / 1000000u));
+    }
+#endif
 
     const uint8_t engine_started_before = engine_started;
     engine_started                      = 1;
@@ -746,8 +757,12 @@ void bmcv_main(uint32_t now_us)
   {
     isr_flag_take(&led_poll);
 
+    [[maybe_unused]] const uint32_t t_led = PROFILE_NOW();
     bmcv_flush_leds();
     ws2811_update();
+#if BMCV_PROFILE
+    span_record(&bmcv_profile.led, PROFILE_NOW() - t_led);
+#endif
     bmcv.engine_state.led_fps = rate_smooth_hz(bmcv.engine_state.led_fps, now_us - last_led_flush);
     last_led_flush            = now_us;
   }

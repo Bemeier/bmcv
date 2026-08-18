@@ -47,8 +47,11 @@ layout=$("${ARM_GCC_DIR:-$HOME/arm-gcc-xpack}/bin/arm-none-eabi-gdb-py3" -batch 
   -ex 'print (int)&((BmcvSpan *)0)->avg_us' \
   -ex 'print (int)&((BmcvProfile *)0)->dac' \
   -ex 'print (int)&((BmcvProfile *)0)->dac_cplt' \
+  -ex 'print (int)&((BmcvProfile *)0)->led' \
+  -ex 'print (int)&((BmcvProfile *)0)->late' \
+  -ex 'print (int)&((BmcvProfile *)0)->rebases' \
   "$ELF" 2>/dev/null | grep -oP '^\$\d+ = \K-?\d+$' | tr '\n' ' ')
-read -r SIZE OFF_TICK OFF_LOAD OFF_AVG OFF_DAC OFF_DAC_CPLT <<<"$layout"
+read -r SIZE OFF_TICK OFF_LOAD OFF_AVG OFF_DAC OFF_DAC_CPLT OFF_LED OFF_LATE OFF_REBASES <<<"$layout"
 if [[ -z "${OFF_AVG:-}" || "${SIZE:-0}" -lt 16 ]]; then
   echo "could not read the layout of BmcvProfile from $ELF (got '$layout')" >&2
   exit 1
@@ -63,11 +66,11 @@ if [[ -z "${words:-}" ]]; then
   exit 1
 fi
 
-python3 - "$addr" "$OFF_TICK" "$OFF_LOAD" "$OFF_AVG" "$OFF_DAC" "$OFF_DAC_CPLT" <<PY
+python3 - "$addr" "$OFF_TICK" "$OFF_LOAD" "$OFF_AVG" "$OFF_DAC" "$OFF_DAC_CPLT" "$OFF_LED" "$OFF_LATE" "$OFF_REBASES" <<PY
 import struct, sys
 w = [int(x, 16) for x in """$words""".split()]
 raw = b"".join(struct.pack("<I", x) for x in w)
-off_tick, off_load, off_avg, off_dac, off_dac_cplt = (int(a) for a in sys.argv[2:7])
+off_tick, off_load, off_avg, off_dac, off_dac_cplt, off_led, off_late, off_rebases = (int(a) for a in sys.argv[2:10])
 
 def span(off):
     max_at = struct.unpack_from("<I", raw, off + 12)[0]
@@ -78,16 +81,20 @@ engine = span(0)
 tick   = span(off_tick)
 dac    = span(off_dac)
 dac_cplt = span(off_dac_cplt)
+led      = span(off_led)
+late     = span(off_late)
+rebases  = struct.unpack_from("<I", raw, off_rebases)[0]
 load, ticks, overruns, resyncs = struct.unpack_from("<f3I", raw, off_load)
 
 print(f"bmcv_profile @ {sys.argv[1]}   {ticks} ticks since boot")
 print()
 print(f"{'':8s} {'avg':>9s} {'min':>9s} {'max':>9s}")
-for name, s in (("engine", engine), ("tick", tick), ("dac", dac), ("dac_cplt", dac_cplt)):
+for name, s in (("engine", engine), ("tick", tick), ("dac", dac), ("dac_cplt", dac_cplt), ("led", led), ("late", late)):
     print(f"{name:8s} {s['avg']:8.1f}us {s['min']:8.1f}us {s['max']:8.1f}us   (max at tick {s['max_at']})")
 print()
 print(f"load     {load:.2f} of the tick period")
 print(f"overruns {overruns}  ({100.0*overruns/max(ticks,1):.1f}% of ticks ran past their period)")
+print(f"rebases  {rebases}  ({100.0*rebases/max(ticks,1):.1f}% of ticks started late enough to rebase the grid)")
 print(f"resyncs  {resyncs}  (ticks that began a whole period or more late)")
 
 # The dac row is one call of the service, measured inside the timer interrupt
