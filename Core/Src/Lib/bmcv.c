@@ -395,27 +395,30 @@ static void midi_publish(void)
 // explains, this is too small for the loop it is running in.
 #define ENGINE_TICK_SLACK_US (ENGINE_TICK_US / 16)
 
-// What the output ramp is spread over, tracked rather than assumed - see
-// dac_ramp_span_us and dac_write_interpolated(). This is where it starts and
-// what it returns to when the engine is keeping up.
+// Where the ramp span starts, and what it returns to when the engine is keeping
+// up. See dac_ramp_span_us, which follows the interval from here.
 #define DAC_RAMP_SPAN_US (ENGINE_TICK_US - ENGINE_TICK_SLACK_US)
 
 // The interval the ramp is spread over, following the interval the engine
 // actually achieves.
 //
-// A fixed span is right only while the engine keeps its period. Under a load
-// that holds ticks at, say, 800us - a crossfader sweep empties the stepped
-// caches every tick, which is the documented worst case - a 469us ramp finishes
-// and then holds flat for the remaining 331us of every tick. That is not a step
-// and so not a click, but it is a 40% duty hold at the tick rate, arriving
-// exactly when the scene blend is making the deltas large.
+// A fixed span is right only while the engine keeps its period. When a tick
+// runs long the level it produces is that much further ahead, and spreading it
+// over a shorter span moves the output faster than the signal actually does -
+// a velocity glitch, then a flat tail. Following the interval keeps the output
+// velocity honest.
 //
-// Shrinks at once and grows slowly, which makes it track the *shortest* recent
-// interval rather than the mean. That direction is the whole point: a span
-// longer than the next interval leaves the ramp unfinished and steps the
-// output, while a span shorter than it only costs a flat tail. Growth is
-// deliberately slow for the same reason - tick lengths under load vary, and the
-// mean of them is longer than the short ones.
+// Shrinks at once and grows slowly, so it tracks the *shortest* recent interval
+// rather than the mean: a span longer than the next interval leaves the ramp
+// unfinished, while a span shorter than it only costs a flat tail.
+//
+// The growth step is a bare shift, so it stalls once the gap is under 64us and
+// the span settles that far short of a sustained longer interval. Left that
+// way deliberately. Rounding it up was tried together with carrying the reached
+// value forward to close the resulting join, and the pair of them turned a rare
+// step into a gain that varied at the overrun rate - audible where the step was
+// not. The stall costs a flat tail of at most 64us in a regime this module has
+// not been measured entering; the cure cost more.
 static uint32_t dac_ramp_span_us = DAC_RAMP_SPAN_US;
 
 static int16_t dac_level_prev[N_CHANNELS];
@@ -423,9 +426,6 @@ static int16_t dac_level_curr[N_CHANNELS];
 
 static void dac_write_interpolated(uint32_t now_us)
 {
-  // The span the ramp is spread over: the interval the engine is achieving, not
-  // the one it is nominally asked for. See dac_ramp_span_us for how it is
-  // tracked, and the swap in bmcv_main for what happens when it guesses long.
   const uint32_t span = dac_ramp_span_us;
 
   uint32_t elapsed = now_us - last_engine_us;
@@ -625,32 +625,6 @@ void bmcv_main(uint32_t now_us)
     // which is exactly the far end of the span about to be interpolated. Mute
     // is an output-stage gain and engine_tick has already applied it.
     //
-    // How far the ramp actually got across the interval just ended, measured
-    // against the span that was in force for it.
-    const uint32_t span_was = dac_ramp_span_us;
-    const uint32_t ran_for  = now_us - last_engine_us;
-    const float frac_end    = (!engine_started_before || ran_for >= span_was) ? 1.0f : (float) ran_for / (float) span_was;
-
-    // The new ramp starts from where the output actually is, which is not always
-    // where the old one was aiming.
-    //
-    // dac_ramp_span_us is set from the interval that just *ended*, so it is one
-    // interval behind: when a sustained load lets go - the end of a crossfade -
-    // the span in force is still the long one while the interval is back to
-    // nominal, frac tops out short of 1, and taking the far end as the new near
-    // end would step the output by the difference. Carrying the value the ramp
-    // actually reached makes the join continuous whatever the span guessed. In
-    // the steady state frac_end is exactly 1 and this is the far end, so
-    // nothing changes where nothing is wrong.
-    //
-    // Computed before the mask; only the stores need to be inside it.
-    int16_t next_prev[N_CHANNELS];
-    for (uint8_t c = 0; c < N_CHANNELS; c++)
-    {
-      const float p = (float) dac_level_prev[c];
-      next_prev[c]  = (int16_t) (p + ((float) dac_level_curr[c] - p) * frac_end);
-    }
-
     // Under a mask, because "the same instant" has to be true for the DAC
     // interrupt as well as for the reader of this code. The service runs every
     // DAC_CHUNK_US and preempts the main loop freely, so without this it can
@@ -659,9 +633,9 @@ void bmcv_main(uint32_t now_us)
     // low. One chunk in seventy lands in that window, and the wrong level then
     // sits on the pin until its next frame, up to DAC_CHANNELS chunks later.
     //
-    // The mask spans the origin, the span and two stores per channel - eighteen
-    // in all, well under a microsecond, against the 4.4us the service it defers
-    // costs to run.
+    // The mask spans the origin and two stores per channel - seventeen in all,
+    // well under a microsecond, against the 4.4us the service it defers costs
+    // to run.
 
     // The interval just achieved, less the same slack the scheduler allows.
     uint32_t span_target = DAC_RAMP_SPAN_US;
@@ -680,30 +654,15 @@ void bmcv_main(uint32_t now_us)
       }
     }
 
-    // Down at once, up a sixty-fourth at a time - and never by nothing. The
-    // step is rounded up because a bare shift truncates to zero once the gap is
-    // under 64us, which would leave the span stalled just short of the interval
-    // for as long as the load lasted, holding the output flat for the last of
-    // every tick.
-    uint32_t span_next = span_target;
-    if (span_target > dac_ramp_span_us)
-    {
-      span_next = dac_ramp_span_us + ((span_target - dac_ramp_span_us) >> 6) + 1u;
-      if (span_next > span_target)
-      {
-        span_next = span_target; // never overshoot: a span past the interval steps the output
-      }
-    }
-
     const uint32_t primask = __get_PRIMASK();
     __disable_irq();
 
-    dac_ramp_span_us = span_next;
+    dac_ramp_span_us = (span_target < dac_ramp_span_us) ? span_target : dac_ramp_span_us + ((span_target - dac_ramp_span_us) >> 6);
 
     last_engine_us = now_us;
     for (uint8_t c = 0; c < N_CHANNELS; c++)
     {
-      dac_level_prev[c] = next_prev[c];
+      dac_level_prev[c] = dac_level_curr[c];
       dac_level_curr[c] = bmcv.engine_state.channels_gated_level[c];
     }
 
@@ -786,6 +745,7 @@ void bmcv_main(uint32_t now_us)
   if (isr_flag_peek(&led_poll) && ws2811_dma_completed())
   {
     isr_flag_take(&led_poll);
+
     bmcv_flush_leds();
     ws2811_update();
     bmcv.engine_state.led_fps = rate_smooth_hz(bmcv.engine_state.led_fps, now_us - last_led_flush);
