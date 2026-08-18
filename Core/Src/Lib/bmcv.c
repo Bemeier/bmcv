@@ -353,29 +353,60 @@ static void midi_publish(void)
 // Firmware-side, on the way out. engine_state still holds the exact per-tick
 // levels, so internal trigger routing, the LED render and the other hosts see
 // what they always saw.
+
+// How late a tick may be before the scheduler stops trying to keep the grid and
+// rebases. Small enough that ordinary loop jitter stays on the grid, large
+// enough to catch a real overrun, which is the only thing that shortens an
+// interval.
+//
+// What it costs is drift, and the drift is worth checking rather than assuming:
+// on a patch with six stepped channels, 6.1% of ticks overrun and engine_fps
+// reads 1979 against a nominal 2000. That 1% is the overruns alone - 0.061 x
+// ~80us of lateness is the 5us a tick it works out to - so nothing is rebasing
+// that should not be. If engine_fps ever sags further than the overrun rate
+// explains, this is too small for the loop it is running in.
+#define ENGINE_TICK_SLACK_US (ENGINE_TICK_US / 16)
+
+// What the output ramp is spread over, tracked rather than assumed - see
+// dac_ramp_span_us and dac_write_interpolated(). This is where it starts and
+// what it returns to when the engine is keeping up.
+#define DAC_RAMP_SPAN_US (ENGINE_TICK_US - ENGINE_TICK_SLACK_US)
+
+// The interval the ramp is spread over, following the interval the engine
+// actually achieves.
+//
+// A fixed span is right only while the engine keeps its period. Under a load
+// that holds ticks at, say, 800us - a crossfader sweep empties the stepped
+// caches every tick, which is the documented worst case - a 469us ramp finishes
+// and then holds flat for the remaining 331us of every tick. That is not a step
+// and so not a click, but it is a 40% duty hold at the tick rate, arriving
+// exactly when the scene blend is making the deltas large.
+//
+// Shrinks at once and grows slowly, which makes it track the *shortest* recent
+// interval rather than the mean. That direction is the whole point: a span
+// longer than the next interval leaves the ramp unfinished and steps the
+// output, while a span shorter than it only costs a flat tail. Growth is
+// deliberately slow for the same reason - tick lengths under load vary, and the
+// mean of them is longer than the short ones.
+static uint32_t dac_ramp_span_us = DAC_RAMP_SPAN_US;
+
 static int16_t dac_level_prev[N_CHANNELS];
 static int16_t dac_level_curr[N_CHANNELS];
 
-// How long the last tick actually took, which is what the ramp is spread over.
-//
-// Not ENGINE_TICK_US, which is what this used to divide by. The two agree only
-// while the loop is keeping up: when a tick runs long - eight stepped channels
-// will do it - the ramp reaches its target in the nominal period and then sits
-// flat for whatever is left, so the interpolation quietly stops interpolating
-// exactly where it is needed. Dividing by the period that is actually being
-// served spreads the ramp across the whole of it however long it turns out to
-// be, and a fixed-rate loop gives the same answer either way.
-static uint32_t engine_period_us = ENGINE_TICK_US;
-
 static void dac_write_interpolated(uint32_t now_us)
 {
+  // The span the ramp is spread over: the interval the engine is achieving, not
+  // the one it is nominally asked for. See dac_ramp_span_us for how it is
+  // tracked, and the swap in bmcv_main for what happens when it guesses long.
+  const uint32_t span = dac_ramp_span_us;
+
   uint32_t elapsed = now_us - last_engine_us;
-  if (elapsed > engine_period_us)
+  if (elapsed > span)
   {
-    elapsed = engine_period_us; // a late tick holds at the target, never past it
+    elapsed = span; // a late tick holds at the target, never past it
   }
 
-  const float frac = (float) elapsed / (float) engine_period_us;
+  const float frac = (float) elapsed / (float) span;
 
   for (uint8_t c = 0; c < N_CHANNELS; c++)
   {
@@ -484,37 +515,158 @@ void bmcv_main(uint32_t now_us)
   // reached its target 13us early and sat flat there for the rest of every
   // tick. Nominal and actual have to agree for that fraction to mean anything.
   //
-  // Still not a catch-up. A tick that lands a whole period late is dropped and
-  // the schedule resynchronised, rather than repaid as a burst of ticks with
-  // made-up timestamps: the engine is dt-driven, so one long dt is the honest
-  // account of a loop that could not keep up, and `resyncs` counts how often
-  // that has happened.
-  if ((int32_t) (now_us - next_engine_us) >= 0)
-  {
-    next_engine_us += ENGINE_TICK_US;
+  // Still not a catch-up. A tick that lands late rebases the schedule rather
+  // than being repaid as a burst of ticks with made-up timestamps: the engine
+  // is dt-driven, so one long dt is the honest account of a loop that could not
+  // keep up, and `resyncs` counts the ones that lost a whole period.
+  //
+  // Rebased on *any* late tick, not only one a whole period behind. A fixed
+  // grid repays a long tick with a short one - the deadline it missed has
+  // already passed, so the next tick fires back to back - and the intervals
+  // come out 500, 700, 300, 500. The 300 is what was heard: the interpolation
+  // cannot finish a ramp inside an interval shorter than its span, so the
+  // output was still 57% short of the target when the pair advanced, and it
+  // stepped the rest of the way. Measured at one overrun every three seconds,
+  // which is a crackle rather than a tone.
+  //
+  // What rebasing costs is grid drift, which is what the fixed grid was for.
+  // At the measured overrun rate that is ~60us per second - engine_fps 2000.03
+  // becomes 1999.9, 0.006%. The 5% the fixed grid was introduced to fix came
+  // from rebasing on *every* tick, not on one in six thousand.
+  const int32_t late_us = (int32_t) (now_us - next_engine_us);
 
-    if ((int32_t) (now_us - next_engine_us) >= (int32_t) ENGINE_TICK_US)
+  if (late_us >= 0)
+  {
+    // Late by more than the slack: rebase, so the interval this tick opens is a
+    // whole period rather than what is left of one.
+    //
+    // Measured against `late_us` and not against the deadline already advanced
+    // past it, which is the version that did not work: a 700us tick leaves the
+    // next tick 200us late, that is less than a period, and the test never
+    // fired on the case it was written for.
+    if (late_us > (int32_t) ENGINE_TICK_SLACK_US)
     {
-      next_engine_us = now_us + ENGINE_TICK_US;
 #if BMCV_PROFILE
-      if (engine_started)
+      if (engine_started && late_us >= (int32_t) ENGINE_TICK_US)
       {
-        bmcv_profile.resyncs++;
+        bmcv_profile.resyncs++; // a whole period lost, not merely a late tick
       }
 #endif
+      next_engine_us = now_us + ENGINE_TICK_US;
     }
-
-    if (engine_started)
+    else
     {
-      // Measured rather than assumed, and clamped: a resync leaves a gap that
-      // is not a period, and stretching a ramp across it would hold the output
-      // still for as long as the gap lasted.
-      uint32_t seen    = now_us - last_engine_us;
-      engine_period_us = (seen < ENGINE_TICK_US) ? ENGINE_TICK_US : ((seen > ENGINE_TICK_US * 4) ? ENGINE_TICK_US * 4 : seen);
+      next_engine_us += ENGINE_TICK_US;
     }
 
-    engine_started = 1;
+    const uint8_t engine_started_before = engine_started;
+    engine_started                      = 1;
+
+    /* ---- hardware out, for the tick that just ended ----------------- */
+    // Advanced here and not after engine_tick(), because the pair and the
+    // instant the interpolation measures from have to be the same instant.
+    //
+    // They were not. `last_engine_us` was taken here and the pair was advanced
+    // after the engine had run - 204us later, measured. So for the first 204us
+    // of every tick, frac restarted at 0 against the pair the *previous* tick
+    // had already walked to frac 1: the output jumped back a whole inter-tick
+    // delta, re-climbed 40% of it, then jumped forward again when the pair
+    // finally moved. A 2kHz sawtooth of one tick's delta, riding on the signal
+    // - 1.57V p-p on a 100Hz sine at full swing, which is what was on the scope
+    // and what was heard.
+    //
+    // It could not be filtered and it could not be outrun: 2kHz is only 2.8x
+    // above the 723Hz pole at the jack, and the amplitude is set by the tick
+    // rate, so doubling DAC_SUBSTEPS sampled the same broken trajectory more
+    // finely and changed nothing audible.
+    //
+    // channels_gated_level[] still holds what the last engine_tick() computed,
+    // which is exactly the far end of the span about to be interpolated. Mute
+    // is an output-stage gain and engine_tick has already applied it.
+    //
+    // How far the ramp actually got across the interval just ended, measured
+    // against the span that was in force for it.
+    const uint32_t span_was = dac_ramp_span_us;
+    const uint32_t ran_for  = now_us - last_engine_us;
+    const float frac_end    = (!engine_started_before || ran_for >= span_was) ? 1.0f : (float) ran_for / (float) span_was;
+
+    // The new ramp starts from where the output actually is, which is not always
+    // where the old one was aiming.
+    //
+    // dac_ramp_span_us is set from the interval that just *ended*, so it is one
+    // interval behind: when a sustained load lets go - the end of a crossfade -
+    // the span in force is still the long one while the interval is back to
+    // nominal, frac tops out short of 1, and taking the far end as the new near
+    // end would step the output by the difference. Carrying the value the ramp
+    // actually reached makes the join continuous whatever the span guessed. In
+    // the steady state frac_end is exactly 1 and this is the far end, so
+    // nothing changes where nothing is wrong.
+    //
+    // Computed before the mask; only the stores need to be inside it.
+    int16_t next_prev[N_CHANNELS];
+    for (uint8_t c = 0; c < N_CHANNELS; c++)
+    {
+      const float p = (float) dac_level_prev[c];
+      next_prev[c]  = (int16_t) (p + ((float) dac_level_curr[c] - p) * frac_end);
+    }
+
+    // Under a mask, because "the same instant" has to be true for the DAC
+    // interrupt as well as for the reader of this code. The service runs every
+    // DAC_CHUNK_US and preempts the main loop freely, so without this it can
+    // land between the new origin and a channel the loop has not reached yet -
+    // and read frac 0 against the *previous* pair, which is one whole delta
+    // low. One chunk in seventy lands in that window, and the wrong level then
+    // sits on the pin until its next frame, up to DAC_CHANNELS chunks later.
+    //
+    // The mask spans the origin, the span and two stores per channel - eighteen
+    // in all, well under a microsecond, against the 4.4us the service it defers
+    // costs to run.
+
+    // The interval just achieved, less the same slack the scheduler allows.
+    uint32_t span_target = DAC_RAMP_SPAN_US;
+    if (engine_started_before)
+    {
+      const uint32_t seen = now_us - last_engine_us;
+
+      span_target = seen - (seen / 16u);
+      if (span_target < ENGINE_TICK_US / 4u)
+      {
+        span_target = ENGINE_TICK_US / 4u;
+      }
+      else if (span_target > ENGINE_TICK_US * 4u)
+      {
+        span_target = ENGINE_TICK_US * 4u;
+      }
+    }
+
+    // Down at once, up a sixty-fourth at a time - and never by nothing. The
+    // step is rounded up because a bare shift truncates to zero once the gap is
+    // under 64us, which would leave the span stalled just short of the interval
+    // for as long as the load lasted, holding the output flat for the last of
+    // every tick.
+    uint32_t span_next = span_target;
+    if (span_target > dac_ramp_span_us)
+    {
+      span_next = dac_ramp_span_us + ((span_target - dac_ramp_span_us) >> 6) + 1u;
+      if (span_next > span_target)
+      {
+        span_next = span_target; // never overshoot: a span past the interval steps the output
+      }
+    }
+
+    const uint32_t primask = __get_PRIMASK();
+    __disable_irq();
+
+    dac_ramp_span_us = span_next;
+
     last_engine_us = now_us;
+    for (uint8_t c = 0; c < N_CHANNELS; c++)
+    {
+      dac_level_prev[c] = next_prev[c];
+      dac_level_curr[c] = bmcv.engine_state.channels_gated_level[c];
+    }
+
+    __set_PRIMASK(primask);
 
     [[maybe_unused]] const uint32_t t_tick_start = PROFILE_NOW();
 
@@ -549,19 +701,6 @@ void bmcv_main(uint32_t now_us)
     // that call, for the reason instance.h gives: it interleaves the profiling
     // above between the two halves.
     midi_out_publish(&bmcv.midi_out, &bmcv.engine_state, &bmcv.input.curr, now_us);
-
-    /* ---- hardware out --------------------------------------------- */
-    // Advance the pair the DAC service slides between, rather than writing the
-    // buffer here: what reaches the pins is now interpolated between two ticks,
-    // and this is the tick that just became the far end of it.
-    //
-    // channels_gated_level[] rather than channels_output_level[]: mute is an
-    // output-stage gain, and engine_tick has already applied it.
-    for (uint8_t c = 0; c < N_CHANNELS; c++)
-    {
-      dac_level_prev[c] = dac_level_curr[c];
-      dac_level_curr[c] = bmcv.engine_state.channels_gated_level[c];
-    }
 
 #if BMCV_PROFILE
     const uint32_t tick_cycles = PROFILE_NOW() - t_tick_start;
