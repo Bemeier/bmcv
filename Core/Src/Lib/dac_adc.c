@@ -119,6 +119,13 @@ static void dacadc_rx_flush(void)
   (void) spi->SR;
 }
 
+// Which pair of outputs the next dacadc_dma_next() will put on the wire.
+//
+// A transaction carries six bytes - one 24-bit word to each DAC of the
+// daisy-chained pair - so it latches two of the eight outputs and the other six
+// are not read. Callers use this to interpolate only what is about to be sent.
+uint8_t dacadc_next_group(void) { return (uint8_t) ((dacadc.CH_IDX + 1) % DAC_CHANNELS); }
+
 void dacadc_dma_next(void)
 {
   dacadc.CH_IDX = (dacadc.CH_IDX + 1) % DAC_CHANNELS;

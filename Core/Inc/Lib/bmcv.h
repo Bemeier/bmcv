@@ -51,11 +51,14 @@ typedef struct
   // every 8ms would put it near 1 in 31, a startup transient leaves it at 1.
   uint32_t overruns;
 
-  // Ticks dropped outright: the schedule had fallen a whole period behind and
-  // was resynchronised to now rather than repaid as a burst. An overrun is the
-  // loop running late and catching up; a resync is a tick that never happened,
-  // and any number here that keeps climbing means the tick period is too short
-  // for the work in it.
+  // Ticks that began a whole period or more after the deadline they were meant
+  // to meet. The schedule is rebased on them rather than repaid as a burst.
+  //
+  // No tick is dropped any more - the deadline moves and the tick still runs -
+  // so this counts lateness, not absence. A smaller overshoot rebases too and
+  // is deliberately not counted here: `overruns` already covers it, and this
+  // number is meant to stay near zero. Any figure that keeps climbing means the
+  // tick period is too short for the work in it.
   uint32_t resyncs;
 
   // One call of the DAC service, measured inside the timer interrupt that now
@@ -67,6 +70,16 @@ typedef struct
   // avg_us against the service period is the share of the CPU the interrupt has
   // taken, and it is taken from the engine, which had none to spare.
   BmcvSpan dac;
+
+  // The other half of the DAC's cost, and until now the unmeasured half: the
+  // DMA completion, which raises SYNC, decodes two ADC channels and runs the
+  // trigger thresholds. It is a separate interrupt from the service above, so
+  // `dac` alone understates what the converter path takes from the engine -
+  // which is the number the substep count has to be decided against.
+  //
+  // Appended, for the reason the comment above gives: a stale profile.sh keeps
+  // reading the right offsets for everything before it.
+  BmcvSpan dac_cplt;
 } BmcvProfile;
 
 extern BmcvProfile bmcv_profile;

@@ -16,6 +16,10 @@ void dac_init();
 // it says nothing, where the HAL version returned whether the transfer started.
 void dacadc_dma_next(void);
 
+// The group of two outputs the next dacadc_dma_next() will send. DAC_BUF holds
+// all eight, but only one pair leaves on any one transaction.
+uint8_t dacadc_next_group(void);
+
 int16_t get_adc(uint8_t channel);
 
 uint8_t adc_read_trig_state(uint8_t channel);

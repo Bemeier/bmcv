@@ -79,11 +79,29 @@ static uint8_t task = 0;
 // gives up is oversampling - at 1 the interpolation has nothing to interpolate
 // between, and it only starts earning its keep again at 2.
 //
-// 2 now, because the engine's period went to 500us and paid for it. A chunk is
-// 62.5us, the interrupt is 8% of the CPU, and the output is 4032 frames/s -
-// the same rate the 4kHz engine managed, with the interpolation finally
-// oversampling twice per tick instead of landing exactly on it.
-#define DAC_SUBSTEPS 2
+// 2 was that answer at a 500us tick: a 62us chunk, 4032 frames/s per pin, the
+// interpolation finally oversampling twice per tick instead of landing exactly
+// on it.
+//
+// 4 now, and for the output rather than for the engine. The step a pin holds is
+// (dV/dt * frame period), so halving the period halves the step - and moves the
+// ripple an octave up, where the 100R/2.2uF at the jack attenuates it 6dB
+// harder. Both together are ~12dB off the staircase for one doubling, which is
+// the cheapest noise there is to buy.
+//
+// Nothing in the converter objects. AD5754 Rev F: SCLK cycle 33ns (30MHz, we
+// run 18), minimum SYNC high in daisy-chain mode 200ns against the 28us this
+// leaves, settling 10us for a full-scale step against a 124us frame. Six bytes
+// is 2.67us of wire in a 31us chunk, so the bus is 9% used. The cost is all
+// CPU, and it is two interrupts per chunk, not one - see bmcv_profile.dac and
+// bmcv_profile.dac_cplt, which is why the second one is now measured.
+//
+// Measured on the module, and the per-chunk cost is rate-independent: dac 4.4us
+// plus dac_cplt 2.1us, so 6.5us of every chunk either way. That is 10.5% of the
+// CPU at 62us and 21% at 31us, and it took `load` from 0.39 to 0.48 with
+// engine_fps holding 2000.03. The 8% this file used to claim was dac alone,
+// before the completion interrupt was measured at all.
+#define DAC_SUBSTEPS 4
 
 // The cadence the service runs at: DAC_SUBSTEPS frames per tick, a frame being
 // DAC_CHANNELS transactions of two outputs each. 62.5us at a 2kHz tick.
@@ -270,9 +288,19 @@ void bmcv_handle_txrx_complete(SPI_HandleTypeDef* hspi) { mcp_handle_txrx_comple
 // same one every time.
 void bmcv_handle_dac_complete(void)
 {
+  [[maybe_unused]] const uint32_t t_start = PROFILE_NOW();
+
+  // Recorded only when the transfer was ours. The DMA vector is shared, so
+  // dacadc_dma_isr() returns 0 for somebody else's flags after a handful of
+  // instructions - counting those would average the cheap early return into the
+  // very number the substep count has to be decided against.
   if (dacadc_dma_isr())
   {
     isr_flag_set(&dac_poll);
+
+#if BMCV_PROFILE
+    span_record(&bmcv_profile.dac_cplt, PROFILE_NOW() - t_start);
+#endif
   }
 }
 
@@ -408,11 +436,24 @@ static void dac_write_interpolated(uint32_t now_us)
 
   const float frac = (float) elapsed / (float) span;
 
+  // Only the pair about to go out. All eight used to be interpolated on every
+  // chunk and six of them overwritten before they were ever clocked anywhere -
+  // a transaction carries one word to each DAC of the chain, so two outputs.
+  // The values are identical either way, because a slot is now written at the
+  // same instant it is sent rather than on each of the four chunks before it.
+  const uint8_t group = dacadc_next_group();
+
   for (uint8_t c = 0; c < N_CHANNELS; c++)
   {
+    const uint8_t idx = bmcv.ux_setup->channels[c].dac_channel;
+    if ((uint8_t) (idx >> 1) != group)
+    {
+      continue; // DAC_BUF pairs the two chips per channel letter: idx 2g, 2g+1
+    }
+
     const float prev = (float) dac_level_prev[c];
     const float v    = prev + ((float) dac_level_curr[c] - prev) * frac;
-    dacadc_write(bmcv.ux_setup->channels[c].dac_channel, (int16_t) v);
+    dacadc_write(idx, (int16_t) v);
   }
 }
 
