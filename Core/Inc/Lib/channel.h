@@ -80,6 +80,17 @@
 #define PLL_RATIO_STABLE_US MS(120)
 #define PLL_RATIO_EPS 0.001f
 
+// How far the live ratio may drift from the latched rational p/q before the
+// grid it describes is treated as stale and the correction stops.
+//
+// Measured as |ratio * q - p|, which is find_denominator's own criterion and
+// the right dimension for it: the quantity is cycles of drift per alignment
+// period, so a threshold here bounds how fast the phase error can run away
+// before the loop gives up on the grid rather than chasing it round the wrap.
+// Twice find_denominator's 0.025, so a rational it was willing to return is
+// never immediately rejected.
+#define PLL_GRID_TOL 0.05f
+
 // How close to the top of a beat the alignment rational may be swapped. The old
 // grid and the new one meet at the beat boundary and are furthest apart in the
 // middle of one, so the swap is held for this window and the step it would

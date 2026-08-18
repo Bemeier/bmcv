@@ -558,6 +558,79 @@ change that would have made it. The argument earlier in this document turned on
 `rms_tail` being 0.00002 beats against a 248 us DAC frame; at tau 0.35 it reads
 0.00001. Revisit at tau far below 0.2s, not before.
 
+## Step 6: the grid the ratio has left
+
+Step 4 made the target a function of the latched rational `p/q` rather than of
+the live ratio, which is what makes it continuous across the wrap of
+`beat_counter % q`. The corollary went unhandled, and the module found it.
+
+**A ratio that has moved away from `p/q` describes a grid the oscillator cannot
+be on.** A ratio in motion never holds still for `PLL_RATIO_STABLE_US`, so the
+rational cannot be re-latched until the fader stops. Until then the error runs
+off, wraps at half a cycle, and the correction slams sign on every wrap.
+
+Found on a patch whose two scenes were **x64 and x32** - a whole FRQ sweep apart
+rather than a detent, which is what a channel used as an audio-rate LFO looks
+like. A one-second fader move **wrapped 49 times, and kept crossing 63 more
+times after the fader stopped**: a ~50 Hz square-wave frequency modulation, heard
+as grit through the transition rather than as pitch.
+
+This document already predicted the mechanism in Step 4 - "the rational stays at
+the pre-sweep value throughout and the loop leans on the clamp against a rate
+that is running away from it" - and judged the cost acceptable. At x1 -> x4 it
+is. At x64 -> x32 the divergence is thirty times larger, and the loop stops
+leaning and starts wrapping. **The suite could not have caught it: every sweep
+case in it was a low ratio, which drifts too slowly to wrap inside the move.**
+
+So the correction runs only while the latched rational still describes the rate
+the channel is running at - `|ratio * q - p| <= 0.05`, find_denominator's own
+tolerance with slack. When it does not, the channel free-runs at the rate asked
+for, which is exactly what an unrecognised ratio already got, and acquires the
+moment the rate holds still.
+
+`a_sweep_between_distant_ratios_does_not_fight_the_stale_grid` is the guard, and
+it pins the crossings that were 49.
+
+### After (2026-08-18)
+
+```
+scenario                             settle     peak  cross     fdev     fslew  rms_tail      jump
+                                          s    beats      n   x rate  x rate/s     beats    cycles
+lock, x1 @ 120bpm                     0.000   0.0000      0    0.000       0.0   0.00001   0.00000
+scene A->B, x1 -> x2 (snap)           1.396   0.2500      0    0.250      83.4   0.00000   0.00008
+scene sweep, during the 1s move       0.000   0.0022      0    0.003       0.9   0.00000   0.00000
+scene sweep, settling after           1.395   0.2498      0    0.250      83.4   0.00000   0.00008
+ratio sweep x1 -> x4 over 3s          0.000   0.0025      0    0.003       1.1   0.00000   0.00001
+fader worked back and forth           never   0.4728      3    0.250      83.4   0.11087   0.00008
+phase step, half a cycle              1.546   0.4500      0    0.250      69.5   0.00001   0.00004
+tempo step, 120 -> 140bpm             1.365   0.0509      0    0.067      15.9   0.00058   0.00001
+x0.75, 240s alignment                 0.000   0.0000      0    0.000       0.0   0.00001   0.00000
+x1, 5% clock jitter                  29.986   0.0207     42    0.029       8.2   0.00889   0.00000
+clock lost 6s, then back              0.000   0.0009      0    0.001       0.4   0.00001   0.00000
+x64 -> x32, during the 1s move        0.000   0.0000      0    0.000       0.0   0.00000   0.00009
+x64 -> x32, settling after            0.000   0.0004      0    0.001       0.2   0.00000   0.00010
+phase step @ 500us tick               1.646   0.5000      0    0.250      69.5   0.00001   0.00004
+phase step @ 2000us tick              1.748   0.4986      0    0.250      27.8   0.00206   0.00022
+```
+
+| | Step 5 | now |
+|---|---|---|
+| x64 -> x32 sweep, sign crossings | **49 in one second** | 0 |
+| x64 -> x32, crossings after it stops | **63** | 0 |
+| scene sweep during the move, peak | 0.2519 | **0.0022** |
+| scene sweep during the move, slew | 166.5 | **0.9** |
+| ratio sweep x1 -> x4, crossings | 16 | **0** |
+| ratio sweep x1 -> x4, slew | 166.7 | **1.1** |
+| fader worked back and forth, crossings | 46 | **3** |
+| fader worked back and forth, RMS | 0.17508 | **0.11087** |
+| scene snap x1 -> x2, settling | 1.253s | 1.396s |
+| steady state, jitter, tempo, clock loss | — | unchanged |
+
+Every sweep row improves, because the loop is no longer fighting a grid it
+cannot reach in any of them. What it costs is 0.14s on a scene *snap*: the
+correction is off while the ratio transitions, so acquisition starts later. That
+is still 2.4x faster than the 3.34s this loop took before Step 5.
+
 ### Still to check on hardware
 
 `PLL_MAX_PULL` is the knob: lower is smoother and slower to acquire, higher is

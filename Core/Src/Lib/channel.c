@@ -252,7 +252,25 @@ void channel_compute(uint8_t ch, EngineState* es, const EngineConfig* cfg, const
 
   es->channels_shared_phase[ch] = phase_next;
 
-  if (gcd > 0 && es->clock.have_beat)
+  // Only while the latched rational still describes the rate the channel is
+  // actually running at.
+  //
+  // The target is built from p/q, so a ratio that has moved away from it is a
+  // grid the oscillator cannot be on: the error runs off, wraps at half a
+  // cycle, and the correction slams sign every time it does. A crossfade
+  // between x64 and x32 - the two scenes differ by a whole FRQ sweep, not a
+  // detent - drifts 32 cycles a beat against a stale grid and wrapped 49 times
+  // in a one-second fader move, which is a 50Hz square-wave frequency
+  // modulation and is heard as grit rather than as pitch.
+  //
+  // A ratio in motion never settles for PLL_RATIO_STABLE_US, so the rational
+  // cannot be re-taken until the fader stops. Until it does there is nothing
+  // meaningful to lock to, and the honest answer is the one an unrecognised
+  // ratio already gets: free-run at the rate asked for, and acquire when the
+  // rate holds still.
+  const uint8_t grid_current = (gcd > 0) && (fabsf(freq_multiplier * (float) gcd - (float) num) <= PLL_GRID_TOL);
+
+  if (grid_current && es->clock.have_beat)
   {
     // The grid is the clock's, not the channel's. Two channels at one ratio
     // read the same beat_counter and so cannot disagree about where their

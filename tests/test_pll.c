@@ -678,6 +678,69 @@ TEST_CASE(a_rate_change_that_keeps_its_denominator_still_settles)
   }
 }
 
+// A crossfade between two rates far apart must not make the channel fight the
+// grid it is leaving.
+//
+// The target is built from the latched rational p/q, which is what keeps it
+// continuous. The corollary is that a ratio which has moved away from p/q
+// describes a grid the oscillator cannot be on - and a ratio in motion never
+// holds still for PLL_RATIO_STABLE_US, so it cannot be re-latched until the
+// fader stops. Left uncorrected for, the error ran off, wrapped at half a
+// cycle, and the correction slammed sign on every wrap.
+//
+// Measured on the module's own patch - scene A x64, scene B x32, which is a
+// whole FRQ sweep apart rather than a detent - a one-second fader move wrapped
+// 49 times and kept crossing 63 more times after it stopped: a ~50Hz
+// square-wave frequency modulation, heard as grit through the transition. The
+// low-ratio cases in this suite never showed it because x1 against x4 drifts
+// too slowly to wrap inside the move.
+TEST_CASE(a_sweep_between_distant_ratios_does_not_fight_the_stale_grid)
+{
+  PllClock clk;
+  fixture_init(&fx);
+  fixture_set_param(&fx, 0, 0, CH_PARAM_AMP, 20000);
+  fixture_set_param(&fx, 0, 1, CH_PARAM_AMP, 20000);
+  fixture_set_param(&fx, 0, 0, CH_PARAM_FRQ, frq_for_ratio(64.0f));
+  fixture_set_param(&fx, 0, 1, CH_PARAM_FRQ, frq_for_ratio(32.0f));
+  fx.engine_config.scene_a = 0;
+  fx.engine_config.scene_b = 1;
+  fx.hw_state.slider_state = SLIDER_MAX_VALUE;
+
+  pll_clock_init(&clk, 120.0f);
+  warm_clock(&fx, &clk, 0);
+  pll_run(&fx, &clk, 0, 8.0f, NULL);
+  CHECK(fx.engine_state.channels_gcd[0] == 1);
+  CHECK(fx.engine_state.channels_period_cycles[0] == 64);
+
+  pll_trace_reset(&trace);
+  trace.decimate       = 1;
+  const uint32_t steps = (uint32_t) (1.0f * 1e6f / (float) ENGINE_TICK_US);
+  for (uint32_t i = 0; i < steps; i++)
+  {
+    const float k            = (float) i / (float) steps;
+    fx.hw_state.slider_state = (uint16_t) ((float) SLIDER_MAX_VALUE - k * (float) (SLIDER_MAX_VALUE - SLIDER_MIN_VALUE));
+    pll_step(&fx, &clk, 0, ENGINE_TICK_US, &trace);
+  }
+
+  PllMetrics during = pll_measure(&trace, PLL_TOL_BEATS);
+  pll_report("x64 -> x32, during the 1s move", &during);
+
+  // The number that mattered: it used to be 49 in this second.
+  CHECK(during.crossings <= 2);
+  CHECK(during.max_freq_dev < 0.05f);
+
+  pll_trace_reset(&trace);
+  pll_run(&fx, &clk, 0, 8.0f, &trace);
+  PllMetrics after = pll_measure(&trace, PLL_TOL_BEATS);
+  pll_report("x64 -> x32, settling after", &after);
+
+  // ...and it re-acquires the new rate rather than staying free-run.
+  CHECK_NEAR(fx.engine_state.channels_effective[0].freq_ratio, 32.0, 0.1);
+  CHECK(fx.engine_state.channels_period_cycles[0] == 32);
+  CHECK(after.crossings <= 2);
+  CHECK(after.rms_err_tail_beats < PLL_TOL_BEATS);
+}
+
 // The loop's smoothing is a fraction applied once per tick, so its time
 // constant is a number of ticks rather than a number of seconds. Two hosts at
 // different control rates therefore get different loops out of the same code.
@@ -735,6 +798,7 @@ int main(void)
   RUN_TEST(channels_lock_independently);
   RUN_TEST(two_channels_at_the_same_rate_share_a_phase);
   RUN_TEST(a_rate_change_that_keeps_its_denominator_still_settles);
+  RUN_TEST(a_sweep_between_distant_ratios_does_not_fight_the_stale_grid);
   RUN_TEST(the_loop_response_depends_on_the_control_rate);
 
   fprintf(stdout, "\n");
