@@ -245,7 +245,7 @@ typedef struct
 {
   StNorm norm;                // what the shape is being corrected by now
   StNorm target;              // what the last completed pass asked for
-  float lo, hi;               // the pass in progress
+  StExtent pass;              // the pass in progress: extremes and seconds
   float anchor;               // slot 0, captured when the pass starts on it
   float shape_seen, mod_seen; // where the knobs were on the last tick
   int16_t slot;               // the next slot to measure

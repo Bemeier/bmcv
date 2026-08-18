@@ -439,7 +439,11 @@ TEST_CASE(the_pattern_under_the_bias_stays_centred)
 // lift collapsed patterns and never shrink wide ones, and SHP carried a lever
 // that ducked the peak-to-peak outright, so the range across the grid was
 // 0.58..1.99 of 2.0 - the shape audibly flattening and swelling as the knob
-// turned. It is 0.78..1.73 now from five steps up.
+// turned. It is 0.90..1.86 now from five steps up - a ratio of 2.07, where
+// before ST_NORM_ROBUST it was 0.78..1.73 and 2.22. Both ends rose: the floor
+// because a pattern that sits low with one spike is no longer scaled down to
+// match one spread evenly, and the ceiling because that spike is now allowed to
+// reach the rail.
 //
 // Deliberately not pinned: ST_NORM_EXP leaves the natural ordering between calm
 // and emphatic settings audible, and three or four values cannot be spread as
@@ -457,7 +461,7 @@ TEST_CASE(the_pattern_under_the_bias_is_about_as_loud_everywhere)
         float dc, span;
         cycle_level(-1.0f + 2.0f * (float) si / 20.0f, -1.0f + 2.0f * (float) mi / 12.0f, li, &dc, &span);
         CHECK(span > floor_span);
-        CHECK(span < 1.85f);
+        CHECK(span < 1.90f);
       }
     }
   }

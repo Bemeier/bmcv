@@ -279,6 +279,60 @@ are ordering-based and were blind to the reshapings entirely.
   map evaluations and a divide per completed scan pass, and one multiply-add per
   sample - taking `load` from 0.44 to 0.45.
 
+- **Peak-to-peak normalisation flattened crest factor, and `ST_NORM_ROBUST`
+  is what stopped it.** The correction measured the span from the single
+  highest and single lowest slot. A pattern that sits low with one tall spike
+  has the same peak-to-peak as one spread evenly across the range, so it earned
+  the same gain - its spike came out no higher than the other's ordinary
+  maximum and its bulk far below. A taller spike read as a wider span and
+  therefore earned a *smaller* gain. Crest factor is the one thing peak-to-peak
+  normalisation cannot let through.
+
+  Reported from the module first, and it was audible before it was measured:
+  at negative SHP there were few high values, and the ones there were did not
+  peak enough - "now it's just largely quiet".
+
+  The span is now measured between the *second* highest and second lowest,
+  blended with the true extremes by `ST_NORM_ROBUST` (0.5). **The rail limit
+  still comes from the true extremes**, which is what makes it safe: raising
+  the gain lifts a spike toward +/-1 and stops it exactly there rather than
+  clipping it.
+
+  Measured across the (SHP, MOD, length) grid, through the drive a channel
+  actually plays:
+
+  | | before | after |
+  |---|---|---|
+  | median peak, SHP < -0.3 | +0.467 | **+0.555** |
+  | settings with no peak at all (<0.40) | 36.3% | **25.1%** |
+  | RMS ratio, loudest to quietest | 5.249 | **4.067** |
+  | crest factor, mean | 1.331 | **1.383** |
+  | neighbour rho, mean | 0.9877 | **0.9877** |
+  | worst sample move, 1% turn | 0.502 | 0.515 (bound 0.60) |
+
+  **Peak-to-peak spread goes up while RMS spread goes down.** The ear hears
+  RMS, so perceived loudness got *more* consistent - the extra span is peaks
+  poking out of it, which is the point. The metric that looks worse is the one
+  that cannot tell a spike from a loud patch.
+
+  **The character is untouched, and that was the thing to protect.** Spearman
+  rho between a setting and the one 1% of travel away is identical to four
+  decimal places, so neighbouring knob positions are exactly as related as they
+  were; the worst single-sample move across that turn is slightly *larger*, not
+  smaller, so there is no loss of variety between neighbours either.
+
+  **It fades in with length**, via `st_dof_fade` - the same fade the contour
+  blend uses and for the same reason. At three steps `hi2` and `lo2` are both
+  the middle value, the robust span is zero, the gain runs to the rail, and a
+  1% turn of SHP moved the output 1.66 of a 2.0 range against a 1.10 limit.
+  With the fade it is 0.90.
+
+  One trap worth recording: the rolling scan must seed its order statistics
+  *empty* and push slot 0 like any other, exactly as `st_extent_of` does.
+  Seeding them from slot 0 looks equivalent and is not - `lo2` starts equal to
+  `lo` and can never be improved upward - and the rolling measurement then
+  disagreed with the full one in the fourth decimal.
+
 - **Swing on odd lengths** makes step 0 and step L-1 both wide at lengths 3 and
   5 - a lopsided shuffle.
 - **Every hardware measurement here was taken on the `-O0` debug build**, which

@@ -205,23 +205,37 @@ void st_norm_scan(StScan* s, StSlotMemo* memo, const StDrive* drive, float shape
 
     if (s->slot == 0)
     {
-      s->lo = s->hi = s->anchor = v; // the pass starts on the slot it is anchored to
-      s->moved                  = 0; // and from here it is measuring one pattern
+      // The pass starts on the slot it is anchored to, and from here it is
+      // measuring one pattern.
+      //
+      // Seeded empty and then pushed, exactly as st_extent_of() does it.
+      // Seeding the seconds *from* slot 0 instead looks equivalent and is not:
+      // lo2 would start equal to lo and could never be improved upward, so the
+      // rolling measurement disagreed with the full one in the fourth decimal.
+      s->pass = (StExtent){1e9f, -1e9f, 0.0f, v, 1e9f, -1e9f, st_robust_for(length)};
+      st_extent_push(&s->pass, v);
+      s->anchor = v;
+      s->moved  = 0;
     }
-    else if (v < s->lo)
+    else
     {
-      s->lo = v;
-    }
-    else if (v > s->hi)
-    {
-      s->hi = v;
+      st_extent_push(&s->pass, v);
     }
 
     if (++s->slot >= (int16_t) length)
     {
       s->slot = 0;
 
-      StExtent e   = {s->lo, s->hi, 0.0f, s->anchor}; // the DC is the table's job, not this one
+      StExtent e = s->pass; // the DC is the table's job, not this one
+      e.anchor   = s->anchor;
+
+      // The same degenerate-pattern guard st_extent_of() applies: fewer than
+      // three distinct values never fills the seconds.
+      if (e.hi2 < e.lo)
+        e.hi2 = e.hi;
+      if (e.lo2 > e.hi)
+        e.lo2 = e.lo;
+
       float centre = st_centre_at(mod, m.morph);
       float g      = st_gain_for(&e, centre);
       float gf     = st_gain_floor(&e, centre);

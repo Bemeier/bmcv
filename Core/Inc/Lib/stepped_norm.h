@@ -58,6 +58,22 @@
 // the two-sided normalisation cannot make a dead setting.
 #define ST_NORM_FLOOR 0.9f
 
+// How much of the *outermost* value the span is measured from.
+//
+// 1.0 is peak-to-peak off the single highest and single lowest slot, which is
+// what this always did - and it is why the shape could not produce an
+// occasional tall spike. A pattern that sits low with one peak has the same
+// peak-to-peak as one spread evenly, so it earns the same gain, so its spike
+// comes out no higher than the other's ordinary maximum and its bulk far
+// below. Crest factor is the one thing peak-to-peak normalisation flattens.
+//
+// Below 1 the span is measured between the *second* highest and second lowest
+// instead, blended. A spiky pattern then reads as narrow, earns a larger gain,
+// and its bulk comes up - while the spike is free to run to the rail, because
+// the rail limit below is still taken from the true extremes and pins the true
+// maximum at +/-1 rather than clipping it.
+#define ST_NORM_ROBUST 0.5f
+
 // Everything the correction needs to know that is not a knob position: which
 // pattern the slots make, which lengths exist, and the two constants the
 // generated table owns because they are its own axes.
@@ -101,7 +117,52 @@ typedef struct
 typedef struct
 {
   float lo, hi, centre, anchor;
+
+  // Second-outermost, for ST_NORM_ROBUST. Equal to lo/hi on a pattern of fewer
+  // than three distinct values, which is what makes the blend degrade to
+  // peak-to-peak rather than to nonsense.
+  float lo2, hi2;
+
+  // How much of ST_NORM_ROBUST this pattern's length can actually carry - 1 is
+  // peak-to-peak. Set where the extent is built, because that is what knows the
+  // length; st_gain_toward only sees the extent.
+  float robust;
 } StExtent;
+
+// How much robustness a pattern of this length can carry.
+//
+// A statistic that needs a distribution needs values to compute it from. At
+// three steps hi2 and lo2 are *both* the middle value, so the robust span is
+// zero, the gain runs to the rail, and a 1% turn of SHP moved the output 1.66
+// of a 2.0 range against a 1.10 limit - measured. st_dof_fade is the same fade
+// the contour blend uses, and for the same reason: it is written above as
+// "averaging four slots out of a three-step cycle leaves three equal values and
+// nothing to hear".
+static inline float st_robust_for(int length) { return lerp(1.0f, ST_NORM_ROBUST, st_dof_fade(length)); }
+
+// A pair of order statistics, kept as the pattern is walked. O(1) per slot.
+static inline void st_extent_push(StExtent* e, float v)
+{
+  if (v > e->hi)
+  {
+    e->hi2 = e->hi;
+    e->hi  = v;
+  }
+  else if (v > e->hi2)
+  {
+    e->hi2 = v;
+  }
+
+  if (v < e->lo)
+  {
+    e->lo2 = e->lo;
+    e->lo  = v;
+  }
+  else if (v < e->lo2)
+  {
+    e->lo2 = v;
+  }
+}
 
 // The extremes and the anchor, which is all the gain needs.
 //
@@ -111,16 +172,18 @@ typedef struct
 static inline StExtent st_extent_of(const StNormCtx* c, int length, float mod, float orbit)
 {
   StMorph m  = st_morph_at(orbit, mod, length, c->hold_max);
-  StExtent e = {1e9f, -1e9f, 0.0f, 0.0f};
+  StExtent e = {1e9f, -1e9f, 0.0f, 0.0f, 1e9f, -1e9f, st_robust_for(length)};
 
   for (int i = 0; i < length; i++)
   {
-    float v = st_step_value(i, &m, c->slots, c->jump_grid, NULL);
-    if (v < e.lo)
-      e.lo = v;
-    if (v > e.hi)
-      e.hi = v;
+    st_extent_push(&e, st_step_value(i, &m, c->slots, c->jump_grid, NULL));
   }
+
+  // A pattern with fewer than three distinct values never fills the seconds.
+  if (e.hi2 < e.lo)
+    e.hi2 = e.hi;
+  if (e.lo2 > e.hi)
+    e.lo2 = e.lo;
 
   e.anchor = st_step_value(0, &m, c->slots, c->jump_grid, NULL);
   return e;
@@ -158,7 +221,12 @@ static inline StExtent st_extent_with_dc(const StNormCtx* c, int length, float m
 // job as a side effect of doing something musically useful.
 static inline float st_gain_toward(float target, float expo, const StExtent* e, float centre)
 {
-  float span = e->hi - e->lo;
+  // The span the gain is set from - see ST_NORM_ROBUST. The rails below stay on
+  // the true extremes, so raising the gain lifts a spike toward +/-1 and stops
+  // it there rather than clipping it.
+  float hi_eff = lerp(e->hi2, e->hi, e->robust);
+  float lo_eff = lerp(e->lo2, e->lo, e->robust);
+  float span   = hi_eff - lo_eff;
 
   // powf() only where the exponent needs it. The floor below asks for one, and
   // pow(x, 1) on this target is a transcendental call standing in for a divide -
