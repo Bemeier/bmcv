@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.17.2 (2026-08-18)
+
+### Fix
+
+- **dac**: put the output back on a continuous ramp
+- **pll**: stop correcting toward a grid the ratio has left
+
+### Perf
+
+- **dac**: four substeps a tick, and only the pair that leaves
+
 ## v0.17.1 (2026-08-18)
 
 ### Fix
