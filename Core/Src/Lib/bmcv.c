@@ -98,10 +98,25 @@ static uint8_t task = 0;
 //
 // Measured on the module, and the per-chunk cost is rate-independent: dac 4.4us
 // plus dac_cplt 2.1us, so 6.5us of every chunk either way. That is 10.5% of the
-// CPU at 62us and 21% at 31us, and it took `load` from 0.39 to 0.48 with
-// engine_fps holding 2000.03. The 8% this file used to claim was dac alone,
+// CPU at 62us and 21% at 31us. The 8% this file used to claim was dac alone,
 // before the completion interrupt was measured at all.
-#define DAC_SUBSTEPS 4
+//
+// Back to 2, and the reason is the engine rather than the converter. 4 was
+// taken for the output: half the step, an octave up, ~12dB off the staircase.
+// It was worth having while the staircase was the loudest thing on the pin. It
+// no longer is - the reconstruction defects that were drowning it are fixed -
+// and the 9 points of load it costs are the difference between a tick that
+// finishes and one that does not. A/B'd on the module with the same patch:
+//
+//   substeps  per-pin   load  overruns  engine_fps
+//          4    8065Hz   0.61      6.1%        1981
+//          2    4032Hz   0.48      0.1%        1998
+//
+// An overrun is a tick reconstructed against a period the output stage did not
+// expect, and one every couple of seconds is audible where 12dB of staircase at
+// 4kHz is not. Worth revisiting if the engine ever gets cheap enough that 4
+// costs no overruns.
+#define DAC_SUBSTEPS 2
 
 // The cadence the service runs at: DAC_SUBSTEPS frames per tick, a frame being
 // DAC_CHANNELS transactions of two outputs each. 62.5us at a 2kHz tick.
