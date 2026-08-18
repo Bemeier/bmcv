@@ -32,11 +32,19 @@
 // How long an uncorrected phase error takes to decay to 1/e of itself. The
 // proportional gain is 1/tau, so this is the loop's whole speed setting.
 //
-// 1.0s reproduces what the hand-tuned version did: it had no named time
-// constant, just a gain that happened to be 1 and a smoothing coefficient whose
-// real time constant was three hundred times shorter than the loop and so had
-// no say in it at all.
-#define PLL_TAU_S 1.0f
+// It was 1.0s, which reproduced what the hand-tuned version did: no named time
+// constant, just a gain that happened to be 1. That took 3.9s to close a
+// half-cycle step, which reads on the panel as channels drifting into line
+// rather than snapping to it.
+//
+// 0.35s because the loop is first order and so cannot overshoot for any tau -
+// the phase step rings zero times at every value measured from 1.0 down to
+// 0.15. What sets the floor is jitter: this loop is the only thing filtering a
+// wobbly clock, and the oscillator's own rate wobble under a 5% jittery clock
+// goes as 1/tau - 1.3% at 1.0s, 2.9% here, 4.6% by 0.2s. 0.35s is about where
+// buying more speed starts costing visible wobble instead of nothing.
+// See docs/pll.md, "Step 5".
+#define PLL_TAU_S 0.35f
 
 // The most the loop may pull a channel off its nominal rate, as a fraction of
 // it. The correction is a *speed* change, so an unbounded correction is an
@@ -44,7 +52,14 @@
 // larger than the frequency itself, which is heard as the channel stalling or
 // running backwards. Beyond this the error closes at a constant rate instead of
 // an exponential one, so a big error takes longer and sounds like nothing.
-#define PLL_MAX_PULL 0.15f
+//
+// This is the knob for what a *transition* costs, because a large error is
+// clamp-limited for most of its life: it alone takes the half-cycle step from
+// 1.97s at 0.15 to 1.55s at 0.25 with tau held. Raised to 0.25 - a quarter off
+// rate is a lean you can see on a slow LFO and not a lurch. 0.35 was measured
+// and rejected: it closes 0.4s sooner and pegs the clamp through the settle
+// after a fader move, which is the artifact this limit exists to prevent.
+#define PLL_MAX_PULL 0.25f
 
 // Smoothing on the correction, so the oscillator's frequency has no corner in
 // it. Deliberately far shorter than PLL_TAU_S - it is there to round the edges
@@ -64,6 +79,14 @@
 // what makes a sweep one acquisition instead of eleven.
 #define PLL_RATIO_STABLE_US MS(120)
 #define PLL_RATIO_EPS 0.001f
+
+// How close to the top of a beat the alignment rational may be swapped. The old
+// grid and the new one meet at the beat boundary and are furthest apart in the
+// middle of one, so the swap is held for this window and the step it would
+// otherwise make lands where there is none. Wide enough to catch a tick at any
+// tempo and tick period the module runs at; narrow enough that the two grids
+// have not diverged within it.
+#define PLL_RETAKE_WINDOW 0.05f
 
 // Zero the oscillator state and open the mute gate. Called at power-on and
 // whenever a channel is reset.

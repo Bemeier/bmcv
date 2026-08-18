@@ -44,6 +44,14 @@ static void setup(Fixture* f, uint8_t ch, float ratio)
 // so what follows is measuring the phase loop and not the tempo estimator.
 static void warm_clock(Fixture* f, PllClock* c, uint8_t ch) { pll_run(f, c, ch, 4.0f, NULL); }
 
+// The distance between two channels' output phases, on the circle: 0.5 is as
+// far apart as two channels can be.
+static float phase_gap(const Fixture* f, uint8_t a, uint8_t b)
+{
+  float d = fabsf(f->engine_state.channels_effective[a].phase - f->engine_state.channels_effective[b].phase);
+  return d > 0.5f ? 1.0f - d : d;
+}
+
 // ---------------------------------------------------------------------------
 
 // The base case: a channel at the beat rate, starting wherever it starts, has
@@ -320,6 +328,7 @@ TEST_CASE(a_phase_step_settles_without_ringing)
   pll_report("phase step, half a cycle", &m);
 
   CHECK(m.settle_s >= 0.0f);
+  CHECK(m.settle_s < 2.5f);        // and quickly enough to read as a snap, not a drift
   CHECK(m.crossings <= 2);         // ringing is the thing to avoid here
   CHECK(m.overshoot_ratio < 0.5f); // and going well past it
   CHECK(m.rms_err_tail_beats < PLL_TOL_BEATS);
@@ -419,7 +428,10 @@ TEST_CASE(the_pattern_lands_on_the_same_beat_every_time)
   trace.decimate = 1;
   pll_run(&fx, &clk, 0, 30.0f, &trace);
 
-  uint64_t origin = fx.engine_state.channels_beat_origin[0];
+  // Against the clock's own grid: the channel has no origin of its own, which
+  // is what stops two channels at one ratio disagreeing about where the period
+  // starts. See two_channels_at_the_same_rate_share_a_phase.
+  const uint64_t origin = 0;
 
   // At the top of every third beat the channel must be at phase 0; at the top
   // of the other two it must not be, or the pattern is not three beats long.
@@ -555,6 +567,117 @@ TEST_CASE(channels_lock_independently)
   }
 }
 
+// Two channels set to the same rate must sit at the same phase. It is the
+// module's most basic promise, and the one a user checks by eye.
+//
+// Broken by the alignment-period rework. The target is measured from a
+// *per-channel* `beat_origin`, and the origin may only move where the channel's
+// own old period says the move is seamless: `(beat_counter - origin) % gcd == 0`.
+// At gcd 1 that test is vacuously true, so a channel coming back from x1 to
+// x1/2 re-bases its origin on whatever beat the fader happened to settle on.
+// An origin one beat out at x1/2 is half a cycle - two identical channels, both
+// locked, both stable, exactly 180 degrees apart. A quarter cycle at x1/4.
+//
+// The detour length is swept in whole beats because the failure is a parity:
+// half the return beats land on the right grid by luck.
+TEST_CASE(two_channels_at_the_same_rate_share_a_phase)
+{
+  // x1/2 puts a one-beat error at half a cycle, x1/4 at a quarter - the two
+  // the module was heard doing.
+  const float rates[2] = {0.5f, 0.25f};
+
+  for (int r = 0; r < 2; r++)
+    for (int extra_beats = 0; extra_beats < 4; extra_beats++)
+    {
+      PllClock clk;
+      fixture_init(&fx);
+
+      // ch0 never moves: the same rate in both scenes. ch1 is that rate in A and
+      // x1 in B, so the fader takes it away and brings it back while ch0 stays.
+      for (uint8_t c = 0; c < 2; c++)
+      {
+        fixture_set_param(&fx, c, 0, CH_PARAM_AMP, 20000);
+        fixture_set_param(&fx, c, 1, CH_PARAM_AMP, 20000);
+        fixture_set_param(&fx, c, 0, CH_PARAM_FRQ, frq_for_ratio(rates[r]));
+        fixture_set_param(&fx, c, 1, CH_PARAM_FRQ, frq_for_ratio(c == 0 ? rates[r] : 1.0f));
+      }
+      fx.engine_config.scene_a = 0;
+      fx.engine_config.scene_b = 1;
+      fx.hw_state.slider_state = SLIDER_MAX_VALUE; // scene A
+
+      pll_clock_init(&clk, 120.0f);
+      warm_clock(&fx, &clk, 0);
+      pll_run(&fx, &clk, 0, 16.0f, NULL);
+
+      float before = phase_gap(&fx, 0, 1);
+      CHECK(before < 0.02f); // they start together, or the case measures nothing
+
+      fx.hw_state.slider_state = SLIDER_MIN_VALUE; // ch1 -> x1
+      pll_run(&fx, &clk, 0, 6.0f + 0.5f * (float) extra_beats, NULL);
+
+      fx.hw_state.slider_state = SLIDER_MAX_VALUE; // ch1 -> x1/2 again
+      pll_run(&fx, &clk, 0, 24.0f, NULL);
+
+      float after = phase_gap(&fx, 0, 1);
+      fprintf(stdout, "  x%.2f, detour +%d beats: gap before %.4f, after %.4f cycles\n", (double) rates[r], extra_beats, (double) before,
+              (double) after);
+
+      CHECK_NEAR(fx.engine_state.channels_effective[1].freq_ratio, (double) rates[r], 0.01);
+      CHECK(after < 0.02f);
+    }
+}
+
+// A channel must settle at every rate it is given, including one it reaches
+// from another rate with the same denominator.
+//
+// The alignment rational is q beats to p cycles. p was only ever taken inside
+// the branch that saw q change, so a move between two ratios sharing a q never
+// took it: x3/4 and x1/4 both answer q 4, and the channel kept x3/4's p of 3.
+// That left the loop comparing a target confined to one cycle against a
+// position roaming over three, so the correction sat on the PLL_MAX_PULL clamp
+// and crossed back and forth for as long as the patch was left alone - the
+// slow wander heard on the module. p was also never taken on the first
+// acquisition at all, so it was 1 for the life of any channel whose ratio never
+// moved, and only ever correct by luck.
+TEST_CASE(a_rate_change_that_keeps_its_denominator_still_settles)
+{
+  // Both members of each pair answer the same q, which is the whole point.
+  const float pairs[3][2] = {{0.75f, 0.25f}, {0.25f, 0.75f}, {1.0f, 4.0f}};
+
+  for (int i = 0; i < 3; i++)
+  {
+    PllClock clk;
+    fixture_init(&fx);
+    fixture_set_param(&fx, 0, 0, CH_PARAM_AMP, 20000);
+    fixture_set_param(&fx, 0, 1, CH_PARAM_AMP, 20000);
+    fixture_set_param(&fx, 0, 0, CH_PARAM_FRQ, frq_for_ratio(pairs[i][0]));
+    fixture_set_param(&fx, 0, 1, CH_PARAM_FRQ, frq_for_ratio(pairs[i][1]));
+    fx.engine_config.scene_a = 0;
+    fx.engine_config.scene_b = 1;
+    fx.hw_state.slider_state = SLIDER_MAX_VALUE;
+
+    pll_clock_init(&clk, 120.0f);
+    warm_clock(&fx, &clk, 0);
+    pll_run(&fx, &clk, 0, 16.0f, NULL);
+
+    fx.hw_state.slider_state = SLIDER_MIN_VALUE;
+    pll_run(&fx, &clk, 0, 20.0f, NULL); // well past any acquisition transient
+
+    pll_trace_reset(&trace);
+    trace.decimate = 1;
+    pll_run(&fx, &clk, 0, 20.0f, &trace);
+    PllMetrics m = pll_measure(&trace, PLL_TOL_BEATS);
+
+    fprintf(stdout, "  x%.2f -> x%.2f: q %d p %d, rms_tail %.5f beats, fdev %.3f\n", (double) pairs[i][0], (double) pairs[i][1],
+            fx.engine_state.channels_gcd[0], fx.engine_state.channels_period_cycles[0], (double) m.rms_err_tail_beats,
+            (double) m.max_freq_dev);
+
+    CHECK(m.rms_err_tail_beats < PLL_TOL_BEATS); // it is settled, not circling
+    CHECK(m.max_freq_dev < 0.01f);               // and not leaning on the clamp
+    CHECK(m.crossings <= 2);
+  }
+}
+
 // The loop's smoothing is a fraction applied once per tick, so its time
 // constant is a number of ticks rather than a number of seconds. Two hosts at
 // different control rates therefore get different loops out of the same code.
@@ -610,6 +733,8 @@ int main(void)
   RUN_TEST(clock_jitter_is_absorbed_not_passed_through);
   RUN_TEST(losing_and_regaining_the_clock_relocks);
   RUN_TEST(channels_lock_independently);
+  RUN_TEST(two_channels_at_the_same_rate_share_a_phase);
+  RUN_TEST(a_rate_change_that_keeps_its_denominator_still_settles);
   RUN_TEST(the_loop_response_depends_on_the_control_rate);
 
   fprintf(stdout, "\n");

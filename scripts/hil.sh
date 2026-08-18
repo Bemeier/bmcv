@@ -107,6 +107,8 @@ FMT = {
     "uint16_t": "H", "short unsigned int": "H",
     "int32_t": "i", "int": "i", "long": "i", "long int": "i",
     "uint32_t": "I", "unsigned int": "I", "long unsigned int": "I",
+    "int64_t": "q", "long long int": "q",
+    "uint64_t": "Q", "long long unsigned int": "Q",
     "float": "f", "double": "d",
 }
 

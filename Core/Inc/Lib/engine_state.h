@@ -56,22 +56,21 @@ typedef struct
   float channels_shared_phase[N_CHANNELS];
   float channels_phase_correction[N_CHANNELS];
 
-  // The alignment period the sync loop is working to, in beats, and the beat it
-  // counts that period from. Latched rather than recomputed every tick - see
+  // The rational the sync loop aligns to, latched whole: the channel repeats
+  // every channels_gcd[] beats, and holds channels_period_cycles[] cycles of
+  // its own waveform in them. Latched rather than recomputed every tick - see
   // channel_compute. 0 means "not taken yet"; -1 is find_denominator's "this
   // ratio has no whole-beat period", which is a latched answer like any other.
-  int16_t channels_gcd[N_CHANNELS];
-  uint64_t channels_beat_origin[N_CHANNELS];
-
-  // Which cycle of the alignment period the oscillator is on, and how many
-  // cycles that period holds.
   //
-  // channels_shared_phase[] is the phase within one cycle and wraps at one
-  // cycle, because that is the only wrap the output cannot see. The super-period
-  // position the sync loop needs is this counter plus that phase - kept apart so
-  // that the thing which wraps oddly is a counter nobody hears rather than the
-  // phase everybody does.
-  int16_t channels_cycle[N_CHANNELS];
+  // The two are one fact and are only ever written together. The numerator is
+  // not a function of the denominator - x1/4 and x3/4 both answer 4 - so a
+  // version of this that latched only the denominator left the numerator stale
+  // whenever a ratio moved between two that share one.
+  //
+  // There is deliberately no per-channel origin beat. The grid is the clock's
+  // own beat_counter, so two channels at one ratio cannot disagree about where
+  // their period starts. One that latched an origin per channel could, and did.
+  int16_t channels_gcd[N_CHANNELS];
   int16_t channels_period_cycles[N_CHANNELS];
 
   // The ratio as it was when it last stopped moving, and when that was. A new

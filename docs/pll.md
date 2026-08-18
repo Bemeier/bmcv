@@ -10,7 +10,20 @@ two of the three defects found were things the code looked correct about.
 
 ## What the loop is, as built
 
-`channel_compute` runs a proportional controller per channel:
+`channel_compute` runs a proportional controller per channel. **As it stands
+today**, after the four steps below:
+
+```
+q, p     = the latched rational: q beats hold p cycles      // see Step 4
+target   = frac(((beat_counter % q) + beat_phase) * p / q)  // the clock's grid
+diff     = phase_error(target, shared_phase, 1.0)           // cycles
+pull     = clamp(diff / PLL_TAU_S, +/- PLL_MAX_PULL * freq)
+correction += (pull - correction) * (dt / PLL_SMOOTH_S)
+phase   += dt * (freq + correction)                         // wraps at one cycle
+```
+
+The rest of this section describes it **as it was first measured**, which is
+where the record starts:
 
 ```
 target  = ((beat_counter % gcd) + beat_phase) * freq_multiplier
@@ -326,6 +339,224 @@ filtering it, and then where the edge is stamped starts to show.
 
 Nothing is missed, either way: gates are latched in that interrupt at ~8 kHz and
 consumed once per tick, so a gate far shorter than a tick is still seen.
+
+## Step 4: the grid was the channel's, and it should have been the module's
+
+Two defects, both from the Step 2/3 rework, both found on hardware and then
+reproduced in the simulator. They share a cause: the thing the loop aligns to
+was per-channel latched state, and per-channel latched state can go stale or
+diverge from the next channel's.
+
+### Two channels at one rate, locked exactly 180 degrees apart
+
+The target was measured from `channels_beat_origin[]`, a beat latched per
+channel. A new origin was allowed wherever the channel's *own old* period said
+the move was seamless - `(beat_counter - origin) % gcd == 0`. **At gcd 1 that
+test is vacuously true**, so a channel crossfaded out to x1 and back to x1/2
+re-based on whatever beat the fader happened to settle on. An origin one beat
+out at x1/2 is half a cycle. Two identical channels, both locked, both steady,
+and exactly 180 degrees apart, for as long as the patch was left alone. A
+quarter cycle at x1/4, which is the other one that was heard.
+
+The parity is the tell: sweeping the detour length by whole beats, the gap after
+came out 0.0000, 0.5000, 0.0000, 0.5000. Half the return beats landed on the
+right grid by luck, which is why it looked intermittent.
+
+There is now no per-channel origin. **The grid is `clock.beat_counter`**, which
+every channel reads and none of them can disagree about. `Clock_Reset` zeroes
+that counter, so a reset re-establishes the grid for everything at once - which
+is what the module was already observed to do, and now it is the mechanism
+rather than a coincidence.
+
+The `clock_lock` flow moved with this, and the move is the point: the old golden
+had the x1/3 channel starting its three-beat period on the beat where its FRQ
+encoder happened to be turned. Replaying the same flow with that gesture 500 ms
+later shifted the x2/3 channel from 1.005 to 1.505 of its period before the fix,
+and does not move it at all after.
+
+### A rate change that kept its denominator, and the wander that followed
+
+The alignment rational is `q` beats to `p` cycles. `p` was computed only inside
+the branch that saw `q` change:
+
+- so it was **never taken on the first acquisition at all** - it sat at the
+  initial 1 for the life of any channel whose ratio never moved, and was only
+  ever right by luck;
+- and it went **stale on every move between two ratios that share a `q`**.
+  x1/4 and x3/4 both answer q 4. x1, x2, x3 and x4 all answer q 1.
+
+A stale `p` is a super-period the channel's own cycle counter overruns: the loop
+compares a target confined to one cycle against a position roaming over three.
+Measured at x3/4 -> x1/4, left alone: **peak error 4.6 beats, steady-state RMS
+3.19 beats, and the correction pinned on the `PLL_MAX_PULL` clamp with the sign
+crossing back and forth indefinitely.** That is the slow wander heard on the
+module. It now reads 0.00006 beats RMS with the correction at zero.
+
+`q` and `p` are one fact and are latched together, whenever either half of them
+changes.
+
+### The cycle counter is gone, and it cost nothing
+
+Step 3 argued that reducing the error to a single cycle would let a x2/3 channel
+"sit a third of a cycle off the bar", and added `channels_cycle[]` and
+`channels_period_cycles[]` to measure the error over the whole super-period.
+
+**The argument does not hold.** `find_denominator` returns the *smallest* q it
+can, so `p/q` is in lowest terms, so the q beat positions map to q *distinct*
+phases within one cycle - for x2/3 they are 0, 2/3 and 1/3. The fraction alone
+says which beat of the period the channel is on; there is nothing to confuse.
+
+The evidence that it was never load-bearing: because of the bug above, `p` was 1
+on every channel that had not changed rate, so the error *was* being measured
+over one cycle on the common path, and had been for the life of the feature.
+`the_pattern_lands_on_the_same_beat_every_time` passed throughout, and passes
+now, and is the guard for exactly this.
+
+So the error is taken over one cycle, `channels_cycle[]` and
+`channels_beat_origin[]` are gone, and `BmcvInstance` is 80 bytes smaller.
+
+### The target is p/q, not the live ratio
+
+The remaining piece. The target used to be `beat_mode * freq_multiplier`, which
+steps at the wrap of `beat_counter % q` by `(q * ratio) mod p` whenever the live
+ratio and the latched rational disagree - which is every crossfade, and every
+moment a stale rational is in force. Using `p/q` instead, the target has advanced
+by exactly `q * p/q = p` cycles at the wrap, so its fraction is unchanged and the
+target is **continuous by construction**, however far the ratio has moved away.
+
+That is what makes it safe to drop Step 2's "wait for the super-period to wrap"
+gate: there is nothing discontinuous left to protect. What replaces it is far
+cheaper - the rational is swapped within `PLL_RETAKE_WINDOW` of the top of a
+beat, where the old grid and the new one agree. Swapping mid-beat instead costs
+22 x rate/s of frequency slew on a scene snap; swapping at the beat top costs
+0.5.
+
+### After (2026-08-18)
+
+```
+scenario                             settle     peak  cross     fdev     fslew  rms_tail      jump
+                                          s    beats      n   x rate  x rate/s     beats    cycles
+lock, x1 @ 120bpm                     0.000   0.0026      0    0.001       0.0   0.00002   0.00000
+scene A->B, x1 -> x2 (snap)           3.340   0.2217      0    0.110       0.5   0.00000   0.00001
+scene sweep, during the 1s move       never   0.2777      1    0.138      92.3   0.20495   0.00008
+scene sweep, settling after           3.181   0.1891      1    0.094       0.5   0.00000   0.00001
+ratio sweep x1 -> x4 over 3s          never   0.2777     17    0.138      92.3   0.08261   0.00009
+fader worked back and forth           never   0.6663     51    0.153     101.1   0.18585   0.00009
+phase step, half a cycle              3.894   0.4500      0    0.150      41.7   0.00002   0.00002
+tempo step, 120 -> 140bpm             2.992   0.0725      0    0.032       5.6   0.00059   0.00001
+x0.75, 240s alignment                 0.000   0.0000      0    0.000       0.0   0.00003   0.00000
+x1, 5% clock jitter                  29.986   0.0268     40    0.013       2.9   0.01048   0.00000
+clock lost 6s, then back              0.000   0.0009      0    0.000       0.1   0.00002   0.00000
+phase step @ 500us tick               4.061   0.5000      0    0.150      41.7   0.00002   0.00002
+phase step @ 2000us tick              4.248   0.4989      0    0.150      16.7   0.00207   0.00014
+```
+
+| | 2026-08-16 | now |
+|---|---|---|
+| two channels at one rate, after a detour | **0.5 cycles apart** | 0.0000 |
+| x3/4 -> x1/4, steady-state RMS | **3.19 beats**, on the clamp | 0.00006 beats |
+| scene snap, frequency slew | 34.7 | **0.5** |
+| scene snap, peak error | 0.2500 | **0.2217** |
+| crossfade settling after, slew | 0.1 | 0.5 |
+| fader worked back and forth, peak | 1.7739 | **0.6663** |
+| fader worked back and forth, RMS | 0.37573 | **0.18585** |
+| sweep, peak error / slew | 0.2362 / 45.4 | 0.2777 / 92.3 |
+| steady state, jitter, tempo, clock loss | — | unchanged to the digit |
+
+**What got worse, and why it is accepted.** During a fader that is still moving,
+peak error goes 0.236 -> 0.278 beats and slew 45 -> 92 x rate/s. A sweep never
+holds a ratio still for `PLL_RATIO_STABLE_US`, so the rational stays at the
+pre-sweep value throughout and the loop leans on the clamp against a rate that
+is running away from it. The old code tracked the sweep because its target used
+the live ratio - which is the same property that made the target step at every
+period wrap. The trade is a slightly firmer lean *while a hand is on the fader*
+against a target that is continuous and a grid that is shared. Peak error stays
+a quarter of a beat, an eighth of what the pre-rework loop did.
+
+## Step 5: retuned faster, once it was correct
+
+With the grid fixed, the remaining complaint was speed: channels drifted into
+line rather than snapping to it. `PLL_TAU_S` had been 1.0s since it was named,
+and that number was never chosen - it is what the hand-tuned gain happened to
+be. Swept properly, it turns out to have been leaving most of the range unused.
+
+**Nothing in this loop rings, at any speed.** It is first order - one pole, a
+pure P controller - so it cannot overshoot in continuous time, and at a 500 us
+tick even tau 0.15s is 300 ticks per time constant, nowhere near where
+discretisation would change that. The phase-step case reports **0 crossings at
+every tau measured from 1.0 down to 0.15**. So ringing is not what bounds the
+speed, and the intuition that a faster loop must be a twitchier one is wrong
+here.
+
+**What bounds it is jitter.** This loop is the only thing filtering the incoming
+clock, and its rejection goes as tau. Measured on the oscillator's own rate
+under a 5% jittery clock:
+
+| PLL_TAU_S | 1.0 | 0.5 | 0.35 | 0.25 | 0.2 |
+|---|---|---|---|---|---|
+| half-cycle step, settling | 3.89s | 2.35s | **1.97s** | 1.75s | 1.66s |
+| rate wobble under 5% clock jitter | 0.013 | 0.023 | **0.029** | 0.039 | 0.046 |
+| tempo step 120 -> 140, settling | 2.99s | 1.74s | **1.37s** | 1.15s | 0.98s |
+
+Note that `rms_tail` *improves* as tau falls and is no guide here: it measures
+phase error, which a faster loop always tracks down. The cost lands on the
+output, as rate wobble, which is what the middle row measures.
+
+**`PLL_MAX_PULL` is the separate knob, and it is the one transitions feel.** A
+large error spends most of its life on the clamp, so the limit sets how fast it
+closes and how far off-rate the channel leans while doing it. At tau 0.35, the
+half-cycle step settles in 1.97s at pull 0.15, 1.55s at 0.25 and 1.41s at 0.35.
+
+**Taken: tau 0.35, pull 0.25.** 0.35 is where buying more tail speed starts
+costing visible wobble rather than nothing. A quarter off rate is a lean you can
+see on a slow LFO and not a lurch; pull 0.35 was measured and rejected because
+it pegs the clamp all the way through the settle after a fader move, which is
+the artifact the limit exists to prevent.
+
+### After (2026-08-18, PLL_TAU_S 0.35, PLL_MAX_PULL 0.25)
+
+```
+scenario                             settle     peak  cross     fdev     fslew  rms_tail      jump
+                                          s    beats      n   x rate  x rate/s     beats    cycles
+lock, x1 @ 120bpm                     0.000   0.0000      0    0.000       0.0   0.00001   0.00000
+scene A->B, x1 -> x2 (snap)           1.253   0.1797      0    0.250       1.4   0.00000   0.00001
+scene sweep, during the 1s move       never   0.2519      1    0.250     166.5   0.20411   0.00016
+scene sweep, settling after           0.896   0.2321      1    0.250       2.1   0.00000   0.00001
+ratio sweep x1 -> x4 over 3s          never   0.2514     16    0.250     166.7   0.08591   0.00024
+fader worked back and forth          17.760   0.6664     46    0.256     168.2   0.17508   0.00024
+phase step, half a cycle              1.546   0.4500      0    0.250      69.5   0.00001   0.00004
+tempo step, 120 -> 140bpm             1.365   0.0509      0    0.067      15.9   0.00058   0.00001
+x0.75, 240s alignment                 0.000   0.0000      0    0.000       0.0   0.00001   0.00000
+x1, 5% clock jitter                  29.986   0.0207     42    0.029       8.2   0.00889   0.00000
+clock lost 6s, then back              0.000   0.0009      0    0.001       0.4   0.00001   0.00000
+phase step @ 500us tick               1.646   0.5000      0    0.250      69.5   0.00001   0.00004
+phase step @ 2000us tick              1.748   0.4986      0    0.250      27.8   0.00206   0.00022
+```
+
+| | tau 1.0 / pull 0.15 | tau 0.35 / pull 0.25 |
+|---|---|---|
+| half-cycle phase step, settling | 3.894s | **1.546s** |
+| scene snap x1 -> x2, settling | 3.340s | **1.253s** |
+| crossfade, settling after | 3.181s | **0.896s** |
+| tempo step, settling | 2.992s | **1.365s** |
+| ringing, every case | 0-1 crossings | 0-1 crossings |
+| rate wobble, 5% clock jitter | 0.013 | 0.029 |
+| lean during a fader move | 0.138 | 0.250 |
+| steady-state RMS, long-run alignment | 0.00003 | **0.00001** |
+
+Nothing got slower and nothing started ringing. What was bought with a 2.5x
+faster loop is a doubled rate wobble under a clock that is itself 5% wobbly, and
+a quarter-rate rather than a seventh-rate lean while a fader is moving.
+
+**`phase step, half a cycle` now asserts `settle_s < 2.5`.** The suite's bounds
+are otherwise deliberately loose, and this one still is in the direction that
+matters - it cannot fail on an improvement - but the speed is now a decision
+rather than an accident, and something should hold it.
+
+**Where the clock edge is stamped still does not matter**, though this is the
+change that would have made it. The argument earlier in this document turned on
+`rms_tail` being 0.00002 beats against a 248 us DAC frame; at tau 0.35 it reads
+0.00001. Revisit at tau far below 0.2s, not before.
 
 ### Still to check on hardware
 
