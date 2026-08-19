@@ -88,9 +88,46 @@ static void copy_scene_channel(int8_t c_src, int8_t s_src, int8_t c_dst, int8_t 
          sizeof state->engine_config->channel_state[c_dst].params[s_dst]);
 }
 
+// Channel -> channel takes the settings with it, not just the numbers, and is
+// the exact mirror of what a held clear drops. A shape mode is what a channel
+// *is*: copying only the parameters produced a destination that sounded nothing
+// like its source, which read as the copy having silently failed. The pattern
+// length goes with the shape for the same reason, and the two routings go
+// because a copy that is not modulated by what its source was modulated by is
+// the same half-state clear_channel already refuses to leave behind.
+//
+// The output clamp is the exception, for the reason it is per channel at all:
+// it describes what the destination is patched into, and nothing about that
+// changed because something was copied over it.
+//
+// Parameters are still the active scene only. The other scenes belong to the
+// crossfade that is set up, and channel -> scene is the gesture for those.
 void assign_channel_to_channel(int8_t c_src, int8_t c_dst, UxState* state)
 {
+  if (!channel_ok(c_src) || !channel_ok(c_dst))
+    return;
+
   copy_scene_channel(c_src, state->engine_state->active_scene, c_dst, state->engine_state->active_scene, state);
+
+  const ChannelConfig* src = &state->engine_config->channel_state[c_src];
+  ChannelConfig* dst       = &state->engine_config->channel_state[c_dst];
+
+  dst->src_input      = src->src_input;
+  dst->input_amp_mode = src->input_amp_mode;
+  dst->shape_mode     = src->shape_mode;
+  dst->st_length_idx  = src->st_length_idx;
+  dst->src_trig       = src->src_trig;
+  dst->quantize_mode  = src->quantize_mode;
+
+  // A trig source copied verbatim can land pointing at the destination itself,
+  // which is the self-trigger assign_trig_src_use_channel refuses to create -
+  // the channel would sit in trig mode waiting on its own gate and never
+  // update. Resolved the same way it is there.
+  if (dst->src_trig == TRIG_SRC_CHANNEL(c_dst))
+  {
+    dst->src_trig      = -1;
+    dst->quantize_mode = QUANTIZE_DISABLED;
+  }
 }
 
 void assign_channel_to_scene(int8_t c_src, int8_t s_dst, UxState* state)

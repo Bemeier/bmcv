@@ -10,7 +10,9 @@
 //
 //   scene -> scene       duplicate every channel's params
 //   channel -> scene     put this channel's params into another scene
-//   channel -> channel   within the active scene
+//   channel -> channel   the active scene's params plus the channel's own
+//                        settings - shape, pattern length, both routings - but
+//                        not the output clamp
 //   input -> channel     which input modulates it (MIX)
 //   trig src -> channel  what samples it (QNT)
 //

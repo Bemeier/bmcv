@@ -236,7 +236,13 @@
         still works as a trigger source. Mute clears on a power cycle.</dd>
 
         <dt><b class="ref">CPY</b> — copy</dt>
-        <dd>Pick a scene or a channel to copy from, then one to copy to.</dd>
+        <dd>Pick a scene or a channel to copy from, then one to copy to. Channel
+        to channel carries the whole channel — its parameters in the active
+        scene plus its shape mode and pattern length, its <b class="ref">MIX</b>
+        routing and its <b class="ref">QNT</b> mode and trigger — but not the
+        output clamp, for the same reason a hold-clear leaves that alone. Channel
+        to scene copies that channel's parameters into another scene; scene to
+        scene does it for every channel at once.</dd>
 
         <dt><b class="ref">CLR</b> — clear</dt>
         <dd>Scenes: pick a scene to clear. Encoders: tap clears that channel in
