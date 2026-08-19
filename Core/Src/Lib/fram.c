@@ -10,6 +10,23 @@ void fram_init(SPI_HandleTypeDef* spi, GPIO_TypeDef* port, uint16_t pin)
   fram_spi     = spi;
   fram_cs_port = port;
   fram_cs_pin  = pin;
+
+  // Deselect the part before anything talks to it, and this is the only place
+  // that can. MX_GPIO_Init brings PA15 up *low*, so the FRAM is selected from
+  // the moment that pin becomes an output until the first transaction happens
+  // to raise it - and the rest of the peripheral init runs inside that window,
+  // MX_SPI3_Init switching PB3 from JTDO to SPI3_SCK among it. Something in
+  // there clocks the part while it is listening for an opcode, because the
+  // first READ after reset is answered by nothing: the module read FFFFFFFF
+  // where the record's magic should be, on every reset, until this line.
+  //
+  // Which cost the module its startup state and nothing else, so it looked
+  // like a storage fault rather than a boot one. The failing transaction still
+  // left CS high on the way out, which put the state machine back in step for
+  // every access after it - the autosave wrote correctly, an explicit save and
+  // recall worked, and only the read at boot, the one that restores the last
+  // patch, ever saw it.
+  HAL_GPIO_WritePin(fram_cs_port, fram_cs_pin, GPIO_PIN_SET);
 }
 
 // Static: the part needs this immediately before every write, so fram_Write
