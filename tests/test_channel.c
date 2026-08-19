@@ -300,8 +300,9 @@ static void setup_pwm(Fixture* f, int16_t shp, int16_t mod)
   fixture_set_param(f, 0, 0, CH_PARAM_MOD, mod);
 }
 
-// Where in the cycle the output peaks, as a fraction. Which edge the ramp is on
-// is the whole point of MOD's sign, and it is what the peak position shows.
+// Where in the cycle the output peaks, as a fraction. Which end of the pulse
+// the level is at when it opens is the whole point of MOD's sign, and it is
+// what the peak position shows.
 static float peak_position(const float* v, int n)
 {
   int best = 0;
@@ -324,9 +325,27 @@ static int intermediate_samples(const float* v, int n)
   return count;
 }
 
-// MOD 0 is still a gate; either side of it the gate grows an envelope, on the
-// edge the sign picks and confined to that edge's own segment.
-TEST_CASE(pwm_mod_puts_an_envelope_on_one_edge_or_the_other)
+// The first and last sample at full swing, which bound the plateau. -1 for
+// both when the envelope never gets there.
+static void plateau_bounds(const float* v, int n, int* first, int* last)
+{
+  *first = -1;
+  *last  = -1;
+  for (int i = 0; i < n; i++)
+  {
+    if (v[i] > 19000.0f)
+    {
+      if (*first < 0)
+        *first = i;
+      *last = i;
+    }
+  }
+}
+
+// MOD 0 is still a gate, which is what keeps a PWM channel usable as a clock
+// divider. The ends of the knob are one ramp filling the pulse - a pure decay
+// one way, a pure attack the other.
+TEST_CASE(pwm_mod_ends_are_a_pure_decay_and_a_pure_attack)
 {
   const int N = 400;
   float v[400];
@@ -337,38 +356,84 @@ TEST_CASE(pwm_mod_puts_an_envelope_on_one_edge_or_the_other)
   sweep_cycle(&f, v, N);
   CHECK(intermediate_samples(v, N) <= 2); // only the two crossings
 
-  // Negative: instant attack, then a decay through the off-time. The peak is
-  // at the very start of the cycle and the ramp is real.
+  // Negative: instant attack, then a decay that finishes with the pulse. The
+  // peak is at the very start of the cycle.
   setup_pwm(&f, 0, -INT16_MAX);
   sweep_cycle(&f, v, N);
   CHECK(intermediate_samples(v, N) > N / 8);
-  CHECK(peak_position(v, N) < 0.25f);
+  CHECK(peak_position(v, N) < 0.05f);
 
-  // Positive: a swell across the on-time, then a hard drop. The peak is at the
-  // end of the on-time, which at this width is the middle of the cycle.
+  // Positive: a swell across the whole pulse and then a hard drop, so the peak
+  // is where the gate closes - at this width, halfway through the cycle.
   setup_pwm(&f, 0, INT16_MAX);
   sweep_cycle(&f, v, N);
   CHECK(intermediate_samples(v, N) > N / 8);
-  CHECK(peak_position(v, N) > 0.25f);
+  CHECK(peak_position(v, N) > 0.4f && peak_position(v, N) < 0.55f);
 }
 
-// Each ramp stays inside its own segment, so the width still means what it says
-// however far MOD is turned: a narrow pulse decays over the long off-time, and
-// the on-time itself stays narrow.
-TEST_CASE(the_pwm_envelope_stays_inside_its_own_segment)
+// The point of the mapping. Off centre the pulse carries an attack, a plateau
+// and a decay at once, and MOD's sign says which of the two ramps gets the
+// larger share of the budget.
+//
+// Under the mapping before it the two ramps sat on opposite sides of the pulse
+// edge - the rise inside the on-time, the fall inside the off-time - so they
+// could never coexist and no setting on the knob was an AD envelope.
+TEST_CASE(pwm_mod_off_centre_gives_an_attack_a_plateau_and_a_decay)
+{
+  const int N    = 400;
+  const int gate = N / 2; // SHP 0 is a half-cycle pulse
+  float v[400];
+  int first, last;
+
+  Fixture f;
+
+  // Half a turn toward the decay: a quarter of the pulse is ramp, split
+  // three-to-one in the decay's favour.
+  setup_pwm(&f, 0, -INT16_MAX / 2);
+  sweep_cycle(&f, v, N);
+  plateau_bounds(v, N, &first, &last);
+
+  CHECK(first > 0);             // an attack ran before the plateau
+  CHECK(last > first);          // the plateau is a plateau, not a corner
+  CHECK(last < gate - 1);       // and a decay ran after it, inside the pulse
+  CHECK((gate - last) > first); // the decay is the longer of the two
+
+  // The same turn the other way, and the two ramps swap shares.
+  setup_pwm(&f, 0, INT16_MAX / 2);
+  sweep_cycle(&f, v, N);
+  plateau_bounds(v, N, &first, &last);
+
+  CHECK(first > 0);
+  CHECK(last > first);
+  CHECK(last < gate - 1);
+  CHECK(first > (gate - last)); // the attack is now the longer one
+}
+
+// Both ramps live inside the pulse, so the width still means what it says
+// however far MOD is turned: past the pulse the output is at the floor.
+//
+// This is the coupling the change removes. The decay used to be spent on the
+// off-time, which ran its length *inverse* to the width - a narrow pulse rang
+// on for the rest of the cycle whether or not that was wanted, and a wide one
+// had nowhere to decay into at all.
+TEST_CASE(the_pwm_envelope_stays_inside_the_pulse)
 {
   const int N = 400;
   float v[400];
 
   Fixture f;
-  setup_pwm(&f, -25000, -INT16_MAX); // narrow pulse, full decay
+  setup_pwm(&f, -25000, -INT16_MAX); // narrow pulse, all decay
   sweep_cycle(&f, v, N);
 
-  // Width here is ~13% of the cycle, so the decay has the remaining ~87% to
-  // run through and the output is still falling well past the halfway point.
-  CHECK(v[N / 2] > -20000.0f);
-  CHECK(v[N - 1] < v[N / 2]);
-  CHECK(peak_position(v, N) < 0.2f);
+  CHECK(peak_position(v, N) < 0.05f);
+  CHECK(intermediate_samples(v, N) > 4); // the decay is real, not a corner
+
+  // Width here is ~13% of the cycle, so the whole envelope is over long before
+  // halfway and the rest of the cycle is flat.
+  for (int i = N / 4; i < N; i++)
+  {
+    CHECK(v[i] == -20000.0f);
+  }
 }
 
 // A host is free to hand the engine any beat_freq it likes, and one that is
@@ -415,7 +480,8 @@ int main(void)
   RUN_TEST(pattern_length_applies_immediately_while_the_encoder_is_turning);
   RUN_TEST(the_output_clamp_bounds_the_swing_without_rescaling_it);
   RUN_TEST(pwm_is_a_square_whose_duty_follows_the_shape_parameter);
-  RUN_TEST(pwm_mod_puts_an_envelope_on_one_edge_or_the_other);
-  RUN_TEST(the_pwm_envelope_stays_inside_its_own_segment);
+  RUN_TEST(pwm_mod_ends_are_a_pure_decay_and_a_pure_attack);
+  RUN_TEST(pwm_mod_off_centre_gives_an_attack_a_plateau_and_a_decay);
+  RUN_TEST(the_pwm_envelope_stays_inside_the_pulse);
   return TESTKIT_SUMMARY();
 }

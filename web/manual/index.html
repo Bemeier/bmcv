@@ -354,14 +354,19 @@
         a skewed sine; a triangle becomes a ramp, which is where the saw comes
         from. At 0 the phase is passed through untouched.</dd>
 
-        <dt>PWM — an <b>envelope</b> on one edge</dt>
-        <dd>At 0 it is a hard gate. Negative snaps up at phase 0 and decays
-        through the off-time; positive swells across the on-time and drops at the
-        end. Each ramp stays inside its own segment, so the width still means
-        what it says at either extreme. The ramps are curved rather than linear —
-        the attack quick off the floor and easing into the plateau, the decay
-        steep with a tail — which is what makes the negative side read as an
-        envelope and not a triangle.</dd>
+        <dt>PWM — an <b>attack and decay</b> inside the pulse</dt>
+        <dd>How much of the pulse is ramp rather than plateau, and how that ramp
+        is split between its two ends. At 0 it is a hard gate, so the channel is
+        still a clock divider. Part way round you get an attack, a plateau and a
+        decay — an AD envelope, biased toward the decay on the negative side and
+        toward the attack on the positive. Fully left is one decay filling the
+        pulse, which is the percussive shape; fully right is one attack and then
+        a hard drop. Both ramps stay inside the pulse, so
+        <b class="ref">SHP</b> is the envelope's length as much as the gate's
+        width — a short trigger with a long tail is a <i>wide</i> SHP at MOD
+        fully left. The ramps are curved rather than linear — the attack quick
+        off the floor and easing into the plateau, the decay steep with a tail —
+        which is what makes them read as an envelope and not a triangle.</dd>
 
         <dt>Stepped — <b>motion</b>: density and the ease together</dt>
         <dd>One axis from flowing to hard. Fully left every step takes a new

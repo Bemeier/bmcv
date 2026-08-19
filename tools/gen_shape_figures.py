@@ -15,7 +15,7 @@ OUT = "docs/images"
 MODES = {
     "lfo": ("wavetable", "SHP slices the table, MOD leans where the cycle spends its time"),
     "stepped": ("stepped", "SHP is the distribution, MOD the motion"),
-    "pwm": ("PWM", "SHP is the pulse width, MOD the ramps"),
+    "pwm": ("PWM", "SHP is the pulse width, MOD the envelope"),
 }
 
 # Matches gen_wavetable.py, so the two sets of plots read as one family.

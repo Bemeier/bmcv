@@ -60,15 +60,29 @@ because there is nothing between 8 steps and 12 for a crossfade to land on. See
 ![PWM](images/shape-pwm.svg)
 
 A gate with an envelope on it. **SHP** is the pulse width, off both end stops so
-the pulse never disappears entirely. **MOD** splits ramp time between the two
-edges, each confined to its own segment - the rise inside the on-time, the fall
-inside the off-time - so the width still means what it says at either extreme.
-MOD 0 is a hard gate, negative snaps up and decays, positive swells and then
-drops.
+the pulse never disappears entirely. **MOD** is how much of that pulse is ramp
+rather than plateau, and its sign is how the ramp is split between the two ends:
 
-The ramps are curved rather than linear, which is what makes the negative side
-read as an envelope rather than as a triangle: the attack is concave and the
-decay convex.
+| | |
+|---|---|
+| 0 | a hard gate, so a PWM channel is still a clock divider |
+| part way | attack, plateau, decay - an AD envelope, biased by the sign |
+| hard left | one decay filling the pulse: percussive, instant attack |
+| hard right | one attack filling the pulse: a ramp up, then a hard drop |
+
+Both ramps live inside the pulse, so **SHP is the envelope's length** as much as
+the gate's width, and nothing bleeds past it. A short trigger with a long tail
+is a wide SHP at MOD hard left rather than a narrow one.
+
+MOD used to give each edge its own segment - the rise inside the on-time, the
+fall inside the off-time. That kept the width honest, but it put the two ramps on
+opposite sides of the pulse edge so they could never coexist, and no setting on
+the knob was an AD envelope. It also ran the decay's length *inverse* to the
+width, because what it had to spend was the off-time: a wide pulse had nowhere
+to decay into.
+
+The ramps are curved rather than linear, which is what makes them read as an
+envelope rather than as a triangle: the attack is concave and the decay convex.
 
 ## What the modes share
 
