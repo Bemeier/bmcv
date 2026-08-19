@@ -36,7 +36,7 @@ static float value(const char* mode, float phase, float shape, float mod)
   }
 
   StDrive d   = st_drive(shape, mod);
-  StNorm norm = st_norm_exact(shape, mod, STEPPED_LENGTH_IDX);
+  StNorm norm = st_norm_exact(shape, mod, STEPPED_LENGTH_IDX, &d);
   return stepped_shape_with(phase, shape, mod, STEPPED_LENGTH_IDX, &d, &norm);
 }
 
