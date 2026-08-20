@@ -8,6 +8,13 @@
 # bump VERSION and CHANGELOG.md, so a PR that would silently break the next
 # release fails here instead. `release` is that bump, run for real once a
 # push to main has cleared every other job - see its own comment below.
+#
+# Every job carries a `timeout-minutes`. Without one a job inherits Actions'
+# 6h ceiling, which is not a timeout so much as a way to not find out: on
+# 2026-08-18 `apt-get update` wedged mid-fetch and CI, Pages and the Rack
+# plugin each burned six hours before being killed, reporting nothing. These
+# are set well above what each job takes (~2-7 minutes) - they exist to bound
+# a hang, not to police a slow run. scripts/ci-apt.sh is the other half.
 name: CI
 
 on:
@@ -23,9 +30,10 @@ jobs:
   host:
     name: tests + flows
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
-      - run: sudo apt-get update && sudo apt-get install -y ninja-build
+      - run: scripts/ci-apt.sh ninja:ninja-build
       - uses: extractions/setup-just@v4
 
       - name: Unit tests
@@ -42,9 +50,10 @@ jobs:
   wasm:
     name: wasm + frontend
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
-      - run: sudo apt-get update && sudo apt-get install -y ninja-build
+      - run: scripts/ci-apt.sh ninja:ninja-build
       - uses: extractions/setup-just@v4
       # Kept in step with .tool-versions, which is what a local checkout gets.
       # web/smoke.mjs, frontend-check.mjs and update/dfu-check.mjs are the only
@@ -67,13 +76,14 @@ jobs:
   firmware:
     name: ARM firmware
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     # The HAL is not vendored - cmake/stm32cubemx/CMakeLists.txt reads it out of
     # an STM32Cube FW package. Keep in step with toolchain.default.cmake.
     env:
       CUBE_G4_VERSION: v1.6.1
     steps:
       - uses: actions/checkout@v7
-      - run: sudo apt-get update && sudo apt-get install -y gcc-arm-none-eabi ninja-build
+      - run: scripts/ci-apt.sh ninja:ninja-build arm-none-eabi-gcc:gcc-arm-none-eabi
       - uses: extractions/setup-just@v4
 
       - name: Cache STM32Cube FW
@@ -133,15 +143,17 @@ jobs:
   format:
     name: clang-format
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - uses: extractions/setup-just@v4
-      - run: sudo apt-get update && sudo apt-get install -y clang-format-18
+      - run: scripts/ci-apt.sh clang-format-18:clang-format-18
       - run: CLANG_FORMAT=clang-format-18 just fmt-check
 
   commits:
     name: commit messages
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v7
@@ -166,6 +178,7 @@ jobs:
     name: release
     needs: [host, wasm, firmware, format]
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     permissions:
       contents: write

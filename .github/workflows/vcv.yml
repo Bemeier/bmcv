@@ -49,6 +49,7 @@ jobs:
   build:
     name: ${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       # One platform's toolchain breaking says nothing about the other three,
       # and a release wants to know about all of them in one run.
@@ -59,9 +60,15 @@ jobs:
             os: ubuntu-24.04
           # Cross-built from Linux. Ubuntu 24.04's MinGW is GCC 13, the oldest
           # that compiles the core's C23 - see vcv/Makefile.
+          #
+          # `command:package` pairs, not a package list: scripts/ci-apt.sh
+          # installs only the ones whose command the image does not already
+          # ship, so the common case never touches a mirror at all.
           - arch: win-x64
             os: ubuntu-24.04
-            apt: gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64
+            apt: >-
+              x86_64-w64-mingw32-gcc:gcc-mingw-w64-x86-64
+              x86_64-w64-mingw32-g++:g++-mingw-w64-x86-64
           # macos-15 is arm64 - every unsuffixed macos label has been since
           # macos-14 - and the -intel labels are the only x86_64 ones. Apple
           # Clang 17 on both images compiles the core's C23; a bare
@@ -87,7 +94,7 @@ jobs:
 
       - name: Cross toolchain
         if: matrix.apt
-        run: sudo apt-get update && sudo apt-get install -y ${{ matrix.apt }}
+        run: scripts/ci-apt.sh ${{ matrix.apt }}
 
       # plugin.mk reads the manifest with jq and packs the .vcvplugin with zstd.
       # Every image currently ships both - macos-15 has jq 1.8.2 and zstd 1.5.7
@@ -145,6 +152,7 @@ jobs:
       ${{ !cancelled() && github.event_name == 'workflow_dispatch'
           && inputs.tag != '' }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     permissions:
       contents: write
     steps:
