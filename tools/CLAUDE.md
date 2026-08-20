@@ -17,7 +17,7 @@ properties these guarantee are asserted, not assumed.
 | `just layout-check` | `dump_layout.py` + `gen_layout_asserts.py` | `sim/include/layout_target.h` |
 | `just vcv-compdb` | `gen_compdb.py` | `vcv/compile_commands.json` |
 | `just shape-figures` | `dump_shapes.c` + `gen_shape_figures.py` | `docs/images/shape-*.svg` |
-| `just docs-shots` | headless Chrome | `docs/images/web-overview.png` |
+| `just docs-shots` | `shoot.mjs` + headless Chrome | `docs/images/{web-overview,led-language}.png`, `web/manual/{panel,scopes}.png` |
 
 Notes that matter:
 
@@ -36,6 +36,15 @@ Notes that matter:
   `dump_shapes.c`, for the same reason: a picture of a shape the firmware does
   not have is worse than no picture. One SVG per mode, SHP down the rows and MOD
   across the columns.
+- **`shoot.mjs` drives the panel to the state each picture shows**, through the
+  browser's own input events and `panel.json`'s coordinates — so a screenshot is
+  generated output like everything else here, and what it is a picture of is
+  readable rather than being whatever someone had on screen. They were
+  hand-taken until the LED palette moved and every one of them quietly became a
+  picture of colours the module no longer has. No dependencies: the DevTools
+  protocol is a WebSocket and node has had one built in since 22. The two shots
+  of a *running* module wait for the channels to swing positive before the
+  shutter, so a still of a live oscillator is not a matter of luck.
 - **`gen_panel_spec.py` merges KiCad output with the firmware's own `HwSetup`
   tables**, so positions and roles derive from board and firmware together.
   `tests/test_panel_spec.c` asserts they agree. What genuinely cannot be

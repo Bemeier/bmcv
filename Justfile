@@ -325,26 +325,23 @@ vcv-win-install: (vcv "win-x64")
 	  cp vcv/plugin.json "$d/" && cp -r vcv/res "$d/" && \
 	  echo "installed to $d"'
 
-# The screenshots in docs/. Needs a Chrome or Chromium; under WSL that is the
-# Windows one, so export its path:
+# The screenshots in docs/ and web/manual/. Needs a Chrome or Chromium; a Linux
+# one is easiest, and a Playwright cache has one already:
+#   export CHROME=~/.cache/ms-playwright/chromium-*/chrome-linux64/chrome
+# Under WSL the Windows browser works too, at the cost of a round trip through
+# wslpath for every path it is handed:
 #   export CHROME="/mnt/c/Program Files/Google/Chrome/Application/chrome.exe"
 CHROME := env_var_or_default("CHROME", "chromium")
 
-docs-shots PORT="8123": wasm
+# One shot by name (`just docs-shots led-language`), or all four with no
+# argument. tools/shoot.mjs holds what each one is a picture of, and drives the
+# panel to get there - so the state a screenshot shows is readable and re-runs.
+docs-shots ONLY="" PORT="8123": wasm
 	bash -c 'set -e; \
-	  python3 -m http.server {{PORT}} --directory web >/dev/null 2>&1 & \
+	  python3 scripts/serve.py {{PORT}} web >/dev/null 2>&1 & \
 	  srv=$!; trap "kill $srv" EXIT; sleep 2; \
 	  mkdir -p docs/images; \
-	  tmp=$(mktemp -d); \
-	  "{{CHROME}}" --headless --disable-gpu --hide-scrollbars \
-	    --window-size=1500,1000 --virtual-time-budget=6000 \
-	    --screenshot="$(command -v wslpath >/dev/null && wslpath -w "$tmp/shot.png" || echo "$tmp/shot.png")" \
-	    "http://localhost:{{PORT}}/" >/dev/null 2>&1; \
-	  cp "$tmp/shot.png" docs/images/web-overview.png; \
-	  rm -rf "$tmp"'
-	@echo "wrote docs/images/web-overview.png"
-	@echo "web/manual/*.png and docs/images/led-language.png come from the same"
-	@echo "page with body::before hidden - see the comment in web/manual/index.html"
+	  CHROME="{{CHROME}}" node tools/shoot.mjs --url=http://localhost:{{PORT}} --only={{ONLY}}'
 
 # Everything that can be checked without hardware or a browser.
 #
