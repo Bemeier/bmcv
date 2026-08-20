@@ -31,8 +31,13 @@ static const uint8_t shape_mode_color[SHAPE_MODE_COUNT] = {HUE_STATE_DEFAULT, HU
 static const uint8_t input_mode_color[INPUT_MODE_COUNT] = {HUE_STATE_DEFAULT, HUE_STATE_EVENT, HUE_STATE_RESET, HUE_STATE_LEVEL};
 
 // The output clamp is two facts - polarity and range - so it uses two axes:
-// purple for bipolar and green for unipolar, dim for the half range. The one
+// purple for bipolar and teal for unipolar, dim for the half range. The one
 // place brightness carries meaning in a base layer.
+//
+// Teal and not the green it used to be, even though the clamp is the one
+// setting that is genuinely about volts: green on a ring is a reading, and the
+// clamp is a setting. The mnemonic it costs - green as "positive only" - is
+// worth less than the rule it was breaking on the page most about output level.
 //
 // The full-range settings sit at VAL_BASE, which is where they always sat -
 // this page is where the base level came from, since it was already a step
@@ -40,8 +45,8 @@ static const uint8_t input_mode_color[INPUT_MODE_COUNT] = {HUE_STATE_DEFAULT, HU
 static const UiColor clamp_mode_color[CLAMP_MODE_COUNT] = {
     [CLAMP_BI_10]  = {HUE_PURPLE, SAT_HIG, VAL_BASE},
     [CLAMP_BI_5]   = {HUE_PURPLE, SAT_HIG, VAL_LOW},
-    [CLAMP_UNI_10] = {HUE_GREEN, SAT_HIG, VAL_BASE},
-    [CLAMP_UNI_5]  = {HUE_GREEN, SAT_HIG, VAL_LOW},
+    [CLAMP_UNI_10] = {HUE_TEAL, SAT_HIG, VAL_BASE},
+    [CLAMP_UNI_5]  = {HUE_TEAL, SAT_HIG, VAL_LOW},
 };
 
 static void set(UxState* s, int16_t led, UiColor c) { led_set_hsv(s, led, c.h, c.s, c.v); }
@@ -162,16 +167,23 @@ static float pulse_phase(const UxState* s, float rate_hz, float phase)
 // blink timer: the row used to be multiplied by the fast blink, and eight rings
 // flashing in unison say nothing about any of them.
 //
-// The peak also runs slightly warm - down the wheel as it brightens, which is
-// what a filament does and reads as more contrast than brightness alone gives.
-// Subtracted rather than added so the peak is the warm end, and bounded by
-// RING_PULSE_HUE_SWING so no division class can pulse into another one's
-// colour. Every HUE_FREQ_* is well clear of zero, so this cannot wrap.
+// The peak also shifts slightly in hue, which reads as more contrast than
+// brightness alone gives, and is bounded by RING_PULSE_HUE_SWING so no division
+// class can pulse into another one's colour.
+//
+// Inward, toward the middle of the scale. It used to run down the wheel - what
+// a filament does as it brightens - which was right while the scale was green
+// to orange and is wrong now that it is teal to pink: subtracting from teal
+// walks it toward the green arm of the voltage arc, which is the one direction
+// this must not go. Toward HUE_FREQ_TRIPLET from either end keeps the guard
+// band whatever the pulse is doing, and cannot wrap.
 static UiColor ring_pulse(const UxState* s, UiColor c, float rate_hz, float phase)
 {
   float pulse = 0.5f * (1.0f + cosf(2.0f * 3.14159265f * pulse_phase(s, rate_hz, phase)));
   c.v         = (uint8_t) (RING_PULSE_V_MIN + (RING_PULSE_V_MAX - RING_PULSE_V_MIN) * pulse);
-  c.h         = (uint8_t) (c.h - (uint8_t) (RING_PULSE_HUE_SWING * pulse));
+
+  uint8_t swing = (uint8_t) (RING_PULSE_HUE_SWING * pulse);
+  c.h           = (uint8_t) (c.h < HUE_FREQ_TRIPLET ? c.h + swing : c.h - swing);
   return c;
 }
 
@@ -189,18 +201,36 @@ static void render_channel_param_edit(UxState* s, const ChannelSetup* ch)
   if (s->ui->param_display_hold == 0)
     return;
 
-  int16_t value = s->engine_config->channel_state[ch->id].params[s->engine_state->active_scene][s->engine_config->selected_param];
+  const ChannelConfig* cfg = &s->engine_config->channel_state[ch->id];
+  uint8_t param            = s->engine_config->selected_param;
+  int16_t value            = cfg->params[s->engine_state->active_scene][param];
 
+  // Three readings, because the six parameters are three kinds of thing.
+  //
   // Frequency is a ratio, not a level, so it reads as a coded colour rather
   // than a bipolar bar: hue for which kind of division, saturation for how far
   // off the grid it sits, brightness pulsing at the rate it produces.
-  if (s->engine_config->selected_param == CH_PARAM_FRQ)
+  if (param == CH_PARAM_FRQ)
   {
     const ChannelEffective* eff = &s->engine_state->channels_effective[ch->id];
     set(s, ch->led, ring_pulse(s, ui_channel_freq_color(value), eff->freq_hz, eff->phase));
+    return;
   }
-  else
-    led_set_adcr(s, ch->led, value);
+
+  // Amplitude and offset are volts - the swing and where it sits - so they wear
+  // the voltage ramp, on the converter they are actually in. They used to go
+  // through led_set_adcr, whose scale is a quarter of the DAC's: every one of
+  // these parameters read full at 2.5V of a 10V range, and the top three
+  // quarters of the knob looked identical.
+  if (param == CH_PARAM_AMP || param == CH_PARAM_OFS)
+  {
+    led_set_dac(s, ch->led, value);
+    return;
+  }
+
+  // The rest are numbers. Same ramp, in the pair the arc cannot reach, with
+  // saturation saying whether the value is on something with a name.
+  led_set_signed(s, ch->led, value, INT16_MAX, HUE_SIGNED_NEG, HUE_SIGNED_POS, ui_channel_param_sat(param, value, cfg->shape_mode));
 }
 
 /* ---- layer 1b: what letting go would do -------------------------------- */
@@ -297,6 +327,10 @@ static void render_channel_base(UxState* s, const ChannelSetup* ch, const UiMode
   case CHBASE_MUTE:
     // Both states are lit here: on the page whose subject is mute, "passing"
     // is as much a state as "gated" and a dark ring would read as neither.
+    //
+    // Which is also why passing is cyan and not the live output it once
+    // tempted us toward: a channel sitting at 0V would draw a dark ring, and
+    // dark is the one thing this page must not say.
     set(s, ch->led, s->ui->muted[ch->id] ? UI_COL_MUTED : UI_COL_UNMUTED);
     break;
 

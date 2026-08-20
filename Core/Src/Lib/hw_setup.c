@@ -20,7 +20,12 @@ static const HwSetup hw_setup = {
     .ctrl_button_led_idx      = {8, 9, 10, 11, 12, 13, -1, -1, -1},
     .scene_button_led_idx     = {20, 19, 18, 17, 16, 15, 14},
 
-    .ctrl_button_color = {HUE_MAGENTA, HUE_YELLOW, HUE_CYAN, HUE_RED, HUE_GREEN, HUE_BLUE, 0, 0, 0},
+    // The six lit caps, and the one place red and green are not a voltage: a cap
+    // is a label. It never shows a value, so it cannot be misread as one, which
+    // is why PHS keeps red and AMP keeps green while the rings around them do
+    // not. FRQ's hue is the same 200 it always was; only its name changed when
+    // HUE_MAGENTA and HUE_PURPLE turned out to be the same position.
+    .ctrl_button_color = {HUE_PURPLE, HUE_YELLOW, HUE_CYAN, HUE_RED, HUE_GREEN, HUE_BLUE, 0, 0, 0},
 };
 
 const HwSetup* HwSetup_Get(void) { return &hw_setup; }

@@ -1,0 +1,75 @@
+#!args --rate=250ms --emit=leds
+# Every colour a ring can wear, in one pass. The palette is a set of decisions
+# about what means what, and until this existed those decisions were pinned only
+# case by case in test_led_render.c - so a hue could move and nothing would
+# notice except the one case that named it.
+#
+# The rule it holds: red and green are a voltage reading, and nothing else on a
+# ring uses them. Read it as the blue term of a channel LED - zero for a level,
+# nonzero for every setting. Channel c is led channel_led_idx[c], so channels
+# 0..3 are led5, led4, led7, led6.
+#
+# Encoders are not channels: channel_encoder_idx maps enc3 -> ch0, enc2 -> ch1,
+# enc4 -> ch2, enc5 -> ch3, which is why the turns below look shuffled.
+# A settings encoder also steps one value per tick however far it is turned -
+# see step_setting - so two-step moves are two events.
+#
+# No clock, so the oscillators sit still and the only thing moving is what the
+# script does.
+0ms     slider 0.0
+
+# AMP selected, and the param ring is volts on the DAC's own scale: ch0 positive
+# and ch1 negative, both with the blue die dark.
+250ms   ctrl SAV 1
+300ms   ctrl SAV 0
+500ms   enc 3 +40
+750ms   enc 2 -40
+
+# SHP selected: the same ramp for a number that is not volts, in teal and pink.
+# ch2 lands near a named shape, ch3 between two of them.
+1250ms  ctrl SYS 1
+1300ms  ctrl SYS 0
+1500ms  enc 4 +48
+1750ms  enc 5 -20
+
+# The shape page: purple default on ch2/ch3, cyan stepped on ch0, blue PWM on
+# ch1. ch0 stays stepped so the pattern length below has something to draw.
+2250ms  ctrl SYS 1
+2750ms  ctrl SYS 0
+3000ms  enc 3 +1
+3250ms  enc 2 +1
+3500ms  enc 2 +1
+
+# Pattern length on the one stepped channel: the division scale, teal to blue to
+# pink as the prime limit changes.
+4000ms  ctrl STA 1
+4500ms  ctrl STA 0
+4750ms  enc 3 +1
+5000ms  enc 3 +1
+
+# Cross-modulation: purple off, teal additive on ch0, cyan multiplying on ch1.
+5500ms  ctrl MIX 1
+6000ms  ctrl MIX 0
+6250ms  enc 3 +1
+6500ms  enc 2 +1
+6750ms  enc 2 +1
+
+# Mute: purple gated on ch0, cyan passing everywhere else. Both states lit.
+7250ms  ctrl MUT 1
+7750ms  ctrl MUT 0
+8000ms  chbtn 0 1
+8050ms  chbtn 0 0
+
+# Output clamp: purple bipolar, teal unipolar, dim for the half range.
+8500ms  ctrl SAV 1
+9000ms  ctrl SAV 0
+9250ms  enc 3 +1
+9500ms  enc 2 +1
+9750ms  enc 2 +1
+
+# And the two tinted pages, where every ring is the one act the page performs.
+10250ms ctrl CPY 1
+10750ms ctrl CPY 0
+11250ms ctrl CLR 1
+11750ms ctrl CLR 0
+12500ms end

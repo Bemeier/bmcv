@@ -29,6 +29,17 @@ void ui_channel_update(const ChannelSetup* ch, UxState* state);
 // zero - red - and that is what flashed the whole row on leaving a mode.
 UiColor ui_channel_freq_color(int16_t value);
 
+// Saturation for the ring that shows a signed parameter - SHP, MOD or PHS.
+//
+// The hue there is only the sign and the brightness only the magnitude, which
+// leaves saturation to say the thing a number cannot: whether the value is on
+// something with a name. Pure on a named shape, on no lean, on a whole or a
+// half turn of phase; washing to a pastel between two of them.
+//
+// Takes the shape mode because SHP is a different axis in each: the wavetable's
+// named slices, the even square in PWM, and nothing in stepped.
+uint8_t ui_channel_param_sat(uint8_t param, int16_t value, int8_t shape_mode);
+
 // The division hue for a whole number of parts: its prime limit once the
 // octaves are divided out, as HUE_FREQ_*. Shared with the stepped
 // pattern length, which is a division of the beat in exactly the same sense -

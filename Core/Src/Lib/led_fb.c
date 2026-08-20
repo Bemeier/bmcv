@@ -280,6 +280,62 @@ void led_set_bipolar(UxState* state, int16_t idx, int32_t val, int32_t half_scal
   led->b = 0;
 }
 
+// A signed value that is not a voltage: same ramp, two hues that the voltage
+// arc cannot reach.
+//
+// Everything about the shape is deliberately the voltage ramp's - the knee, the
+// gamma, the neutral crossing, dark at zero - so that reading one teaches the
+// other. Only the colour family differs, and that difference is the whole
+// message: teal and pink light the blue die, which led_set_bipolar never does.
+//
+// Through led_set_hsv rather than onto the dies directly, because that is where
+// the per-hue light balancing already lives. led_set_bipolar mixes two
+// primaries and so has to weight them itself; a hue pair does not.
+//
+// `full_scale` is the value that reaches the top of the ramp, and `sat` is the
+// caller's - the parameter ring spends saturation on how near a landmark the
+// value sits, the same way the FRQ ring spends it on how near a grid ratio.
+void led_set_signed(UxState* state, int16_t idx, int32_t val, int32_t full_scale, uint8_t hue_neg, uint8_t hue_pos, uint8_t sat)
+{
+  if (idx < 0 || idx >= LED_COUNT)
+    return;
+  if (full_scale <= 0)
+    return;
+
+  // Widened before negating, as in led_set_bipolar: -INT32_MIN is not
+  // representable in an int32.
+  int64_t wide    = (val < 0) ? -(int64_t) val : (int64_t) val;
+  int32_t abs_val = (int32_t) (wide > INT32_MAX ? INT32_MAX : wide);
+
+  float x = (float) abs_val / (float) full_scale;
+  if (x > 1.0f)
+    x = 1.0f;
+
+  float lightness = LED_CV_FLOOR + (1.0f - LED_CV_FLOOR) * cv_lightness(x);
+  float y         = powf(lightness, LED_GAMMA);
+
+  // The same light at full scale as the voltage ramp puts out, so the row does
+  // not jump when the parameter display decays back to the output level.
+  // LED_CV_CEIL is duty on a nominal weight-1.0 die; a palette value is light
+  // against LED_PALETTE_REF, so the two are that ratio apart.
+  float v = y * (LED_CV_CEIL / LED_PALETTE_REF) * (float) LED_UNIT;
+
+  float hue = (float) (val < 0 ? hue_neg : hue_pos);
+
+  // Neutral at the crossing, for the reason the ramp has an ember there: the
+  // zero itself should be visible rather than being a red or a green too dim to
+  // name. Both hues are on the same side of the wheel, so the midpoint between
+  // them is a blend and never a wrap.
+  if (x < LED_CV_ZERO_SPAN)
+  {
+    float mid = 0.5f * ((float) hue_neg + (float) hue_pos);
+    float t   = 1.0f - x / LED_CV_ZERO_SPAN;
+    hue += (mid - hue) * t;
+  }
+
+  set_hsv_fine(state, idx, (uint8_t) (hue + 0.5f), sat, (uint16_t) v);
+}
+
 void led_set_adcr(UxState* state, int16_t idx, int16_t val) { led_set_bipolar(state, idx, val, ADC_5V); }
 
 void led_set_dac(UxState* state, int16_t idx, int32_t val) { led_set_bipolar(state, idx, val, DAC_5V); }

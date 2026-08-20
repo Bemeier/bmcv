@@ -16,6 +16,7 @@
 #include "ui_select.h"
 #include "ui_sparkle.h"
 #include "ux_state.h"
+#include "wavetables.h"
 
 static LedRgb led_of_ctrl_button(Fixture* f, uint8_t btn_id) { return f->engine_state.leds[f->ux_setup->ctrl_buttons[btn_id].led]; }
 
@@ -43,6 +44,16 @@ static uint16_t value_of(LedRgb c)
 static int bluest(LedRgb c) { return c.b > c.r && c.b > c.g; }
 static int greenest(LedRgb c) { return c.g > c.r && c.g > c.b; }
 static int purple(LedRgb c) { return bluest(c) && c.r > c.g; }
+static int cyan(LedRgb c) { return bluest(c) && c.g > c.r; }
+
+// Distance between two hues on a wheel that wraps at 256. The palette now uses
+// both ends of it - pink sits 26 below where red begins again - so a plain
+// subtraction stopped meaning "how far apart do these look".
+static int hue_gap(int a, int b)
+{
+  int d = a > b ? a - b : b - a;
+  return d > 128 ? 256 - d : d;
+}
 
 // Well clear of it, for telling a colour's own hue from its rounding tail.
 static int dominates(uint16_t major, uint16_t minor) { return major > minor * 4; }
@@ -253,16 +264,16 @@ TEST_CASE(a_shift_mode_shows_its_own_setting_and_never_the_output_level)
   fixture_init(&f);
   f.ui_state.shift_state                      = SHIFT_STATE_SYS;
   f.engine_state.channels_output_level[1]     = -DAC_5V;   // red, were it shown
-  f.engine_config.channel_state[1].shape_mode = SHAPE_PWM; // yellow as a value
+  f.engine_config.channel_state[1].shape_mode = SHAPE_PWM; // blue as a value
 
   ui_render(&f.ux);
   LedRgb l = led_of_channel(&f, 1);
-  CHECK(l.g > 0 && dominates(l.g, l.b)); // the shape colour, not a red level...
+  CHECK(bluest(l) && dominates(l.b, l.r)); // the shape colour, not a red level...
 
   // ...and it does not decay back to anything: there is nothing transient here.
   f.ui_state.param_display_hold = 0;
   ui_render(&f.ux);
-  CHECK(led_of_channel(&f, 1).g > 0);
+  CHECK(bluest(led_of_channel(&f, 1)));
 }
 
 // A mode with no per-channel setting leaves the ring dark rather than falling
@@ -280,7 +291,7 @@ TEST_CASE(a_mode_with_no_channel_setting_leaves_the_channel_leds_dark)
 
 // The mute page is the one place both states are lit, since "passing" is as
 // much a state there as "gated".
-TEST_CASE(the_mute_page_shows_green_for_passing_and_purple_for_gated)
+TEST_CASE(the_mute_page_shows_cyan_for_passing_and_purple_for_gated)
 {
   Fixture f;
   fixture_init(&f);
@@ -290,8 +301,11 @@ TEST_CASE(the_mute_page_shows_green_for_passing_and_purple_for_gated)
   ui_render(&f.ux);
   CHECK(purple(led_of_channel(&f, 2)));
 
+  // Cyan, not the green it used to be: green on a ring is a level, and this is
+  // a state. Both are blue-dominant, so what separates them is which of the
+  // other two primaries is up - red for purple, green for cyan.
   LedRgb passing = led_of_channel(&f, 3);
-  CHECK(passing.g > 0 && greenest(passing));
+  CHECK(cyan(passing));
 }
 
 // Pattern length is a stepped-mode setting, so on the channels where turning
@@ -337,7 +351,7 @@ TEST_CASE(pattern_length_only_lights_the_channels_it_applies_to)
 }
 
 // One scale for both pages: the hue a division wears depends on its prime limit
-// and on nothing else, so a triplet is the same yellow whether it is the rate a
+// and on nothing else, so a triplet is the same blue whether it is the rate a
 // channel runs at or the way its pattern subdivides.
 TEST_CASE(the_division_hue_codes_the_prime_limit_and_is_shared_by_both_pages)
 {
@@ -352,16 +366,22 @@ TEST_CASE(the_division_hue_codes_the_prime_limit_and_is_shared_by_both_pages)
 
   CHECK(ui_division_hue(5) == HUE_FREQ_QUINTUPLET);
 
-  // Three classes, distinct, and none of them red - red is errors.
+  // Three classes, distinct.
   CHECK(HUE_FREQ_STRAIGHT != HUE_FREQ_TRIPLET);
   CHECK(HUE_FREQ_TRIPLET != HUE_FREQ_QUINTUPLET);
-  CHECK(HUE_FREQ_QUINTUPLET != HUE_RED);
 
   // Spread rather than packed. Two gaps to keep: wide enough that the pulse's
   // own hue swing cannot walk one class into the next, and wide enough to tell
   // apart on a panel - which the old 13 between yellow and orange was not.
-  CHECK(HUE_FREQ_TRIPLET - HUE_FREQ_QUINTUPLET > 4 * RING_PULSE_HUE_SWING);
-  CHECK(HUE_FREQ_QUINTUPLET - HUE_RED > 4 * RING_PULSE_HUE_SWING);
+  // Measured around the wheel, since quintuplet now sits near the far end of it.
+  CHECK(hue_gap(HUE_FREQ_TRIPLET, HUE_FREQ_QUINTUPLET) > 4 * RING_PULSE_HUE_SWING);
+  CHECK(hue_gap(HUE_FREQ_STRAIGHT, HUE_FREQ_TRIPLET) > 4 * RING_PULSE_HUE_SWING);
+
+  // And clear of the voltage arc at both ends. A division is a ratio, not a
+  // level, and the scale used to be drawn in the colours of one: green is the
+  // +3V ring, and the old quintuplet orange was the zero crossing exactly.
+  CHECK(hue_gap(HUE_FREQ_STRAIGHT, HUE_GREEN) >= 25);
+  CHECK(hue_gap(HUE_FREQ_QUINTUPLET, HUE_RED) >= 25);
 }
 
 // The scale has three classes and the lengths are chosen to stay inside them.
@@ -425,8 +445,12 @@ TEST_CASE(the_output_clamp_reads_as_polarity_by_hue_and_range_by_brightness)
   CHECK(bluest(bi_10) && bluest(bi_5)); // bipolar reads purple
   CHECK(bi_10.b > bi_5.b);              // ...bright for the full range, dim for half
 
+  // Unipolar reads teal - green-dominant, but with the blue die well up, which
+  // is exactly what tells it from the arc's green. led_set_bipolar leaves blue
+  // dark at every voltage.
   LedRgb uni_10 = led_of_channel(&f, 2), uni_5 = led_of_channel(&f, 3);
-  CHECK(greenest(uni_10) && greenest(uni_5)); // unipolar reads green
+  CHECK(greenest(uni_10) && greenest(uni_5));
+  CHECK(uni_10.b > 0 && uni_5.b > 0);
   CHECK(uni_10.g > uni_5.g);
 }
 
@@ -691,7 +715,7 @@ TEST_CASE(a_channel_above_the_pulse_ceiling_does_not_follow_its_own_phase)
 }
 
 // Hue is the ratio's prime limit and nothing else: 1/8 and 16 are both straight
-// divisions and wear the same green, while 1/3 and 3/2 are both triplets.
+// divisions and wear the same teal, while 1/3 and 3/2 are both triplets.
 TEST_CASE(the_frequency_hue_codes_the_prime_limit_of_the_ratio)
 {
   Fixture f;
@@ -719,22 +743,28 @@ TEST_CASE(the_frequency_hue_codes_the_prime_limit_of_the_ratio)
   CHECK(eighth.r == six16.r && eighth.g == six16.g && eighth.b == six16.b);
   CHECK(third.r == dotted.r && third.g == dotted.g && third.b == dotted.b);
 
-  // Green -> yellow -> orange: green has no red in it, and the two warm classes
-  // are separated by how much green is left.
-  CHECK(greenest(eighth));
-  CHECK(third.r > 0 && third.g > 0);
-  CHECK(five.r > 0 && five.g > 0);
-  CHECK(third.g > five.g); // yellow keeps more green than orange
+  // Teal -> blue -> pink, walking the cool half. Every one of them lights the
+  // blue die, which is what says none of these is a voltage; what separates
+  // them is how the light is split with it.
+  CHECK(eighth.b > 0 && third.b > 0 && five.b > 0);
+  CHECK(greenest(eighth));         // teal: mostly green, a good deal of blue
+  CHECK(bluest(third));            // blue: almost all of it
+  CHECK(five.r > 0 && five.b > 0); // pink: red and blue, no green
+  CHECK(eighth.g > third.g);       // teal keeps far more green than blue does
+  CHECK(five.g < third.g);         // and pink keeps none at all
 }
 
-// The peak runs warmer than the trough, which is what gives the pulse contrast
-// beyond brightness alone.
-TEST_CASE(the_frequency_pulse_warms_the_hue_as_it_brightens)
+// The peak shifts in hue against the trough, which is what gives the pulse
+// contrast beyond brightness alone - and it shifts *inward*, toward the middle
+// of the scale. Downward was right while the scale ran green to orange; on this
+// one it would walk a straight division toward the green arm of the voltage
+// arc, which is the one direction the palette must not go.
+TEST_CASE(the_frequency_pulse_shifts_the_hue_inward_as_it_brightens)
 {
   Fixture f;
   fixture_init(&f);
   show_freq(&f);
-  fixture_set_param(&f, 0, 0, CH_PARAM_FRQ, 0); // 1x, straight -> green
+  fixture_set_param(&f, 0, 0, CH_PARAM_FRQ, 0); // 1x, straight -> teal
 
   set_pulse(&f, 0, 1.0f, 0.5f); // trough
   ui_render(&f.ux);
@@ -744,8 +774,9 @@ TEST_CASE(the_frequency_pulse_warms_the_hue_as_it_brightens)
   ui_render(&f.ux);
   LedRgb peak = led_of_channel(&f, 0);
 
-  // Warmer means proportionally more red against the green it is mixed into.
-  CHECK(peak.r * trough.g > trough.r * peak.g);
+  // Teal is below the triplet blue it moves toward, so inward is up the wheel:
+  // proportionally more blue against the green it is mixed into.
+  CHECK(peak.b * trough.g > trough.b * peak.g);
 }
 
 // The hue swing must not be able to carry one class into another's colour.
@@ -802,11 +833,20 @@ TEST_CASE(a_value_off_the_frequency_grid_desaturates)
   // Rounding must not cost a snapped ratio its pure colour.
   CHECK(nearly.r == snapped.r && nearly.g == snapped.g && nearly.b == snapped.b);
 
-  // Still a tinted pastel, not white: the floor stays well under the peak.
-  // Both sides in framebuffer units, since this is about the shape of the
-  // colour rather than about how bright it was drawn.
-  uint16_t peak = between.r > between.g ? between.r : between.g;
-  CHECK(between.b * 2 < peak);
+  // Still a tinted pastel, not white: the dimmest primary stays well under the
+  // brightest. Measured as lowest against highest rather than as blue against
+  // the warm pair, which only meant "not white" while the scale was warm - the
+  // hue here is teal now, and blue is one of the two primaries carrying it.
+  uint16_t hi = between.r, lo = between.r;
+  if (between.g > hi)
+    hi = between.g;
+  if (between.b > hi)
+    hi = between.b;
+  if (between.g < lo)
+    lo = between.g;
+  if (between.b < lo)
+    lo = between.b;
+  CHECK(lo * 2 < hi);
 }
 
 // With no mode active the ring is a level meter, and the parameter being edited
@@ -829,6 +869,168 @@ TEST_CASE(the_selected_parameter_shows_on_touch_and_decays_back_to_the_output_le
   ui_render(&f.ux);
   LedRgb settled = led_of_channel(&f, 1);
   CHECK(settled.r > 0 && settled.g == 0); // back to the negative output level
+}
+
+/* ---- volts against everything else ------------------------------------- */
+
+static void show_param(Fixture* f, uint8_t param)
+{
+  f->ui_state.shift_state         = SHIFT_STATE_NONE;
+  f->engine_config.selected_param = param;
+  f->ui_state.param_display_hold  = UI_EDIT_DISPLAY;
+}
+
+// The rule the palette is built on, as an assertion rather than as taste.
+//
+// led_set_bipolar paints with the red and green dies and leaves blue dark at
+// every voltage - see no_output_level_lights_the_blue_die. So the way to say
+// "this ring is not showing a level" is for it to light blue, and every control
+// colour does: 56% of the light at HUE_TEAL, 65% at HUE_PINK. A hue distance
+// would be a matter of taste; this is checkable.
+//
+// Every page, every value of its setting. What made this necessary: the shift
+// pages had drifted into using green for additive, green for unipolar, green
+// for passing and green for a straight division, none of which is a voltage,
+// while the ring next door used the same green for +3V.
+TEST_CASE(no_page_paints_a_ring_in_the_voltage_colours)
+{
+  for (uint8_t mode = 0; mode < SHIFT_STATE_NONE; mode++)
+  {
+    for (int8_t v = 0; v < 4; v++)
+    {
+      Fixture f;
+      fixture_init(&f);
+      f.ui_state.shift_state = mode;
+
+      // Whichever setting this page shows, wound to one of its values. Out of
+      // range for a given enum is fine - the renderer clamps, and the point is
+      // that no reachable combination paints a level.
+      for (uint8_t c = 0; c < N_CHANNELS; c++)
+      {
+        ChannelConfig* cfg  = &f.engine_config.channel_state[c];
+        cfg->shape_mode     = (int8_t) (v % SHAPE_MODE_COUNT);
+        cfg->quantize_mode  = (int8_t) (v % QUANTIZE_MODE_COUNT);
+        cfg->input_amp_mode = (int8_t) (v % INPUT_AMP_MODE_COUNT);
+        cfg->clamp_mode     = (int8_t) (v % CLAMP_MODE_COUNT);
+        cfg->st_length_idx  = (int8_t) (v % ST_LENGTH_COUNT);
+        f.ui_state.muted[c] = (uint8_t) (c & 1);
+      }
+
+      ui_render(&f.ux);
+
+      for (uint8_t c = 0; c < N_CHANNELS; c++)
+      {
+        LedRgb l = led_of_channel(&f, c);
+        if (!lit(l))
+          continue; // a page with nothing to say about this channel
+        CHECK(l.b > 0);
+      }
+    }
+  }
+}
+
+// Amplitude and offset are the two parameters that are volts, and they are held
+// in DAC units - so they are drawn on the DAC's scale.
+//
+// They used to go through led_set_adcr, whose ramp runs out at 2 * ADC_5V:
+// every parameter read full at a quarter of its range, and the two that are
+// voltages read full at 2.5V of the 10V the module can put out. Three
+// quarters of the knob looked the same.
+TEST_CASE(amplitude_is_drawn_on_the_converter_it_is_stored_in)
+{
+  Fixture f;
+  fixture_init(&f);
+  show_param(&f, CH_PARAM_AMP);
+
+  fixture_set_param(&f, 0, 0, CH_PARAM_AMP, DAC_5V / 2);
+  fixture_set_param(&f, 1, 0, CH_PARAM_AMP, DAC_5V);
+  fixture_set_param(&f, 2, 0, CH_PARAM_AMP, INT16_MAX); // ~10V
+  ui_render(&f.ux);
+
+  uint16_t quarter = value_of(led_of_channel(&f, 0));
+  uint16_t half    = value_of(led_of_channel(&f, 1));
+  uint16_t full    = value_of(led_of_channel(&f, 2));
+
+  CHECK(quarter < half && half < full); // all three distinct, none saturated early
+
+  // And it is still the voltage ramp: the blue die stays dark.
+  CHECK(led_of_channel(&f, 2).b == 0);
+}
+
+// SHP, MOD and PHS are numbers. Same ramp - dark at zero, brightening toward
+// either end - in the pair the arc cannot reach, so a shape setting can never
+// be read as a level.
+TEST_CASE(a_number_parameter_reads_as_a_number_and_not_as_a_level)
+{
+  Fixture f;
+  fixture_init(&f);
+  show_param(&f, CH_PARAM_MOD);
+
+  fixture_set_param(&f, 0, 0, CH_PARAM_MOD, INT16_MAX);
+  fixture_set_param(&f, 1, 0, CH_PARAM_MOD, INT16_MIN + 1);
+  fixture_set_param(&f, 2, 0, CH_PARAM_MOD, 0);
+  ui_render(&f.ux);
+
+  LedRgb pos = led_of_channel(&f, 0);
+  LedRgb neg = led_of_channel(&f, 1);
+
+  CHECK(pos.b > 0 && neg.b > 0); // neither is a voltage
+  CHECK(greenest(pos));          // teal
+  CHECK(pos.r == 0);
+  CHECK(neg.r > 0 && neg.b > 0); // pink
+  CHECK(neg.g < neg.r);
+
+  // Zero is dark, the way it is on the voltage ramp - the same reading, so the
+  // same floor.
+  CHECK(!lit(led_of_channel(&f, 2)));
+}
+
+// Saturation is the third fact on that ring: whether the value is on something
+// with a name. The named shapes come out of the generated table, so a slice
+// moving in the wavetable moves the mark with it.
+TEST_CASE(a_named_shape_reads_pure_and_the_space_between_it_washes_out)
+{
+  const int16_t triangle = (int16_t) (((float) WT_SLICE_TRIANGLE * 2.0f / (float) WT_SLICES - 1.0f) * (float) INT16_MAX);
+  const int16_t pointy   = (int16_t) (((float) WT_SLICE_POINTY * 2.0f / (float) WT_SLICES - 1.0f) * (float) INT16_MAX);
+
+  Fixture f;
+  fixture_init(&f);
+  show_param(&f, CH_PARAM_SHP);
+
+  fixture_set_param(&f, 0, 0, CH_PARAM_SHP, triangle);
+  fixture_set_param(&f, 1, 0, CH_PARAM_SHP, (int16_t) ((triangle + pointy) / 2));
+  ui_render(&f.ux);
+
+  CHECK(less_saturated_than(led_of_channel(&f, 1), led_of_channel(&f, 0)));
+}
+
+// SHP is a different axis in every shape mode, so the marks are too: the
+// wavetable's named slices in LFO, and nothing in the other two, where the axis
+// runs from a centre the ramp already draws dark and has no second named place
+// to be told from. A mark set that ignored the mode would wash a PWM width
+// against a triangle that is not on that page.
+TEST_CASE(the_shape_landmarks_follow_the_shape_mode)
+{
+  const int16_t triangle = (int16_t) (((float) WT_SLICE_TRIANGLE * 2.0f / (float) WT_SLICES - 1.0f) * (float) INT16_MAX);
+  const int16_t pointy   = (int16_t) (((float) WT_SLICE_POINTY * 2.0f / (float) WT_SLICES - 1.0f) * (float) INT16_MAX);
+
+  // Pure on the wavetable's named shapes, washed between two of them.
+  CHECK(ui_channel_param_sat(CH_PARAM_SHP, triangle, SHAPE_LFO) == SAT_MAX);
+  CHECK(ui_channel_param_sat(CH_PARAM_SHP, pointy, SHAPE_LFO) == SAT_MAX);
+  CHECK(ui_channel_param_sat(CH_PARAM_SHP, (int16_t) ((triangle + pointy) / 2), SHAPE_LFO) < SAT_MAX);
+
+  // The same value is never washed in the other two modes, which have no marks.
+  CHECK(ui_channel_param_sat(CH_PARAM_SHP, triangle, SHAPE_PWM) == SAT_MAX);
+  CHECK(ui_channel_param_sat(CH_PARAM_SHP, triangle, SHAPE_STEPPED) == SAT_MAX);
+
+  // MOD has none either: its only named value is the centre, where the ramp is
+  // dark and the wash could not be seen anyway.
+  CHECK(ui_channel_param_sat(CH_PARAM_MOD, INT16_MAX / 3, SHAPE_LFO) == SAT_MAX);
+
+  // Phase keeps two that are worth hitting blind: a whole turn either way,
+  // which is no offset at all, and the half turn that is anti-phase.
+  CHECK(ui_channel_param_sat(CH_PARAM_PHS, INT16_MAX / 2, SHAPE_LFO) == SAT_MAX);
+  CHECK(ui_channel_param_sat(CH_PARAM_PHS, INT16_MAX / 4, SHAPE_LFO) < SAT_MAX);
 }
 
 /* ---- the bipolar ramp -------------------------------------------------- */
@@ -1325,7 +1527,7 @@ int main(void)
   RUN_TEST(a_muted_channel_reads_purple_wherever_mute_is_what_the_led_shows);
   RUN_TEST(a_shift_mode_shows_its_own_setting_and_never_the_output_level);
   RUN_TEST(a_mode_with_no_channel_setting_leaves_the_channel_leds_dark);
-  RUN_TEST(the_mute_page_shows_green_for_passing_and_purple_for_gated);
+  RUN_TEST(the_mute_page_shows_cyan_for_passing_and_purple_for_gated);
   RUN_TEST(pattern_length_only_lights_the_channels_it_applies_to);
   RUN_TEST(the_division_hue_codes_the_prime_limit_and_is_shared_by_both_pages);
   RUN_TEST(every_pattern_length_lands_on_a_division_class);
@@ -1341,10 +1543,15 @@ int main(void)
   RUN_TEST(the_frequency_pulse_stays_inside_its_brightness_band);
   RUN_TEST(a_channel_above_the_pulse_ceiling_does_not_follow_its_own_phase);
   RUN_TEST(the_frequency_hue_codes_the_prime_limit_of_the_ratio);
-  RUN_TEST(the_frequency_pulse_warms_the_hue_as_it_brightens);
+  RUN_TEST(the_frequency_pulse_shifts_the_hue_inward_as_it_brightens);
   RUN_TEST(the_pulse_never_swings_one_frequency_class_into_another);
   RUN_TEST(a_value_off_the_frequency_grid_desaturates);
   RUN_TEST(the_selected_parameter_shows_on_touch_and_decays_back_to_the_output_level);
+  RUN_TEST(no_page_paints_a_ring_in_the_voltage_colours);
+  RUN_TEST(amplitude_is_drawn_on_the_converter_it_is_stored_in);
+  RUN_TEST(a_number_parameter_reads_as_a_number_and_not_as_a_level);
+  RUN_TEST(a_named_shape_reads_pure_and_the_space_between_it_washes_out);
+  RUN_TEST(the_shape_landmarks_follow_the_shape_mode);
   RUN_TEST(equal_magnitudes_read_equally_bright_on_both_polarities);
   RUN_TEST(the_ramp_rises_monotonically_and_spends_most_of_itself_below_5v);
   RUN_TEST(no_output_level_lights_the_blue_die);

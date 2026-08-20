@@ -89,9 +89,13 @@ export const TRACE_IN = '#7d8794';
 // The module says what a mode *is* with a hue, and it uses four of them for
 // everything - see HUE_STATE_* in Core/Inc/Lib/color_presets.h. The point of
 // them is that they mean the same thing wherever they appear: a jack set to
-// CLOCK and a channel set to PWM are both yellow because both are about
-// discrete events, and that is worth more than either being memorable on its
-// own.
+// CLOCK and a channel set to PWM are both blue because both are about discrete
+// events, and that is worth more than either being memorable on its own.
+//
+// They sit on the cool half of the wheel because red and green mean a voltage
+// on the module and nothing else - see the arc note in color_presets.h. RESET
+// is the exception that keeps a warm hue, since it only ever appears on a page
+// with no level anywhere on it.
 //
 // Approximations, deliberately. The module's are hues run through the LED
 // curve, which is a different thing from a colour on a screen; what matters is
@@ -99,8 +103,8 @@ export const TRACE_IN = '#7d8794';
 // that the two match to a hex digit.
 const STATE_DEFAULT = '#b39ddb'; // purple - off, disabled, neutral
 const STATE_LEVEL = '#6fd8e0';   // cyan   - continuous, follows a level
-const STATE_EVENT = '#e3c341';   // yellow - triggered, clocked, discrete steps
-const STATE_RESET = '#e8705f';   // red    - resets something
+const STATE_EVENT = '#7d8ce8';   // blue   - triggered, clocked, discrete steps
+const STATE_RESET = '#e3c341';   // yellow - resets something
 
 // Both of these are the same array ui_render.c holds, in the order config.h
 // declares the modes: input_mode_color[] and shape_mode_color[]. Written as the

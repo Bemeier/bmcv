@@ -48,6 +48,13 @@ void led_set_bipolar(UxState* state, int16_t idx, int32_t val, int32_t half_scal
 void led_set_adcr(UxState* state, int16_t idx, int16_t val);
 void led_set_dac(UxState* state, int16_t idx, int32_t val);
 
+// A signed value that is *not* a voltage - the SHP/MOD/PHS ring. The voltage
+// ramp's shape in a hue pair the arc cannot reach, so the two are never
+// confused: `hue_neg` and `hue_pos` are HUE_SIGNED_*, both of which light the
+// blue die that led_set_bipolar always leaves dark. `full_scale` is the value
+// that reaches the top of the ramp; `sat` is the caller's to spend.
+void led_set_signed(UxState* state, int16_t idx, int32_t val, int32_t full_scale, uint8_t hue_neg, uint8_t hue_pos, uint8_t sat);
+
 void led_clear_all(UxState* state);
 
 // Per-LED dither state: the sub-step remainder each primary is owed.

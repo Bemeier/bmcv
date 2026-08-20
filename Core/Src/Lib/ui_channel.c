@@ -11,6 +11,7 @@
 #include "ui_select.h"
 #include "ui_state.h"
 #include "ux_state.h"
+#include "wavetables.h"
 #include <stdint.h>
 
 // The frequency parameter steps through ratios of the beat rather than sweeping
@@ -118,24 +119,36 @@ static int32_t freq_gap(size_t idx, int16_t value)
   return 0;
 }
 
+// How near a named value counts as being on it, as a saturation.
+//
+// Pure on the mark, washing toward SAT_MED at `gap`/2 away - halfway to the
+// neighbour is the furthest off a value can be, so that is where it bottoms
+// out. Floored at SAT_MED rather than run to white: white is the assignment
+// vocabulary and nothing else may use it. The deadzone keeps a snapped value
+// pure through any rounding.
+//
+// One function for two pages. The FRQ ring spends saturation on how far off a
+// grid ratio the value sits, and the SHP/MOD/PHS ring on how far off a named
+// shape or a whole turn of phase - the same question, so it reads the same way.
+static uint8_t wash_off_mark(int32_t dist, int32_t gap)
+{
+  if (gap <= 0)
+    return SAT_MAX;
+  int32_t d_pct  = (dist * 200) / gap; // 0..100
+  int32_t washed = iclamp((d_pct - FREQ_OFFGRID_DEADZONE) * 100 / (100 - FREQ_OFFGRID_DEADZONE), 0, 100);
+  return (uint8_t) (SAT_MAX - (SAT_MAX - SAT_MED) * washed / 100);
+}
+
 UiColor ui_channel_freq_color(int16_t value)
 {
   size_t idx = freq_nearest(value);
   UiColor c  = {ratio_hue(freq_ratios[idx].p, freq_ratios[idx].q), SAT_MAX, VAL_BASE};
 
   // Off the grid, the hue still says which ratio you are near and the colour
-  // washes out to say you are not on it. Floored at SAT_MED rather than run to
-  // white: white is the assignment vocabulary and nothing else may use it.
+  // washes out to say you are not on it.
   int32_t gap = freq_gap(idx, value);
   if (gap > 0)
-  {
-    // Halfway to the neighbour is the furthest off-grid a value can be, so that
-    // is where the wash bottoms out. The deadzone keeps a snapped value pure
-    // through any rounding.
-    int32_t d_pct  = (int32_t) (abs(value - quantized_multipliers[idx]) * 200) / gap; // 0..100
-    int32_t washed = iclamp((d_pct - FREQ_OFFGRID_DEADZONE) * 100 / (100 - FREQ_OFFGRID_DEADZONE), 0, 100);
-    c.s            = (uint8_t) (SAT_MAX - (SAT_MAX - SAT_MED) * washed / 100);
-  }
+    c.s = wash_off_mark((int32_t) abs(value - quantized_multipliers[idx]), gap);
   return c;
 }
 
@@ -167,6 +180,89 @@ static int16_t freq_fine_adjust(int16_t value, int16_t delta)
     step = 1;
 
   return (int16_t) iclamp((int32_t) value + step * delta, lo, hi);
+}
+
+// The values a parameter has a name for, in parameter units.
+//
+// SHP's set depends on the shape mode, because SHP is a different axis in each
+// one. Taken from the generated WT_SLICE_*, so a slice moving in the table
+// moves the mark with it rather than leaving the ring pointing at a shape that
+// is no longer there. The wavetable axis is a loop - slice 0 is the square and
+// SHP wraps onto it from both ends - so the square appears twice, at each end
+// of the range.
+//
+// A parameter whose only named value is zero has none here, which is why MOD is
+// absent and why PWM's even square is not marked. The mark would be invisible
+// and redundant at once: the ramp is dark at zero, so there is no saturation to
+// see there, and "how far from the middle" is what the brightness either side
+// of it is already saying. The wash earns its place only where it separates one
+// named place from another - the wavetable's four shapes, phase's half and
+// whole turns.
+#define SHP_OF_SLICE(s) ((int16_t) (((float) (s) * 2.0f / (float) WT_SLICES - 1.0f) * (float) INT16_MAX))
+
+#define PARAM_MAX_MARKS 5
+
+static size_t param_landmarks(uint8_t param, int8_t shape_mode, int16_t* out)
+{
+  switch (param)
+  {
+  case CH_PARAM_SHP:
+    // PWM's width and the stepped morph both run from a centre the ramp already
+    // draws dark; neither has a second named place to be told from.
+    if (shape_mode != SHAPE_LFO)
+      return 0;
+
+    out[0] = -INT16_MAX; // square, coming round the loop
+    out[1] = SHP_OF_SLICE(WT_SLICE_SINE);
+    out[2] = SHP_OF_SLICE(WT_SLICE_TRIANGLE);
+    out[3] = SHP_OF_SLICE(WT_SLICE_POINTY);
+    out[4] = INT16_MAX; // and the square again
+    return 5;
+
+  case CH_PARAM_PHS:
+    // A whole turn either way is the same phase as none, and half a turn is
+    // anti-phase - the two positions worth being able to hit blind.
+    out[0] = -INT16_MAX;
+    out[1] = -INT16_MAX / 2;
+    out[2] = 0;
+    out[3] = INT16_MAX / 2;
+    out[4] = INT16_MAX;
+    return 5;
+
+  default:
+    return 0;
+  }
+}
+
+// Saturation for the signed parameter ring: how near a named value it sits.
+//
+// The gap a distance is measured against is to the neighbouring mark on the
+// side the value falls, or to the end of the range where there is no neighbour
+// - so a lone mark like MOD's centre washes out across the whole half rather
+// than snapping pure at a point nobody can find.
+uint8_t ui_channel_param_sat(uint8_t param, int16_t value, int8_t shape_mode)
+{
+  int16_t marks[PARAM_MAX_MARKS];
+  size_t n = param_landmarks(param, shape_mode, marks);
+  if (n == 0)
+    return SAT_MAX; // nothing named on this axis, so nothing to wash away from
+
+  size_t near = 0;
+  for (size_t i = 1; i < n; i++)
+  {
+    if (abs(value - marks[i]) < abs(value - marks[near]))
+      near = i;
+  }
+
+  int32_t gap;
+  if (value < marks[near])
+    gap = (near > 0) ? (marks[near] - marks[near - 1]) : (marks[near] - (int32_t) INT16_MIN);
+  else if (value > marks[near])
+    gap = (near + 1 < n) ? (marks[near + 1] - marks[near]) : ((int32_t) INT16_MAX - marks[near]);
+  else
+    return SAT_MAX;
+
+  return wash_off_mark(abs(value - marks[near]), gap);
 }
 
 static void ui_channel_param(const ChannelSetup* ch, UxState* state)
