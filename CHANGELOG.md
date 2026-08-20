@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.18.0 (2026-08-20)
+
+### Feat
+
+- **pwm**: MOD is an attack and a decay inside the pulse
+- **copy**: channel -> channel carries the channel's own settings
+
+### Fix
+
+- **ci**: keep newlib, and let a failed ARM build fail its own step
+- **fram**: come back on the last patch, not on the defaults
+- **dac**: let the ramp span be a guess, and stop compensating for it
+
+### Perf
+
+- **dac**: two substeps, where the engine has the headroom for them
+
 ## v0.17.2 (2026-08-18)
 
 ### Fix
