@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.20.0 (2026-08-20)
+
+### Feat
+
+- **ui**: red and green mean a voltage, and nothing else on a ring does
+
 ## v0.19.0 (2026-08-20)
 
 ### Feat
