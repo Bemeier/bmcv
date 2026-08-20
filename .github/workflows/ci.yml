@@ -109,6 +109,11 @@ jobs:
         env:
           ARM_TOOLCHAIN_DIR: /usr
         run: |
+          # pipefail, or the pipeline reports tee's status and a failed build
+          # passes this step: the ARM job then went red two steps later on
+          # `arm-none-eabi-size: No such file`, naming the missing .elf rather
+          # than the compile error that explained it.
+          set -o pipefail
           export STM32CUBE_FW_PATH="$HOME/STM32CubeG4"
           just build-ci 2>&1 | tee build.log
 

@@ -44,10 +44,14 @@ opts=(-o Acquire::Retries=3
       -o Acquire::https::Timeout=20
       -o Acquire::ForceIPv4=true)
 
+# No --no-install-recommends, however tempting. gcc-arm-none-eabi keeps
+# libnewlib-arm-none-eabi in Recommends rather than Depends, so leaving it out
+# installs a compiler with no libc headers at all and the firmware stops
+# building on `fatal error: stdio.h: No such file or directory`. Recommends is
+# what the plain apt-get install these calls replaced already pulled in.
 for attempt in 1 2 3; do
   if timeout 180 sudo apt-get update -qq "${opts[@]}" &&
-     timeout 300 sudo apt-get install -y -qq --no-install-recommends \
-       "${opts[@]}" "${missing[@]}"; then
+     timeout 300 sudo apt-get install -y -qq "${opts[@]}" "${missing[@]}"; then
     exit 0
   fi
   echo "apt attempt $attempt/3 failed or timed out" >&2
