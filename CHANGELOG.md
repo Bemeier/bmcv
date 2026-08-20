@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.19.0 (2026-08-20)
+
+### Feat
+
+- **ui**: a page is left by its own button, or by letting go of it
+
 ## v0.18.0 (2026-08-20)
 
 ### Feat
