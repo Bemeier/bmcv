@@ -32,7 +32,10 @@ TEST_CASE(a_modes_own_button_always_exits_it)
   }
 }
 
-TEST_CASE(another_ctrl_button_exits_every_mode_except_the_quantizer)
+// Any ctrl button used to exit, which put every page one stray press from
+// closing - and made the parameter row unreachable as a row, since the tap that
+// selected SHP also shut the page you wanted it on.
+TEST_CASE(another_page_button_does_not_leave_a_page)
 {
   for (uint8_t mode = 0; mode < SHIFT_STATE_NONE; mode++)
   {
@@ -43,30 +46,145 @@ TEST_CASE(another_ctrl_button_exits_every_mode_except_the_quantizer)
     latch(&f, mode);
     fixture_press(&f, ctrl_btn(&f, other), MS(40));
 
-    if (mode == SHIFT_STATE_QNT)
-      CHECK(f.ui_state.shift_state == SHIFT_STATE_QNT); // keyboard overlay owns the tap
-    else
-      CHECK(f.ui_state.shift_state == SHIFT_STATE_NONE);
+    CHECK(f.ui_state.shift_state == mode);
   }
 }
 
-// The tap that leaves a mode leaves it *and* selects the parameter on the
+// The three unlit caps are the exception, because they are the buttons that are
+// not labelled with anything else: they are the way out that does not have to
+// be the button you came in on. It includes QNT, whose keyboard overlay covers
+// the other five ctrl buttons but not these three.
+TEST_CASE(an_unlit_cap_leaves_any_page)
+{
+  for (uint8_t cap = CH_PARAM_COUNT; cap < SHIFT_STATE_NONE; cap++)
+  {
+    for (uint8_t mode = 0; mode < SHIFT_STATE_NONE; mode++)
+    {
+      Fixture f;
+      fixture_init(&f);
+      latch(&f, mode);
+      fixture_press(&f, ctrl_btn(&f, cap), MS(40));
+
+      CHECK(f.ui_state.shift_state == SHIFT_STATE_NONE);
+    }
+  }
+}
+
+// The tap that leaves a page leaves it *and* selects the parameter on the
 // button, in the same tick. The two are not in competition: the six page
 // buttons are the six parameter buttons, and a button that is labelled SHP
 // should give you SHP whether or not a page happened to be open. This was the
 // other way round for a while - the exit swallowed the tap, so getting to SHP
-// from a page meant pressing SHP, watching nothing happen, and pressing again.
+// from its own page meant pressing SHP, watching nothing happen, and pressing
+// again.
 TEST_CASE(the_tap_that_exits_a_mode_selects_that_buttons_param)
 {
   Fixture f;
   fixture_init(&f);
   f.engine_config.selected_param = CH_PARAM_FRQ;
 
-  latch(&f, SHIFT_STATE_CPY);
-  fixture_press(&f, ctrl_btn(&f, CH_PARAM_SHP), MS(40));
+  // The SYS page and the SHP parameter are the same button.
+  latch(&f, SHIFT_STATE_SYS);
+  fixture_press(&f, ctrl_btn(&f, SHIFT_STATE_SYS), MS(40));
 
   CHECK(f.ui_state.shift_state == SHIFT_STATE_NONE);
   CHECK(f.engine_config.selected_param == CH_PARAM_SHP);
+}
+
+/* ---- held pages -------------------------------------------------------- */
+
+// The performative half of the gesture: hold STA, tap the scene you want on
+// that end of the crossfader, let go, and you are back where you were with the
+// assignment made. Nothing to tap shut afterwards, which is the whole point.
+TEST_CASE(a_page_used_while_its_button_is_held_leaves_on_release)
+{
+  Fixture f;
+  fixture_init(&f);
+
+  fixture_hold(&f, ctrl_btn(&f, SHIFT_STATE_STA), UI_T_HOLD + MS(50));
+  CHECK(f.ui_state.shift_state == SHIFT_STATE_STA);
+
+  fixture_press(&f, f.ux_setup->scenes[3].button, MS(40));
+  fixture_release(&f, ctrl_btn(&f, SHIFT_STATE_STA));
+
+  CHECK(f.ui_state.shift_state == SHIFT_STATE_NONE);
+  CHECK(f.engine_config.scene_a == 3); // and the assignment stuck
+}
+
+// An encoder turn counts as using the page too - the gesture is "hold the
+// button, change the thing, let go", whichever control the thing is on.
+TEST_CASE(an_encoder_turned_while_the_page_is_held_leaves_it_on_release)
+{
+  Fixture f;
+  fixture_init(&f);
+
+  fixture_hold(&f, ctrl_btn(&f, SHIFT_STATE_SYS), UI_T_HOLD + MS(50));
+  fixture_encoder(&f, f.ux_setup->channels[2].encoder, 1);
+  fixture_release(&f, ctrl_btn(&f, SHIFT_STATE_SYS));
+
+  CHECK(f.ui_state.shift_state == SHIFT_STATE_NONE);
+  CHECK(f.engine_config.channel_state[2].shape_mode == 1);
+}
+
+// The other half: a hold that did nothing latches, which is the two-handed way
+// in and has to stay reachable without touching anything else first.
+TEST_CASE(a_page_held_without_being_used_latches)
+{
+  Fixture f;
+  fixture_init(&f);
+
+  fixture_hold(&f, ctrl_btn(&f, SHIFT_STATE_STA), UI_T_LONG + MS(500));
+  fixture_release(&f, ctrl_btn(&f, SHIFT_STATE_STA));
+
+  CHECK(f.ui_state.shift_state == SHIFT_STATE_STA);
+}
+
+// Only the press that opened the page arms the release. Once latched, the page
+// stays open however much is done on it - otherwise every assignment made with
+// a free hand would close the page under it.
+TEST_CASE(a_latched_page_stays_open_when_it_is_used)
+{
+  Fixture f;
+  fixture_init(&f);
+  latch(&f, SHIFT_STATE_STA);
+
+  fixture_press(&f, f.ux_setup->scenes[2].button, MS(40));
+
+  CHECK(f.engine_config.scene_a == 2);
+  CHECK(f.ui_state.shift_state == SHIFT_STATE_STA);
+}
+
+// Picking the source of a copy is half a gesture, so it does not arm the
+// release: letting go of CPY after choosing what to copy has to leave the page
+// open, or there is nowhere to put it.
+TEST_CASE(picking_a_source_while_the_page_is_held_keeps_it_open)
+{
+  Fixture f;
+  fixture_init(&f);
+
+  fixture_hold(&f, ctrl_btn(&f, SHIFT_STATE_CPY), UI_T_HOLD + MS(50));
+  fixture_press(&f, f.ux_setup->channels[0].button, MS(40));
+  fixture_release(&f, ctrl_btn(&f, SHIFT_STATE_CPY));
+
+  CHECK(f.ui_state.shift_state == SHIFT_STATE_CPY);
+  CHECK(ui_sel_pending(&f.ui_state));
+}
+
+// ... and the commit does arm it, so a copy performed entirely under one held
+// button ends with the page closed and the copy made.
+TEST_CASE(committing_while_the_page_is_held_leaves_on_release)
+{
+  Fixture f;
+  fixture_init(&f);
+  fixture_set_param(&f, 0, 0, CH_PARAM_FRQ, 1234);
+
+  fixture_hold(&f, ctrl_btn(&f, SHIFT_STATE_CPY), UI_T_HOLD + MS(50));
+  fixture_press(&f, f.ux_setup->channels[0].button, MS(40));
+  fixture_press(&f, f.ux_setup->channels[1].button, MS(40));
+  fixture_release(&f, ctrl_btn(&f, SHIFT_STATE_CPY));
+
+  CHECK(f.ui_state.shift_state == SHIFT_STATE_NONE);
+  CHECK(f.engine_config.channel_state[1].params[0][CH_PARAM_FRQ] == 1234);
 }
 
 TEST_CASE(leaving_a_mode_drops_any_half_finished_selection)
@@ -209,8 +327,15 @@ TEST_CASE(modes_that_select_declare_the_kind_their_buttons_address)
 int main(void)
 {
   RUN_TEST(a_modes_own_button_always_exits_it);
-  RUN_TEST(another_ctrl_button_exits_every_mode_except_the_quantizer);
+  RUN_TEST(another_page_button_does_not_leave_a_page);
+  RUN_TEST(an_unlit_cap_leaves_any_page);
   RUN_TEST(the_tap_that_exits_a_mode_selects_that_buttons_param);
+  RUN_TEST(a_page_used_while_its_button_is_held_leaves_on_release);
+  RUN_TEST(an_encoder_turned_while_the_page_is_held_leaves_it_on_release);
+  RUN_TEST(a_page_held_without_being_used_latches);
+  RUN_TEST(a_latched_page_stays_open_when_it_is_used);
+  RUN_TEST(picking_a_source_while_the_page_is_held_keeps_it_open);
+  RUN_TEST(committing_while_the_page_is_held_leaves_on_release);
   RUN_TEST(leaving_a_mode_drops_any_half_finished_selection);
   RUN_TEST(mute_toggles_on_release_rather_than_on_press);
   RUN_TEST(mute_only_affects_the_channel_whose_button_was_pressed);

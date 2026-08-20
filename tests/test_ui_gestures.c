@@ -80,11 +80,11 @@ TEST_CASE(tapping_a_param_button_in_normal_mode_selects_that_param)
   CHECK(f.engine_config.selected_param == CH_PARAM_AMP);
 }
 
-// The six page buttons are the six parameter buttons, so the tap that leaves a
-// page is also a press of a labelled parameter key and selects it. It used to
-// be swallowed by the exit, which left the previous selection in place - so
-// reaching AMP from the MIX page took pressing AMP twice.
-TEST_CASE(leaving_a_page_with_a_param_button_selects_that_param)
+// A page owns the parameter row while it is open: a tap on another parameter
+// button neither leaves the page nor moves the selection. The row is only a
+// parameter row when no page is up, which is what keeps a page from closing
+// under a press meant for it.
+TEST_CASE(a_param_button_does_nothing_while_another_page_is_open)
 {
   Fixture f;
   fixture_init(&f);
@@ -95,8 +95,8 @@ TEST_CASE(leaving_a_page_with_a_param_button_selects_that_param)
   CHECK(f.ui_state.shift_state == SHIFT_STATE_MIX);
 
   fixture_press(&f, ctrl_btn(&f, CH_PARAM_AMP), MS(40));
-  CHECK(f.ui_state.shift_state == SHIFT_STATE_NONE);
-  CHECK(f.engine_config.selected_param == CH_PARAM_AMP);
+  CHECK(f.ui_state.shift_state == SHIFT_STATE_MIX);
+  CHECK(f.engine_config.selected_param == CH_PARAM_FRQ);
 }
 
 // Including the page's own button, which is a parameter key like any other -
@@ -315,7 +315,7 @@ int main(void)
   RUN_TEST(tapping_a_ctrl_button_exits_an_active_shift_mode);
   RUN_TEST(quantizer_mode_is_not_exited_by_other_ctrl_buttons);
   RUN_TEST(tapping_a_param_button_in_normal_mode_selects_that_param);
-  RUN_TEST(leaving_a_page_with_a_param_button_selects_that_param);
+  RUN_TEST(a_param_button_does_nothing_while_another_page_is_open);
   RUN_TEST(leaving_a_page_by_its_own_button_selects_that_param_too);
   RUN_TEST(leaving_a_page_with_a_non_param_button_keeps_the_selection);
   RUN_TEST(holding_a_scene_button_activates_it_momentarily_and_release_restores);

@@ -250,7 +250,10 @@ void ui_channel_update(const ChannelSetup* ch, UxState* state)
     // On release rather than press: easier to perform accurately, and it
     // matches every other momentary action in the UI.
     if (pressed)
+    {
       state->ui->muted[ch->id] = !state->ui->muted[ch->id];
+      ui_page_note_action(state->ui);
+    }
     break;
 
   case CHB_RESET_PARAM:
@@ -277,6 +280,13 @@ void ui_channel_update(const ChannelSetup* ch, UxState* state)
 
   if (delta == 0)
     return;
+
+  // Turning an encoder counts as using the page, the same as a press does: the
+  // gesture the pages are built around is "hold the button, change the thing,
+  // let go". Asked once here rather than in each arm below - a mode that maps
+  // the encoders at all is a mode where a turn means something.
+  if (m->channel_enc_target != ENC_NONE)
+    ui_page_note_action(state->ui);
 
   switch (m->channel_enc_target)
   {

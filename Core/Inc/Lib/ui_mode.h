@@ -112,10 +112,12 @@ typedef struct
   const char* name;
 
   // QNT overlays the ctrl and scene buttons with a piano-style semitone
-  // keyboard. That single fact decides three things, which is why it is one
-  // flag and not three: a tap on another ctrl button is a note rather than
-  // "leave this mode", the semitone handler runs, and the keyboard is drawn
-  // over the scene row.
+  // keyboard. Two things read it: the semitone handler, and the renderer that
+  // draws the keyboard over the scene row.
+  //
+  // It used to decide a third - that a tap on another ctrl button was a note
+  // and not "leave this mode". It no longer has to: no lit page button exits
+  // another page now, and the three unlit caps that do are not keyboard keys.
   uint8_t keyboard_overlay;
 
   UiAction action;   // what this mode's presses perform

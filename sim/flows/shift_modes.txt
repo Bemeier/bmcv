@@ -1,12 +1,17 @@
 #!args --rate=100ms --emit=ui
-# Holding a ctrl button past UI_T_HOLD latches its shift mode; the
-# mode's own button taps out of it again. QNT is the exception that keeps its
-# buttons as a semitone keyboard, so other ctrl taps do not exit it.
+# Holding a ctrl button past UI_T_HOLD latches its shift mode; the mode's own
+# button taps out of it again. A tap on one of the *other* five lit page buttons
+# does not - the STA tap at 800ms leaves QNT open, and would have left any page
+# open.
 #
 # Watch the `param` column as well as `shift`. The six page buttons are also the
 # six parameter buttons, so the tap that leaves a page selects that button's
 # parameter in the same tick: out of QNT lands on MOD (2), out of MIX on PHS
 # (3). It starts at OFS (5), which is what a reset selects.
+#
+# The last two passes are the ways in and out that are not "tap the button you
+# came in on": a page held through the action it was opened for, and the three
+# unlit caps.
 0ms     slider 0.0
 100ms   ctrl QNT 1
 600ms   ctrl QNT 0
@@ -18,4 +23,20 @@
 1900ms  ctrl MIX 0
 2100ms  ctrl MIX 1
 2120ms  ctrl MIX 0
-2400ms  end
+
+# Held rather than latched: STB opens at 2950ms, scene 2 goes on the B end of
+# the crossfader at 3050ms, and releasing STB at 3250ms puts shift back to 9 by
+# itself. The slider sits at the B end, so the `scene` column moving to 2 is the
+# assignment landing - the page closed *and* did the thing.
+2600ms  ctrl STB 1
+3050ms  scene 2 1
+3100ms  scene 2 0
+3250ms  ctrl STB 0
+
+# An unlit cap taps any page shut, including one it did not open. CLR is not a
+# parameter button, so `param` does not move with it.
+3450ms  ctrl SYS 1
+3950ms  ctrl SYS 0
+4150ms  ctrl CLR 1
+4170ms  ctrl CLR 0
+4400ms  end

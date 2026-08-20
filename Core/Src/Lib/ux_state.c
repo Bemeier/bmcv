@@ -78,6 +78,22 @@ static void age_timers(UxState* state, uint32_t dt)
   *hold          = (*hold > dt) ? (*hold - dt) : 0;
 }
 
+// A mode's channel LEDs show that mode's own setting for as long as it is
+// active, so entry needs no reveal - only the half-finished selection from the
+// mode being left has to go.
+//
+// Called after each of the two passes that can change the page, rather than
+// once at the top: the renderer runs at the end of this tick, and a selection
+// belonging to a page that has just been left must not reach it.
+static void note_mode_change(UxState* state)
+{
+  if (state->ui->shift_state == state->ui->prev_shift_state)
+    return;
+
+  state->ui->prev_shift_state = state->ui->shift_state;
+  ui_sel_reset(state->ui);
+}
+
 void ux_update(UxState* state, uint32_t now_us)
 {
   age_timers(state, state->ui->in.dt);
@@ -87,14 +103,7 @@ void ux_update(UxState* state, uint32_t now_us)
     ui_ctrl_shift_mode(&state->ux_setup->ctrl_buttons[b], state);
   }
 
-  // A mode's channel LEDs show that mode's own setting for as long as it is
-  // active, so entry needs no reveal - only the half-finished selection from
-  // the mode being left has to go.
-  if (state->ui->shift_state != state->ui->prev_shift_state)
-  {
-    state->ui->prev_shift_state = state->ui->shift_state;
-    ui_sel_reset(state->ui);
-  }
+  note_mode_change(state);
 
   // After the shift-mode pass, not before it. The six page buttons are the six
   // parameter buttons, so the tap that leaves a mode has to be able to select
@@ -116,6 +125,12 @@ void ux_update(UxState* state, uint32_t now_us)
   {
     ui_channel_update(&state->ux_setup->channels[c], state);
   }
+
+  // After the handlers, so an action and the release of the page button that
+  // was held through it can land in the same dispatch and still count as
+  // "the page was used".
+  ui_ctrl_page_release(state);
+  note_mode_change(state);
 
   autosave(state, now_us);
 

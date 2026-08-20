@@ -148,6 +148,7 @@ void ui_sel_press(UxState* state, TargetKind kind, int8_t id, uint8_t is_long)
       else if (kind == TGT_SCENE)
         clear_scene(id, state);
       ui_feedback_emit(state->ui, FB_CLEAR, kind, id);
+      ui_page_note_action(state->ui);
     }
     return;
   }
@@ -162,6 +163,10 @@ void ui_sel_press(UxState* state, TargetKind kind, int8_t id, uint8_t is_long)
     sel->src_id   = id;
 
     on_pick_src(state, sel->action, kind, id);
+
+    // Deliberately not ui_page_note_action: picking a source is half a
+    // gesture, and a page that closed on the release of its own button here
+    // would take the other half with it.
     return;
   }
 
@@ -169,6 +174,7 @@ void ui_sel_press(UxState* state, TargetKind kind, int8_t id, uint8_t is_long)
   {
     on_deselect(state, sel->action, kind, id);
     ui_feedback_emit(state->ui, FB_CLEAR, kind, id);
+    ui_page_note_action(state->ui);
     ui_sel_reset(state->ui);
     return;
   }
@@ -178,6 +184,7 @@ void ui_sel_press(UxState* state, TargetKind kind, int8_t id, uint8_t is_long)
     commit(state, sel->action, sel->src_kind, sel->src_id, kind, id);
     // Flash the destination - the thing that changed - not the source.
     ui_feedback_emit(state->ui, FB_WRITE, kind, id);
+    ui_page_note_action(state->ui);
     ui_sel_reset(state->ui);
   }
 }

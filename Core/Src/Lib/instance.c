@@ -43,6 +43,7 @@ void bmcv_instance_init(BmcvInstance* m, const PresetIo* io, uint32_t now_us)
   // it was left on rather than on a fixed one.
   m->ui_state.shift_state     = SHIFT_STATE_NONE;
   m->ui_state.momentary_scene = -1; // 0 would read as "scene 0 held"
+  m->ui_state.page_entry_btn  = -1; // 0 would read as "the STA button is down"
   ui_sel_reset(&m->ui_state);
 
   for (uint8_t c = 0; c < N_CHANNELS; c++)

@@ -4,6 +4,7 @@
 #include "ui_input.h"
 #include "ui_mode.h"
 #include "ui_select.h"
+#include "ui_state.h"
 
 void ui_quantizer_update(UxState* state)
 {
@@ -17,6 +18,7 @@ void ui_quantizer_update(UxState* state)
     if (btn_ev(&state->ui->in, state->ux_setup->quantizer_semitones[st].button, BTN_EV_UP))
     {
       state->engine_config->quantize_mask ^= (1u << st);
+      ui_page_note_action(state->ui);
     }
   }
 }

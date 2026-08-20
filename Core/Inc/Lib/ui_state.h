@@ -96,6 +96,17 @@ typedef struct UiState
   uint8_t prev_shift_state; // to spot mode entry
   int8_t momentary_scene;   // -1 when no scene button is held
 
+  // The ctrl button whose hold opened the current page, for as long as it is
+  // still down, and whether the page has been used since. -1 when no page was
+  // opened by a button that is still held.
+  //
+  // Together they are what makes a page momentary when it is played as one:
+  // hold STA, tap a scene, let go, and the scene is wired and the page is
+  // gone. Hold and let go having done nothing and the page latches, which is
+  // the other half of the same gesture and the one that wants both hands free.
+  int8_t page_entry_btn; // ShiftStates, or -1
+  uint8_t page_used;
+
   // The selected parameter is deliberately NOT here: it is saved with the
   // patch, so it lives in EngineConfig. See the note beside it there.
 
@@ -131,5 +142,15 @@ typedef struct UiState
 // reveal and decay back from - and arming this on mode *entry* is what used to
 // flash every encoder red on the way back out.
 static inline void ui_show_param_display(UiState* ui) { ui->param_display_hold = UI_EDIT_DISPLAY; }
+
+// Record that the open page did something - an assignment, a copy, a mute, a
+// setting stepped by an encoder. Only the release of the button that opened
+// the page reads it, so a call outside a page is harmless; that is what lets
+// the action sites say "this did something" without knowing what a page is.
+//
+// Picking the *source* half of a two-step action deliberately does not call
+// this: the gesture is not finished, and leaving on the release would throw
+// the half-made copy away. See ui_select.c.
+static inline void ui_page_note_action(UiState* ui) { ui->page_used = 1; }
 
 #endif /* INC_LIB_UI_STATE_H_ */

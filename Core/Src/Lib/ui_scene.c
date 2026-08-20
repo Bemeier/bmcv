@@ -6,6 +6,7 @@
 #include "ui_input.h"
 #include "ui_mode.h"
 #include "ui_select.h"
+#include "ui_state.h"
 #include "ux_state.h"
 #include <stdint.h>
 
@@ -40,12 +41,16 @@ void ui_scene_button(const SceneSetup* scene, UxState* state)
       else
         break;
       ui_feedback_emit(state->ui, FB_WRITE, TGT_SCENE, scene->id);
+      ui_page_note_action(state->ui);
     }
     break;
 
   case SCN_INPUT_MODE:
     if (pressed)
+    {
       state->engine_config->input_mode[scene->id] = (int8_t) ((state->engine_config->input_mode[scene->id] + 1) % INPUT_MODE_COUNT);
+      ui_page_note_action(state->ui);
+    }
     break;
 
   case SCN_PRESET:
@@ -59,6 +64,7 @@ void ui_scene_button(const SceneSetup* scene, UxState* state)
         ui_feedback_emit(state->ui, FB_WRITE, TGT_SCENE, scene->id);
       else
         error_set(state->engine_state, ERR_PRESET_STORE);
+      ui_page_note_action(state->ui);
     }
     else if (pressed && btn_held(&state->ui->in, scene->button) < UI_T_VLONG)
     {
@@ -66,6 +72,7 @@ void ui_scene_button(const SceneSetup* scene, UxState* state)
         ui_feedback_emit(state->ui, FB_LOAD, TGT_SCENE, -1);
       else
         error_set(state->engine_state, ERR_PRESET_LOAD);
+      ui_page_note_action(state->ui);
     }
     break;
 
